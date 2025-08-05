@@ -820,8 +820,9 @@ export default function ExpertDashboard() {
                 </CardContent>
               </Card>
             </TabsContent>
-        </Tabs>
-      </main>
+          </Tabs>
+        </main>
+      </div>
     </div>
   )
 }
