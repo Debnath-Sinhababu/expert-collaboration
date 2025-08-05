@@ -33,7 +33,16 @@ export default function LoginPage() {
       if (error) throw error
 
       if (data.user) {
-        router.push('/')
+        const userMetadata = data.user.user_metadata
+        const role = userMetadata?.role
+        
+        if (role === 'expert') {
+          router.push('/expert/profile-setup')
+        } else if (role === 'institution') {
+          router.push('/institution/profile-setup')
+        } else {
+          router.push('/')
+        }
       }
     } catch (error: any) {
       setError(error.message)
