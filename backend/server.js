@@ -30,7 +30,25 @@ app.get('/api/health', (req, res) => {
 
 app.get('/api/experts', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1];
+    
+    let supabaseClient = supabase;
+    if (token) {
+      supabaseClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        }
+      );
+    }
+    
+    const { data, error } = await supabaseClient
       .from('experts')
       .select('*');
     
@@ -136,7 +154,25 @@ app.put('/api/experts/:id', async (req, res) => {
 
 app.get('/api/institutions', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1];
+    
+    let supabaseClient = supabase;
+    if (token) {
+      supabaseClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        }
+      );
+    }
+    
+    const { data, error } = await supabaseClient
       .from('institutions')
       .select('*');
     

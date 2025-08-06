@@ -71,29 +71,50 @@ export default function ExpertDashboard() {
 
       setUser(currentUser)
 
-      const [applicationsResponse, projectsResponse] = await Promise.all([
+      const [applicationsResponse, projectsResponse, expertsResponse] = await Promise.all([
         api.applications.getAll(),
-        api.projects.getAll()
+        api.projects.getAll(),
+        api.experts.getAll()
       ])
 
-      if (applicationsResponse.success) {
-        setApplications(applicationsResponse.data || [])
+      setApplications(applicationsResponse || [])
+      setProjects(projectsResponse || [])
+      setFilteredProjects(projectsResponse || [])
+
+      let expertProfile = null
+      if (expertsResponse && Array.isArray(expertsResponse)) {
+        console.log('Current user ID:', currentUser.id)
+        console.log('Experts data:', expertsResponse)
+        expertProfile = expertsResponse.find((expert: any) => expert.user_id === currentUser.id)
+        console.log('Found expert profile:', expertProfile)
       }
 
-      if (projectsResponse.success) {
-        setProjects(projectsResponse.data || [])
-        setFilteredProjects(projectsResponse.data || [])
+      if (expertProfile) {
+        setExpert({
+          name: expertProfile.name || 'Expert User',
+          email: expertProfile.email || currentUser.email,
+          hourly_rate: expertProfile.hourly_rate || 0,
+          rating: expertProfile.rating || 0,
+          total_ratings: expertProfile.total_ratings || 0,
+          is_verified: expertProfile.is_verified || false,
+          kyc_status: expertProfile.kyc_status || 'pending',
+          bio: expertProfile.bio || '',
+          qualifications: expertProfile.qualifications || [],
+          domain_expertise: expertProfile.domain_expertise || [],
+          resume_url: expertProfile.resume_url || '',
+          availability: expertProfile.availability || []
+        })
+      } else {
+        setExpert({
+          name: currentUser.user_metadata?.name || 'Expert User',
+          email: currentUser.email,
+          hourly_rate: 0,
+          rating: 0,
+          total_ratings: 0,
+          is_verified: false,
+          kyc_status: 'pending'
+        })
       }
-
-      setExpert({
-        name: currentUser.user_metadata?.name || 'Expert User',
-        email: currentUser.email,
-        hourly_rate: 1500,
-        rating: 4.8,
-        total_ratings: 24,
-        is_verified: true,
-        kyc_status: 'verified'
-      })
     } catch (error: any) {
       setError(error.message)
     } finally {

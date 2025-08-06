@@ -15,8 +15,14 @@ const getAuthHeaders = async () => {
 
 export const api = {
   experts: {
-    getAll: () => fetch(`${API_BASE_URL}/api/experts`).then(res => res.json()),
-    getById: (id: string) => fetch(`${API_BASE_URL}/api/experts/${id}`).then(res => res.json()),
+    getAll: async () => {
+      const headers = await getAuthHeaders()
+      return fetch(`${API_BASE_URL}/api/experts`, { headers }).then(res => res.json())
+    },
+    getById: async (id: string) => {
+      const headers = await getAuthHeaders()
+      return fetch(`${API_BASE_URL}/api/experts/${id}`, { headers }).then(res => res.json())
+    },
     create: async (data: any) => {
       const headers = await getAuthHeaders()
       return fetch(`${API_BASE_URL}/api/experts`, {
@@ -36,8 +42,14 @@ export const api = {
   },
 
   institutions: {
-    getAll: () => fetch(`${API_BASE_URL}/api/institutions`).then(res => res.json()),
-    getById: (id: string) => fetch(`${API_BASE_URL}/api/institutions/${id}`).then(res => res.json()),
+    getAll: async () => {
+      const headers = await getAuthHeaders()
+      return fetch(`${API_BASE_URL}/api/institutions`, { headers }).then(res => res.json())
+    },
+    getById: async (id: string) => {
+      const headers = await getAuthHeaders()
+      return fetch(`${API_BASE_URL}/api/institutions/${id}`, { headers }).then(res => res.json())
+    },
     create: async (data: any) => {
       const headers = await getAuthHeaders()
       return fetch(`${API_BASE_URL}/api/institutions`, {
