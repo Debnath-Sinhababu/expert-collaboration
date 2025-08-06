@@ -45,12 +45,16 @@ export const api = {
   institutions: {
     getAll: async (params?: { page?: number; limit?: number }) => {
       const headers = await getAuthHeaders()
-      const query = new URLSearchParams(params as any).toString()
+      const query = new URLSearchParams({
+        ...params as any,
+        _t: Date.now().toString() // Cache busting
+      }).toString()
       return fetch(`${API_BASE_URL}/api/institutions${query ? `?${query}` : ''}`, { headers }).then(res => res.json())
     },
     getById: async (id: string) => {
       const headers = await getAuthHeaders()
-      return fetch(`${API_BASE_URL}/api/institutions/${id}`, { headers }).then(res => res.json())
+      const query = new URLSearchParams({ _t: Date.now().toString() }).toString()
+      return fetch(`${API_BASE_URL}/api/institutions/${id}?${query}`, { headers }).then(res => res.json())
     },
     create: async (data: any) => {
       const headers = await getAuthHeaders()
@@ -73,10 +77,17 @@ export const api = {
   projects: {
     getAll: async (params?: { page?: number; limit?: number }) => {
       const headers = await getAuthHeaders()
-      const query = new URLSearchParams(params as any).toString()
+      const query = new URLSearchParams({
+        ...params as any,
+        _t: Date.now().toString() // Cache busting
+      }).toString()
       return fetch(`${API_BASE_URL}/api/projects${query ? `?${query}` : ''}`, { headers }).then(res => res.json())
     },
-    getById: (id: string) => fetch(`${API_BASE_URL}/api/projects/${id}`).then(res => res.json()),
+    getById: async (id: string) => {
+      const headers = await getAuthHeaders()
+      const query = new URLSearchParams({ _t: Date.now().toString() }).toString()
+      return fetch(`${API_BASE_URL}/api/projects/${id}?${query}`, { headers }).then(res => res.json())
+    },
     create: async (data: any) => {
       const headers = await getAuthHeaders()
       return fetch(`${API_BASE_URL}/api/projects`, {
