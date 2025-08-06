@@ -46,7 +46,12 @@ app.post('/api/experts', async (req, res) => {
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(' ')[1];
     
+    console.log('Auth header:', authHeader);
+    console.log('Token:', token ? 'Present' : 'Missing');
+    console.log('Request body:', req.body);
+    
     if (!token) {
+      console.log('No token provided');
       return res.status(401).json({ error: 'Authentication token required' });
     }
     
@@ -62,14 +67,21 @@ app.post('/api/experts', async (req, res) => {
       }
     );
     
+    console.log('Attempting to insert expert data...');
     const { data, error } = await supabaseWithAuth
       .from('experts')
       .insert([req.body])
       .select();
     
-    if (error) throw error;
+    if (error) {
+      console.log('Supabase error:', error);
+      throw error;
+    }
+    
+    console.log('Expert created successfully:', data[0]);
     res.status(201).json(data[0]);
   } catch (error) {
+    console.log('Caught error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
