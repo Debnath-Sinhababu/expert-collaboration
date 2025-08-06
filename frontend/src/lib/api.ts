@@ -85,11 +85,30 @@ export const api = {
         body: JSON.stringify(data)
       }).then(res => res.json())
     },
-    update: (id: string, data: any) => fetch(`${API_BASE_URL}/api/projects/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    }).then(res => res.json())
+    update: async (id: string, data: any) => {
+      const headers = await getAuthHeaders()
+      const response = await fetch(`${API_BASE_URL}/api/projects/${id}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(data)
+      })
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`)
+      }
+      
+      const responseText = await response.text()
+      if (!responseText) {
+        return { success: true }
+      }
+      
+      try {
+        return JSON.parse(responseText)
+      } catch (parseError) {
+        return { success: true }
+      }
+    }
   },
 
   applications: {

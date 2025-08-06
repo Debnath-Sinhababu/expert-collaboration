@@ -78,6 +78,8 @@ export default function InstitutionDashboard() {
     required_expertise: ''
   })
   const [submittingProject, setSubmittingProject] = useState(false)
+  const [editingProject, setEditingProject] = useState<any>(null)
+  const [showEditForm, setShowEditForm] = useState(false)
   const router = useRouter()
   
 
@@ -229,6 +231,80 @@ export default function InstitutionDashboard() {
       await loadInstitutionData(user.id)
     } catch (error: any) {
       setError(`Failed to ${action} application`)
+    }
+  }
+
+  const handleEditProject = (project: any) => {
+    setEditingProject(project)
+    setProjectForm({
+      title: project.title,
+      description: project.description,
+      type: project.type,
+      hourly_rate: project.hourly_rate.toString(),
+      total_budget: project.total_budget.toString(),
+      start_date: project.start_date,
+      end_date: project.end_date,
+      duration_hours: project.duration_hours.toString(),
+      required_expertise: project.required_expertise.join(', ')
+    })
+    setShowEditForm(true)
+  }
+
+  const handleUpdateProject = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!projectForm.title || !projectForm.description || !projectForm.type || !projectForm.hourly_rate) {
+      setError('Please fill in all required fields')
+      return
+    }
+
+    setSubmittingProject(true)
+    try {
+      const result = await api.projects.update(editingProject.id, {
+        title: projectForm.title,
+        description: projectForm.description,
+        type: projectForm.type,
+        hourly_rate: parseFloat(projectForm.hourly_rate),
+        total_budget: parseFloat(projectForm.total_budget) || parseFloat(projectForm.hourly_rate) * parseInt(projectForm.duration_hours || '1'),
+        start_date: projectForm.start_date,
+        end_date: projectForm.end_date,
+        duration_hours: parseInt(projectForm.duration_hours) || 1,
+        required_expertise: projectForm.required_expertise.split(',').map(s => s.trim()).filter(s => s)
+      })
+      
+      console.log('Project updated successfully:', result)
+      
+      setProjectForm({
+        title: '',
+        description: '',
+        type: '',
+        hourly_rate: '',
+        total_budget: '',
+        start_date: '',
+        end_date: '',
+        duration_hours: '',
+        required_expertise: ''
+      })
+      setShowEditForm(false)
+      setEditingProject(null)
+      await loadInstitutionData(user.id)
+      setError('')
+    } catch (error: any) {
+      console.error('Project update error:', error)
+      setError(`Failed to update project: ${error.message}`)
+    } finally {
+      setSubmittingProject(false)
+    }
+  }
+
+  const handleCloseProject = async (projectId: string) => {
+    try {
+      const result = await api.projects.update(projectId, { status: 'closed' })
+      console.log('Project closed successfully:', result)
+      await loadInstitutionData(user.id)
+      setError('')
+    } catch (error: any) {
+      console.error('Project close error:', error)
+      setError(`Failed to close project: ${error.message}`)
     }
   }
 
@@ -413,6 +489,133 @@ export default function InstitutionDashboard() {
               </form>
             </DialogContent>
           </Dialog>
+
+          {/* Edit Project Dialog */}
+          <Dialog open={showEditForm} onOpenChange={setShowEditForm}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Edit Project</DialogTitle>
+                <DialogDescription>
+                  Update your project details
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleUpdateProject} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-title">Project Title *</Label>
+                    <Input
+                      id="edit-title"
+                      placeholder="Enter project title"
+                      value={projectForm.title}
+                      onChange={(e) => setProjectForm(prev => ({ ...prev, title: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-type">Project Type *</Label>
+                    <Select value={projectForm.type} onValueChange={(value) => setProjectForm(prev => ({ ...prev, type: value }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select project type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PROJECT_TYPES.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                <div>
+                  <Label htmlFor="edit-description">Description *</Label>
+                  <Textarea
+                    id="edit-description"
+                    placeholder="Describe the project requirements and objectives..."
+                    value={projectForm.description}
+                    onChange={(e) => setProjectForm(prev => ({ ...prev, description: e.target.value }))}
+                    rows={3}
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="edit-hourly_rate">Hourly Rate (₹) *</Label>
+                    <Input
+                      id="edit-hourly_rate"
+                      type="number"
+                      placeholder="Enter hourly rate"
+                      value={projectForm.hourly_rate}
+                      onChange={(e) => setProjectForm(prev => ({ ...prev, hourly_rate: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-duration_hours">Duration (hours)</Label>
+                    <Input
+                      id="edit-duration_hours"
+                      type="number"
+                      placeholder="Total hours"
+                      value={projectForm.duration_hours}
+                      onChange={(e) => setProjectForm(prev => ({ ...prev, duration_hours: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-total_budget">Total Budget (₹)</Label>
+                    <Input
+                      id="edit-total_budget"
+                      type="number"
+                      placeholder="Maximum budget"
+                      value={projectForm.total_budget}
+                      onChange={(e) => setProjectForm(prev => ({ ...prev, total_budget: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-start_date">Start Date</Label>
+                    <Input
+                      id="edit-start_date"
+                      type="date"
+                      value={projectForm.start_date}
+                      onChange={(e) => setProjectForm(prev => ({ ...prev, start_date: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-end_date">End Date</Label>
+                    <Input
+                      id="edit-end_date"
+                      type="date"
+                      value={projectForm.end_date}
+                      onChange={(e) => setProjectForm(prev => ({ ...prev, end_date: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="edit-required_expertise">Required Expertise</Label>
+                  <Input
+                    id="edit-required_expertise"
+                    placeholder="Enter skills separated by commas (e.g., Machine Learning, Data Science)"
+                    value={projectForm.required_expertise}
+                    onChange={(e) => setProjectForm(prev => ({ ...prev, required_expertise: e.target.value }))}
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-2">
+                  <Button type="button" variant="outline" onClick={() => setShowEditForm(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={submittingProject}>
+                    {submittingProject ? 'Updating...' : 'Update Project'}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Stats Cards */}
@@ -562,12 +765,12 @@ export default function InstitutionDashboard() {
                               <Eye className="h-4 w-4 mr-2" />
                               View Applications ({applications.filter(app => app.project_id === project.id).length})
                             </Button>
-                            <Button size="sm" variant="outline">
+                            <Button size="sm" variant="outline" onClick={() => handleEditProject(project)}>
                               <Edit className="h-4 w-4 mr-2" />
                               Edit
                             </Button>
                             {project.status === 'open' && (
-                              <Button size="sm" variant="outline">
+                              <Button size="sm" variant="outline" onClick={() => handleCloseProject(project.id)}>
                                 <XCircle className="h-4 w-4 mr-2" />
                                 Close
                               </Button>

@@ -391,13 +391,38 @@ app.get('/api/projects/:id', async (req, res) => {
 
 app.put('/api/projects/:id', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const authHeader = req.headers.authorization;
+    let supabaseClient = supabase;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      supabaseClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        }
+      );
+    }
+    
+    const { data, error } = await supabaseClient
       .from('projects')
       .update(req.body)
       .eq('id', req.params.id)
       .select();
     
     if (error) throw error;
+    
+    console.log('Update result:', { data, error });
+    
+    if (!data || data.length === 0) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    
     res.json(data[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
