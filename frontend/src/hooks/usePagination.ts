@@ -1,45 +1,62 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 
-export const usePagination = (fetchFunction: any, pageSize = 10) => {
-  const [data, setData] = useState([])
+export function usePagination<T>(
+  fetchFunction: (page: number) => Promise<T[]>,
+  dependencies: any[] = []
+) {
+  const [data, setData] = useState<T[]>([])
+  const [currentPage, setCurrentPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)
-  const [page, setPage] = useState(1)
-  const observerRef = useRef<IntersectionObserver>()
-  
-  const lastElementRef = useCallback((node: any) => {
-    if (loading) return
-    if (observerRef.current) observerRef.current.disconnect()
-    observerRef.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && hasMore) {
-        setPage(prevPage => prevPage + 1)
-      }
-    })
-    if (node) observerRef.current.observe(node)
-  }, [loading, hasMore])
-  
+  const observerRef = useRef<IntersectionObserver | null>(null)
+
   const loadMore = useCallback(async () => {
+    if (loading || !hasMore) return
+
     setLoading(true)
     try {
-      const response = await fetchFunction({ page, limit: pageSize })
-      if (response.length < pageSize) setHasMore(false)
-      setData(prev => page === 1 ? response : [...prev, ...response])
+      const newData = await fetchFunction(currentPage)
+      
+      if (newData.length === 0) {
+        setHasMore(false)
+      } else {
+        setData(prev => [...prev, ...newData])
+        setCurrentPage(prev => prev + 1)
+      }
     } catch (error) {
-      console.error('Pagination error:', error)
+      console.error('Error loading more data:', error)
     } finally {
       setLoading(false)
     }
-  }, [fetchFunction, page, pageSize])
-  
-  useEffect(() => {
-    loadMore()
-  }, [page])
-  
-  const refresh = useCallback(() => {
+  }, [fetchFunction, currentPage, loading, hasMore])
+
+  const refresh = useCallback(async () => {
     setData([])
-    setPage(1)
+    setCurrentPage(1)
     setHasMore(true)
-  }, [])
-  
-  return { data, loading, hasMore, lastElementRef, refresh }
+    setLoading(true)
+    
+    try {
+      const newData = await fetchFunction(1)
+      setData(newData)
+      setCurrentPage(2)
+      setHasMore(newData.length > 0)
+    } catch (error) {
+      console.error('Error refreshing data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [fetchFunction])
+
+  useEffect(() => {
+    refresh()
+  }, dependencies)
+
+  return {
+    data,
+    loading,
+    hasMore,
+    loadMore,
+    refresh
+  }
 }

@@ -30,7 +30,15 @@ app.get('/api/health', (req, res) => {
 
 app.get('/api/experts', async (req, res) => {
   try {
-    const { page = 1, limit = 10 } = req.query;
+    const { 
+      page = 1, 
+      limit = 10, 
+      search = '', 
+      domain_expertise = '', 
+      min_hourly_rate = '', 
+      max_hourly_rate = '',
+      is_verified = ''
+    } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
     
     const authHeader = req.headers.authorization;
@@ -51,11 +59,33 @@ app.get('/api/experts', async (req, res) => {
       );
     }
     
-    const { data, error } = await supabaseClient
+    let query = supabaseClient
       .from('experts')
       .select('*')
       .range(offset, offset + parseInt(limit) - 1)
       .order('created_at', { ascending: false });
+    
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,bio.ilike.%${search}%,domain_expertise.ilike.%${search}%`);
+    }
+    
+    if (domain_expertise) {
+      query = query.eq('domain_expertise', domain_expertise);
+    }
+    
+    if (min_hourly_rate) {
+      query = query.gte('hourly_rate', parseFloat(min_hourly_rate));
+    }
+    
+    if (max_hourly_rate) {
+      query = query.lte('hourly_rate', parseFloat(max_hourly_rate));
+    }
+    
+    if (is_verified) {
+      query = query.eq('is_verified', is_verified === 'true');
+    }
+    
+    const { data, error } = await query;
     
     if (error) throw error;
     res.json(data);
@@ -283,10 +313,18 @@ app.put('/api/institutions/:id', async (req, res) => {
 
 app.get('/api/projects', async (req, res) => {
   try {
-    const { page = 1, limit = 10 } = req.query;
+    const { 
+      page = 1, 
+      limit = 10, 
+      search = '', 
+      type = '', 
+      min_hourly_rate = '', 
+      max_hourly_rate = '',
+      status = 'open'
+    } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
     
-    const { data, error } = await supabase
+    let query = supabase
       .from('projects')
       .select(`
         *,
@@ -298,6 +336,28 @@ app.get('/api/projects', async (req, res) => {
       `)
       .range(offset, offset + parseInt(limit) - 1)
       .order('created_at', { ascending: false });
+    
+    if (search) {
+      query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
+    }
+    
+    if (type) {
+      query = query.eq('type', type);
+    }
+    
+    if (min_hourly_rate) {
+      query = query.gte('hourly_rate', parseFloat(min_hourly_rate));
+    }
+    
+    if (max_hourly_rate) {
+      query = query.lte('hourly_rate', parseFloat(max_hourly_rate));
+    }
+    
+    if (status) {
+      query = query.eq('status', status);
+    }
+    
+    const { data, error } = await query;
     
     if (error) throw error;
     res.json(data);

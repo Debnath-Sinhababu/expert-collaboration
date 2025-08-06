@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
+import { usePagination } from '@/hooks/usePagination'
+import { PROJECT_TYPES, EXPERTISE_DOMAINS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -43,24 +45,12 @@ import {
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
-const PROJECT_TYPES = [
-  'guest_lecture',
-  'fdp',
-  'workshop',
-  'curriculum_dev',
-  'research_collaboration',
-  'training_program',
-  'consultation',
-  'other'
-]
 
 export default function InstitutionDashboard() {
   const [user, setUser] = useState<any>(null)
   const [institution, setInstitution] = useState<any>(null)
   const [projects, setProjects] = useState<any[]>([])
   const [applications, setApplications] = useState<any[]>([])
-  const [experts, setExperts] = useState<any[]>([])
-  const [filteredExperts, setFilteredExperts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
@@ -123,9 +113,6 @@ export default function InstitutionDashboard() {
       )
       setApplications(projectApplications)
       
-      setExperts(expertsResponse)
-      setFilteredExperts(expertsResponse)
-      
     } catch (error: any) {
       setError('Failed to load dashboard data')
       console.error('Dashboard error:', error)
@@ -167,18 +154,26 @@ export default function InstitutionDashboard() {
     }
   }
 
+  const {
+    data: experts,
+    loading: expertsLoading,
+    hasMore: hasMoreExperts,
+    loadMore: loadMoreExperts,
+    refresh: refreshExperts
+  } = usePagination(
+    async (page: number) => {
+      return await api.experts.getAll({
+        page,
+        limit: 10,
+        search: searchTerm,
+        is_verified: true
+      });
+    },
+    [searchTerm]
+  );
+
   const handleSearchExperts = (term: string) => {
     setSearchTerm(term)
-    if (!term) {
-      setFilteredExperts(experts)
-    } else {
-      const filtered = experts.filter((expert: any) =>
-        expert.name.toLowerCase().includes(term.toLowerCase()) ||
-        expert.domain_expertise.toLowerCase().includes(term.toLowerCase()) ||
-        expert.bio.toLowerCase().includes(term.toLowerCase())
-      )
-      setFilteredExperts(filtered)
-    }
   }
 
   const handleProjectSubmit = async (e: React.FormEvent) => {
@@ -805,7 +800,7 @@ export default function InstitutionDashboard() {
                   <div className="space-y-4">
                     {applications.map((application) => {
                       const project = projects.find(p => p.id === application.project_id)
-                      const expert = experts.find(e => e.id === application.expert_id)
+                      const expert: any = experts.find((e: any) => e.id === application.expert_id)
                       return (
                         <div key={application.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
                           <div className="flex items-center justify-between mb-3">
@@ -965,7 +960,7 @@ export default function InstitutionDashboard() {
                 </div>
               </CardHeader>
               <CardContent>
-                {filteredExperts.length === 0 ? (
+                {experts.length === 0 && !expertsLoading ? (
                   <div className="text-center py-8">
                     <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-600">
@@ -977,7 +972,7 @@ export default function InstitutionDashboard() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {filteredExperts.map((expert) => (
+                    {experts.map((expert: any) => (
                       <div key={expert.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
                         <div className="flex items-center justify-between mb-3">
                           <div>
@@ -1120,7 +1115,7 @@ export default function InstitutionDashboard() {
                   {applications.length > 0 ? (
                     applications.map((application) => {
                       const project = projects.find(p => p.id === application.project_id)
-                      const expert = experts.find(e => e.id === application.expert_id)
+                      const expert: any = experts.find((e: any) => e.id === application.expert_id)
                       return (
                         <div key={application.id} className="flex items-start space-x-3 p-4 border rounded-lg">
                           <Bell className="h-5 w-5 text-blue-600 mt-0.5" />

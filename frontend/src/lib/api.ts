@@ -15,9 +15,20 @@ const getAuthHeaders = async () => {
 
 export const api = {
   experts: {
-    getAll: async (params?: { page?: number; limit?: number }) => {
+    getAll: async (params?: { 
+      page?: number; 
+      limit?: number; 
+      search?: string; 
+      domain_expertise?: string; 
+      min_hourly_rate?: number; 
+      max_hourly_rate?: number;
+      is_verified?: boolean;
+    }) => {
       const headers = await getAuthHeaders()
-      const query = new URLSearchParams(params as any).toString()
+      const query = new URLSearchParams({
+        ...params as any,
+        _t: Date.now().toString()
+      }).toString()
       return fetch(`${API_BASE_URL}/api/experts${query ? `?${query}` : ''}`, { headers }).then(res => res.json())
     },
     getById: async (id: string) => {
@@ -75,11 +86,19 @@ export const api = {
   },
 
   projects: {
-    getAll: async (params?: { page?: number; limit?: number }) => {
+    getAll: async (params?: { 
+      page?: number; 
+      limit?: number; 
+      search?: string; 
+      type?: string; 
+      min_hourly_rate?: number; 
+      max_hourly_rate?: number;
+      status?: string;
+    }) => {
       const headers = await getAuthHeaders()
       const query = new URLSearchParams({
         ...params as any,
-        _t: Date.now().toString() // Cache busting
+        _t: Date.now().toString()
       }).toString()
       return fetch(`${API_BASE_URL}/api/projects${query ? `?${query}` : ''}`, { headers }).then(res => res.json())
     },

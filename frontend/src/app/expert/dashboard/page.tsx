@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
+import { usePagination } from '@/hooks/usePagination'
+import { PROJECT_TYPES } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -42,8 +44,6 @@ export default function ExpertDashboard() {
   const [user, setUser] = useState<any>(null)
   const [expert, setExpert] = useState<any>(null)
   const [applications, setApplications] = useState<any[]>([])
-  const [projects, setProjects] = useState<any[]>([])
-  const [filteredProjects, setFilteredProjects] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
@@ -51,6 +51,16 @@ export default function ExpertDashboard() {
   const [applicationForm, setApplicationForm] = useState({
     coverLetter: '',
     proposedRate: ''
+  })
+  const [profileForm, setProfileForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    bio: '',
+    qualifications: '',
+    domain_expertise: '',
+    hourly_rate: '',
+    resume_url: ''
   })
   const router = useRouter()
 
@@ -78,8 +88,6 @@ export default function ExpertDashboard() {
       ])
 
       setApplications(applicationsResponse || [])
-      setProjects(projectsResponse || [])
-      setFilteredProjects(projectsResponse || [])
 
       let expertProfile = null
       if (expertsResponse && Array.isArray(expertsResponse)) {
@@ -90,7 +98,7 @@ export default function ExpertDashboard() {
       }
 
       if (expertProfile) {
-        setExpert({
+        const expertData = {
           name: expertProfile.name || 'Expert User',
           email: expertProfile.email || currentUser.email,
           hourly_rate: expertProfile.hourly_rate || 0,
@@ -103,9 +111,21 @@ export default function ExpertDashboard() {
           domain_expertise: expertProfile.domain_expertise || [],
           resume_url: expertProfile.resume_url || '',
           availability: expertProfile.availability || []
+        }
+        setExpert(expertData)
+        
+        setProfileForm({
+          name: expertData.name,
+          email: expertData.email,
+          phone: expertProfile.phone || '',
+          bio: expertData.bio,
+          qualifications: Array.isArray(expertData.qualifications) ? expertData.qualifications.join(', ') : '',
+          domain_expertise: Array.isArray(expertData.domain_expertise) ? expertData.domain_expertise.join(', ') : '',
+          hourly_rate: expertData.hourly_rate.toString(),
+          resume_url: expertData.resume_url
         })
       } else {
-        setExpert({
+        const defaultData = {
           name: currentUser.user_metadata?.name || 'Expert User',
           email: currentUser.email,
           hourly_rate: 0,
@@ -113,6 +133,18 @@ export default function ExpertDashboard() {
           total_ratings: 0,
           is_verified: false,
           kyc_status: 'pending'
+        }
+        setExpert(defaultData)
+        
+        setProfileForm({
+          name: defaultData.name,
+          email: defaultData.email || '',
+          phone: '',
+          bio: '',
+          qualifications: '',
+          domain_expertise: '',
+          hourly_rate: '0',
+          resume_url: ''
         })
       }
     } catch (error: any) {
@@ -145,21 +177,28 @@ export default function ExpertDashboard() {
     }
   }
 
+  const {
+    data: projects,
+    loading: projectsLoading,
+    hasMore: hasMoreProjects,
+    loadMore: loadMoreProjects,
+    refresh: refreshProjects
+  } = usePagination(
+    async (page: number) => {
+      return await api.projects.getAll({
+        page,
+        limit: 10,
+        search: searchTerm,
+        type: filterType === 'all' ? '' : filterType,
+        status: 'open'
+      });
+    },
+    [searchTerm, filterType]
+  );
+
   const handleSearchProjects = (term: string, type: string) => {
     setSearchTerm(term)
     setFilterType(type)
-    
-    let filtered = projects
-    if (term) {
-      filtered = filtered.filter(project => 
-        project.title?.toLowerCase().includes(term.toLowerCase()) ||
-        project.description?.toLowerCase().includes(term.toLowerCase())
-      )
-    }
-    if (type !== 'all') {
-      filtered = filtered.filter(project => project.type === type)
-    }
-    setFilteredProjects(filtered)
   }
 
   const handleApplicationSubmit = async (projectId: string) => {
@@ -178,6 +217,25 @@ export default function ExpertDashboard() {
       }
     } catch (error: any) {
       setError(error.message)
+    }
+  }
+
+  const handleProfileUpdate = async () => {
+    try {
+      setLoading(true)
+      const updateData = {
+        ...profileForm,
+        qualifications: profileForm.qualifications.split(',').map((q: string) => q.trim()),
+        domain_expertise: profileForm.domain_expertise.split(',').map((d: string) => d.trim()),
+        hourly_rate: parseFloat(profileForm.hourly_rate) || 0
+      }
+      
+      await api.experts.update(expert.id, updateData)
+      await loadExpertData()
+    } catch (error: any) {
+      setError(error.message)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -333,6 +391,34 @@ export default function ExpertDashboard() {
                         </div>
                       </div>
                     ))}
+                    
+                    {projectsLoading && (
+                      <div className="text-center py-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                      </div>
+                    )}
+                    
+                    {hasMoreProjects && !projectsLoading && (
+                      <div 
+                        ref={(el) => {
+                          if (el) {
+                            const observer = new IntersectionObserver(
+                              ([entry]) => {
+                                if (entry.isIntersecting) {
+                                  loadMoreProjects();
+                                }
+                              },
+                              { threshold: 0.1 }
+                            );
+                            observer.observe(el);
+                            return () => observer.disconnect();
+                          }
+                        }}
+                        className="text-center py-4"
+                      >
+                        <p className="text-gray-500">Loading more projects...</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -363,15 +449,16 @@ export default function ExpertDashboard() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Types</SelectItem>
-                      <SelectItem value="guest_lecture">Guest Lecture</SelectItem>
-                      <SelectItem value="fdp">FDP</SelectItem>
-                      <SelectItem value="workshop">Workshop</SelectItem>
-                      <SelectItem value="curriculum_dev">Curriculum Development</SelectItem>
+                      {PROJECT_TYPES.map((type: string) => (
+                        <SelectItem key={type} value={type}>
+                          {type.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
 
-                {filteredProjects.length === 0 ? (
+                {projects.length === 0 && !projectsLoading ? (
                   <div className="text-center py-8">
                     <Search className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-600">No projects found</p>
@@ -379,7 +466,7 @@ export default function ExpertDashboard() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {filteredProjects.map((project) => (
+                    {projects.map((project: any) => (
                       <div key={project.id} className="border rounded-lg p-6">
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex-1">
@@ -562,12 +649,37 @@ export default function ExpertDashboard() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <Label htmlFor="hourlyRate">Hourly Rate (₹)</Label>
-                      <Input id="hourlyRate" type="number" defaultValue={expert?.hourly_rate} />
+                      <Label htmlFor="name">Full Name</Label>
+                      <Input 
+                        id="name" 
+                        value={profileForm.name}
+                        onChange={(e) => setProfileForm({...profileForm, name: e.target.value})}
+                      />
                     </div>
                     <div>
-                      <Label htmlFor="experience">Years of Experience</Label>
-                      <Input id="experience" type="number" defaultValue="5" />
+                      <Label htmlFor="email">Email</Label>
+                      <Input 
+                        id="email" 
+                        value={profileForm.email}
+                        onChange={(e) => setProfileForm({...profileForm, email: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="phone">Phone</Label>
+                      <Input 
+                        id="phone" 
+                        value={profileForm.phone}
+                        onChange={(e) => setProfileForm({...profileForm, phone: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="hourlyRate">Hourly Rate (₹)</Label>
+                      <Input 
+                        id="hourlyRate" 
+                        type="number" 
+                        value={profileForm.hourly_rate}
+                        onChange={(e) => setProfileForm({...profileForm, hourly_rate: e.target.value})}
+                      />
                     </div>
                   </div>
 
@@ -577,6 +689,8 @@ export default function ExpertDashboard() {
                       id="bio" 
                       placeholder="Tell institutions about your expertise and experience..."
                       rows={4}
+                      value={profileForm.bio}
+                      onChange={(e) => setProfileForm({...profileForm, bio: e.target.value})}
                     />
                   </div>
 
@@ -586,6 +700,8 @@ export default function ExpertDashboard() {
                       id="qualifications" 
                       placeholder="List your degrees, certifications, and credentials..."
                       rows={3}
+                      value={profileForm.qualifications}
+                      onChange={(e) => setProfileForm({...profileForm, qualifications: e.target.value})}
                     />
                   </div>
 
@@ -595,12 +711,19 @@ export default function ExpertDashboard() {
                       id="expertise" 
                       placeholder="Specify your areas of expertise (e.g., Machine Learning, Data Science, Web Development)..."
                       rows={3}
+                      value={profileForm.domain_expertise}
+                      onChange={(e) => setProfileForm({...profileForm, domain_expertise: e.target.value})}
                     />
                   </div>
 
                   <div>
                     <Label htmlFor="resume">Resume URL</Label>
-                    <Input id="resume" placeholder="https://example.com/resume.pdf" />
+                    <Input 
+                      id="resume" 
+                      placeholder="https://example.com/resume.pdf"
+                      value={profileForm.resume_url}
+                      onChange={(e) => setProfileForm({...profileForm, resume_url: e.target.value})}
+                    />
                   </div>
 
                   <div className="flex items-center justify-between">
@@ -616,7 +739,7 @@ export default function ExpertDashboard() {
                           ))}
                         </div>
                         <span className="text-sm text-gray-600">
-                          {expert?.rating} ({expert?.total_ratings} reviews)
+                          {expert?.rating || 0} ({expert?.total_ratings || 0} reviews)
                         </span>
                       </div>
                     </div>
@@ -626,7 +749,9 @@ export default function ExpertDashboard() {
                     </Button>
                   </div>
 
-                  <Button className="w-full">Update Profile</Button>
+                  <Button className="w-full" onClick={handleProfileUpdate} disabled={loading}>
+                    {loading ? 'Updating...' : 'Update Profile'}
+                  </Button>
 
                   {!expert?.is_verified && (
                     <Alert>
