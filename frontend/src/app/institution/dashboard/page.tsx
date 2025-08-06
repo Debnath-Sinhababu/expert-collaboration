@@ -79,6 +79,7 @@ export default function InstitutionDashboard() {
   })
   const [submittingProject, setSubmittingProject] = useState(false)
   const router = useRouter()
+  
 
   useEffect(() => {
     const getUser = async () => {
@@ -507,8 +508,11 @@ export default function InstitutionDashboard() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {projects.map((project) => (
-                      <div key={project.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                    {projects.map((project: any) => (
+                      <div 
+                        key={project.id} 
+                        className="border rounded-lg p-4 hover:shadow-md transition-shadow"
+                      >
                         <div className="flex items-center justify-between mb-2">
                           <h3 className="font-semibold text-lg">{project.title}</h3>
                           <div className="flex items-center space-x-2">

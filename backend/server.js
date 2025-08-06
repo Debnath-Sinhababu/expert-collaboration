@@ -30,9 +30,32 @@ app.get('/api/health', (req, res) => {
 
 app.get('/api/experts', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { page = 1, limit = 10 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    
+    const authHeader = req.headers.authorization;
+    let supabaseClient = supabase;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      supabaseClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        }
+      );
+    }
+    
+    const { data, error } = await supabaseClient
       .from('experts')
-      .select('*');
+      .select('*')
+      .range(offset, offset + parseInt(limit) - 1)
+      .order('created_at', { ascending: false });
     
     if (error) throw error;
     res.json(data);
@@ -87,9 +110,32 @@ app.put('/api/experts/:id', async (req, res) => {
 
 app.get('/api/institutions', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { page = 1, limit = 10 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    
+    const authHeader = req.headers.authorization;
+    let supabaseClient = supabase;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      supabaseClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        }
+      );
+    }
+    
+    const { data, error } = await supabaseClient
       .from('institutions')
-      .select('*');
+      .select('*')
+      .range(offset, offset + parseInt(limit) - 1)
+      .order('created_at', { ascending: false });
     
     if (error) throw error;
     res.json(data);
@@ -144,6 +190,9 @@ app.put('/api/institutions/:id', async (req, res) => {
 
 app.get('/api/projects', async (req, res) => {
   try {
+    const { page = 1, limit = 10 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    
     const { data, error } = await supabase
       .from('projects')
       .select(`
@@ -153,7 +202,9 @@ app.get('/api/projects', async (req, res) => {
           name,
           logo_url
         )
-      `);
+      `)
+      .range(offset, offset + parseInt(limit) - 1)
+      .order('created_at', { ascending: false });
     
     if (error) throw error;
     res.json(data);
@@ -164,7 +215,25 @@ app.get('/api/projects', async (req, res) => {
 
 app.post('/api/projects', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const authHeader = req.headers.authorization;
+    let supabaseClient = supabase;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      supabaseClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        }
+      );
+    }
+    
+    const { data, error } = await supabaseClient
       .from('projects')
       .insert([req.body])
       .select();
@@ -215,7 +284,9 @@ app.put('/api/projects/:id', async (req, res) => {
 
 app.get('/api/applications', async (req, res) => {
   try {
-    const { expert_id, project_id } = req.query;
+    const { expert_id, project_id, page = 1, limit = 10 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    
     let query = supabase
       .from('applications')
       .select(`
@@ -235,7 +306,9 @@ app.get('/api/applications', async (req, res) => {
           start_date,
           end_date
         )
-      `);
+      `)
+      .range(offset, offset + parseInt(limit) - 1)
+      .order('applied_at', { ascending: false });
     
     if (expert_id) query = query.eq('expert_id', expert_id);
     if (project_id) query = query.eq('project_id', project_id);

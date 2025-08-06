@@ -167,6 +167,7 @@ CREATE POLICY "Anyone can view verified institutions" ON institutions FOR SELECT
 
 CREATE POLICY "Anyone can view open projects" ON projects FOR SELECT USING (status = 'open');
 CREATE POLICY "Institutions can manage their own projects" ON projects FOR ALL USING (auth.uid() IN (SELECT user_id FROM institutions WHERE id = institution_id));
+CREATE POLICY "Institutions can create projects" ON projects FOR INSERT WITH CHECK (auth.uid() IN (SELECT user_id FROM institutions WHERE id = institution_id));
 
 CREATE POLICY "Experts can view their own applications" ON applications FOR SELECT USING (auth.uid() IN (SELECT user_id FROM experts WHERE id = expert_id));
 CREATE POLICY "Institutions can view applications to their projects" ON applications FOR SELECT USING (auth.uid() IN (SELECT user_id FROM institutions WHERE id = (SELECT institution_id FROM projects WHERE id = project_id)));
