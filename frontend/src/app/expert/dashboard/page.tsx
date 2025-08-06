@@ -72,8 +72,8 @@ export default function ExpertDashboard() {
       setUser(currentUser)
 
       const [applicationsResponse, projectsResponse] = await Promise.all([
-        api.get('/applications'),
-        api.get('/projects')
+        api.applications.getAll(),
+        api.projects.getAll()
       ])
 
       if (applicationsResponse.success) {
@@ -143,7 +143,7 @@ export default function ExpertDashboard() {
 
   const handleApplicationSubmit = async (projectId: string) => {
     try {
-      const response = await api.post('/applications', {
+      const response = await api.applications.create({
         project_id: projectId,
         cover_letter: applicationForm.coverLetter,
         proposed_rate: parseFloat(applicationForm.proposedRate)
