@@ -181,11 +181,18 @@ app.get('/api/institutions', async (req, res) => {
 
 app.post('/api/institutions', async (req, res) => {
   try {
+    console.log('=== INSTITUTION CREATION DEBUG ===');
+    console.log('Headers:', req.headers);
+    console.log('Body:', req.body);
+    
     const authHeader = req.headers.authorization;
     let supabaseClient = supabase;
+    let authenticatedUserId = null;
     
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
+      console.log('Token received:', token.substring(0, 50) + '...');
+      
       supabaseClient = createClient(
         process.env.SUPABASE_URL,
         process.env.SUPABASE_ANON_KEY,
@@ -197,10 +204,20 @@ app.post('/api/institutions', async (req, res) => {
           }
         }
       );
+      
+      const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+      console.log('Authenticated user:', userData?.user?.id);
+      console.log('User error:', userError);
+      
+      if (userData?.user?.id) {
+        authenticatedUserId = userData.user.id;
+      }
+    } else {
+      console.log('No auth token provided');
     }
     
     const institutionData = {
-      user_id: req.body.user_id,
+      user_id: authenticatedUserId,
       name: req.body.name,
       email: req.body.email,
       phone: req.body.phone,
@@ -217,14 +234,19 @@ app.post('/api/institutions', async (req, res) => {
       total_ratings: req.body.total_projects || 0
     };
     
+    console.log('Institution data to insert:', institutionData);
+    
     const { data, error } = await supabaseClient
       .from('institutions')
       .insert([institutionData])
       .select();
     
+    console.log('Insert result:', { data, error });
+    
     if (error) throw error;
     res.status(201).json(data[0]);
   } catch (error) {
+    console.log('Institution creation error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -286,11 +308,17 @@ app.get('/api/projects', async (req, res) => {
 
 app.post('/api/projects', async (req, res) => {
   try {
+    console.log('=== PROJECT CREATION DEBUG ===');
+    console.log('Headers:', req.headers);
+    console.log('Body:', req.body);
+    
     const authHeader = req.headers.authorization;
     let supabaseClient = supabase;
     
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
+      console.log('Token received:', token.substring(0, 50) + '...');
+      
       supabaseClient = createClient(
         process.env.SUPABASE_URL,
         process.env.SUPABASE_ANON_KEY,
@@ -302,16 +330,39 @@ app.post('/api/projects', async (req, res) => {
           }
         }
       );
+      
+      const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+      console.log('Authenticated user:', userData?.user?.id);
+      console.log('User error:', userError);
+      
+      if (userData?.user?.id) {
+        const { data: institutionData, error: instError } = await supabaseClient
+          .from('institutions')
+          .select('id, user_id')
+          .eq('user_id', userData.user.id)
+          .single();
+        
+        console.log('User institution:', institutionData);
+        console.log('Requested institution_id:', req.body.institution_id);
+        console.log('Institution match:', institutionData?.id === req.body.institution_id);
+      }
+    } else {
+      console.log('No auth token provided');
     }
+    
+    console.log('Institution ID from request:', req.body.institution_id);
     
     const { data, error } = await supabaseClient
       .from('projects')
       .insert([req.body])
       .select();
     
+    console.log('Insert result:', { data, error });
+    
     if (error) throw error;
     res.status(201).json(data[0]);
   } catch (error) {
+    console.log('Project creation error:', error);
     res.status(500).json({ error: error.message });
   }
 });
