@@ -43,7 +43,26 @@ app.get('/api/experts', async (req, res) => {
 
 app.post('/api/experts', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Authentication token required' });
+    }
+    
+    const supabaseWithAuth = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY,
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      }
+    );
+    
+    const { data, error } = await supabaseWithAuth
       .from('experts')
       .insert([req.body])
       .select();
@@ -100,7 +119,26 @@ app.get('/api/institutions', async (req, res) => {
 
 app.post('/api/institutions', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Authentication token required' });
+    }
+    
+    const supabaseWithAuth = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY,
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      }
+    );
+    
+    const { data, error } = await supabaseWithAuth
       .from('institutions')
       .insert([req.body])
       .select();
