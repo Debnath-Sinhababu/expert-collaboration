@@ -67,28 +67,22 @@ app.get('/api/experts', async (req, res) => {
 app.post('/api/experts', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1];
+    let supabaseClient = supabase;
     
-    console.log('Auth header:', authHeader);
-    console.log('Token:', token ? 'Present' : 'Missing');
-    console.log('Request body:', req.body);
-    
-    if (!token) {
-      console.log('No token provided');
-      return res.status(401).json({ error: 'Authentication token required' });
-    }
-    
-    const supabaseWithAuth = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_ANON_KEY,
-      {
-        global: {
-          headers: {
-            Authorization: `Bearer ${token}`
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      supabaseClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
           }
         }
-      }
-    );
+      );
+    }
     
     const expertData = {
       user_id: req.body.user_id,
@@ -107,22 +101,14 @@ app.post('/api/experts', async (req, res) => {
       total_ratings: req.body.total_projects || 0
     };
     
-    console.log('Mapped expert data:', expertData);
-    console.log('Attempting to insert expert data...');
-    const { data, error } = await supabaseWithAuth
+    const { data, error } = await supabaseClient
       .from('experts')
       .insert([expertData])
       .select();
     
-    if (error) {
-      console.log('Supabase error:', error);
-      throw error;
-    }
-    
-    console.log('Expert created successfully:', data[0]);
+    if (error) throw error;
     res.status(201).json(data[0]);
   } catch (error) {
-    console.log('Caught error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
@@ -196,28 +182,22 @@ app.get('/api/institutions', async (req, res) => {
 app.post('/api/institutions', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1];
+    let supabaseClient = supabase;
     
-    console.log('Institution Auth header:', authHeader);
-    console.log('Institution Token:', token ? 'Present' : 'Missing');
-    console.log('Institution Request body:', req.body);
-    
-    if (!token) {
-      console.log('No institution token provided');
-      return res.status(401).json({ error: 'Authentication token required' });
-    }
-    
-    const supabaseWithAuth = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_ANON_KEY,
-      {
-        global: {
-          headers: {
-            Authorization: `Bearer ${token}`
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      supabaseClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
           }
         }
-      }
-    );
+      );
+    }
     
     const institutionData = {
       user_id: req.body.user_id,
@@ -237,22 +217,14 @@ app.post('/api/institutions', async (req, res) => {
       total_ratings: req.body.total_projects || 0
     };
     
-    console.log('Mapped institution data:', institutionData);
-    console.log('Attempting to insert institution data...');
-    const { data, error } = await supabaseWithAuth
+    const { data, error } = await supabaseClient
       .from('institutions')
       .insert([institutionData])
       .select();
     
-    if (error) {
-      console.log('Institution Supabase error:', error);
-      throw error;
-    }
-    
-    console.log('Institution created successfully:', data[0]);
+    if (error) throw error;
     res.status(201).json(data[0]);
   } catch (error) {
-    console.log('Institution Caught error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
@@ -423,7 +395,25 @@ app.get('/api/applications', async (req, res) => {
 
 app.post('/api/applications', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const authHeader = req.headers.authorization;
+    let supabaseClient = supabase;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      supabaseClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        }
+      );
+    }
+    
+    const { data, error } = await supabaseClient
       .from('applications')
       .insert([req.body])
       .select();
@@ -508,7 +498,25 @@ app.get('/api/bookings', async (req, res) => {
 
 app.post('/api/ratings', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const authHeader = req.headers.authorization;
+    let supabaseClient = supabase;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      supabaseClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        }
+      );
+    }
+    
+    const { data, error } = await supabaseClient
       .from('ratings')
       .insert([req.body])
       .select();
