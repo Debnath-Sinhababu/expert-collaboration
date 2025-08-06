@@ -34,10 +34,10 @@ app.get('/api/experts', async (req, res) => {
     const offset = (parseInt(page) - 1) * parseInt(limit);
     
     const authHeader = req.headers.authorization;
-    let supabaseClient = supabase;
+    const token = authHeader && authHeader.split(' ')[1];
     
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
+    let supabaseClient = supabase;
+    if (token) {
       supabaseClient = createClient(
         process.env.SUPABASE_URL,
         process.env.SUPABASE_ANON_KEY,
@@ -66,14 +66,63 @@ app.get('/api/experts', async (req, res) => {
 
 app.post('/api/experts', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1];
+    
+    console.log('Auth header:', authHeader);
+    console.log('Token:', token ? 'Present' : 'Missing');
+    console.log('Request body:', req.body);
+    
+    if (!token) {
+      console.log('No token provided');
+      return res.status(401).json({ error: 'Authentication token required' });
+    }
+    
+    const supabaseWithAuth = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY,
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      }
+    );
+    
+    const expertData = {
+      user_id: req.body.user_id,
+      name: req.body.name,
+      email: req.body.email,
+      phone: req.body.phone,
+      bio: req.body.bio,
+      photo_url: req.body.photo_url || null,
+      qualifications: req.body.qualifications ? [req.body.qualifications] : [],
+      domain_expertise: req.body.domain_expertise ? [req.body.domain_expertise] : [],
+      hourly_rate: req.body.hourly_rate,
+      resume_url: req.body.resume_url,
+      availability: req.body.availability || [],
+      is_verified: req.body.verified || false,
+      rating: req.body.rating || 0.00,
+      total_ratings: req.body.total_projects || 0
+    };
+    
+    console.log('Mapped expert data:', expertData);
+    console.log('Attempting to insert expert data...');
+    const { data, error } = await supabaseWithAuth
       .from('experts')
-      .insert([req.body])
+      .insert([expertData])
       .select();
     
-    if (error) throw error;
+    if (error) {
+      console.log('Supabase error:', error);
+      throw error;
+    }
+    
+    console.log('Expert created successfully:', data[0]);
     res.status(201).json(data[0]);
   } catch (error) {
+    console.log('Caught error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
@@ -114,10 +163,10 @@ app.get('/api/institutions', async (req, res) => {
     const offset = (parseInt(page) - 1) * parseInt(limit);
     
     const authHeader = req.headers.authorization;
-    let supabaseClient = supabase;
+    const token = authHeader && authHeader.split(' ')[1];
     
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
+    let supabaseClient = supabase;
+    if (token) {
       supabaseClient = createClient(
         process.env.SUPABASE_URL,
         process.env.SUPABASE_ANON_KEY,
@@ -146,14 +195,64 @@ app.get('/api/institutions', async (req, res) => {
 
 app.post('/api/institutions', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1];
+    
+    console.log('Institution Auth header:', authHeader);
+    console.log('Institution Token:', token ? 'Present' : 'Missing');
+    console.log('Institution Request body:', req.body);
+    
+    if (!token) {
+      console.log('No institution token provided');
+      return res.status(401).json({ error: 'Authentication token required' });
+    }
+    
+    const supabaseWithAuth = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY,
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      }
+    );
+    
+    const institutionData = {
+      user_id: req.body.user_id,
+      name: req.body.name,
+      email: req.body.email,
+      phone: req.body.phone,
+      type: req.body.type,
+      description: req.body.description,
+      logo_url: req.body.logo_url || null,
+      website_url: req.body.website_url,
+      address: req.body.address,
+      city: req.body.city,
+      state: req.body.state,
+      country: req.body.country || 'India',
+      is_verified: req.body.verified || false,
+      rating: req.body.rating || 0.00,
+      total_ratings: req.body.total_projects || 0
+    };
+    
+    console.log('Mapped institution data:', institutionData);
+    console.log('Attempting to insert institution data...');
+    const { data, error } = await supabaseWithAuth
       .from('institutions')
-      .insert([req.body])
+      .insert([institutionData])
       .select();
     
-    if (error) throw error;
+    if (error) {
+      console.log('Institution Supabase error:', error);
+      throw error;
+    }
+    
+    console.log('Institution created successfully:', data[0]);
     res.status(201).json(data[0]);
   } catch (error) {
+    console.log('Institution Caught error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });

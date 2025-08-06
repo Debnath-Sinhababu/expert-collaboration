@@ -159,10 +159,12 @@ ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Experts can view their own profile" ON experts FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Experts can update their own profile" ON experts FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Experts can create their own profile" ON experts FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Anyone can view verified experts" ON experts FOR SELECT USING (is_verified = true);
 
 CREATE POLICY "Institutions can view their own profile" ON institutions FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Institutions can update their own profile" ON institutions FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Institutions can create their own profile" ON institutions FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Anyone can view verified institutions" ON institutions FOR SELECT USING (is_verified = true);
 
 CREATE POLICY "Anyone can view open projects" ON projects FOR SELECT USING (status = 'open');
