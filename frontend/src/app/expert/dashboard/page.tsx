@@ -99,6 +99,8 @@ export default function ExpertDashboard() {
 
       if (expertProfile) {
         const expertData = {
+          id: expertProfile.id,
+          user_id: expertProfile.user_id,
           name: expertProfile.name || 'Expert User',
           email: expertProfile.email || currentUser.email,
           hourly_rate: expertProfile.hourly_rate || 0,
@@ -223,14 +225,26 @@ export default function ExpertDashboard() {
   const handleProfileUpdate = async () => {
     try {
       setLoading(true)
+      const currentUser = await getUser()
+      if (!currentUser) return
+
       const updateData = {
         ...profileForm,
-        qualifications: profileForm.qualifications.split(',').map((q: string) => q.trim()),
-        domain_expertise: profileForm.domain_expertise.split(',').map((d: string) => d.trim()),
+        qualifications: profileForm.qualifications.split(',').map((q: string) => q.trim()).filter(q => q),
+        domain_expertise: profileForm.domain_expertise.split(',').map((d: string) => d.trim()).filter(d => d),
         hourly_rate: parseFloat(profileForm.hourly_rate) || 0
       }
       
-      await api.experts.update(expert.id, updateData)
+      if (expert?.id) {
+        await api.experts.update(expert.id, updateData)
+      } else {
+        const createData = {
+          ...updateData,
+          user_id: currentUser.id
+        }
+        await api.experts.create(createData)
+      }
+      
       await loadExpertData()
     } catch (error: any) {
       setError(error.message)
