@@ -45,11 +45,27 @@ export const api = {
     },
     update: async (id: string, data: any) => {
       const headers = await getAuthHeaders()
-      return fetch(`${API_BASE_URL}/api/experts/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/experts/${id}`, {
         method: 'PUT',
         headers,
         body: JSON.stringify(data)
-      }).then(res => res.json())
+      })
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`)
+      }
+      
+      const responseText = await response.text()
+      if (!responseText) {
+        return { success: true }
+      }
+      
+      try {
+        return JSON.parse(responseText)
+      } catch (parseError) {
+        return { success: true }
+      }
     }
   },
 
