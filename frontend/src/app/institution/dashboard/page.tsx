@@ -366,6 +366,21 @@ export default function InstitutionDashboard() {
     }
   }
 
+  const handleCreateProject = () => {
+    setProjectForm({
+      title: '',
+      description: '',
+      type: '',
+      hourly_rate: '',
+      total_budget: '',
+      start_date: '',
+      end_date: '',
+      duration_hours: '',
+      required_expertise: ''
+    })
+    setShowProjectForm(true)
+  }
+
   const handleCloseProject = async (projectId: string) => {
     try {
       const result = await api.projects.update(projectId, { status: 'closed' })
@@ -429,12 +444,10 @@ export default function InstitutionDashboard() {
             </p>
           </div>
           <Dialog open={showProjectForm} onOpenChange={setShowProjectForm}>
-            <DialogTrigger asChild>
-              <Button className="bg-blue-600 hover:bg-blue-700">
-                <Plus className="h-4 w-4 mr-2" />
-                Post New Project
-              </Button>
-            </DialogTrigger>
+            <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleCreateProject}>
+              <Plus className="h-4 w-4 mr-2" />
+              Post New Project
+            </Button>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle>Post New Project</DialogTitle>
@@ -774,7 +787,7 @@ export default function InstitutionDashboard() {
                     <Briefcase className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-600">No projects posted yet</p>
                     <p className="text-sm text-gray-500">Create your first project to find experts</p>
-                    <Button className="mt-4" onClick={() => setShowProjectForm(true)}>
+                    <Button className="mt-4" onClick={handleCreateProject}>
                       <Plus className="h-4 w-4 mr-2" />
                       Post Your First Project
                     </Button>
