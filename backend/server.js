@@ -564,7 +564,25 @@ app.get('/api/applications', async (req, res) => {
     const { expert_id, project_id, page = 1, limit = 10 } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
     
-    let query = supabase
+    const authHeader = req.headers.authorization;
+    let supabaseClient = supabase;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      supabaseClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        }
+      );
+    }
+    
+    let query = supabaseClient
       .from('applications')
       .select(`
         *,

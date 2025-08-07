@@ -160,7 +160,10 @@ export const api = {
   applications: {
     getAll: async (params?: { expert_id?: string; project_id?: string; page?: number; limit?: number }) => {
       const headers = await getAuthHeaders()
-      const query = new URLSearchParams(params as any).toString()
+      const query = new URLSearchParams({
+        ...params as any,
+        _t: Date.now().toString()
+      }).toString()
       return fetch(`${API_BASE_URL}/api/applications${query ? `?${query}` : ''}`, { headers }).then(res => res.json())
     },
     create: async (data: any) => {
