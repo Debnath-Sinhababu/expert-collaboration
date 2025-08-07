@@ -46,6 +46,7 @@ export default function ExpertDashboard() {
   const [applications, setApplications] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState('all')
   const [applicationForm, setApplicationForm] = useState({
@@ -235,17 +236,25 @@ export default function ExpertDashboard() {
         hourly_rate: parseFloat(profileForm.hourly_rate) || 0
       }
       
+      let updatedExpert
       if (expert?.id) {
-        await api.experts.update(expert.id, updateData)
+        updatedExpert = await api.experts.update(expert.id, updateData)
       } else {
         const createData = {
           ...updateData,
           user_id: currentUser.id
         }
-        await api.experts.create(createData)
+        updatedExpert = await api.experts.create(createData)
       }
       
-      await loadExpertData()
+      if (updatedExpert && updatedExpert.id) {
+        setExpert(updatedExpert)
+      }
+      
+      setError('')
+      setSuccess('Profile updated successfully!')
+      setTimeout(() => setSuccess(''), 3000)
+      
     } catch (error: any) {
       setError(error.message)
     } finally {
@@ -297,6 +306,12 @@ export default function ExpertDashboard() {
         {error && (
           <Alert className="mb-6" variant="destructive">
             <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {success && (
+          <Alert className="mb-6" variant="default">
+            <AlertDescription className="text-green-600">{success}</AlertDescription>
           </Alert>
         )}
 
