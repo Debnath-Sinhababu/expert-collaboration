@@ -29,6 +29,7 @@ app.get('/api/health', (req, res) => {
 });
 
 app.get('/api/experts', async (req, res) => {
+  console.log('GET /api/experts - Query params:', req.query);
   try {
     const { 
       page = 1, 
@@ -66,11 +67,11 @@ app.get('/api/experts', async (req, res) => {
       .order('created_at', { ascending: false });
     
     if (search) {
-      query = query.or(`name.ilike.%${search}%,bio.ilike.%${search}%,domain_expertise.ilike.%${search}%`);
+      query = query.or(`name.ilike.%${search}%,bio.ilike.%${search}%`);
     }
     
     if (domain_expertise) {
-      query = query.eq('domain_expertise', domain_expertise);
+      query = query.contains('domain_expertise', [domain_expertise]);
     }
     
     if (min_hourly_rate) {
@@ -86,6 +87,8 @@ app.get('/api/experts', async (req, res) => {
     }
     
     const { data, error } = await query;
+    console.log('GET /api/experts - Supabase response data count:', data?.length || 0);
+    console.log('GET /api/experts - Supabase response error:', error);
     
     if (error) throw error;
     res.json(data);

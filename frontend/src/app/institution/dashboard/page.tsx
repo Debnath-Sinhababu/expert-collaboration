@@ -203,8 +203,7 @@ export default function InstitutionDashboard() {
       return await api.experts.getAll({
         page,
         limit: 10,
-        search: searchTerm,
-        is_verified: true
+        search: searchTerm
       });
     },
     [searchTerm]
