@@ -82,6 +82,17 @@ export default function ExpertDashboard() {
 
       setUser(currentUser)
 
+      const userRole = currentUser.user_metadata?.role
+      if (userRole !== 'expert') {
+        console.log('Non-expert user accessing expert dashboard, redirecting...')
+        if (userRole === 'institution') {
+          router.push('/institution/dashboard')
+        } else {
+          router.push('/')
+        }
+        return
+      }
+
       const [applicationsResponse, projectsResponse, expertsResponse] = await Promise.all([
         api.applications.getAll(),
         api.projects.getAll(),
@@ -151,7 +162,12 @@ export default function ExpertDashboard() {
         })
       }
     } catch (error: any) {
-      setError(error.message)
+      console.error('Error loading expert data:', error)
+      if (error.message.includes('role') || error.message.includes('access')) {
+        setError('You do not have access to the expert dashboard. Please contact support if you believe this is an error.')
+      } else {
+        setError(error.message)
+      }
     } finally {
       setLoading(false)
     }
@@ -238,8 +254,10 @@ export default function ExpertDashboard() {
       
       let updatedExpert
       if (expert?.id) {
+        console.log('Updating existing expert profile with ID:', expert.id)
         updatedExpert = await api.experts.update(expert.id, updateData)
       } else {
+        console.log('Creating new expert profile for user:', currentUser.id)
         const createData = {
           ...updateData,
           user_id: currentUser.id
@@ -249,6 +267,7 @@ export default function ExpertDashboard() {
       
       if (updatedExpert && updatedExpert.id) {
         setExpert(updatedExpert)
+        console.log('Expert profile updated/created successfully:', updatedExpert)
       }
       
       setError('')
