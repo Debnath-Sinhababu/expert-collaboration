@@ -601,6 +601,7 @@ app.get('/api/applications', async (req, res) => {
         projects (
           id,
           title,
+          description,
           type,
           hourly_rate,
           start_date,
@@ -706,7 +707,7 @@ app.put('/api/applications/:id', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     let supabaseClient = supabase;
-    
+   
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
       supabaseClient = createClient(
@@ -721,6 +722,11 @@ app.put('/api/applications/:id', async (req, res) => {
         }
       );
     }
+
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+    console.log('Authenticated user:', userData?.user?.id);
+    console.log('User error:', userError);
+
     
     const { data, error } = await supabaseClient
       .from('applications')
