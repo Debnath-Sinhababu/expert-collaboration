@@ -174,6 +174,21 @@ CREATE POLICY "Institutions can create projects" ON projects FOR INSERT WITH CHE
 CREATE POLICY "Experts can view their own applications" ON applications FOR SELECT USING (auth.uid() IN (SELECT user_id FROM experts WHERE id = expert_id));
 CREATE POLICY "Institutions can view applications to their projects" ON applications FOR SELECT USING (auth.uid() IN (SELECT user_id FROM institutions WHERE id = (SELECT institution_id FROM projects WHERE id = project_id)));
 CREATE POLICY "Experts can create applications" ON applications FOR INSERT WITH CHECK (auth.uid() IN (SELECT user_id FROM experts WHERE id = expert_id));
+CREATE POLICY "Institutions can update applications to their own projects"
+  ON applications
+  FOR UPDATE
+  USING (
+    auth.uid() IN (
+      SELECT user_id
+      FROM institutions
+      WHERE id = (
+        SELECT institution_id
+        FROM projects
+        WHERE projects.id = applications.project_id
+      )
+    )
+  );
+
 
 CREATE POLICY "Users can view their own bookings" ON bookings FOR SELECT USING (
     auth.uid() IN (SELECT user_id FROM experts WHERE id = expert_id) OR
