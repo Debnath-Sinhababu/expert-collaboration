@@ -186,7 +186,7 @@ export default function ExpertDashboard() {
     switch (status) {
       case 'accepted': return 'bg-green-100 text-green-800'
       case 'rejected': return 'bg-red-100 text-red-800'
-      case 'pending': return 'bg-yellow-100 text-yellow-800'
+      case 'pending': return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100'
       default: return 'bg-gray-100 text-gray-800'
     }
   }
@@ -430,7 +430,7 @@ export default function ExpertDashboard() {
                     {applications.map((application) => (
                       <div key={application.id} className="border rounded-lg p-4">
                         <div className="flex items-center justify-between mb-2">
-                          <h3 className="font-semibold">{application.project?.title || 'Project Title'}</h3>
+                          <h3 className="font-semibold">{application.projects?.title || 'Project Title'}</h3>
                           <Badge className={getStatusColor(application.status)}>
                             <div className="flex items-center space-x-1">
                               {getStatusIcon(application.status)}
@@ -438,7 +438,7 @@ export default function ExpertDashboard() {
                             </div>
                           </Badge>
                         </div>
-                        <p className="text-sm text-gray-600 mb-2">{application.project?.description || 'Project description'}</p>
+                        <p className="text-sm text-gray-600 mb-2">{application.projects?.description || 'Project description'}</p>
                         <div className="flex items-center justify-between text-sm text-gray-500">
                           <span>Applied: {new Date(application.applied_at || Date.now()).toLocaleDateString()}</span>
                           <span>Proposed Rate: ₹{application.proposed_rate}</span>

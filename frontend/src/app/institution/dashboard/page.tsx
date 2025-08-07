@@ -297,9 +297,10 @@ export default function InstitutionDashboard() {
 
   const handleApplicationAction = async (applicationId: string, action: 'accept' | 'reject') => {
     try {
-      await api.applications.update(applicationId, { status: action === 'accept' ? 'accepted' : 'rejected' })
+      await api.applications.update(applicationId, { status: action === 'accept' ? 'accepted' : 'rejected',reviewed_at: new Date() })
       await loadInstitutionData(user.id)
     } catch (error: any) {
+      console.log(error)
       setError(`Failed to ${action} application`)
     }
   }
