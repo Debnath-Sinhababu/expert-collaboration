@@ -601,11 +601,17 @@ app.get('/api/applications', async (req, res) => {
 
 app.post('/api/applications', async (req, res) => {
   try {
+    console.log('=== APPLICATION CREATION DEBUG ===');
+    console.log('Headers:', req.headers);
+    console.log('Body:', req.body);
+    
     const authHeader = req.headers.authorization;
     let supabaseClient = supabase;
     
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
+      console.log('Token received:', token.substring(0, 50) + '...');
+      
       supabaseClient = createClient(
         process.env.SUPABASE_URL,
         process.env.SUPABASE_ANON_KEY,
@@ -617,16 +623,50 @@ app.post('/api/applications', async (req, res) => {
           }
         }
       );
+      
+      const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+      console.log('Authenticated user:', userData?.user?.id);
+      console.log('User error:', userError);
+      
+      if (userData?.user?.id) {
+        const { data: expertData, error: expertError } = await supabaseClient
+          .from('experts')
+          .select('id, user_id')
+          .eq('user_id', userData.user.id)
+          .single();
+        
+        console.log('User expert profile:', expertData);
+        console.log('Expert error:', expertError);
+        
+        if (expertData?.id) {
+          req.body.expert_id = expertData.id;
+          console.log('Added expert_id to request:', expertData.id);
+        } else {
+          console.log('No expert profile found for user');
+          return res.status(400).json({ error: 'Expert profile not found. Please complete your profile setup first.' });
+        }
+      } else {
+        console.log('No authenticated user found');
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+    } else {
+      console.log('No auth token provided');
+      return res.status(401).json({ error: 'Authentication required' });
     }
+    
+    console.log('Final request body:', req.body);
     
     const { data, error } = await supabaseClient
       .from('applications')
       .insert([req.body])
       .select();
     
+    console.log('Insert result:', { data, error });
+    
     if (error) throw error;
     res.status(201).json(data[0]);
   } catch (error) {
+    console.log('Application creation error:', error);
     res.status(500).json({ error: error.message });
   }
 });
