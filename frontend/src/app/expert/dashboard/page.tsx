@@ -228,13 +228,15 @@ export default function ExpertDashboard() {
         proposed_rate: parseFloat(applicationForm.proposedRate)
       })
 
-      if (response.success) {
+      if (response && response.id) {
+        setSuccess('Application submitted successfully!')
         setApplicationForm({ coverLetter: '', proposedRate: '' })
         loadExpertData()
       } else {
         setError(response.error || 'Failed to submit application')
       }
     } catch (error: any) {
+      console.error('Application submission error:', error)
       setError(error.message)
     }
   }
