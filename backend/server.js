@@ -561,6 +561,8 @@ app.put('/api/projects/:id', async (req, res) => {
 
 app.get('/api/applications', async (req, res) => {
   try {
+    console.log('=== GET APPLICATIONS DEBUG ===');
+    console.log('Query params:', req.query);
     const { expert_id, project_id, page = 1, limit = 10 } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
     
@@ -569,6 +571,7 @@ app.get('/api/applications', async (req, res) => {
     
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
+      console.log('Using authenticated client for applications fetch');
       supabaseClient = createClient(
         process.env.SUPABASE_URL,
         process.env.SUPABASE_ANON_KEY,
@@ -580,6 +583,8 @@ app.get('/api/applications', async (req, res) => {
           }
         }
       );
+    } else {
+      console.log('Using unauthenticated client for applications fetch');
     }
     
     let query = supabaseClient
@@ -605,14 +610,22 @@ app.get('/api/applications', async (req, res) => {
       .range(offset, offset + parseInt(limit) - 1)
       .order('applied_at', { ascending: false });
     
-    if (expert_id) query = query.eq('expert_id', expert_id);
-    if (project_id) query = query.eq('project_id', project_id);
+    if (expert_id) {
+      console.log('Filtering by expert_id:', expert_id);
+      query = query.eq('expert_id', expert_id);
+    }
+    if (project_id) {
+      console.log('Filtering by project_id:', project_id);
+      query = query.eq('project_id', project_id);
+    }
     
     const { data, error } = await query;
+    console.log('Applications query result:', { dataCount: data?.length || 0, error });
     
     if (error) throw error;
     res.json(data);
   } catch (error) {
+    console.log('GET applications error:', error);
     res.status(500).json({ error: error.message });
   }
 });

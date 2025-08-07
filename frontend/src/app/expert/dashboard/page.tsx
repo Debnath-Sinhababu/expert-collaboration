@@ -93,13 +93,10 @@ export default function ExpertDashboard() {
         return
       }
 
-      const [applicationsResponse, projectsResponse, expertsResponse] = await Promise.all([
-        api.applications.getAll(),
+      const [projectsResponse, expertsResponse] = await Promise.all([
         api.projects.getAll(),
         api.experts.getAll()
       ])
-
-      setApplications(applicationsResponse || [])
 
       let expertProfile = null
       if (expertsResponse && Array.isArray(expertsResponse)) {
@@ -108,6 +105,13 @@ export default function ExpertDashboard() {
         expertProfile = expertsResponse.find((expert: any) => expert.user_id === currentUser.id)
         console.log('Found expert profile:', expertProfile)
       }
+
+      let applicationsResponse = []
+      if (expertProfile?.id) {
+        applicationsResponse = await api.applications.getAll({ expert_id: expertProfile.id })
+      }
+
+      setApplications(applicationsResponse || [])
 
       if (expertProfile) {
         const expertData = {
