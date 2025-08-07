@@ -40,7 +40,8 @@ import {
   Award,
   Shield,
   MessageSquare,
-  FileText
+  FileText,
+  AlertCircle
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -70,6 +71,18 @@ export default function InstitutionDashboard() {
   const [submittingProject, setSubmittingProject] = useState(false)
   const [editingProject, setEditingProject] = useState<any>(null)
   const [showEditForm, setShowEditForm] = useState(false)
+  const [profileForm, setProfileForm] = useState({
+    name: '',
+    type: '',
+    description: '',
+    email: '',
+    phone: '',
+    website_url: '',
+    city: '',
+    state: '',
+    country: '',
+    address: ''
+  })
   const router = useRouter()
   
 
@@ -81,6 +94,18 @@ export default function InstitutionDashboard() {
         return
       }
       setUser(user)
+
+      const userRole = user.user_metadata?.role
+      if (userRole !== 'institution') {
+        console.log('Non-institution user accessing institution dashboard, redirecting...')
+        if (userRole === 'expert') {
+          router.push('/expert/dashboard')
+        } else {
+          router.push('/')
+        }
+        return
+      }
+
       await loadInstitutionData(user.id)
     }
 
@@ -98,6 +123,19 @@ export default function InstitutionDashboard() {
       }
       
       setInstitution(institutionProfile)
+      
+      setProfileForm({
+        name: institutionProfile.name || '',
+        type: institutionProfile.type || '',
+        description: institutionProfile.description || '',
+        email: institutionProfile.email || '',
+        phone: institutionProfile.phone || '',
+        website_url: institutionProfile.website_url || '',
+        city: institutionProfile.city || '',
+        state: institutionProfile.state || '',
+        country: institutionProfile.country || 'India',
+        address: institutionProfile.address || ''
+      })
       
       const [projectsResponse, applicationsResponse, expertsResponse] = await Promise.all([
         api.projects.getAll(),
@@ -174,6 +212,44 @@ export default function InstitutionDashboard() {
 
   const handleSearchExperts = (term: string) => {
     setSearchTerm(term)
+  }
+
+  const handleProfileUpdate = async () => {
+    try {
+      setSubmittingProject(true)
+      const currentUser = await supabase.auth.getUser()
+      if (!currentUser.data.user) return
+
+      const updateData = {
+        ...profileForm
+      }
+      
+      let updatedInstitution
+      if (institution?.id) {
+        console.log('Updating existing institution profile with ID:', institution.id)
+        updatedInstitution = await api.institutions.update(institution.id, updateData)
+      } else {
+        console.log('Creating new institution profile for user:', currentUser.data.user.id)
+        const createData = {
+          ...updateData,
+          user_id: currentUser.data.user.id
+        }
+        updatedInstitution = await api.institutions.create(createData)
+      }
+      
+      if (updatedInstitution && updatedInstitution.id) {
+        setInstitution(updatedInstitution)
+        console.log('Institution profile updated/created successfully:', updatedInstitution)
+      }
+      
+      setError('')
+      
+    } catch (error: any) {
+      console.error('Institution profile update error:', error)
+      setError(`Failed to update profile: ${error.message}`)
+    } finally {
+      setSubmittingProject(false)
+    }
   }
 
   const handleProjectSubmit = async (e: React.FormEvent) => {
@@ -1155,90 +1231,145 @@ export default function InstitutionDashboard() {
                 <CardHeader>
                   <CardTitle>Institution Profile</CardTitle>
                   <CardDescription>
-                    View and manage your institution profile
+                    Manage your institution profile and information
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-6">
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-sm font-medium text-gray-600">Institution Name</Label>
-                        <p className="text-gray-900 font-medium">{institution?.name}</p>
+                    <div className="flex items-center space-x-4">
+                      <div className="h-20 w-20 bg-blue-100 rounded-full flex items-center justify-center">
+                        <Building className="h-10 w-10 text-blue-600" />
                       </div>
                       <div>
-                        <Label className="text-sm font-medium text-gray-600">Type</Label>
-                        <p className="text-gray-900">{institution?.type}</p>
+                        <h3 className="text-lg font-semibold">{institution?.name}</h3>
+                        <p className="text-gray-600">{institution?.email}</p>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <Badge variant={institution?.is_verified ? 'default' : 'secondary'}>
+                            {institution?.is_verified ? 'Verified' : 'Pending'}
+                          </Badge>
+                          {institution?.is_verified ? (
+                            <Shield className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <AlertCircle className="h-4 w-4 text-yellow-600" />
+                          )}
+                        </div>
                       </div>
                     </div>
-                    
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <Label htmlFor="name">Institution Name</Label>
+                        <Input 
+                          id="name" 
+                          value={profileForm.name}
+                          onChange={(e) => setProfileForm({...profileForm, name: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="type">Institution Type</Label>
+                        <Select value={profileForm.type} onValueChange={(value) => setProfileForm({...profileForm, type: value})}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select institution type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="university">University</SelectItem>
+                            <SelectItem value="college">College</SelectItem>
+                            <SelectItem value="institute">Institute</SelectItem>
+                            <SelectItem value="school">School</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="email">Email</Label>
+                        <Input 
+                          id="email" 
+                          value={profileForm.email}
+                          onChange={(e) => setProfileForm({...profileForm, email: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="website">Website URL</Label>
+                        <Input 
+                          id="website" 
+                          value={profileForm.website_url}
+                          onChange={(e) => setProfileForm({...profileForm, website_url: e.target.value})}
+                          placeholder="https://example.com"
+                        />
+                      </div>
+                    </div>
+
                     <div>
-                      <Label className="text-sm font-medium text-gray-600">Description</Label>
-                      <p className="text-gray-900 mt-1">{institution?.description}</p>
+                      <Label htmlFor="description">Description</Label>
+                      <Textarea 
+                        id="description" 
+                        placeholder="Describe your institution..."
+                        rows={4}
+                        value={profileForm.description}
+                        onChange={(e) => setProfileForm({...profileForm, description: e.target.value})}
+                      />
                     </div>
-                    
-                    <div className="grid md:grid-cols-2 gap-4">
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div>
-                        <Label className="text-sm font-medium text-gray-600">Email</Label>
-                        <p className="text-gray-900">{institution?.email}</p>
+                        <Label htmlFor="city">City</Label>
+                        <Input 
+                          id="city" 
+                          value={profileForm.city}
+                          onChange={(e) => setProfileForm({...profileForm, city: e.target.value})}
+                        />
                       </div>
                       <div>
-                        <Label className="text-sm font-medium text-gray-600">Website</Label>
-                        {institution?.website_url ? (
-                          <a 
-                            href={institution.website_url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline"
-                          >
-                            {institution.website_url}
-                          </a>
-                        ) : (
-                          <p className="text-gray-500">Not provided</p>
-                        )}
+                        <Label htmlFor="state">State</Label>
+                        <Input 
+                          id="state" 
+                          value={profileForm.state}
+                          onChange={(e) => setProfileForm({...profileForm, state: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="country">Country</Label>
+                        <Input 
+                          id="country" 
+                          value={profileForm.country}
+                          onChange={(e) => setProfileForm({...profileForm, country: e.target.value})}
+                        />
                       </div>
                     </div>
 
-                    <div className="grid md:grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="address">Address</Label>
+                      <Textarea 
+                        id="address" 
+                        placeholder="Full address..."
+                        rows={2}
+                        value={profileForm.address}
+                        onChange={(e) => setProfileForm({...profileForm, address: e.target.value})}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <Label className="text-sm font-medium text-gray-600">City</Label>
-                        <p className="text-gray-900">{institution?.city || 'Not provided'}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-gray-600">State</Label>
-                        <p className="text-gray-900">{institution?.state || 'Not provided'}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-gray-600">Country</Label>
-                        <p className="text-gray-900">{institution?.country || 'India'}</p>
+                        <Label htmlFor="phone">Phone</Label>
+                        <Input 
+                          id="phone" 
+                          value={profileForm.phone}
+                          onChange={(e) => setProfileForm({...profileForm, phone: e.target.value})}
+                        />
                       </div>
                     </div>
 
-                    {institution?.address && (
-                      <div>
-                        <Label className="text-sm font-medium text-gray-600">Address</Label>
-                        <p className="text-gray-900 mt-1">{institution.address}</p>
-                      </div>
+                    <Button className="w-full" onClick={handleProfileUpdate} disabled={submittingProject}>
+                      {submittingProject ? 'Updating...' : 'Update Profile'}
+                    </Button>
+
+                    {!institution?.is_verified && (
+                      <Alert>
+                        <Shield className="h-4 w-4" />
+                        <AlertDescription>
+                          Complete your institution verification to build trust with experts and access premium features.
+                        </AlertDescription>
+                      </Alert>
                     )}
-
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-sm font-medium text-gray-600">Contact Person</Label>
-                        <p className="text-gray-900">{institution?.contact_person || 'Not provided'}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-gray-600">Contact Phone</Label>
-                        <p className="text-gray-900">{institution?.contact_phone || 'Not provided'}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="pt-4 flex space-x-4">
-                      <Link href="/institution/profile-setup">
-                        <Button variant="outline">
-                          <Settings className="h-4 w-4 mr-2" />
-                          Edit Profile
-                        </Button>
-                      </Link>
-                    </div>
                   </div>
                 </CardContent>
               </Card>
