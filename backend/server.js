@@ -129,7 +129,7 @@ app.post('/api/experts', async (req, res) => {
       hourly_rate: req.body.hourly_rate,
       resume_url: req.body.resume_url,
       availability: req.body.availability || [],
-      is_verified: req.body.verified || false,
+      is_verified: true, // Auto-verify since email verification is required for login
       rating: req.body.rating || 0.00,
       total_ratings: req.body.total_projects || 0
     };
@@ -297,7 +297,7 @@ app.post('/api/institutions', async (req, res) => {
       city: req.body.city,
       state: req.body.state,
       country: req.body.country || 'India',
-      is_verified: req.body.verified || false,
+      is_verified: true, // Auto-verify since email verification is required for login
       rating: req.body.rating || 0.00,
       total_ratings: req.body.total_projects || 0
     };
