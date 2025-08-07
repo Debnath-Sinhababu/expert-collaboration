@@ -163,16 +163,22 @@ export const api = {
       const query = new URLSearchParams(params as any).toString()
       return fetch(`${API_BASE_URL}/api/applications${query ? `?${query}` : ''}`, { headers }).then(res => res.json())
     },
-    create: (data: any) => fetch(`${API_BASE_URL}/api/applications`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    }).then(res => res.json()),
-    update: (id: string, data: any) => fetch(`${API_BASE_URL}/api/applications/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    }).then(res => res.json())
+    create: async (data: any) => {
+      const headers = await getAuthHeaders()
+      return fetch(`${API_BASE_URL}/api/applications`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data)
+      }).then(res => res.json())
+    },
+    update: async (id: string, data: any) => {
+      const headers = await getAuthHeaders()
+      return fetch(`${API_BASE_URL}/api/applications/${id}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(data)
+      }).then(res => res.json())
+    }
   },
 
   bookings: {
