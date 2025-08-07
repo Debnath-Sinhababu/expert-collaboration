@@ -160,15 +160,50 @@ app.get('/api/experts/:id', async (req, res) => {
 
 app.put('/api/experts/:id', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    console.log('PUT /api/experts/:id - Request body:', req.body);
+    console.log('PUT /api/experts/:id - Expert ID:', req.params.id);
+    
+    const authHeader = req.headers.authorization;
+    let supabaseClient = supabase;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      console.log('PUT /api/experts/:id - Using authenticated client');
+      supabaseClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        }
+      );
+    } else {
+      console.log('PUT /api/experts/:id - No auth token, using basic client');
+    }
+    
+    const { data, error } = await supabaseClient
       .from('experts')
       .update(req.body)
       .eq('id', req.params.id)
       .select();
     
+    console.log('PUT /api/experts/:id - Supabase response data:', data);
+    console.log('PUT /api/experts/:id - Supabase response error:', error);
+    
     if (error) throw error;
-    res.json(data[0]);
+    
+    if (!data || data.length === 0) {
+      console.log('PUT /api/experts/:id - No data returned, sending empty object');
+      res.json({});
+    } else {
+      console.log('PUT /api/experts/:id - Sending data:', data[0]);
+      res.json(data[0]);
+    }
   } catch (error) {
+    console.log('PUT /api/experts/:id - Error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
@@ -298,7 +333,25 @@ app.get('/api/institutions/:id', async (req, res) => {
 
 app.put('/api/institutions/:id', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const authHeader = req.headers.authorization;
+    let supabaseClient = supabase;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      supabaseClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        }
+      );
+    }
+    
+    const { data, error } = await supabaseClient
       .from('institutions')
       .update(req.body)
       .eq('id', req.params.id)
@@ -563,7 +616,25 @@ app.post('/api/applications', async (req, res) => {
 
 app.put('/api/applications/:id', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const authHeader = req.headers.authorization;
+    let supabaseClient = supabase;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      supabaseClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        }
+      );
+    }
+    
+    const { data, error } = await supabaseClient
       .from('applications')
       .update(req.body)
       .eq('id', req.params.id)
