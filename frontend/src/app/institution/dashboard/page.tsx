@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
+import { usePagination } from '@/hooks/usePagination'
+import { PROJECT_TYPES, EXPERTISE_DOMAINS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -38,29 +40,18 @@ import {
   Award,
   Shield,
   MessageSquare,
-  FileText
+  FileText,
+  AlertCircle
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
-const PROJECT_TYPES = [
-  'guest_lecture',
-  'fdp',
-  'workshop',
-  'curriculum_dev',
-  'research_collaboration',
-  'training_program',
-  'consultation',
-  'other'
-]
 
 export default function InstitutionDashboard() {
   const [user, setUser] = useState<any>(null)
   const [institution, setInstitution] = useState<any>(null)
   const [projects, setProjects] = useState<any[]>([])
   const [applications, setApplications] = useState<any[]>([])
-  const [experts, setExperts] = useState<any[]>([])
-  const [filteredExperts, setFilteredExperts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
@@ -78,7 +69,22 @@ export default function InstitutionDashboard() {
     required_expertise: ''
   })
   const [submittingProject, setSubmittingProject] = useState(false)
+  const [editingProject, setEditingProject] = useState<any>(null)
+  const [showEditForm, setShowEditForm] = useState(false)
+  const [profileForm, setProfileForm] = useState({
+    name: '',
+    type: '',
+    description: '',
+    email: '',
+    phone: '',
+    website_url: '',
+    city: '',
+    state: '',
+    country: '',
+    address: ''
+  })
   const router = useRouter()
+  
 
   useEffect(() => {
     const getUser = async () => {
@@ -88,6 +94,18 @@ export default function InstitutionDashboard() {
         return
       }
       setUser(user)
+
+      const userRole = user.user_metadata?.role
+      if (userRole !== 'institution') {
+        console.log('Non-institution user accessing institution dashboard, redirecting...')
+        if (userRole === 'expert') {
+          router.push('/expert/dashboard')
+        } else {
+          router.push('/')
+        }
+        return
+      }
+
       await loadInstitutionData(user.id)
     }
 
@@ -106,6 +124,19 @@ export default function InstitutionDashboard() {
       
       setInstitution(institutionProfile)
       
+      setProfileForm({
+        name: institutionProfile.name || '',
+        type: institutionProfile.type || '',
+        description: institutionProfile.description || '',
+        email: institutionProfile.email || '',
+        phone: institutionProfile.phone || '',
+        website_url: institutionProfile.website_url || '',
+        city: institutionProfile.city || '',
+        state: institutionProfile.state || '',
+        country: institutionProfile.country || 'India',
+        address: institutionProfile.address || ''
+      })
+      
       const [projectsResponse, applicationsResponse, expertsResponse] = await Promise.all([
         api.projects.getAll(),
         api.applications.getAll(),
@@ -119,9 +150,6 @@ export default function InstitutionDashboard() {
         institutionProjects.some((project: any) => project.id === app.project_id)
       )
       setApplications(projectApplications)
-      
-      setExperts(expertsResponse)
-      setFilteredExperts(expertsResponse)
       
     } catch (error: any) {
       setError('Failed to load dashboard data')
@@ -164,17 +192,62 @@ export default function InstitutionDashboard() {
     }
   }
 
+  const {
+    data: experts,
+    loading: expertsLoading,
+    hasMore: hasMoreExperts,
+    loadMore: loadMoreExperts,
+    refresh: refreshExperts
+  } = usePagination(
+    async (page: number) => {
+      return await api.experts.getAll({
+        page,
+        limit: 10,
+        search: searchTerm
+      });
+    },
+    [searchTerm]
+  );
+
   const handleSearchExperts = (term: string) => {
     setSearchTerm(term)
-    if (!term) {
-      setFilteredExperts(experts)
-    } else {
-      const filtered = experts.filter((expert: any) =>
-        expert.name.toLowerCase().includes(term.toLowerCase()) ||
-        expert.domain_expertise.toLowerCase().includes(term.toLowerCase()) ||
-        expert.bio.toLowerCase().includes(term.toLowerCase())
-      )
-      setFilteredExperts(filtered)
+  }
+
+  const handleProfileUpdate = async () => {
+    try {
+      setSubmittingProject(true)
+      const currentUser = await supabase.auth.getUser()
+      if (!currentUser.data.user) return
+
+      const updateData = {
+        ...profileForm
+      }
+      
+      let updatedInstitution
+      if (institution?.id) {
+        console.log('Updating existing institution profile with ID:', institution.id)
+        updatedInstitution = await api.institutions.update(institution.id, updateData)
+      } else {
+        console.log('Creating new institution profile for user:', currentUser.data.user.id)
+        const createData = {
+          ...updateData,
+          user_id: currentUser.data.user.id
+        }
+        updatedInstitution = await api.institutions.create(createData)
+      }
+      
+      if (updatedInstitution && updatedInstitution.id) {
+        setInstitution(updatedInstitution)
+        console.log('Institution profile updated/created successfully:', updatedInstitution)
+      }
+      
+      setError('')
+      
+    } catch (error: any) {
+      console.error('Institution profile update error:', error)
+      setError(`Failed to update profile: ${error.message}`)
+    } finally {
+      setSubmittingProject(false)
     }
   }
 
@@ -224,10 +297,100 @@ export default function InstitutionDashboard() {
 
   const handleApplicationAction = async (applicationId: string, action: 'accept' | 'reject') => {
     try {
-      await api.applications.update(applicationId, { status: action === 'accept' ? 'accepted' : 'rejected' })
+      await api.applications.update(applicationId, { status: action === 'accept' ? 'accepted' : 'rejected',reviewed_at: new Date() })
       await loadInstitutionData(user.id)
     } catch (error: any) {
+      console.log(error)
       setError(`Failed to ${action} application`)
+    }
+  }
+
+  const handleEditProject = (project: any) => {
+    setEditingProject(project)
+    setProjectForm({
+      title: project.title,
+      description: project.description,
+      type: project.type,
+      hourly_rate: project.hourly_rate.toString(),
+      total_budget: project.total_budget.toString(),
+      start_date: project.start_date,
+      end_date: project.end_date,
+      duration_hours: project.duration_hours.toString(),
+      required_expertise: project.required_expertise.join(', ')
+    })
+    setShowEditForm(true)
+  }
+
+  const handleUpdateProject = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!projectForm.title || !projectForm.description || !projectForm.type || !projectForm.hourly_rate) {
+      setError('Please fill in all required fields')
+      return
+    }
+
+    setSubmittingProject(true)
+    try {
+      const result = await api.projects.update(editingProject.id, {
+        title: projectForm.title,
+        description: projectForm.description,
+        type: projectForm.type,
+        hourly_rate: parseFloat(projectForm.hourly_rate),
+        total_budget: parseFloat(projectForm.total_budget) || parseFloat(projectForm.hourly_rate) * parseInt(projectForm.duration_hours || '1'),
+        start_date: projectForm.start_date,
+        end_date: projectForm.end_date,
+        duration_hours: parseInt(projectForm.duration_hours) || 1,
+        required_expertise: projectForm.required_expertise.split(',').map(s => s.trim()).filter(s => s)
+      })
+      
+      console.log('Project updated successfully:', result)
+      
+      setProjectForm({
+        title: '',
+        description: '',
+        type: '',
+        hourly_rate: '',
+        total_budget: '',
+        start_date: '',
+        end_date: '',
+        duration_hours: '',
+        required_expertise: ''
+      })
+      setShowEditForm(false)
+      setEditingProject(null)
+      await loadInstitutionData(user.id)
+      setError('')
+    } catch (error: any) {
+      console.error('Project update error:', error)
+      setError(`Failed to update project: ${error.message}`)
+    } finally {
+      setSubmittingProject(false)
+    }
+  }
+
+  const handleCreateProject = () => {
+    setProjectForm({
+      title: '',
+      description: '',
+      type: '',
+      hourly_rate: '',
+      total_budget: '',
+      start_date: '',
+      end_date: '',
+      duration_hours: '',
+      required_expertise: ''
+    })
+    setShowProjectForm(true)
+  }
+
+  const handleCloseProject = async (projectId: string) => {
+    try {
+      const result = await api.projects.update(projectId, { status: 'closed' })
+      console.log('Project closed successfully:', result)
+      await loadInstitutionData(user.id)
+      setError('')
+    } catch (error: any) {
+      console.error('Project close error:', error)
+      setError(`Failed to close project: ${error.message}`)
     }
   }
 
@@ -282,12 +445,10 @@ export default function InstitutionDashboard() {
             </p>
           </div>
           <Dialog open={showProjectForm} onOpenChange={setShowProjectForm}>
-            <DialogTrigger asChild>
-              <Button className="bg-blue-600 hover:bg-blue-700">
-                <Plus className="h-4 w-4 mr-2" />
-                Post New Project
-              </Button>
-            </DialogTrigger>
+            <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleCreateProject}>
+              <Plus className="h-4 w-4 mr-2" />
+              Post New Project
+            </Button>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle>Post New Project</DialogTitle>
@@ -412,6 +573,133 @@ export default function InstitutionDashboard() {
               </form>
             </DialogContent>
           </Dialog>
+
+          {/* Edit Project Dialog */}
+          <Dialog open={showEditForm} onOpenChange={setShowEditForm}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Edit Project</DialogTitle>
+                <DialogDescription>
+                  Update your project details
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleUpdateProject} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-title">Project Title *</Label>
+                    <Input
+                      id="edit-title"
+                      placeholder="Enter project title"
+                      value={projectForm.title}
+                      onChange={(e) => setProjectForm(prev => ({ ...prev, title: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-type">Project Type *</Label>
+                    <Select value={projectForm.type} onValueChange={(value) => setProjectForm(prev => ({ ...prev, type: value }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select project type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PROJECT_TYPES.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                <div>
+                  <Label htmlFor="edit-description">Description *</Label>
+                  <Textarea
+                    id="edit-description"
+                    placeholder="Describe the project requirements and objectives..."
+                    value={projectForm.description}
+                    onChange={(e) => setProjectForm(prev => ({ ...prev, description: e.target.value }))}
+                    rows={3}
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="edit-hourly_rate">Hourly Rate (₹) *</Label>
+                    <Input
+                      id="edit-hourly_rate"
+                      type="number"
+                      placeholder="Enter hourly rate"
+                      value={projectForm.hourly_rate}
+                      onChange={(e) => setProjectForm(prev => ({ ...prev, hourly_rate: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-duration_hours">Duration (hours)</Label>
+                    <Input
+                      id="edit-duration_hours"
+                      type="number"
+                      placeholder="Total hours"
+                      value={projectForm.duration_hours}
+                      onChange={(e) => setProjectForm(prev => ({ ...prev, duration_hours: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-total_budget">Total Budget (₹)</Label>
+                    <Input
+                      id="edit-total_budget"
+                      type="number"
+                      placeholder="Maximum budget"
+                      value={projectForm.total_budget}
+                      onChange={(e) => setProjectForm(prev => ({ ...prev, total_budget: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-start_date">Start Date</Label>
+                    <Input
+                      id="edit-start_date"
+                      type="date"
+                      value={projectForm.start_date}
+                      onChange={(e) => setProjectForm(prev => ({ ...prev, start_date: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-end_date">End Date</Label>
+                    <Input
+                      id="edit-end_date"
+                      type="date"
+                      value={projectForm.end_date}
+                      onChange={(e) => setProjectForm(prev => ({ ...prev, end_date: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="edit-required_expertise">Required Expertise</Label>
+                  <Input
+                    id="edit-required_expertise"
+                    placeholder="Enter skills separated by commas (e.g., Machine Learning, Data Science)"
+                    value={projectForm.required_expertise}
+                    onChange={(e) => setProjectForm(prev => ({ ...prev, required_expertise: e.target.value }))}
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-2">
+                  <Button type="button" variant="outline" onClick={() => setShowEditForm(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={submittingProject}>
+                    {submittingProject ? 'Updating...' : 'Update Project'}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Stats Cards */}
@@ -500,15 +788,18 @@ export default function InstitutionDashboard() {
                     <Briefcase className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-600">No projects posted yet</p>
                     <p className="text-sm text-gray-500">Create your first project to find experts</p>
-                    <Button className="mt-4" onClick={() => setShowProjectForm(true)}>
+                    <Button className="mt-4" onClick={handleCreateProject}>
                       <Plus className="h-4 w-4 mr-2" />
                       Post Your First Project
                     </Button>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {projects.map((project) => (
-                      <div key={project.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                    {projects.map((project: any) => (
+                      <div 
+                        key={project.id} 
+                        className="border rounded-lg p-4 hover:shadow-md transition-shadow"
+                      >
                         <div className="flex items-center justify-between mb-2">
                           <h3 className="font-semibold text-lg">{project.title}</h3>
                           <div className="flex items-center space-x-2">
@@ -558,12 +849,12 @@ export default function InstitutionDashboard() {
                               <Eye className="h-4 w-4 mr-2" />
                               View Applications ({applications.filter(app => app.project_id === project.id).length})
                             </Button>
-                            <Button size="sm" variant="outline">
+                            <Button size="sm" variant="outline" onClick={() => handleEditProject(project)}>
                               <Edit className="h-4 w-4 mr-2" />
                               Edit
                             </Button>
                             {project.status === 'open' && (
-                              <Button size="sm" variant="outline">
+                              <Button size="sm" variant="outline" onClick={() => handleCloseProject(project.id)}>
                                 <XCircle className="h-4 w-4 mr-2" />
                                 Close
                               </Button>
@@ -598,7 +889,7 @@ export default function InstitutionDashboard() {
                   <div className="space-y-4">
                     {applications.map((application) => {
                       const project = projects.find(p => p.id === application.project_id)
-                      const expert = experts.find(e => e.id === application.expert_id)
+                      const expert: any = experts.find((e: any) => e.id === application.expert_id)
                       return (
                         <div key={application.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
                           <div className="flex items-center justify-between mb-3">
@@ -758,7 +1049,7 @@ export default function InstitutionDashboard() {
                 </div>
               </CardHeader>
               <CardContent>
-                {filteredExperts.length === 0 ? (
+                {experts.length === 0 && !expertsLoading ? (
                   <div className="text-center py-8">
                     <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-600">
@@ -770,7 +1061,7 @@ export default function InstitutionDashboard() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {filteredExperts.map((expert) => (
+                    {experts.map((expert: any) => (
                       <div key={expert.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
                         <div className="flex items-center justify-between mb-3">
                           <div>
@@ -913,7 +1204,7 @@ export default function InstitutionDashboard() {
                   {applications.length > 0 ? (
                     applications.map((application) => {
                       const project = projects.find(p => p.id === application.project_id)
-                      const expert = experts.find(e => e.id === application.expert_id)
+                      const expert: any = experts.find((e: any) => e.id === application.expert_id)
                       return (
                         <div key={application.id} className="flex items-start space-x-3 p-4 border rounded-lg">
                           <Bell className="h-5 w-5 text-blue-600 mt-0.5" />
@@ -953,90 +1244,145 @@ export default function InstitutionDashboard() {
                 <CardHeader>
                   <CardTitle>Institution Profile</CardTitle>
                   <CardDescription>
-                    View and manage your institution profile
+                    Manage your institution profile and information
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-6">
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-sm font-medium text-gray-600">Institution Name</Label>
-                        <p className="text-gray-900 font-medium">{institution?.name}</p>
+                    <div className="flex items-center space-x-4">
+                      <div className="h-20 w-20 bg-blue-100 rounded-full flex items-center justify-center">
+                        <Building className="h-10 w-10 text-blue-600" />
                       </div>
                       <div>
-                        <Label className="text-sm font-medium text-gray-600">Type</Label>
-                        <p className="text-gray-900">{institution?.type}</p>
+                        <h3 className="text-lg font-semibold">{institution?.name}</h3>
+                        <p className="text-gray-600">{institution?.email}</p>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <Badge variant={institution?.is_verified ? 'default' : 'secondary'}>
+                            {institution?.is_verified ? 'Verified' : 'Pending'}
+                          </Badge>
+                          {institution?.is_verified ? (
+                            <Shield className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <AlertCircle className="h-4 w-4 text-yellow-600" />
+                          )}
+                        </div>
                       </div>
                     </div>
-                    
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <Label htmlFor="name">Institution Name</Label>
+                        <Input 
+                          id="name" 
+                          value={profileForm.name}
+                          onChange={(e) => setProfileForm({...profileForm, name: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="type">Institution Type</Label>
+                        <Select value={profileForm.type} onValueChange={(value) => setProfileForm({...profileForm, type: value})}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select institution type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="university">University</SelectItem>
+                            <SelectItem value="college">College</SelectItem>
+                            <SelectItem value="institute">Institute</SelectItem>
+                            <SelectItem value="school">School</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="email">Email</Label>
+                        <Input 
+                          id="email" 
+                          value={profileForm.email}
+                          onChange={(e) => setProfileForm({...profileForm, email: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="website">Website URL</Label>
+                        <Input 
+                          id="website" 
+                          value={profileForm.website_url}
+                          onChange={(e) => setProfileForm({...profileForm, website_url: e.target.value})}
+                          placeholder="https://example.com"
+                        />
+                      </div>
+                    </div>
+
                     <div>
-                      <Label className="text-sm font-medium text-gray-600">Description</Label>
-                      <p className="text-gray-900 mt-1">{institution?.description}</p>
+                      <Label htmlFor="description">Description</Label>
+                      <Textarea 
+                        id="description" 
+                        placeholder="Describe your institution..."
+                        rows={4}
+                        value={profileForm.description}
+                        onChange={(e) => setProfileForm({...profileForm, description: e.target.value})}
+                      />
                     </div>
-                    
-                    <div className="grid md:grid-cols-2 gap-4">
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div>
-                        <Label className="text-sm font-medium text-gray-600">Email</Label>
-                        <p className="text-gray-900">{institution?.email}</p>
+                        <Label htmlFor="city">City</Label>
+                        <Input 
+                          id="city" 
+                          value={profileForm.city}
+                          onChange={(e) => setProfileForm({...profileForm, city: e.target.value})}
+                        />
                       </div>
                       <div>
-                        <Label className="text-sm font-medium text-gray-600">Website</Label>
-                        {institution?.website_url ? (
-                          <a 
-                            href={institution.website_url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline"
-                          >
-                            {institution.website_url}
-                          </a>
-                        ) : (
-                          <p className="text-gray-500">Not provided</p>
-                        )}
+                        <Label htmlFor="state">State</Label>
+                        <Input 
+                          id="state" 
+                          value={profileForm.state}
+                          onChange={(e) => setProfileForm({...profileForm, state: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="country">Country</Label>
+                        <Input 
+                          id="country" 
+                          value={profileForm.country}
+                          onChange={(e) => setProfileForm({...profileForm, country: e.target.value})}
+                        />
                       </div>
                     </div>
 
-                    <div className="grid md:grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="address">Address</Label>
+                      <Textarea 
+                        id="address" 
+                        placeholder="Full address..."
+                        rows={2}
+                        value={profileForm.address}
+                        onChange={(e) => setProfileForm({...profileForm, address: e.target.value})}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <Label className="text-sm font-medium text-gray-600">City</Label>
-                        <p className="text-gray-900">{institution?.city || 'Not provided'}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-gray-600">State</Label>
-                        <p className="text-gray-900">{institution?.state || 'Not provided'}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-gray-600">Country</Label>
-                        <p className="text-gray-900">{institution?.country || 'India'}</p>
+                        <Label htmlFor="phone">Phone</Label>
+                        <Input 
+                          id="phone" 
+                          value={profileForm.phone}
+                          onChange={(e) => setProfileForm({...profileForm, phone: e.target.value})}
+                        />
                       </div>
                     </div>
 
-                    {institution?.address && (
-                      <div>
-                        <Label className="text-sm font-medium text-gray-600">Address</Label>
-                        <p className="text-gray-900 mt-1">{institution.address}</p>
-                      </div>
+                    <Button className="w-full" onClick={handleProfileUpdate} disabled={submittingProject}>
+                      {submittingProject ? 'Updating...' : 'Update Profile'}
+                    </Button>
+
+                    {!institution?.is_verified && (
+                      <Alert>
+                        <Shield className="h-4 w-4" />
+                        <AlertDescription>
+                          Complete your institution verification to build trust with experts and access premium features.
+                        </AlertDescription>
+                      </Alert>
                     )}
-
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-sm font-medium text-gray-600">Contact Person</Label>
-                        <p className="text-gray-900">{institution?.contact_person || 'Not provided'}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-gray-600">Contact Phone</Label>
-                        <p className="text-gray-900">{institution?.contact_phone || 'Not provided'}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="pt-4 flex space-x-4">
-                      <Link href="/institution/profile-setup">
-                        <Button variant="outline">
-                          <Settings className="h-4 w-4 mr-2" />
-                          Edit Profile
-                        </Button>
-                      </Link>
-                    </div>
                   </div>
                 </CardContent>
               </Card>

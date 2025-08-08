@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -37,9 +38,33 @@ export default function LoginPage() {
         const role = userMetadata?.role
         
         if (role === 'expert') {
-          router.push('/expert/profile-setup')
+          try {
+            const experts = await api.experts.getAll()
+            const userExpert = experts.find((expert: any) => expert.user_id === data.user.id)
+            
+            if (userExpert) {
+              router.push('/expert/dashboard')
+            } else {
+              router.push('/expert/profile-setup')
+            }
+          } catch (error) {
+            console.error('Error checking expert profile:', error)
+            router.push('/expert/profile-setup')
+          }
         } else if (role === 'institution') {
-          router.push('/institution/profile-setup')
+          try {
+            const institutions = await api.institutions.getAll()
+            const userInstitution = institutions.find((institution: any) => institution.user_id === data.user.id)
+            
+            if (userInstitution) {
+              router.push('/institution/dashboard')
+            } else {
+              router.push('/institution/profile-setup')
+            }
+          } catch (error) {
+            console.error('Error checking institution profile:', error)
+            router.push('/institution/profile-setup')
+          }
         } else {
           router.push('/')
         }
