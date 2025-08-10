@@ -15,6 +15,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import NotificationBell from '@/components/NotificationBell'
 import { 
   GraduationCap, 
   User, 
@@ -433,9 +434,7 @@ export default function ExpertDashboard() {
             </Link>
             
             <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="sm">
-                <Bell className="h-4 w-4" />
-              </Button>
+              <NotificationBell />
               <Button variant="ghost" size="sm">
                 <MessageSquare className="h-4 w-4" />
               </Button>

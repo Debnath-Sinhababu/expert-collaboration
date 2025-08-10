@@ -4,10 +4,21 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
 const { createClient } = require('@supabase/supabase-js');
+const http = require('http');
 
 dotenv.config();
 
+// Import services after environment variables are loaded
+const notificationService = require('./services/notificationService');
+const socketService = require('./services/socketService');
+console.log('Environment variables loaded:');
+console.log('UPSTASH_REDIS_REST_URL:', process.env.UPSTASH_REDIS_REST_URL ? 'Set' : 'Not set');
+console.log('UPSTASH_REDIS_REST_TOKEN:', process.env.UPSTASH_REDIS_REST_TOKEN ? 'Set' : 'Not set');
+console.log('EMAIL_USER:', process.env.EMAIL_USER ? 'Set' : 'Not set');
+console.log('EMAIL_APP_PASSWORD:', process.env.EMAIL_APP_PASSWORD ? 'Set' : 'Not set');
+
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 8000;
 
 const supabase = createClient(
@@ -497,6 +508,44 @@ app.post('/api/projects', async (req, res) => {
     console.log('Insert result:', { data, error });
     
     if (error) throw error;
+    
+    // Send notification to all experts about new project
+    try {
+      // Get institution details for notification
+      const { data: institutionData } = await supabaseClient
+        .from('institutions')
+        .select('name')
+        .eq('id', req.body.institution_id)
+        .single();
+      
+      if (institutionData) {
+        // Get all experts to notify about new project
+        const { data: expertsData } = await supabaseClient
+          .from('experts')
+          .select('user_id, domain_expertise')
+          .not('domain_expertise', 'is', null);
+        
+        if (expertsData && expertsData.length > 0) {
+          // Send real-time notification to all experts
+          expertsData.forEach(expert => {
+            socketService.sendToUser(
+              expert.user_id,
+              'new_project_available',
+              {
+                type: 'new_project_available',
+                projectTitle: req.body.title,
+                institutionName: institutionData.name,
+                message: `New project available: ${req.body.title} from ${institutionData.name}`
+              }
+            );
+          });
+        }
+      }
+    } catch (notificationError) {
+      console.error('Error sending project notification:', notificationError);
+      // Don't fail the main request if notification fails
+    }
+    
     res.status(201).json(data[0]);
   } catch (error) {
     console.log('Project creation error:', error);
@@ -708,6 +757,58 @@ app.post('/api/applications', async (req, res) => {
     console.log('Insert result:', { data, error });
     
     if (error) throw error;
+    
+    // Send notification to institution about new application
+    try {
+      // Get project and expert details for notification
+      const { data: projectData } = await supabaseClient
+        .from('projects')
+        .select('title, institution_id')
+        .eq('id', req.body.project_id)
+        .single();
+      
+      const { data: expertData } = await supabaseClient
+        .from('experts')
+        .select('name, domain_expertise, hourly_rate')
+        .eq('id', req.body.expert_id)
+        .single();
+      
+      const { data: institutionData } = await supabaseClient
+        .from('institutions')
+        .select('name, email, user_id')
+        .eq('id', projectData.institution_id)
+        .single();
+      
+      if (projectData && expertData && institutionData) {
+        // Add notification to Redis queue
+        await notificationService.addToQueue({
+          type: 'expert_applied',
+          data: {
+            email: institutionData.email,
+            project_title: projectData.title,
+            expert_name: expertData.name,
+            expert_domain: expertData.domain_expertise,
+            expert_rate: expertData.hourly_rate
+          }
+        });
+        
+        // Send real-time notification via Socket.IO
+        socketService.sendToUser(
+          institutionData.user_id,
+          'new_application',
+          {
+            type: 'expert_applied',
+            projectTitle: projectData.title,
+            expertName: expertData.name,
+            message: `New expert application for project: ${projectData.title}`
+          }
+        );
+      }
+    } catch (notificationError) {
+      console.error('Error sending notification:', notificationError);
+      // Don't fail the main request if notification fails
+    }
+    
     res.status(201).json(data[0]);
   } catch (error) {
     console.log('Application creation error:', error);
@@ -747,6 +848,56 @@ app.put('/api/applications/:id', async (req, res) => {
       .select();
     
     if (error) throw error;
+    
+    // Send notification to expert about application status change
+    try {
+      if (req.body.status === 'accepted' || req.body.status === 'rejected') {
+        // Get application details for notification
+        const { data: applicationData } = await supabaseClient
+          .from('applications')
+          .select(`
+            project_id,
+            expert_id,
+            status,
+            projects!inner(title, institution_id),
+            experts!inner(name, email),
+            institutions!inner(name)
+          `)
+          .eq('id', req.params.id)
+          .single();
+        
+        if (applicationData) {
+          const notificationType = req.body.status === 'accepted' ? 'application_accepted' : 'application_rejected';
+          
+          // Add notification to Redis queue
+          await notificationService.addToQueue({
+            type: notificationType,
+            data: {
+              email: applicationData.experts.email,
+              project_title: applicationData.projects.title,
+              institution_name: applicationData.institutions.name,
+              status: req.body.status
+            }
+          });
+          
+          // Send real-time notification via Socket.IO
+          socketService.sendToUser(
+            applicationData.expert_id,
+            'application_status_changed',
+            {
+              type: notificationType,
+              projectTitle: applicationData.projects.title,
+              status: req.body.status,
+              message: `Your application for "${applicationData.projects.title}" has been ${req.body.status}`
+            }
+          );
+        }
+      }
+    } catch (notificationError) {
+      console.error('Error sending application status notification:', notificationError);
+      // Don't fail the main request if notification fails
+    }
+    
     res.json(data[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -789,6 +940,52 @@ app.post('/api/bookings', async (req, res) => {
       .select();
     
     if (error) throw error;
+    
+    // Send notification to expert about booking creation
+    try {
+      // Get booking details for notification
+      const { data: bookingData } = await supabaseClient
+        .from('bookings')
+        .select(`
+          *,
+          projects!inner(title),
+          experts!inner(name, email),
+          institutions!inner(name)
+        `)
+        .eq('id', data[0].id)
+        .single();
+      
+      if (bookingData) {
+        // Add notification to Redis queue
+        await notificationService.addToQueue({
+          type: 'booking_created',
+          data: {
+            email: bookingData.experts.email,
+            project_title: bookingData.projects.title,
+            institution_name: bookingData.institutions.name,
+            amount: bookingData.amount,
+            start_date: new Date(bookingData.start_date).toLocaleDateString(),
+            end_date: new Date(bookingData.end_date).toLocaleDateString()
+          }
+        });
+        
+        // Send real-time notification via Socket.IO
+        socketService.sendToUser(
+          bookingData.expert_id,
+          'booking_created',
+          {
+            type: 'booking_created',
+            projectTitle: bookingData.projects.title,
+            institutionName: bookingData.institutions.name,
+            message: `New booking created for project: ${bookingData.projects.title}`
+          }
+        );
+      }
+    } catch (notificationError) {
+      console.error('Error sending booking notification:', notificationError);
+      // Don't fail the main request if notification fails
+    }
+    
     res.status(201).json(data[0]);
   } catch (error) {
     console.error('Booking creation error:', error);
@@ -1156,8 +1353,17 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-app.listen(PORT, () => {
+// Initialize Socket.IO
+socketService.initialize(server);
+
+// Start notification queue processor
+notificationService.startQueueProcessor();
+
+// Start server
+server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+  console.log('Socket.IO service initialized');
+  console.log('Notification queue processor started');
 });
 
 module.exports = app;

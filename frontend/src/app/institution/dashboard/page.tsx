@@ -42,6 +42,7 @@ import {
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { RatingModal } from '@/components/RatingModal'
+import NotificationBell from '@/components/NotificationBell'
 
 
 export default function InstitutionDashboard() {
@@ -90,34 +91,43 @@ export default function InstitutionDashboard() {
 
   useEffect(() => {
     const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        router.push('/auth/login')
-        return
-      }
-      setUser(user)
-
-      const userRole = user.user_metadata?.role
-      if (userRole !== 'institution') {
-        console.log('Non-institution user accessing institution dashboard, redirecting...')
-        if (userRole === 'expert') {
-          router.push('/expert/dashboard')
-        } else {
-          router.push('/')
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser()
+        if (error) throw error
+        
+        if (!user) {
+          router.push('/auth/login')
+          return
         }
-        return
+        
+        setUser(user)
+        
+        const userRole = user.user_metadata?.role
+        if (userRole !== 'institution') {
+          console.log('Non-institution user accessing institution dashboard, redirecting...')
+          if (userRole === 'expert') {
+            router.push('/expert/dashboard')
+          } else {
+            router.push('/')
+          }
+          return
+        }
+        
+        await loadInstitutionData(user.id)
+      } catch (error: any) {
+        console.error('Error getting user:', error)
+        setError('Failed to get user data')
       }
-
-      await loadInstitutionData(user.id)
     }
-
     getUser()
   }, [router])
 
   const loadInstitutionData = async (userId: string) => {
     try {
       const institutionsResponse = await api.institutions.getAll()
-      const institutionProfile = institutionsResponse.find((i: any) => i.user_id === userId)
+      // Handle case where API might return { data: [...] } or direct array
+      const institutions = Array.isArray(institutionsResponse) ? institutionsResponse : (institutionsResponse?.data || [])
+      const institutionProfile = institutions.find((i: any) => i.user_id === userId)
       
       if (!institutionProfile) {
         router.push('/institution/profile-setup')
@@ -147,12 +157,18 @@ export default function InstitutionDashboard() {
         api.bookings.getAll({ institution_id: institutionProfile.id })
       ])
 
-      setBookings(bookingsResponse || [])
+      // Handle API responses that might have data property
+      const projects = Array.isArray(projectsResponse) ? projectsResponse : (projectsResponse?.data || [])
+      const applications = Array.isArray(applicationsResponse) ? applicationsResponse : (applicationsResponse?.data || [])
+      const experts = Array.isArray(expertsResponse) ? expertsResponse : (expertsResponse?.data || [])
+      const bookings = Array.isArray(bookingsResponse) ? bookingsResponse : (bookingsResponse?.data || [])
+
+      setBookings(bookings)
       
-      const institutionProjects = projectsResponse.filter((project: any) => project.institution_id === institutionProfile.id)
+      const institutionProjects = projects.filter((project: any) => project.institution_id === institutionProfile.id)
       setProjects(institutionProjects)
       
-      const projectApplications = applicationsResponse.filter((app: any) => 
+      const projectApplications = applications.filter((app: any) => 
         institutionProjects.some((project: any) => project.id === app.project_id)
       )
       setApplications(projectApplications)
@@ -160,7 +176,8 @@ export default function InstitutionDashboard() {
       // Fetch all ratings (to compute expert aggregates globally)
       try {
         const ratingsAll = await api.ratings.getAll({institution_id: institutionProfile.id})
-        setAllRatings(ratingsAll || [])
+        const ratings = Array.isArray(ratingsAll) ? ratingsAll : (ratingsAll?.data || [])
+        setAllRatings(ratings)
       } catch (e) {
         console.log('Failed to fetch global ratings:', e)
       }
@@ -660,6 +677,7 @@ export default function InstitutionDashboard() {
                 <Building className="h-5 w-5 text-gray-600" />
                 <span className="text-sm sm:text-base text-gray-700 truncate">{institution?.name}</span>
               </div>
+              <NotificationBell />
               <Button variant="outline" size="sm" onClick={handleLogout} className="w-full sm:w-auto">
                 <LogOut className="h-4 w-4 mr-2" />
                 Logout
