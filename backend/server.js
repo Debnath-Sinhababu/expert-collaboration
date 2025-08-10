@@ -1349,6 +1349,49 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Something went wrong!' });
 });
 
+app.post('/api/test-email', async (req, res) => {
+  try {
+    console.log('Test email endpoint called with:', req.body);
+    await notificationService.addToQueue({
+      type: 'expert_applied',
+      data: {
+        email: req.body.email,
+        project_title: 'Test Project',
+        expert_name: 'Test Expert',
+        institution_name: 'Test Institution'
+      }
+    });
+    res.json({ success: true, message: 'Test email queued successfully' });
+  } catch (error) {
+    console.error('Test email error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/test-notification', async (req, res) => {
+  try {
+    const { userId, userType, notificationType, data } = req.body;
+    
+    console.log('Test notification endpoint called with:', req.body);
+    
+    // Send real-time notification via Socket.IO
+    const sent = socketService.sendToUser(userId, 'notification', {
+      type: notificationType,
+      data: data,
+      timestamp: new Date().toISOString()
+    });
+    
+    res.json({ 
+      success: true, 
+      message: 'Real-time notification sent successfully',
+      delivered: sent
+    });
+  } catch (error) {
+    console.error('Test notification error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
@@ -1364,6 +1407,11 @@ server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
   console.log('Socket.IO service initialized');
   console.log('Notification queue processor started');
+  console.log('Environment variables check:');
+  console.log('- EMAIL_USER:', process.env.EMAIL_USER ? 'Set' : 'Not set');
+  console.log('- EMAIL_APP_PASSWORD:', process.env.EMAIL_APP_PASSWORD ? 'Set' : 'Not set');
+  console.log('- UPSTASH_REDIS_REST_URL:', process.env.UPSTASH_REDIS_REST_URL ? 'Set' : 'Not set');
+  console.log('- UPSTASH_REDIS_REST_TOKEN:', process.env.UPSTASH_REDIS_REST_TOKEN ? 'Set' : 'Not set');
 });
 
 module.exports = app;

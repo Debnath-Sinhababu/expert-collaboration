@@ -4,11 +4,23 @@ const nodemailer = require('nodemailer');
 let redis = null; // Will be initialized lazily
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false,
+  requireTLS: true,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_APP_PASSWORD,
   },
+  connectionTimeout: 30000,
+  greetingTimeout: 15000,
+  socketTimeout: 30000,
+  tls: {
+    ciphers: 'SSLv3',
+    rejectUnauthorized: false
+  },
+  debug: true,
+  logger: true
 });
 
 class NotificationService {
@@ -60,7 +72,20 @@ class NotificationService {
     try {
       const notificationData = await this.redis.rpop('notifications');
       if (notificationData) {
-        const notification = JSON.parse(notificationData);
+        console.log('Raw notification data from Redis:', notificationData);
+        console.log('Type of notification data:', typeof notificationData);
+        
+        let notification;
+        if (typeof notificationData === 'string') {
+          notification = JSON.parse(notificationData);
+        } else if (typeof notificationData === 'object') {
+          notification = notificationData;
+        } else {
+          console.error('Unexpected notification data type:', typeof notificationData);
+          return;
+        }
+        
+        console.log('Parsed notification:', notification);
         await this.sendNotification(notification);
       }
     } catch (error) {
