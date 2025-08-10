@@ -23,27 +23,83 @@ import {
   DollarSign, 
   Star, 
   MessageSquare,
-  Settings,
+  
   LogOut,
-  Eye,
+  
   Clock,
   CheckCircle,
   XCircle,
   Send,
-  Filter,
+  
   Search,
   Bell,
   Shield,
   Award,
   AlertCircle
 } from 'lucide-react'
+import { BookOpen } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
+type UserMeta = { role?: string; name?: string }
+type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }
+
 export default function ExpertDashboard() {
-  const [user, setUser] = useState<any>(null)
-  const [expert, setExpert] = useState<any>(null)
-  const [applications, setApplications] = useState<any[]>([])
+  type ExpertProfile = {
+    id?: string
+    user_id?: string
+    name?: string
+    email?: string
+    hourly_rate?: number
+    rating?: number
+    total_ratings?: number
+    is_verified?: boolean
+    kyc_status?: string
+    bio?: string
+    qualifications?: string[]
+    domain_expertise?: string[]
+    resume_url?: string
+    availability?: string[]
+    phone?: string
+  }
+
+  type Application = {
+    id: string
+    status: 'pending' | 'accepted' | 'rejected'
+    project_id: string
+    projects?: { title?: string; description?: string }
+    proposed_rate?: number
+    applied_at?: string
+    expert_id?: string
+  }
+
+  type ProjectListItem = {
+    id: string
+    title?: string
+    description?: string
+    start_date?: string
+    end_date?: string
+    hourly_rate?: number
+    duration_hours?: number
+    type?: string
+  }
+
+  const [expert, setExpert] = useState<ExpertProfile | null>(null)
+  const [applications, setApplications] = useState<Application[]>([])
+  interface Booking {
+    id: string
+    status: string
+    amount: number
+    hours_booked: number
+    start_date: string
+    end_date: string
+    project?: { title?: string }
+    expert?: { name?: string }
+    institution?: { name?: string }
+  }
+  const [bookings, setBookings] = useState<Booking[]>([])
+  type RatingItem = { rating: number }
+  const [expertRatings, setExpertRatings] = useState<RatingItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -65,13 +121,13 @@ export default function ExpertDashboard() {
   })
   const router = useRouter()
 
-  const getUser = async () => {
+  const getUser = async (): Promise<SessionUser | null> => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       router.push('/auth/login')
       return null
     }
-    return user
+    return user as unknown as SessionUser
   }
 
   const loadExpertData = async () => {
@@ -79,8 +135,6 @@ export default function ExpertDashboard() {
       setLoading(true)
       const currentUser = await getUser()
       if (!currentUser) return
-
-      setUser(currentUser)
 
       const userRole = currentUser.user_metadata?.role
       if (userRole !== 'expert') {
@@ -93,28 +147,36 @@ export default function ExpertDashboard() {
         return
       }
 
-      const [projectsResponse, expertsResponse] = await Promise.all([
+      const [, expertsResponse] = await Promise.all([
         api.projects.getAll(),
         api.experts.getAll()
       ])
 
-      let expertProfile = null
+      let expertProfile: ExpertProfile | null = null
       if (expertsResponse && Array.isArray(expertsResponse)) {
         console.log('Current user ID:', currentUser.id)
         console.log('Experts data:', expertsResponse)
-        expertProfile = expertsResponse.find((expert: any) => expert.user_id === currentUser.id)
+        expertProfile = (expertsResponse as ExpertProfile[]).find((exp) => exp.user_id === currentUser.id) || null
         console.log('Found expert profile:', expertProfile)
       }
-
-      let applicationsResponse = []
+      let applicationsResponse: Application[] | unknown = []
       if (expertProfile?.id) {
         applicationsResponse = await api.applications.getAll({ expert_id: expertProfile.id })
       }
 
-      setApplications(applicationsResponse || [])
+      setApplications(Array.isArray(applicationsResponse) ? (applicationsResponse as Application[]) : [])
+       if (expertProfile?.id) {
+        // Fetch ratings for this expert for dynamic aggregates
+        try {
+          const ratingsForExpert = await api.ratings.getAll({ expert_id: expertProfile.id })
+          setExpertRatings(ratingsForExpert || [])
+        } catch (e) {
+          console.log('Failed to fetch expert ratings:', e)
+        }
+      }
 
       if (expertProfile) {
-        const expertData = {
+        const expertData: ExpertProfile = {
           id: expertProfile.id,
           user_id: expertProfile.user_id,
           name: expertProfile.name || 'Expert User',
@@ -133,17 +195,17 @@ export default function ExpertDashboard() {
         setExpert(expertData)
         
         setProfileForm({
-          name: expertData.name,
-          email: expertData.email,
+          name: expertData.name || '',
+          email: expertData.email ?? '',
           phone: expertProfile.phone || '',
-          bio: expertData.bio,
+          bio: expertData.bio || '',
           qualifications: Array.isArray(expertData.qualifications) ? expertData.qualifications.join(', ') : '',
           domain_expertise: Array.isArray(expertData.domain_expertise) ? expertData.domain_expertise.join(', ') : '',
-          hourly_rate: expertData.hourly_rate.toString(),
-          resume_url: expertData.resume_url
+          hourly_rate: String(expertData.hourly_rate ?? 0),
+          resume_url: expertData.resume_url || ''
         })
       } else {
-        const defaultData = {
+        const defaultData: ExpertProfile = {
           name: currentUser.user_metadata?.name || 'Expert User',
           email: currentUser.email,
           hourly_rate: 0,
@@ -155,8 +217,8 @@ export default function ExpertDashboard() {
         setExpert(defaultData)
         
         setProfileForm({
-          name: defaultData.name,
-          email: defaultData.email || '',
+          name: defaultData.name || '',
+          email: defaultData.email ?? '',
           phone: '',
           bio: '',
           qualifications: '',
@@ -165,12 +227,13 @@ export default function ExpertDashboard() {
           resume_url: ''
         })
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error loading expert data:', error)
-      if (error.message.includes('role') || error.message.includes('access')) {
+      const message = error instanceof Error ? error.message : ''
+      if (message.includes('role') || message.includes('access')) {
         setError('You do not have access to the expert dashboard. Please contact support if you believe this is an error.')
       } else {
-        setError(error.message)
+        setError(message || 'Failed to load expert data')
       }
     } finally {
       setLoading(false)
@@ -205,7 +268,7 @@ export default function ExpertDashboard() {
     loading: projectsLoading,
     hasMore: hasMoreProjects,
     loadMore: loadMoreProjects,
-    refresh: refreshProjects
+    // refresh: refreshProjects
   } = usePagination(
     async (page: number) => {
       return await api.projects.getAll({
@@ -218,6 +281,44 @@ export default function ExpertDashboard() {
     },
     [searchTerm, filterType]
   );
+
+  // Paginate expert's own applications
+  const {
+    data: pagedApplications,
+    loading: applicationsLoading,
+    hasMore: hasMoreApplications,
+    loadMore: loadMoreApplications,
+    // refresh: refreshApplications
+  } = usePagination(
+    async (page: number) => {
+      if (!expert?.id) return []
+      return await api.applications.getAll({ expert_id: expert.id, page, limit: 10 })
+    },
+    [expert?.id]
+  )
+
+  useEffect(() => {
+    setApplications(pagedApplications as Application[])
+  }, [pagedApplications])
+
+  // Paginated bookings for the expert
+  const {
+    data: pagedBookings,
+    loading: bookingsLoading,
+    hasMore: hasMoreBookings,
+    loadMore: loadMoreBookings,
+    refresh: refreshBookings
+  } = usePagination(
+    async (page: number) => {
+      if (!expert?.id) return []
+      return await api.bookings.getAll({ expert_id: expert.id, page, limit: 10 })
+    },
+    [expert?.id]
+  )
+
+  useEffect(() => {
+    setBookings(pagedBookings as Booking[])
+  }, [pagedBookings])
 
   const handleSearchProjects = (term: string, type: string) => {
     setSearchTerm(term)
@@ -239,9 +340,10 @@ export default function ExpertDashboard() {
       } else {
         setError(response.error || 'Failed to submit application')
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Application submission error:', error)
-      setError(error.message)
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      setError(message)
     }
   }
 
@@ -280,8 +382,9 @@ export default function ExpertDashboard() {
       setSuccess('Profile updated successfully!')
       setTimeout(() => setSuccess(''), 3000)
       
-    } catch (error: any) {
-      setError(error.message)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      setError(message)
     } finally {
       setLoading(false)
     }
@@ -289,7 +392,18 @@ export default function ExpertDashboard() {
 
   useEffect(() => {
     loadExpertData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const computeExpertRating = (): { avg: number; count: number } => {
+    const count = expertRatings.length
+    if (count === 0) return { avg: 0, count: 0 }
+    const sum = expertRatings.reduce((acc: number, r: RatingItem) => acc + (Number(r.rating) || 0), 0)
+    const avg = Math.round((sum / count) * 10) / 10
+    return { avg, count }
+  }
+
+  const expertAggregate = computeExpertRating()
 
   if (loading) {
     return (
@@ -301,6 +415,12 @@ export default function ExpertDashboard() {
       </div>
     )
   }
+
+  // Build a quick lookup for project ids the expert has already applied to
+  const appliedProjectIds = new Set((applications || []).map((a: Application) => a.project_id))
+
+  // Only show projects that the expert has NOT applied to yet
+  const visibleProjects = (projects as ProjectListItem[] || []).filter((p: ProjectListItem) => !appliedProjectIds.has(p.id))
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -375,9 +495,17 @@ export default function ExpertDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Rating</p>
-                  <p className="text-2xl font-bold text-gray-900">{expert?.rating}</p>
+                  <p className="text-2xl font-bold text-gray-900">{expertAggregate.avg}/5</p>
+                  <p className="text-xs text-gray-500">{expertAggregate.count} reviews</p>
                 </div>
-                <Star className="h-8 w-8 text-yellow-600" />
+                <div className="flex items-center">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star 
+                      key={star} 
+                      className={`h-6 w-6 ${star <= Math.round(expertAggregate.avg) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} 
+                    />
+                  ))}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -402,13 +530,27 @@ export default function ExpertDashboard() {
         </div>
 
         <Tabs defaultValue="applications" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="applications">My Applications</TabsTrigger>
-            <TabsTrigger value="projects">Browse Projects</TabsTrigger>
-            <TabsTrigger value="availability">Availability</TabsTrigger>
-            <TabsTrigger value="notifications">Notifications</TabsTrigger>
-            <TabsTrigger value="profile">Profile</TabsTrigger>
-          </TabsList>
+        <TabsList className="flex w-full gap-2 overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-6 sm:gap-0 sm:overflow-visible scrollbar-hide">
+        <TabsTrigger className=" px-3 py-2 snap-start ml-3 sm:ml-0" value="applications">
+          My Applications
+        </TabsTrigger>
+        <TabsTrigger className="px-3 py-2 snap-start" value="projects">
+          Browse Projects
+        </TabsTrigger>
+        <TabsTrigger className="px-3 py-2 snap-start" value="bookings">
+          Bookings
+        </TabsTrigger>
+        <TabsTrigger className="px-3 py-2 snap-start" value="availability">
+          Availability
+        </TabsTrigger>
+        <TabsTrigger className="px-3 py-2 snap-start" value="notifications">
+          Notifications
+        </TabsTrigger>
+        <TabsTrigger className=" px-3 py-2 snap-start mr-3 sm:mr-0" value="profile">
+          Profile
+        </TabsTrigger>
+      </TabsList>
+
 
           <TabsContent value="applications" className="space-y-6">
             <Card>
@@ -429,8 +571,8 @@ export default function ExpertDashboard() {
                   <div className="space-y-4">
                     {applications.map((application) => (
                       <div key={application.id} className="border rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className="font-semibold">{application.projects?.title || 'Project Title'}</h3>
+                        <div className="flex items-center justify-between mb-2 min-w-0">
+                          <h3 className="font-semibold truncate pr-2">{application.projects?.title || 'Project Title'}</h3>
                           <Badge className={getStatusColor(application.status)}>
                             <div className="flex items-center space-x-1">
                               {getStatusIcon(application.status)}
@@ -438,7 +580,7 @@ export default function ExpertDashboard() {
                             </div>
                           </Badge>
                         </div>
-                        <p className="text-sm text-gray-600 mb-2">{application.projects?.description || 'Project description'}</p>
+                        <p className="text-sm text-gray-600 mb-2 break-words line-clamp-2">{application.projects?.description || 'Project description'}</p>
                         <div className="flex items-center justify-between text-sm text-gray-500">
                           <span>Applied: {new Date(application.applied_at || Date.now()).toLocaleDateString()}</span>
                           <span>Proposed Rate: ₹{application.proposed_rate}</span>
@@ -446,20 +588,20 @@ export default function ExpertDashboard() {
                       </div>
                     ))}
                     
-                    {projectsLoading && (
+                    {applicationsLoading && (
                       <div className="text-center py-4">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
                       </div>
                     )}
                     
-                    {hasMoreProjects && !projectsLoading && (
+                    {hasMoreApplications && !applicationsLoading && (
                       <div 
                         ref={(el) => {
                           if (el) {
                             const observer = new IntersectionObserver(
                               ([entry]) => {
                                 if (entry.isIntersecting) {
-                                  loadMoreProjects();
+                                  loadMoreApplications();
                                 }
                               },
                               { threshold: 0.1 }
@@ -470,7 +612,100 @@ export default function ExpertDashboard() {
                         }}
                         className="text-center py-4"
                       >
-                        <p className="text-gray-500">Loading more projects...</p>
+                        <p className="text-gray-500">Loading more applications...</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="bookings" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>My Bookings</CardTitle>
+                <CardDescription>
+                  View and manage your current bookings. You can cancel an in-progress booking.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {bookings.length === 0 ? (
+                  <div className="text-center py-8">
+                    <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">No bookings yet</p>
+                    <p className="text-sm text-gray-500">Accepted applications will appear here</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {bookings.map((booking: Booking) => (
+                      <div key={booking.id} className="border rounded-lg p-4">
+                        <div className="flex items-start justify-between mb-2 min-w-0">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold truncate pr-2">{booking.projects?.title || 'Project'}</h3>
+                            <p className="text-sm text-gray-600 truncate">{booking.experts?.name || 'You'} with {booking.institutions?.name || 'Institution'}</p>
+                          </div>
+                          <Badge className="capitalize" variant="outline">{booking.status?.replace('_', ' ')}</Badge>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
+                          <div>
+                            <span className="font-medium">Amount:</span> ₹{booking.amount}
+                          </div>
+                          <div>
+                            <span className="font-medium">Hours:</span> {booking.hours_booked}
+                          </div>
+                          <div>
+                            <span className="font-medium">Start:</span> {new Date(booking.start_date).toLocaleDateString()}
+                          </div>
+                          <div>
+                            <span className="font-medium">End:</span> {new Date(booking.end_date).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <div className="mt-3 flex justify-end">
+                          {booking.status === 'in_progress' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={async () => {
+                                try {
+                                  await api.bookings.delete(booking.id)
+                                  await refreshBookings()
+                                } catch (e) {
+                                  console.error('Failed to cancel booking', e)
+                                  setError('Failed to cancel booking')
+                                }
+                              }}
+                            >
+                              <XCircle className="h-4 w-4 mr-2" />
+                              Cancel Booking
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+
+                    {bookingsLoading && (
+                      <div className="text-center py-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                      </div>
+                    )}
+
+                    {hasMoreBookings && !bookingsLoading && (
+                      <div 
+                        ref={(el) => {
+                          if (el) {
+                            const observer = new IntersectionObserver(([entry]) => {
+                              if (entry.isIntersecting) {
+                                loadMoreBookings();
+                              }
+                            }, { threshold: 0.1 });
+                            observer.observe(el);
+                            return () => observer.disconnect();
+                          }
+                        }}
+                        className="text-center py-4"
+                      >
+                        <p className="text-gray-500">Loading more bookings...</p>
                       </div>
                     )}
                   </div>
@@ -512,7 +747,7 @@ export default function ExpertDashboard() {
                   </Select>
                 </div>
 
-                {projects.length === 0 && !projectsLoading ? (
+                {visibleProjects.length === 0 && !projectsLoading ? (
                   <div className="text-center py-8">
                     <Search className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-600">No projects found</p>
@@ -520,7 +755,7 @@ export default function ExpertDashboard() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {projects.map((project: any) => (
+                    {visibleProjects.map((project: ProjectListItem) => (
                       <div key={project.id} className="border rounded-lg p-6">
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex-1">
@@ -546,18 +781,18 @@ export default function ExpertDashboard() {
                           </Badge>
                         </div>
 
-                        <Dialog>
+        <Dialog>
                           <DialogTrigger asChild>
                             <Button className="w-full sm:w-auto">
                               <Send className="h-4 w-4 mr-2" />
-                              Apply Now
+              Apply Now
                             </Button>
                           </DialogTrigger>
                           <DialogContent className="sm:max-w-md">
                             <DialogHeader>
                               <DialogTitle>Apply to Project</DialogTitle>
                               <DialogDescription>
-                                Submit your application for "{project.title}"
+                Submit your application for &quot;{project.title}&quot;
                               </DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4">
@@ -593,6 +828,25 @@ export default function ExpertDashboard() {
                         </Dialog>
                       </div>
                     ))}
+                    {/* Infinite loader sentinel for projects */}
+                    {(hasMoreProjects && !projectsLoading) && (
+                      <div 
+                        ref={(el) => {
+                          if (el) {
+                            const observer = new IntersectionObserver(([entry]) => {
+                              if (entry.isIntersecting) {
+                                loadMoreProjects();
+                              }
+                            }, { threshold: 0.1 });
+                            observer.observe(el);
+                            return () => observer.disconnect();
+                          }
+                        }}
+                        className="text-center py-4"
+                      >
+                        <p className="text-gray-500">Loading more projects...</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -788,12 +1042,12 @@ export default function ExpertDashboard() {
                           {[1, 2, 3, 4, 5].map((star) => (
                             <Star 
                               key={star} 
-                              className={`h-4 w-4 ${star <= Math.floor(expert?.rating || 0) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} 
+                              className={`h-4 w-4 ${star <= Math.round(expertAggregate.avg) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} 
                             />
                           ))}
                         </div>
                         <span className="text-sm text-gray-600">
-                          {expert?.rating || 0} ({expert?.total_ratings || 0} reviews)
+                          {expertAggregate.avg} ({expertAggregate.count} reviews)
                         </span>
                       </div>
                     </div>

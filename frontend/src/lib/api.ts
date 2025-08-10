@@ -110,6 +110,7 @@ export const api = {
       min_hourly_rate?: number; 
       max_hourly_rate?: number;
       status?: string;
+      institution_id?: string;
     }) => {
       const headers = await getAuthHeaders()
       const query = new URLSearchParams({
@@ -158,7 +159,7 @@ export const api = {
   },
 
   applications: {
-    getAll: async (params?: { expert_id?: string; project_id?: string; page?: number; limit?: number }) => {
+    getAll: async (params?: { expert_id?: string; project_id?: string; institution_id?: string; page?: number; limit?: number }) => {
       const headers = await getAuthHeaders()
       const query = new URLSearchParams({
         ...params as any,
@@ -185,26 +186,48 @@ export const api = {
   },
 
   bookings: {
-    getAll: (params?: { expert_id?: string; institution_id?: string }) => {
+    getAll: async (params?: { expert_id?: string; institution_id?: string; page?: number; limit?: number }) => {
+      const headers = await getAuthHeaders()
       const query = new URLSearchParams(params as any).toString()
-      return fetch(`${API_BASE_URL}/api/bookings${query ? `?${query}` : ''}`).then(res => res.json())
+      return fetch(`${API_BASE_URL}/api/bookings${query ? `?${query}` : ''}`, { headers }).then(res => res.json())
     },
-    create: (data: any) => fetch(`${API_BASE_URL}/api/bookings`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    }).then(res => res.json())
+    create: async (data: any) => {
+      const headers = await getAuthHeaders()
+      return fetch(`${API_BASE_URL}/api/bookings`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data)
+      }).then(res => res.json())
+    },
+    update: async (id: string, data: any) => {
+      const headers = await getAuthHeaders()
+      return fetch(`${API_BASE_URL}/api/bookings/${id}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(data)
+      }).then(res => res.json())
+    },
+    delete: async (id: string) => {
+      const headers = await getAuthHeaders()
+      return fetch(`${API_BASE_URL}/api/bookings/${id}`, {
+        method: 'DELETE',
+        headers
+      }).then(res => res.json())
+    }
   },
-
   ratings: {
-    getAll: (params?: { expert_id?: string; institution_id?: string }) => {
+    getAll: async (params?: { expert_id?: string; institution_id?: string; booking_id?: string }) => {
+      const headers = await getAuthHeaders()
       const query = new URLSearchParams(params as any).toString()
-      return fetch(`${API_BASE_URL}/api/ratings${query ? `?${query}` : ''}`).then(res => res.json())
+      return fetch(`${API_BASE_URL}/api/ratings${query ? `?${query}` : ''}`, { headers }).then(res => res.json())
     },
-    create: (data: any) => fetch(`${API_BASE_URL}/api/ratings`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    }).then(res => res.json())
+    create: async (data: any) => {
+      const headers = await getAuthHeaders()
+      return fetch(`${API_BASE_URL}/api/ratings`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data)
+      }).then(res => res.json())
+    }
   }
 }

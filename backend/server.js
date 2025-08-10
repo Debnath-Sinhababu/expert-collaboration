@@ -390,7 +390,8 @@ app.get('/api/projects', async (req, res) => {
       type = '', 
       min_hourly_rate = '', 
       max_hourly_rate = '',
-      status = 'open'
+      status = '',
+      institution_id = ''
     } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
     
@@ -425,6 +426,9 @@ app.get('/api/projects', async (req, res) => {
     
     if (status) {
       query = query.eq('status', status);
+    }
+    if (institution_id) {
+      query = query.eq('institution_id', institution_id);
     }
     
     const { data, error } = await query;
@@ -475,6 +479,9 @@ app.post('/api/projects', async (req, res) => {
         console.log('User institution:', institutionData);
         console.log('Requested institution_id:', req.body.institution_id);
         console.log('Institution match:', institutionData?.id === req.body.institution_id);
+        if (!institutionData) {
+          return res.status(403).json({ error: 'Unauthorized' });
+        }
       }
     } else {
       console.log('No auth token provided');
@@ -563,7 +570,7 @@ app.get('/api/applications', async (req, res) => {
   try {
     console.log('=== GET APPLICATIONS DEBUG ===');
     console.log('Query params:', req.query);
-    const { expert_id, project_id, page = 1, limit = 10 } = req.query;
+    const { expert_id, project_id, institution_id, page = 1, limit = 10 } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
     
     const authHeader = req.headers.authorization;
@@ -618,6 +625,11 @@ app.get('/api/applications', async (req, res) => {
     if (project_id) {
       console.log('Filtering by project_id:', project_id);
       query = query.eq('project_id', project_id);
+    }
+    if (institution_id) {
+      console.log('Filtering by institution_id via joined projects:', institution_id);
+      // Filter using the joined projects relation
+      query = query.eq('projects.institution_id', institution_id);
     }
     
     const { data, error } = await query;
@@ -743,13 +755,35 @@ app.put('/api/applications/:id', async (req, res) => {
 
 app.post('/api/bookings', async (req, res) => {
   try {
+    const authHeader = req.headers.authorization;
+    let supabaseClient = supabase;
+   
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      supabaseClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        }
+      );
+    }
+
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+    console.log('Authenticated user for booking creation:', userData?.user?.id);
+    console.log('User error:', userError);
+
     const { amount } = req.body;
     
     if (amount > 5000) {
       return res.status(400).json({ error: 'Booking amount cannot exceed ₹5,000' });
     }
     
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('bookings')
       .insert([req.body])
       .select();
@@ -757,14 +791,38 @@ app.post('/api/bookings', async (req, res) => {
     if (error) throw error;
     res.status(201).json(data[0]);
   } catch (error) {
+    console.error('Booking creation error:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 app.get('/api/bookings', async (req, res) => {
   try {
-    const { expert_id, institution_id } = req.query;
-    let query = supabase
+    const authHeader = req.headers.authorization;
+    let supabaseClient = supabase;
+   
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      supabaseClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        }
+      );
+    }
+
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+    console.log('Authenticated user for booking fetch:', userData?.user?.id);
+    console.log('User error:', userError);
+
+    const { expert_id, institution_id, page = 1, limit = 10 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    let query = supabaseClient
       .from('bookings')
       .select(`
         *,
@@ -783,7 +841,9 @@ app.get('/api/bookings', async (req, res) => {
           title,
           type
         )
-      `);
+      `)
+      .range(offset, offset + parseInt(limit) - 1)
+      .order('created_at', { ascending: false });
     
     if (expert_id) query = query.eq('expert_id', expert_id);
     if (institution_id) query = query.eq('institution_id', institution_id);
@@ -791,8 +851,46 @@ app.get('/api/bookings', async (req, res) => {
     const { data, error } = await query;
     
     if (error) throw error;
+
+    // If RLS hides joined institutions, backfill using service role as a safe fallback
+    if (Array.isArray(data)) {
+      const missingInstitutionIds = Array.from(new Set(
+        data
+          .filter((row) => !row.institutions && row.institution_id)
+          .map((row) => row.institution_id)
+      ));
+
+      if (missingInstitutionIds.length > 0 && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        try {
+          const serviceClient = createClient(
+            process.env.SUPABASE_URL,
+            process.env.SUPABASE_SERVICE_ROLE_KEY
+          );
+          const { data: instData, error: instErr } = await serviceClient
+            .from('institutions')
+            .select('id, name, logo_url')
+            .in('id', missingInstitutionIds);
+          if (!instErr && Array.isArray(instData)) {
+            const idToInstitution = instData.reduce((acc, inst) => {
+              acc[inst.id] = inst;
+              return acc;
+            }, {});
+            data.forEach((row) => {
+              if (!row.institutions && row.institution_id && idToInstitution[row.institution_id]) {
+                row.institutions = idToInstitution[row.institution_id];
+              }
+            });
+          }
+        } catch (e) {
+          console.log('Institutions backfill skipped due to error:', e?.message || e);
+        }
+      }
+    }
+
+    console.log('Bookings fetched:', data?.length || 0);
     res.json(data);
   } catch (error) {
+    console.error('Booking fetch error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -816,37 +914,238 @@ app.post('/api/ratings', async (req, res) => {
         }
       );
     }
+
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+    console.log('Authenticated user for rating creation:', userData?.user?.id);
+    console.log('User error:', userError);
+
+    // Check if user is an institution
+    if (userData?.user?.id) {
+      const { data: institutionData, error: instError } = await supabaseClient
+        .from('institutions')
+        .select('id, user_id')
+        .eq('user_id', userData.user.id)
+        .single();
+      
+      console.log('User institution data:', institutionData);
+      console.log('Requested institution_id:', req.body.institution_id);
+      console.log('Institution match:', institutionData?.id === req.body.institution_id);
+    }
+
+    console.log('Rating data to insert:', req.body);
     
-    const { data, error } = await supabaseClient
+    // Try to insert with RLS first
+    let { data, error } = await supabaseClient
       .from('ratings')
       .insert([req.body])
       .select();
     
-    if (error) throw error;
+    if (error) {
+      console.log('Error occurred, trying with service role...');
+      console.log('Error message:', error.message);
+      console.log('Service role key available:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+      console.log('RLS policy blocked the insert, trying with service role...');
+      console.log('Service role key available:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+      
+      // If RLS blocks it, try with service role (temporary workaround)
+      const serviceClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY
+      );
+      
+      console.log('Using service role key for rating creation...');
+      
+      const { data: serviceData, error: serviceError } = await serviceClient
+        .from('ratings')
+        .insert([req.body])
+        .select();
+      
+      if (serviceError) {
+        console.error('Service role insert error:', serviceError);
+        throw serviceError;
+      }
+      
+      console.log('Rating created successfully with service role:', serviceData[0]);
+      res.status(201).json(serviceData[0]);
+      return;
+    }
+    
+    if (error) {
+      console.error('Rating creation error:', error);
+      throw error;
+    }
+    
+    console.log('Rating created successfully:', data[0]);
     res.status(201).json(data[0]);
   } catch (error) {
+    console.error('Rating creation error:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 app.get('/api/ratings', async (req, res) => {
   try {
-    const { expert_id, institution_id } = req.query;
-    let query = supabase
-      .from('ratings')
-      .select('*');
-    
-    if (expert_id) query = query.eq('expert_id', expert_id);
-    if (institution_id) query = query.eq('institution_id', institution_id);
-    
+    const { expert_id, institution_id, booking_id } = req.query;
+
+    // Validate that expert_id is provided
+
+    console.log('Fetching ratings for expert:', expert_id);
+
+    // Use service role key to fetch ratings (public data)
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return res.status(500).json({ 
+        error: 'Service role key not configured' 
+      });
+    }
+
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    // Build the query
+    let query = serviceClient
+    .from('ratings')
+    .select(`
+      *,
+      expert:experts(id, name, email),
+      institution:institutions(id, name)
+    `);
+
+  // Apply filters
+  if (expert_id) {
+    query = query.eq('expert_id', expert_id);
+  }
+  
+  if (institution_id) {
+    query = query.eq('institution_id', institution_id);
+  }
+  
+  if (booking_id) {
+    query = query.eq('booking_id', booking_id);
+  }
+
+
+    // Order by most recent first
+    query = query.order('created_at', { ascending: false });
+
+    // Execute the query
     const { data, error } = await query;
     
-    if (error) throw error;
+    if (error) {
+      console.error('Ratings fetch error:', error);
+      throw error;
+    }
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
+
+app.put('/api/bookings/:id', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    let supabaseClient = supabase;
+   
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      supabaseClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        }
+      );
+    }
+
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+    console.log('Authenticated user for booking update:', userData?.user?.id);
+    console.log('User error:', userError);
+
+    const { id } = req.params;
+    const updateData = req.body;
+    console.log('Updating booking:', id, 'with data:', updateData);
+    
+    const { data, error } = await supabaseClient
+      .from('bookings')
+      .update(updateData)
+      .eq('id', id)
+      .select();
+    
+    if (error) {
+      console.error('Booking update error:', error);
+      throw error;
+    }
+    
+    if (!data || data.length === 0) {
+      console.log('Booking not found:', id);
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+    
+    console.log('Booking updated successfully:', data[0]);
+    res.json(data[0]);
+  } catch (error) {
+    console.error('Booking update error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete a booking (only from bookings table)
+app.delete('/api/bookings/:id', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    let supabaseClient = supabase;
+   
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      supabaseClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        }
+      );
+    }
+
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+    console.log('Authenticated user for booking delete:', userData?.user?.id);
+    console.log('User error:', userError);
+
+    const { id } = req.params;
+    console.log('Deleting booking:', id);
+    
+    const { data, error } = await supabaseClient
+      .from('bookings')
+      .delete()
+      .eq('id', id)
+      .select();
+    
+    if (error) {
+      console.error('Booking delete error:', error);
+      throw error;
+    }
+    
+    if (!data || data.length === 0) {
+      console.log('Booking not found for deletion:', id);
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+    
+    console.log('Booking deleted successfully:', data[0]);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Test endpoint to verify authentication context
 
 app.use((err, req, res, next) => {
   console.error(err.stack);

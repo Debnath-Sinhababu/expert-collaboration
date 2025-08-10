@@ -57,6 +57,7 @@ export default function SignupPage() {
           data: {
             role: activeTab,
           },
+          emailRedirectTo:`${window.location.origin}/confirmemail`
         },
       })
 

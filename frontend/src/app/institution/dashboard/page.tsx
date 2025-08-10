@@ -20,15 +20,12 @@ import {
   Building, 
   Plus, 
   Users, 
-  DollarSign, 
   Star, 
-  Settings,
   LogOut,
   Eye,
   Clock,
   CheckCircle,
   XCircle,
-  Calendar,
   Briefcase,
   Search,
   Filter,
@@ -37,14 +34,14 @@ import {
   UserCheck,
   UserX,
   Bell,
-  Award,
   Shield,
   MessageSquare,
-  FileText,
-  AlertCircle
+  AlertCircle,
+  BookOpen
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { RatingModal } from '@/components/RatingModal'
 
 
 export default function InstitutionDashboard() {
@@ -52,6 +49,11 @@ export default function InstitutionDashboard() {
   const [institution, setInstitution] = useState<any>(null)
   const [projects, setProjects] = useState<any[]>([])
   const [applications, setApplications] = useState<any[]>([])
+  const [bookings, setBookings] = useState<any[]>([])
+  const [ratings, setRatings] = useState<any[]>([])
+  const [allRatings, setAllRatings] = useState<any[]>([])
+  const [ratingModalOpen, setRatingModalOpen] = useState(false)
+  const [selectedBooking, setSelectedBooking] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
@@ -137,11 +139,15 @@ export default function InstitutionDashboard() {
         address: institutionProfile.address || ''
       })
       
-      const [projectsResponse, applicationsResponse, expertsResponse] = await Promise.all([
+      // Initial light calls (experts list is paginated below). Lists are fed by paginated hooks
+      const [projectsResponse, applicationsResponse, expertsResponse,bookingsResponse] = await Promise.all([
         api.projects.getAll(),
         api.applications.getAll(),
-        api.experts.getAll()
+        api.experts.getAll(),
+        api.bookings.getAll({ institution_id: institutionProfile.id })
       ])
+
+      setBookings(bookingsResponse || [])
       
       const institutionProjects = projectsResponse.filter((project: any) => project.institution_id === institutionProfile.id)
       setProjects(institutionProjects)
@@ -150,6 +156,14 @@ export default function InstitutionDashboard() {
         institutionProjects.some((project: any) => project.id === app.project_id)
       )
       setApplications(projectApplications)
+
+      // Fetch all ratings (to compute expert aggregates globally)
+      try {
+        const ratingsAll = await api.ratings.getAll({institution_id: institutionProfile.id})
+        setAllRatings(ratingsAll || [])
+      } catch (e) {
+        console.log('Failed to fetch global ratings:', e)
+      }
       
     } catch (error: any) {
       setError('Failed to load dashboard data')
@@ -208,6 +222,63 @@ export default function InstitutionDashboard() {
     },
     [searchTerm]
   );
+
+  // Paginated projects owned by the institution
+  const {
+    data: pagedProjects,
+    loading: projectsLoading,
+    hasMore: hasMoreProjects,
+    loadMore: loadMoreProjects,
+    refresh: refreshProjects
+  } = usePagination(
+    async (page: number) => {
+      if (!institution?.id) return []
+      return await api.projects.getAll({ page, limit: 10, institution_id: institution?.id })
+    },
+    [institution?.id]
+  )
+
+  useEffect(() => {
+    setProjects(pagedProjects)
+  }, [pagedProjects])
+
+  // Paginated applications targeting institution projects
+  const {
+    data: pagedApplications,
+    loading: applicationsLoading,
+    hasMore: hasMoreApplications,
+    loadMore: loadMoreApplications,
+    refresh: refreshApplications
+  } = usePagination(
+    async (page: number) => {
+      if (!institution?.id) return []
+      return await api.applications.getAll({ page, limit: 10, institution_id: institution?.id })
+    },
+    [institution?.id]
+  )
+
+  useEffect(() => {
+    setApplications(pagedApplications)
+  }, [pagedApplications])
+
+  // Paginated bookings for the institution
+  const {
+    data: pagedBookings,
+    loading: bookingsLoading,
+    hasMore: hasMoreBookings,
+    loadMore: loadMoreBookings,
+    refresh: refreshBookings
+  } = usePagination(
+    async (page: number) => {
+      if (!institution?.id) return []
+      return await api.bookings.getAll({ page, limit: 10, institution_id: institution?.id })
+    },
+    [institution?.id]
+  )
+
+  useEffect(() => {
+    setBookings(pagedBookings)
+  }, [pagedBookings])
 
   const handleSearchExperts = (term: string) => {
     setSearchTerm(term)
@@ -274,6 +345,7 @@ export default function InstitutionDashboard() {
         status: 'open'
       })
       
+      // Reset form and close dialog
       setProjectForm({
         title: '',
         description: '',
@@ -286,9 +358,12 @@ export default function InstitutionDashboard() {
         required_expertise: ''
       })
       setShowProjectForm(false)
+      
+      // Refresh data to show new project
       await loadInstitutionData(user.id)
       setError('')
     } catch (error: any) {
+      console.error('Project creation error:', error)
       setError('Failed to create project')
     } finally {
       setSubmittingProject(false)
@@ -298,9 +373,33 @@ export default function InstitutionDashboard() {
   const handleApplicationAction = async (applicationId: string, action: 'accept' | 'reject') => {
     try {
       await api.applications.update(applicationId, { status: action === 'accept' ? 'accepted' : 'rejected',reviewed_at: new Date() })
+      
+      // If accepting, create a booking
+      if (action === 'accept') {
+        const application = applications.find(app => app.id === applicationId)
+        if (application) {
+          const bookingData = {
+            expert_id: application.expert_id,
+            institution_id: institution.id,
+            project_id: application.project_id,
+            application_id: applicationId,
+            amount: application.proposed_rate || 1000,
+            start_date: new Date().toISOString().split('T')[0],
+            end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 days from now
+            hours_booked: 1,
+            status: 'in_progress',
+            payment_status: 'pending'
+          }
+          
+          await api.bookings.create(bookingData)
+        }
+      }
+      
+      // Refresh all data to show updated applications and new bookings
       await loadInstitutionData(user.id)
+      setError('')
     } catch (error: any) {
-      console.log(error)
+      console.error('Application action error:', error)
       setError(`Failed to ${action} application`)
     }
   }
@@ -394,6 +493,149 @@ export default function InstitutionDashboard() {
     }
   }
 
+  // Fetch projects for the institution
+  const fetchProjects = async () => {
+    try {
+      const projectsResponse = await api.projects.getAll()
+      const institutionProjects = projectsResponse.filter((project: any) => project.institution_id === institution.id)
+      setProjects(institutionProjects)
+    } catch (error) {
+      console.error('Error fetching projects:', error)
+    }
+  }
+
+  // Fetch applications for the institution's projects
+  const fetchApplications = async () => {
+    try {
+      const applicationsResponse = await api.applications.getAll()
+      const projectApplications = applicationsResponse.filter((app: any) => 
+        projects.some((project: any) => project.id === app.project_id)
+      )
+      setApplications(projectApplications)
+    } catch (error) {
+      console.error('Error fetching applications:', error)
+    }
+  }
+
+  // Fetch bookings for the institution
+  const fetchBookings = async () => {
+    try {
+      const bookingsData = await api.bookings.getAll({ institution_id: institution.id })
+      setBookings(bookingsData)
+    } catch (error) {
+      console.error('Error fetching bookings:', error)
+    }
+  }
+
+  // Get status variant for badges
+  const getStatusVariant = (status: string) => {
+    switch (status) {
+      case 'in_progress':
+        return 'default'
+      case 'completed':
+        return 'secondary'
+      case 'cancelled':
+        return 'destructive'
+      default:
+        return 'outline'
+    }
+  }
+
+  // Handle booking status update
+  const handleUpdateBookingStatus = async (bookingId: string, newStatus: string) => {
+    try {
+      if (newStatus === 'cancelled') {
+        // For cancelled bookings, delete them immediately
+        await handleBookingDelete(bookingId)
+      } else if (newStatus === 'completed') {
+        // For completed bookings, update status and open rating modal
+        await api.bookings.update(bookingId, { status: newStatus })
+        await loadInstitutionData(user.id)
+        
+        // Find the updated booking and open rating modal
+        const updatedBooking = bookings.find(b => b.id === bookingId)
+        if (updatedBooking) {
+          setSelectedBooking({ ...updatedBooking, status: 'completed' })
+          setRatingModalOpen(true)
+        }
+      } else {
+        // For other status updates
+        await api.bookings.update(bookingId, { status: newStatus })
+        await loadInstitutionData(user.id)
+      }
+    } catch (error) {
+      console.error('Error updating booking status:', error)
+      alert('Failed to update booking status')
+    }
+  }
+
+  // Handle booking deletion
+  const handleBookingDelete = async (bookingId: string) => {
+    if (confirm('Are you sure you want to delete this booking? This action cannot be undone.')) {
+      try {
+        await api.bookings.delete(bookingId)
+        await loadInstitutionData(user.id)
+      } catch (error) {
+        console.error('Error deleting booking:', error)
+        alert('Failed to delete booking')
+      }
+    }
+  }
+
+  const getBookingStatusColor = (status: string) => {
+    switch (status) {
+      case 'confirmed': return 'bg-green-100 text-green-800'
+      case 'in_progress': return 'bg-blue-100 text-blue-800'
+      case 'completed': return 'bg-gray-100 text-gray-800'
+      case 'cancelled': return 'bg-red-100 text-red-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  // Fetch ratings for completed bookings
+  const fetchRatings = async () => {
+    try {
+      const ratingsData = await api.ratings.getAll({ institution_id: institution.id })
+      setRatings(ratingsData)
+    } catch (error) {
+      console.error('Error fetching ratings:', error)
+    }
+  }
+
+  // Handle rating modal
+  const handleRateExpert = (booking: any) => {
+    setSelectedBooking(booking)
+    setRatingModalOpen(true)
+  }
+
+  const handleRatingSubmitted = () => {
+    loadInstitutionData(user.id)
+    fetchRatings()
+  }
+
+  // Check if a booking has been rated
+  const getBookingRating = (bookingId: string) => {
+    return ratings.find(r => r.booking_id === bookingId)
+  }
+
+  // Aggregate rating for an expert from allRatings
+  const getExpertAggregate = (expertId: string | undefined) => {
+    if (!expertId) return { avg: 0, count: 0 }
+    const list = allRatings.filter(r => r.expert_id === expertId)
+    const count = list.length
+    if (count === 0) return { avg: 0, count: 0 }
+    const sum = list.reduce((acc, r) => acc + (Number(r.rating) || 0), 0)
+    const avg = Math.round((sum / count) * 10) / 10
+    return { avg, count }
+  }
+
+  // Load ratings when institution is available
+  useEffect(() => {
+    if (institution) {
+      fetchRatings()
+    }
+  }, [institution?.id]) // Only depend on institution ID
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -407,18 +649,18 @@ export default function InstitutionDashboard() {
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <Link href="/" className="flex items-center space-x-2">
               <GraduationCap className="h-8 w-8 text-blue-600" />
-              <span className="text-2xl font-bold text-gray-900">Expert Collaboration</span>
+              <span className="text-xl sm:text-2xl font-bold text-gray-900">Expert Collaboration</span>
             </Link>
             
-            <div className="flex items-center space-x-4">
+            <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4">
               <div className="flex items-center space-x-2">
                 <Building className="h-5 w-5 text-gray-600" />
-                <span className="text-gray-700">{institution?.name}</span>
+                <span className="text-sm sm:text-base text-gray-700 truncate">{institution?.name}</span>
               </div>
-              <Button variant="outline" size="sm" onClick={handleLogout}>
+              <Button variant="outline" size="sm" onClick={handleLogout} className="w-full sm:w-auto">
                 <LogOut className="h-4 w-4 mr-2" />
                 Logout
               </Button>
@@ -435,17 +677,17 @@ export default function InstitutionDashboard() {
         )}
 
         {/* Welcome Section */}
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 truncate">
               Welcome back, {institution?.name}!
             </h1>
-            <p className="text-gray-600">
+            <p className="text-sm sm:text-base text-gray-600">
               Manage your projects, review applications, and connect with qualified experts.
             </p>
           </div>
           <Dialog open={showProjectForm} onOpenChange={setShowProjectForm}>
-            <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleCreateProject}>
+            <Button className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto" onClick={handleCreateProject}>
               <Plus className="h-4 w-4 mr-2" />
               Post New Project
             </Button>
@@ -457,7 +699,7 @@ export default function InstitutionDashboard() {
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleProjectSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="title">Project Title *</Label>
                     <Input
@@ -497,7 +739,7 @@ export default function InstitutionDashboard() {
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
                     <Label htmlFor="hourly_rate">Hourly Rate (₹) *</Label>
                     <Input
@@ -531,7 +773,7 @@ export default function InstitutionDashboard() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="start_date">Start Date</Label>
                     <Input
@@ -562,11 +804,11 @@ export default function InstitutionDashboard() {
                   />
                 </div>
 
-                <div className="flex justify-end space-x-2">
-                  <Button type="button" variant="outline" onClick={() => setShowProjectForm(false)}>
+                <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-0 sm:space-x-2">
+                  <Button type="button" variant="outline" onClick={() => setShowProjectForm(false)} className="w-full sm:w-auto">
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={submittingProject}>
+                  <Button type="submit" disabled={submittingProject} className="w-full sm:w-auto">
                     {submittingProject ? 'Creating...' : 'Create Project'}
                   </Button>
                 </div>
@@ -584,7 +826,7 @@ export default function InstitutionDashboard() {
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleUpdateProject} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="edit-title">Project Title *</Label>
                     <Input
@@ -624,7 +866,7 @@ export default function InstitutionDashboard() {
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
                     <Label htmlFor="edit-hourly_rate">Hourly Rate (₹) *</Label>
                     <Input
@@ -639,7 +881,7 @@ export default function InstitutionDashboard() {
                   <div>
                     <Label htmlFor="edit-duration_hours">Duration (hours)</Label>
                     <Input
-                      id="edit-duration_hours"
+                      id="edit-duration_hursor"
                       type="number"
                       placeholder="Total hours"
                       value={projectForm.duration_hours}
@@ -738,13 +980,13 @@ export default function InstitutionDashboard() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Active Projects</p>
+                  <p className="text-sm font-medium text-gray-600">Active Bookings</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {projects.filter(p => p.status === 'in_progress').length}
+                    {bookings.filter(b => b.status === 'in_progress').length}
                   </p>
                   <p className="text-xs text-gray-500">in progress</p>
                 </div>
-                <Calendar className="h-8 w-8 text-orange-600" />
+                <BookOpen className="h-8 w-8 text-orange-600" />
               </div>
             </CardContent>
           </Card>
@@ -753,24 +995,47 @@ export default function InstitutionDashboard() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
+                  <p className="text-sm font-medium text-gray-600">Completed</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {bookings.filter(b => b.status === 'completed').length}
+                  </p>
+                  <p className="text-xs text-gray-500">bookings</p>
+                </div>
+                <CheckCircle className="h-8 w-8 text-green-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
                   <p className="text-sm font-medium text-gray-600">Rating</p>
                   <p className="text-2xl font-bold text-gray-900">{institution?.rating || 0}/5</p>
                   <p className="text-xs text-gray-500">{institution?.total_ratings || 0} reviews</p>
                 </div>
-                <Star className="h-8 w-8 text-yellow-600" />
+                <div className="flex items-center">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star 
+                      key={star} 
+                      className={`h-6 w-6 ${star <= Math.floor(institution?.rating || 0) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} 
+                    />
+                  ))}
+                </div>
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
         </div>
 
         {/* Main Content */}
         <Tabs defaultValue="projects" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="projects">My Projects</TabsTrigger>
-            <TabsTrigger value="applications">Applications</TabsTrigger>
-            <TabsTrigger value="experts">Browse Experts</TabsTrigger>
-            <TabsTrigger value="notifications">Notifications</TabsTrigger>
-            <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsList className="flex w-full gap-2 overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-6 sm:gap-0 sm:overflow-visible scrollbar-hide">
+            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start ml-3 sm:ml-0" value="projects">My Projects</TabsTrigger>
+            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start" value="applications">Applications</TabsTrigger>
+            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start" value="bookings">Bookings</TabsTrigger>
+            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start" value="experts">Browse Experts</TabsTrigger>
+            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start" value="notifications">Notifications</TabsTrigger>
+            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start mr-3 sm:mr-0" value="profile">Profile</TabsTrigger>
           </TabsList>
 
           {/* Projects Tab */}
@@ -800,14 +1065,14 @@ export default function InstitutionDashboard() {
                         key={project.id} 
                         className="border rounded-lg p-4 hover:shadow-md transition-shadow"
                       >
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className="font-semibold text-lg">{project.title}</h3>
-                          <div className="flex items-center space-x-2">
+                        <div className="flex items-center justify-between mb-2 min-w-0">
+                          <h3 className="font-semibold text-lg truncate pr-2">{project.title}</h3>
+                          <div className="flex items-center space-x-2 flex-shrink-0">
                             <Badge variant="outline" className="capitalize">{project.status}</Badge>
                             <Badge variant="secondary" className="capitalize">{project.type}</Badge>
                           </div>
                         </div>
-                        <p className="text-sm text-gray-600 mb-3">{project.description}</p>
+                        <p className="text-sm text-gray-600 mb-3 line-clamp-2">{project.description}</p>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-sm">
                           <div>
                             <span className="text-gray-500">Rate:</span>
@@ -840,21 +1105,21 @@ export default function InstitutionDashboard() {
                             </div>
                           </div>
                         )}
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                           <div className="text-sm text-gray-500">
                             Posted: {new Date(project.created_at).toLocaleDateString()}
                           </div>
-                          <div className="flex space-x-2">
-                            <Button size="sm" variant="outline">
+                          <div className="flex flex-wrap gap-2">
+                            <Button size="sm" variant="outline" className="flex-1 sm:flex-none">
                               <Eye className="h-4 w-4 mr-2" />
                               View Applications ({applications.filter(app => app.project_id === project.id).length})
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => handleEditProject(project)}>
+                            <Button size="sm" variant="outline" onClick={() => handleEditProject(project)} className="flex-1 sm:flex-none">
                               <Edit className="h-4 w-4 mr-2" />
                               Edit
                             </Button>
                             {project.status === 'open' && (
-                              <Button size="sm" variant="outline" onClick={() => handleCloseProject(project.id)}>
+                              <Button size="sm" variant="outline" onClick={() => handleCloseProject(project.id)} className="flex-1 sm:flex-none">
                                 <XCircle className="h-4 w-4 mr-2" />
                                 Close
                               </Button>
@@ -863,6 +1128,25 @@ export default function InstitutionDashboard() {
                         </div>
                       </div>
                     ))}
+                    {/* Infinite loader sentinel for projects */}
+                    {(hasMoreProjects && !projectsLoading) && (
+                      <div 
+                        ref={(el) => {
+                          if (el) {
+                            const observer = new IntersectionObserver(([entry]) => {
+                              if (entry.isIntersecting) {
+                                loadMoreProjects();
+                              }
+                            }, { threshold: 0.1 });
+                            observer.observe(el);
+                            return () => observer.disconnect();
+                          }
+                        }}
+                        className="text-center py-4 text-sm text-gray-500"
+                      >
+                        Loading more projects...
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -892,10 +1176,10 @@ export default function InstitutionDashboard() {
                       const expert: any = experts.find((e: any) => e.id === application.expert_id)
                       return (
                         <div key={application.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                          <div className="flex items-center justify-between mb-3">
-                            <div>
-                              <h3 className="font-semibold text-lg">{expert?.name || 'Expert'}</h3>
-                              <p className="text-sm text-gray-600">Applied to: {project?.title}</p>
+                          <div className="flex items-center justify-between mb-3 min-w-0">
+                            <div className="min-w-0 flex-1">
+                              <h3 className="font-semibold text-lg truncate pr-2">{expert?.name || 'Expert'}</h3>
+                              <p className="text-sm text-gray-600 truncate pr-2">Applied to: {project?.title}</p>
                             </div>
                             <Badge className={getApplicationStatusColor(application.status)}>
                               <div className="flex items-center space-x-1">
@@ -914,10 +1198,15 @@ export default function InstitutionDashboard() {
                               <span className="text-sm text-gray-500">Proposed Rate:</span>
                               <p className="font-medium">₹{application.proposed_rate}/hour</p>
                             </div>
-                            <div>
-                              <span className="text-sm text-gray-500">Expert Rating:</span>
-                              <p className="font-medium">{expert?.rating || 0}/5 ({expert?.total_ratings || 0} reviews)</p>
-                            </div>
+                          <div>
+                            <span className="text-sm text-gray-500">Expert Rating:</span>
+                            {(() => {
+                              const agg = getExpertAggregate(expert?.id)
+                              return (
+                                <p className="font-medium">{agg.avg || 0}/5 ({agg.count || 0} reviews)</p>
+                              )
+                            })()}
+                          </div>
                             <div>
                               <span className="text-sm text-gray-500">Applied On:</span>
                               <p className="font-medium">{new Date(application.applied_at).toLocaleDateString()}</p>
@@ -995,10 +1284,10 @@ export default function InstitutionDashboard() {
                             </div>
                             
                             {application.status === 'pending' && (
-                              <div className="flex space-x-2">
+                              <div className="flex flex-wrap gap-2">
                                 <Button 
                                   size="sm" 
-                                  className="bg-green-600 hover:bg-green-700"
+                                  className="bg-green-600 hover:bg-green-700 flex-1 sm:flex-none"
                                   onClick={() => handleApplicationAction(application.id, 'accept')}
                                 >
                                   <UserCheck className="h-4 w-4 mr-2" />
@@ -1007,6 +1296,7 @@ export default function InstitutionDashboard() {
                                 <Button 
                                   size="sm" 
                                   variant="outline"
+                                  className="flex-1 sm:flex-none"
                                   onClick={() => handleApplicationAction(application.id, 'reject')}
                                 >
                                   <UserX className="h-4 w-4 mr-2" />
@@ -1018,6 +1308,156 @@ export default function InstitutionDashboard() {
                         </div>
                       )
                     })}
+                    {/* Infinite loader sentinel for applications */}
+                    {(hasMoreApplications && !applicationsLoading) && (
+                      <div 
+                        ref={(el) => {
+                          if (el) {
+                            const observer = new IntersectionObserver(([entry]) => {
+                              if (entry.isIntersecting) {
+                                loadMoreApplications();
+                              }
+                            }, { threshold: 0.1 });
+                            observer.observe(el);
+                            return () => observer.disconnect();
+                          }
+                        }}
+                        className="text-center py-4 text-sm text-gray-500"
+                      >
+                        Loading more applications...
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Bookings Tab */}
+          <TabsContent value="bookings">
+            <Card>
+              <CardHeader>
+                <CardTitle>My Bookings</CardTitle>
+                <CardDescription>
+                  Manage your booked projects and track their progress
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {bookings.length === 0 ? (
+                  <div className="text-center py-8">
+                    <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">No bookings yet</p>
+                    <p className="text-sm text-gray-500">Bookings will appear here when you accept expert applications</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {bookings.map((booking: any) => {
+                      const rating = getBookingRating(booking.id)
+                      return (
+                        <div 
+                          key={booking.id} 
+                          className="border rounded-lg p-4 hover:shadow-md transition-shadow"
+                        >
+                          <div className="flex justify-between items-start min-w-0">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-3 mb-2 min-w-0">
+                                <h4 className="font-semibold truncate pr-2">{booking.project?.title}</h4>
+                                <Badge variant={getStatusVariant(booking.status)}>
+                                  {booking.status.replace('_', ' ')}
+                                </Badge>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-3">
+                                <div>
+                                  <span className="font-medium">Expert:</span> {booking.experts?.name}
+                                </div>
+                                <div>
+                                  <span className="font-medium">Amount:</span> ${booking.amount}
+                                </div>
+                                <div>
+                                  <span className="font-medium">Start Date:</span> {new Date(booking.start_date).toLocaleDateString()}
+                                </div>
+                                <div>
+                                  <span className="font-medium">End Date:</span> {new Date(booking.end_date).toLocaleDateString()}
+                                </div>
+                              </div>
+
+                              {/* Show rating if completed and rated */}
+                              {booking.status === 'completed' && rating && (
+                                <div className="flex items-center gap-2 mb-3">
+                                  <div className="flex">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                      <Star
+                                        key={star}
+                                        className={`h-4 w-4 ${
+                                          star <= rating.rating
+                                            ? 'fill-yellow-400 text-yellow-400'
+                                            : 'text-gray-300'
+                                        }`}
+                                      />
+                                    ))}
+                                  </div>
+                                  <span className="text-sm text-gray-600">
+                                    {rating.rating}/5 - {rating.feedback && `"${rating.feedback}"`}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            
+                            <div className="flex flex-col gap-2">
+                              {booking.status === 'in_progress' && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleUpdateBookingStatus(booking.id, 'completed')}
+                                  >
+                                    <CheckCircle className="h-4 w-4 mr-1" />
+                                    Mark Complete & Rate
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleUpdateBookingStatus(booking.id, 'cancelled')}
+                                  >
+                                    <XCircle className="h-4 w-4 mr-1" />
+                                    Cancel & Delete
+                                  </Button>
+                                </>
+                              )}
+                              
+                              {booking.status === 'completed' && !rating && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleRateExpert(booking)}
+                                >
+                                  <Star className="h-4 w-4 mr-1" />
+                                  Rate Expert
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {/* Infinite loader sentinel for bookings */}
+                    {(hasMoreBookings && !bookingsLoading) && (
+                      <div 
+                        ref={(el) => {
+                          if (el) {
+                            const observer = new IntersectionObserver(([entry]) => {
+                              if (entry.isIntersecting) {
+                                loadMoreBookings();
+                              }
+                            }, { threshold: 0.1 });
+                            observer.observe(el);
+                            return () => observer.disconnect();
+                          }
+                        }}
+                        className="text-center py-4 text-sm text-gray-500"
+                      >
+                        Loading more bookings...
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -1032,7 +1472,7 @@ export default function InstitutionDashboard() {
                 <CardDescription>
                   Find and connect with qualified experts for your projects
                 </CardDescription>
-                <div className="flex items-center space-x-4 mt-4">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-4">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
@@ -1042,7 +1482,7 @@ export default function InstitutionDashboard() {
                       className="pl-10"
                     />
                   </div>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" className="w-full sm:w-auto">
                     <Filter className="h-4 w-4 mr-2" />
                     Filter
                   </Button>
@@ -1063,19 +1503,31 @@ export default function InstitutionDashboard() {
                   <div className="space-y-4">
                     {experts.map((expert: any) => (
                       <div key={expert.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                        <div className="flex items-center justify-between mb-3">
-                          <div>
-                            <h3 className="font-semibold text-lg">{expert.name}</h3>
-                            <p className="text-sm text-gray-600">{expert.domain_expertise}</p>
+                        <div className="flex items-center justify-between mb-3 min-w-0">
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-semibold text-lg truncate pr-2">{expert.name}</h3>
+                            <p className="text-sm text-gray-600 truncate pr-2">{expert.domain_expertise}</p>
                           </div>
                           <div className="flex items-center space-x-2">
                             <Badge variant={expert.is_verified ? "default" : "secondary"}>
                               {expert.is_verified ? 'Verified' : 'Pending'}
                             </Badge>
-                            <div className="flex items-center space-x-1">
-                              <Star className="h-4 w-4 text-yellow-500" />
-                              <span className="text-sm">{expert.rating || 0}</span>
-                            </div>
+                          {(() => {
+                            const agg = getExpertAggregate(expert?.id)
+                            return (
+                              <div className="flex items-center space-x-1">
+                                <div className="flex items-center">
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <Star 
+                                      key={star} 
+                                      className={`h-3 w-3 ${star <= Math.round(agg.avg) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} 
+                                    />
+                                  ))}
+                                </div>
+                                <span className="text-sm">{agg.avg || 0}</span>
+                              </div>
+                            )
+                          })()}
                           </div>
                         </div>
                         
@@ -1092,7 +1544,12 @@ export default function InstitutionDashboard() {
                           </div>
                           <div>
                             <span className="text-gray-500">Rating:</span>
-                            <p className="font-medium">{expert.rating || 0}/5 ({expert.total_ratings || 0})</p>
+                            {(() => {
+                              const agg = getExpertAggregate(expert?.id)
+                              return (
+                                <p className="font-medium">{agg.avg || 0}/5 ({agg.count || 0})</p>
+                              )
+                            })()}
                           </div>
                           <div>
                             <span className="text-gray-500">Availability:</span>
@@ -1102,14 +1559,14 @@ export default function InstitutionDashboard() {
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                           <div className="text-sm text-gray-500">
                             Joined: {new Date(expert.created_at).toLocaleDateString()}
                           </div>
-                          <div className="flex space-x-2">
+                          <div className="flex flex-wrap gap-2">
                             <Dialog>
                               <DialogTrigger asChild>
-                                <Button size="sm" variant="outline">
+                                <Button size="sm" variant="outline" className="flex-1 sm:flex-none">
                                   <Eye className="h-4 w-4 mr-2" />
                                   View Full Profile
                                 </Button>
@@ -1124,7 +1581,7 @@ export default function InstitutionDashboard() {
                                     <h4 className="font-medium mb-2">Professional Bio</h4>
                                     <p className="text-sm text-gray-600">{expert.bio}</p>
                                   </div>
-                                  <div className="grid grid-cols-2 gap-4">
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                       <h4 className="font-medium mb-1">Domain Expertise</h4>
                                       <p className="text-sm">{expert.domain_expertise}</p>
@@ -1176,7 +1633,7 @@ export default function InstitutionDashboard() {
                                 </div>
                               </DialogContent>
                             </Dialog>
-                            <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+                            <Button size="sm" className="bg-blue-600 hover:bg-blue-700 flex-1 sm:flex-none">
                               <MessageSquare className="h-4 w-4 mr-2" />
                               Contact Expert
                             </Button>
@@ -1184,6 +1641,26 @@ export default function InstitutionDashboard() {
                         </div>
                       </div>
                     ))}
+
+                    {/* Infinite loader sentinel for experts */}
+                    {(hasMoreExperts && !expertsLoading) && (
+                      <div 
+                        ref={(el) => {
+                          if (el) {
+                            const observer = new IntersectionObserver(([entry]) => {
+                              if (entry.isIntersecting) {
+                                loadMoreExperts();
+                              }
+                            }, { threshold: 0.1 });
+                            observer.observe(el);
+                            return () => observer.disconnect();
+                          }
+                        }}
+                        className="text-center py-4 text-sm text-gray-500"
+                      >
+                        Loading more experts...
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -1436,6 +1913,14 @@ export default function InstitutionDashboard() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Rating Modal */}
+      <RatingModal
+        isOpen={ratingModalOpen}
+        onClose={() => setRatingModalOpen(false)}
+        booking={selectedBooking}
+        onRatingSubmitted={handleRatingSubmitted}
+      />
     </div>
   )
 }
