@@ -19,7 +19,7 @@ export default function NotificationBell() {
         if (user && isMounted) {
           const userType = user.user_metadata?.role || 'expert'
           console.log('Attempting to connect Socket.IO for user:', user.id, userType);
-          await connect(user.id, userType)
+          connect(user.id, userType)
         }
       } catch (error) {
         console.error('Error getting user in NotificationBell:', error)

@@ -20,19 +20,8 @@ const nextConfig = {
         os: false,
         path: false,
       };
-      
-      // Force socket.io-client to be treated as external for dynamic imports
-      config.externals = config.externals || [];
-      if (Array.isArray(config.externals)) {
-        config.externals.push({
-          'socket.io-client': 'socket.io-client'
-        });
-      }
     }
     return config;
-  },
-  experimental: {
-    esmExternals: 'loose',
   },
 };
 

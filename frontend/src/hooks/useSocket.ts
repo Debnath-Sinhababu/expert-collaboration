@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import io from 'socket.io-client';
 
 interface Notification {
   type: string;
@@ -27,7 +26,7 @@ export const useSocket = (): UseSocketReturn => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const socketRef = useRef<any>(null);
 
-  const connect = useCallback((userId: string, userType: 'expert' | 'institution') => {
+  const connect = useCallback(async (userId: string, userType: 'expert' | 'institution') => {
     if (socketRef.current?.connected) {
       console.log('Socket already connected');
       return;
@@ -40,6 +39,8 @@ export const useSocket = (): UseSocketReturn => {
 
     try {
       console.log('Attempting to create Socket.IO connection...');
+      
+      const { default: io } = await import('socket.io-client');
       
       const newSocket = io(process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000', {
         transports: ['websocket'],
