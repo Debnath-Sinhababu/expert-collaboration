@@ -1,31 +1,18 @@
 const { Redis } = require('@upstash/redis');
-const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
 
 let redis = null; // Will be initialized lazily
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,
-  requireTLS: true,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_APP_PASSWORD,
-  },
-  connectionTimeout: 30000,
-  greetingTimeout: 15000,
-  socketTimeout: 30000,
-  tls: {
-    ciphers: 'SSLv3',
-    rejectUnauthorized: false
-  },
-  debug: true,
-  logger: true
-});
+if (process.env.SENDGRID_API_KEY) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+  console.log('SendGrid initialized with API key');
+} else {
+  console.warn('SENDGRID_API_KEY not found in environment variables');
+}
 
 class NotificationService {
   constructor() {
-    this.transporter = transporter;
+    this.sgMail = sgMail;
     this.redis = null; // Will be initialized when needed
   }
 
@@ -56,6 +43,16 @@ class NotificationService {
     }
 
     try {
+      const dedupeKey = `notif_${notification.type}_${notification.data.email}_${Date.now()}`;
+      const existingKey = await this.redis.get(`dedupe_${dedupeKey.slice(0, 50)}`);
+      
+      if (existingKey) {
+        console.log('Duplicate notification prevented:', notification.type);
+        return;
+      }
+
+      await this.redis.setex(`dedupe_${dedupeKey.slice(0, 50)}`, 300, '1');
+      
       await this.redis.lpush('notifications', JSON.stringify(notification));
       console.log('Notification added to queue:', notification.type);
     } catch (error) {
@@ -132,6 +129,16 @@ class NotificationService {
             <p>End Date: ${data.end_date}</p>
           `;
           break;
+        case 'booking_updated':
+          emailContent = `
+            <h2>Booking Updated</h2>
+            <p>Your booking has been updated for project: ${data.project_title}</p>
+            <p>Institution: ${data.institution_name}</p>
+            <p>Amount: ₹${data.amount}</p>
+            <p>Start Date: ${data.start_date}</p>
+            <p>End Date: ${data.end_date}</p>
+          `;
+          break;
         default:
           emailContent = `
             <h2>Notification</h2>
@@ -140,13 +147,16 @@ class NotificationService {
       }
 
       const mailOptions = {
-        from: process.env.EMAIL_USER,
+        from: {
+          email: process.env.SENDGRID_FROM_EMAIL || 'noreply@expertcollaboration.com',
+          name: 'Expert Collaboration Platform'
+        },
         to: data.email,
         subject: `Expert Collaboration - ${type.replace('_', ' ').toUpperCase()}`,
         html: emailContent,
       };
 
-      await this.transporter.sendMail(mailOptions);
+      await this.sgMail.send(mailOptions);
       console.log(`Email notification sent for ${type} to ${data.email}`);
     } catch (error) {
       console.error('Error sending email notification:', error);
@@ -159,9 +169,51 @@ class NotificationService {
       return;
     }
 
+    console.log('Starting notification queue processor with 5-second interval');
     setInterval(() => {
+      console.log('Processing notification queue...');
       this.processQueue();
     }, 5000); // Process every 5 seconds
+  }
+
+  async sendExpertApplicationNotification(institutionEmail, projectTitle, expertName, expertDomain, expertRate) {
+    await this.addToQueue({
+      type: 'expert_applied',
+      data: {
+        email: institutionEmail,
+        project_title: projectTitle,
+        expert_name: expertName,
+        expert_domain: expertDomain,
+        expert_rate: expertRate
+      }
+    });
+  }
+
+  async sendApplicationStatusNotification(expertEmail, projectTitle, institutionName, status) {
+    const notificationType = status === 'accepted' ? 'application_accepted' : 'application_rejected';
+    await this.addToQueue({
+      type: notificationType,
+      data: {
+        email: expertEmail,
+        project_title: projectTitle,
+        institution_name: institutionName,
+        status: status
+      }
+    });
+  }
+
+  async sendBookingNotification(expertEmail, projectTitle, institutionName, bookingData) {
+    await this.addToQueue({
+      type: 'booking_updated',
+      data: {
+        email: expertEmail,
+        project_title: projectTitle,
+        institution_name: institutionName,
+        amount: bookingData.amount,
+        start_date: new Date(bookingData.start_date).toLocaleDateString(),
+        end_date: new Date(bookingData.end_date).toLocaleDateString()
+      }
+    });
   }
 }
 

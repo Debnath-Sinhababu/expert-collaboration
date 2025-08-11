@@ -1,13 +1,15 @@
 const { Server } = require('socket.io');
+const { createAdapter } = require('@socket.io/redis-adapter');
+const { createClient } = require('redis');
 
 class SocketService {
   constructor() {
     this.io = null;
-    this.connectedUsers = new Map(); // Map to store user connections
+    this.connectedUsers = new Map();
   }
 
-  // Initialize Socket.IO with HTTP server
-  initialize(server) {
+  // Initialize Socket.IO with HTTP server and Redis adapter for scaling
+  async initialize(server) {
     this.io = new Server(server, {
       cors: {
         origin: process.env.FRONTEND_URL || 'http://localhost:3000',
@@ -15,6 +17,18 @@ class SocketService {
         credentials: true
       }
     });
+
+    if (process.env.UPSTASH_REDIS_REST_URL && process.env.NODE_ENV === 'production') {
+      try {
+        const pubClient = createClient({ url: process.env.UPSTASH_REDIS_REST_URL });
+        const subClient = pubClient.duplicate();
+        await Promise.all([pubClient.connect(), subClient.connect()]);
+        this.io.adapter(createAdapter(pubClient, subClient));
+        console.log('Socket.IO Redis adapter configured for production scaling');
+      } catch (error) {
+        console.log('Redis adapter setup failed, continuing without scaling support:', error.message);
+      }
+    }
 
     this.setupEventHandlers();
     console.log('Socket.IO service initialized');
@@ -132,6 +146,38 @@ class SocketService {
   // Check if user is connected
   isUserConnected(userId) {
     return this.connectedUsers.has(userId);
+  }
+
+  sendExpertApplicationNotification(institutionUserId, projectTitle, expertName) {
+    return this.sendToUser(institutionUserId, 'new_application', {
+      type: 'expert_applied',
+      projectTitle: projectTitle,
+      expertName: expertName,
+      message: `New expert application for project: ${projectTitle}`
+    });
+  }
+
+  sendApplicationStatusNotification(expertId, projectTitle, status) {
+    return this.sendToUser(expertId, 'application_status_changed', {
+      type: status === 'accepted' ? 'application_accepted' : 'application_rejected',
+      projectTitle: projectTitle,
+      status: status,
+      message: `Your application for "${projectTitle}" has been ${status}`
+    });
+  }
+
+  sendBookingNotification(expertId, projectTitle, institutionName, isCreation = false) {
+    const eventType = isCreation ? 'booking_created' : 'booking_updated';
+    const message = isCreation ? 
+      `New booking created for project: ${projectTitle}` : 
+      `Booking updated for project: ${projectTitle}`;
+    
+    return this.sendToUser(expertId, eventType, {
+      type: eventType,
+      projectTitle: projectTitle,
+      institutionName: institutionName,
+      message: message
+    });
   }
 }
 

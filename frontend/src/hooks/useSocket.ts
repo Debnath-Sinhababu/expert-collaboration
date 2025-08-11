@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { io, Socket } from 'socket.io-client';
+import io from 'socket.io-client';
 
 interface Notification {
   type: string;
@@ -12,7 +12,7 @@ interface Notification {
 }
 
 interface UseSocketReturn {
-  socket: Socket | null;
+  socket: any;
   isConnected: boolean;
   notifications: Notification[];
   sendNotification: (event: string, data: any) => void;
@@ -22,10 +22,10 @@ interface UseSocketReturn {
 }
 
 export const useSocket = (): UseSocketReturn => {
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const [socket, setSocket] = useState<any>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const socketRef = useRef<Socket | null>(null);
+  const socketRef = useRef<any>(null);
 
   const connect = useCallback((userId: string, userType: 'expert' | 'institution') => {
     if (socketRef.current?.connected) {
@@ -51,12 +51,12 @@ export const useSocket = (): UseSocketReturn => {
       setIsConnected(false);
     });
 
-    newSocket.on('authenticated', (data) => {
+    newSocket.on('authenticated', (data: any) => {
       console.log('Socket authenticated:', data);
     });
 
     // Handle real-time notifications
-    newSocket.on('new_application', (data) => {
+    newSocket.on('new_application', (data: any) => {
       console.log('New application notification:', data);
       addNotification({
         type: 'new_application',
@@ -67,7 +67,7 @@ export const useSocket = (): UseSocketReturn => {
       });
     });
 
-    newSocket.on('application_status_changed', (data) => {
+    newSocket.on('application_status_changed', (data: any) => {
       console.log('Application status changed notification:', data);
       addNotification({
         type: 'application_status_changed',
@@ -78,7 +78,7 @@ export const useSocket = (): UseSocketReturn => {
       });
     });
 
-    newSocket.on('booking_created', (data) => {
+    newSocket.on('booking_created', (data: any) => {
       console.log('Booking created notification:', data);
       addNotification({
         type: 'booking_created',
@@ -89,7 +89,18 @@ export const useSocket = (): UseSocketReturn => {
       });
     });
 
-    newSocket.on('new_project_available', (data) => {
+    newSocket.on('booking_updated', (data: any) => {
+      console.log('Booking updated notification:', data);
+      addNotification({
+        type: 'booking_updated',
+        message: data.message,
+        projectTitle: data.projectTitle,
+        institutionName: data.institutionName,
+        timestamp: new Date(),
+      });
+    });
+
+    newSocket.on('new_project_available', (data: any) => {
       console.log('New project available notification:', data);
       addNotification({
         type: 'new_project_available',
@@ -100,7 +111,7 @@ export const useSocket = (): UseSocketReturn => {
       });
     });
 
-    newSocket.on('connect_error', (error) => {
+    newSocket.on('connect_error', (error: any) => {
       console.error('Socket connection error:', error);
       setIsConnected(false);
     });

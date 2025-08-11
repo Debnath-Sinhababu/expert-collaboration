@@ -780,28 +780,20 @@ app.post('/api/applications', async (req, res) => {
         .single();
       
       if (projectData && expertData && institutionData) {
-        // Add notification to Redis queue
-        await notificationService.addToQueue({
-          type: 'expert_applied',
-          data: {
-            email: institutionData.email,
-            project_title: projectData.title,
-            expert_name: expertData.name,
-            expert_domain: expertData.domain_expertise,
-            expert_rate: expertData.hourly_rate
-          }
-        });
+        // Send email notification
+        await notificationService.sendExpertApplicationNotification(
+          institutionData.email,
+          projectData.title,
+          expertData.name,
+          expertData.domain_expertise,
+          expertData.hourly_rate
+        );
         
-        // Send real-time notification via Socket.IO
-        socketService.sendToUser(
+        // Send real-time notification
+        socketService.sendExpertApplicationNotification(
           institutionData.user_id,
-          'new_application',
-          {
-            type: 'expert_applied',
-            projectTitle: projectData.title,
-            expertName: expertData.name,
-            message: `New expert application for project: ${projectData.title}`
-          }
+          projectData.title,
+          expertData.name
         );
       }
     } catch (notificationError) {
@@ -867,29 +859,19 @@ app.put('/api/applications/:id', async (req, res) => {
           .single();
         
         if (applicationData) {
-          const notificationType = req.body.status === 'accepted' ? 'application_accepted' : 'application_rejected';
+          // Send email notification
+          await notificationService.sendApplicationStatusNotification(
+            applicationData.experts.email,
+            applicationData.projects.title,
+            applicationData.institutions.name,
+            req.body.status
+          );
           
-          // Add notification to Redis queue
-          await notificationService.addToQueue({
-            type: notificationType,
-            data: {
-              email: applicationData.experts.email,
-              project_title: applicationData.projects.title,
-              institution_name: applicationData.institutions.name,
-              status: req.body.status
-            }
-          });
-          
-          // Send real-time notification via Socket.IO
-          socketService.sendToUser(
+          // Send real-time notification
+          socketService.sendApplicationStatusNotification(
             applicationData.expert_id,
-            'application_status_changed',
-            {
-              type: notificationType,
-              projectTitle: applicationData.projects.title,
-              status: req.body.status,
-              message: `Your application for "${applicationData.projects.title}" has been ${req.body.status}`
-            }
+            applicationData.projects.title,
+            req.body.status
           );
         }
       }
@@ -956,29 +938,20 @@ app.post('/api/bookings', async (req, res) => {
         .single();
       
       if (bookingData) {
-        // Add notification to Redis queue
-        await notificationService.addToQueue({
-          type: 'booking_created',
-          data: {
-            email: bookingData.experts.email,
-            project_title: bookingData.projects.title,
-            institution_name: bookingData.institutions.name,
-            amount: bookingData.amount,
-            start_date: new Date(bookingData.start_date).toLocaleDateString(),
-            end_date: new Date(bookingData.end_date).toLocaleDateString()
-          }
-        });
+        // Send email notification
+        await notificationService.sendBookingNotification(
+          bookingData.experts.email,
+          bookingData.projects.title,
+          bookingData.institutions.name,
+          bookingData
+        );
         
-        // Send real-time notification via Socket.IO
-        socketService.sendToUser(
+        // Send real-time notification
+        socketService.sendBookingNotification(
           bookingData.expert_id,
-          'booking_created',
-          {
-            type: 'booking_created',
-            projectTitle: bookingData.projects.title,
-            institutionName: bookingData.institutions.name,
-            message: `New booking created for project: ${bookingData.projects.title}`
-          }
+          bookingData.projects.title,
+          bookingData.institutions.name,
+          true // isCreation = true
         );
       }
     } catch (notificationError) {
@@ -1282,6 +1255,42 @@ app.put('/api/bookings/:id', async (req, res) => {
       console.log('Booking not found:', id);
       return res.status(404).json({ error: 'Booking not found' });
     }
+    
+    // Send notification to expert about booking update
+    try {
+      // Get booking details for notification
+      const { data: bookingData } = await supabaseClient
+        .from('bookings')
+        .select(`
+          *,
+          projects!inner(title),
+          experts!inner(name, email),
+          institutions!inner(name)
+        `)
+        .eq('id', id)
+        .single();
+      
+      if (bookingData) {
+        // Send email notification
+        await notificationService.sendBookingNotification(
+          bookingData.experts.email,
+          bookingData.projects.title,
+          bookingData.institutions.name,
+          bookingData
+        );
+        
+        // Send real-time notification
+        socketService.sendBookingNotification(
+          bookingData.expert_id,
+          bookingData.projects.title,
+          bookingData.institutions.name,
+          false // isCreation = false for updates
+        );
+      }
+    } catch (notificationError) {
+      console.error('Error sending booking update notification:', notificationError);
+    }
+    
     
     console.log('Booking updated successfully:', data[0]);
     res.json(data[0]);

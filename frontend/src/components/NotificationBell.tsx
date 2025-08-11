@@ -42,6 +42,7 @@ export default function NotificationBell() {
       case 'application_status_changed':
         return <CheckCircle className="h-4 w-4 text-green-500" />
       case 'booking_created':
+      case 'booking_updated':
         return <Clock className="h-4 w-4 text-purple-500" />
       case 'new_project_available':
         return <Info className="h-4 w-4 text-orange-500" />
@@ -57,6 +58,7 @@ export default function NotificationBell() {
       case 'application_status_changed':
         return 'bg-green-50 border-green-200'
       case 'booking_created':
+      case 'booking_updated':
         return 'bg-purple-50 border-purple-200'
       case 'new_project_available':
         return 'bg-orange-50 border-orange-200'
