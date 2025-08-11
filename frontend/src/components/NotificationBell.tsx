@@ -12,15 +12,14 @@ export default function NotificationBell() {
   const { isConnected, notifications, connect, disconnect } = useSocket()
 
   useEffect(() => {
-    // Get current user
     let isMounted = true;
     const getUser = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser()
         if (user && isMounted) {
-          // Connect to socket with user info
           const userType = user.user_metadata?.role || 'expert'
-          connect(user.id, userType)
+          console.log('Attempting to connect Socket.IO for user:', user.id, userType);
+          await connect(user.id, userType)
         }
       } catch (error) {
         console.error('Error getting user in NotificationBell:', error)
@@ -33,7 +32,7 @@ export default function NotificationBell() {
       isMounted = false;
       disconnect();
     };
-  }, [connect, disconnect]) // Now safe to include these since they're wrapped in useCallback
+  }, [connect, disconnect])
 
   const getNotificationIcon = (type: string) => {
     switch (type) {

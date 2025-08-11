@@ -37,7 +37,8 @@ class SocketService {
   // Setup Socket.IO event handlers
   setupEventHandlers() {
     this.io.on('connection', (socket) => {
-      console.log('User connected:', socket.id);
+      console.log('New Socket.IO connection established:', socket.id);
+      console.log('Total connected users:', this.connectedUsers.size);
 
       // Handle user authentication
       socket.on('authenticate', (data) => {

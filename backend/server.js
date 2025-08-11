@@ -852,7 +852,7 @@ app.put('/api/applications/:id', async (req, res) => {
             expert_id,
             status,
             projects!inner(title, institution_id),
-            experts!inner(name, email),
+            experts!inner(name, email, user_id),
             institutions!inner(name)
           `)
           .eq('id', req.params.id)
@@ -869,7 +869,7 @@ app.put('/api/applications/:id', async (req, res) => {
           
           // Send real-time notification
           socketService.sendApplicationStatusNotification(
-            applicationData.expert_id,
+            applicationData.experts.user_id, // Use Supabase user_id instead of expert_id
             applicationData.projects.title,
             req.body.status
           );
@@ -931,7 +931,7 @@ app.post('/api/bookings', async (req, res) => {
         .select(`
           *,
           projects!inner(title),
-          experts!inner(name, email),
+          experts!inner(name, email, user_id),
           institutions!inner(name)
         `)
         .eq('id', data[0].id)
@@ -948,7 +948,7 @@ app.post('/api/bookings', async (req, res) => {
         
         // Send real-time notification
         socketService.sendBookingNotification(
-          bookingData.expert_id,
+          bookingData.experts.user_id, // Use Supabase user_id instead of expert_id
           bookingData.projects.title,
           bookingData.institutions.name,
           true // isCreation = true
@@ -1264,7 +1264,7 @@ app.put('/api/bookings/:id', async (req, res) => {
         .select(`
           *,
           projects!inner(title),
-          experts!inner(name, email),
+          experts!inner(name, email, user_id),
           institutions!inner(name)
         `)
         .eq('id', id)
@@ -1281,7 +1281,7 @@ app.put('/api/bookings/:id', async (req, res) => {
         
         // Send real-time notification
         socketService.sendBookingNotification(
-          bookingData.expert_id,
+          bookingData.experts.user_id, // Use Supabase user_id instead of expert_id
           bookingData.projects.title,
           bookingData.institutions.name,
           false // isCreation = false for updates
