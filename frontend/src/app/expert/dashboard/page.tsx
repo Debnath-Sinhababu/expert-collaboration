@@ -110,6 +110,7 @@ export default function ExpertDashboard() {
     coverLetter: '',
     proposedRate: ''
   })
+  const [visibleProjects, setVisibleProjects] = useState<ProjectListItem[]>([])
   const [profileForm, setProfileForm] = useState({
     name: '',
     email: '',
@@ -406,6 +407,20 @@ export default function ExpertDashboard() {
 
   const expertAggregate = computeExpertRating()
 
+  // Build a quick lookup for project ids the expert has already applied to
+  
+
+  // Only show projects that the expert has NOT applied to yet
+ 
+
+  useEffect(() => {
+    if (!projects || !applications) return
+    
+    const appliedProjectIds = new Set(applications.map((a: Application) => a.project_id))
+    const visibleProjects = (projects as ProjectListItem[]).filter((p: ProjectListItem) => !appliedProjectIds.has(p.id))
+    setVisibleProjects(visibleProjects)
+  }, [projects, applications])
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -416,12 +431,6 @@ export default function ExpertDashboard() {
       </div>
     )
   }
-
-  // Build a quick lookup for project ids the expert has already applied to
-  const appliedProjectIds = new Set((applications || []).map((a: Application) => a.project_id))
-
-  // Only show projects that the expert has NOT applied to yet
-  const visibleProjects = (projects as ProjectListItem[] || []).filter((p: ProjectListItem) => !appliedProjectIds.has(p.id))
 
   return (
     <div className="min-h-screen bg-gray-50">

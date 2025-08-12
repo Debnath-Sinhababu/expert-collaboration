@@ -709,7 +709,7 @@ export default function InstitutionDashboard() {
               <Plus className="h-4 w-4 mr-2" />
               Post New Project
             </Button>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Post New Project</DialogTitle>
                 <DialogDescription>
@@ -836,7 +836,7 @@ export default function InstitutionDashboard() {
 
           {/* Edit Project Dialog */}
           <Dialog open={showEditForm} onOpenChange={setShowEditForm}>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Edit Project</DialogTitle>
                 <DialogDescription>
@@ -918,7 +918,7 @@ export default function InstitutionDashboard() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="edit-start_date">Start Date</Label>
                     <Input
@@ -949,11 +949,11 @@ export default function InstitutionDashboard() {
                   />
                 </div>
 
-                <div className="flex justify-end space-x-2">
-                  <Button type="button" variant="outline" onClick={() => setShowEditForm(false)}>
+                <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-0 sm:space-x-2">
+                  <Button type="button" variant="outline" onClick={() => setShowEditForm(false)} className="w-full sm:w-auto">
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={submittingProject}>
+                  <Button type="submit" disabled={submittingProject} className="w-full sm:w-auto">
                     {submittingProject ? 'Updating...' : 'Update Project'}
                   </Button>
                 </div>

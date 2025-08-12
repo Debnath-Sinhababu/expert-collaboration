@@ -511,35 +511,26 @@ app.post('/api/projects', async (req, res) => {
     
     // Send notification to all experts about new project
     try {
+      const serviceClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
       // Get institution details for notification
-      const { data: institutionData } = await supabaseClient
+      const { data: institutionData } = await serviceClient
         .from('institutions')
         .select('name')
         .eq('id', req.body.institution_id)
         .single();
+      console.log('Institution data:', institutionData);
       
       if (institutionData) {
         // Get all experts to notify about new project
-        const { data: expertsData } = await supabaseClient
+        const { data: expertsData } = await serviceClient
           .from('experts')
           .select('user_id, domain_expertise')
           .not('domain_expertise', 'is', null);
-        
-        if (expertsData && expertsData.length > 0) {
-          // Send real-time notification to all experts
-          expertsData.forEach(expert => {
-            socketService.sendToUser(
-              expert.user_id,
-              'new_project_available',
-              {
-                type: 'new_project_available',
-                projectTitle: req.body.title,
-                institutionName: institutionData.name,
-                message: `New project available: ${req.body.title} from ${institutionData.name}`
-              }
-            );
-          });
-        }
+          console.log('Experts data:', expertsData);
+
       }
     } catch (notificationError) {
       console.error('Error sending project notification:', notificationError);
@@ -760,26 +751,36 @@ app.post('/api/applications', async (req, res) => {
     
     // Send notification to institution about new application
     try {
+      const serviceClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
       // Get project and expert details for notification
-      const { data: projectData } = await supabaseClient
+      console.log('Request body:', req.body);
+      const { data: projectData } = await serviceClient
         .from('projects')
         .select('title, institution_id')
         .eq('id', req.body.project_id)
         .single();
-      
-      const { data: expertData } = await supabaseClient
+        console.log('Project data:', projectData);
+      const { data: expertData } = await serviceClient
         .from('experts')
         .select('name, domain_expertise, hourly_rate')
         .eq('id', req.body.expert_id)
         .single();
+        console.log('Expert data:', expertData);
       
-      const { data: institutionData } = await supabaseClient
+      const { data: institutionData } = await serviceClient
         .from('institutions')
         .select('name, email, user_id')
         .eq('id', projectData.institution_id)
         .single();
-      
+     
+     
+      console.log('Institution data:', institutionData);
       if (projectData && expertData && institutionData) {
+
+    
         // Send email notification
         await notificationService.sendExpertApplicationNotification(
           institutionData.email,
@@ -844,8 +845,12 @@ app.put('/api/applications/:id', async (req, res) => {
     // Send notification to expert about application status change
     try {
       if (req.body.status === 'accepted' || req.body.status === 'rejected') {
+        const serviceClient = createClient(
+          process.env.SUPABASE_URL,
+          process.env.SUPABASE_SERVICE_ROLE_KEY
+        );
         // Get application details for notification
-        const { data: applicationData } = await supabaseClient
+        const { data: applicationData } = await serviceClient
           .from('applications')
           .select(`
             project_id,
@@ -912,9 +917,7 @@ app.post('/api/bookings', async (req, res) => {
 
     const { amount } = req.body;
     
-    if (amount > 5000) {
-      return res.status(400).json({ error: 'Booking amount cannot exceed ₹5,000' });
-    }
+  
     
     const { data, error } = await supabaseClient
       .from('bookings')
@@ -926,7 +929,11 @@ app.post('/api/bookings', async (req, res) => {
     // Send notification to expert about booking creation
     try {
       // Get booking details for notification
-      const { data: bookingData } = await supabaseClient
+      const serviceClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+      const { data: bookingData } = await serviceClient
         .from('bookings')
         .select(`
           *,
@@ -1258,8 +1265,12 @@ app.put('/api/bookings/:id', async (req, res) => {
     
     // Send notification to expert about booking update
     try {
+      const serviceClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
       // Get booking details for notification
-      const { data: bookingData } = await supabaseClient
+      const { data: bookingData } = await serviceClient
         .from('bookings')
         .select(`
           *,
@@ -1358,48 +1369,8 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Something went wrong!' });
 });
 
-app.post('/api/test-email', async (req, res) => {
-  try {
-    console.log('Test email endpoint called with:', req.body);
-    await notificationService.addToQueue({
-      type: 'expert_applied',
-      data: {
-        email: req.body.email,
-        project_title: 'Test Project',
-        expert_name: 'Test Expert',
-        institution_name: 'Test Institution'
-      }
-    });
-    res.json({ success: true, message: 'Test email queued successfully' });
-  } catch (error) {
-    console.error('Test email error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
 
-app.post('/api/test-notification', async (req, res) => {
-  try {
-    const { userId, userType, notificationType, data } = req.body;
-    
-    console.log('Test notification endpoint called with:', req.body);
-    
-    // Send real-time notification via Socket.IO
-    const sent = socketService.sendToUser(userId, 'notification', {
-      type: notificationType,
-      data: data,
-      timestamp: new Date().toISOString()
-    });
-    
-    res.json({ 
-      success: true, 
-      message: 'Real-time notification sent successfully',
-      delivered: sent
-    });
-  } catch (error) {
-    console.error('Test notification error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
+
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
