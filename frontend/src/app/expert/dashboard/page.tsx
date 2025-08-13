@@ -163,7 +163,7 @@ export default function ExpertDashboard() {
       }
       let applicationsResponse: Application[] | unknown = []
       if (expertProfile?.id) {
-        applicationsResponse = await api.applications.getAll({ expert_id: expertProfile.id })
+        applicationsResponse = await api.applications.getAll({ expert_id: expertProfile.id, status: 'pending' })
       }
 
       setApplications(Array.isArray(applicationsResponse) ? (applicationsResponse as Application[]) : [])
@@ -295,7 +295,7 @@ export default function ExpertDashboard() {
   } = usePagination(
     async (page: number) => {
       if (!expert?.id) return []
-      return await api.applications.getAll({ expert_id: expert.id, page, limit: 10 })
+      return await api.applications.getAll({ expert_id: expert.id, page, limit: 10, status: 'pending' })
     },
     [expert?.id]
   )

@@ -642,8 +642,20 @@ app.get('/api/applications', async (req, res) => {
   try {
     console.log('=== GET APPLICATIONS DEBUG ===');
     console.log('Query params:', req.query);
-    const { expert_id, project_id, institution_id, page = 1, limit = 10 } = req.query;
+    
+    // Default to 'pending' status to show only in-progress applications
+    // This ensures dashboards only show applications that need attention
+    const { expert_id, project_id, institution_id, page = 1, limit = 10, status = 'pending' } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
+    
+    console.log('Applications filtering:', { 
+      expert_id, 
+      project_id, 
+      institution_id, 
+      status: status || 'pending (default)',
+      page, 
+      limit 
+    });
     
     const authHeader = req.headers.authorization;
     let supabaseClient = supabase;
@@ -704,8 +716,28 @@ app.get('/api/applications', async (req, res) => {
       query = query.eq('projects.institution_id', institution_id);
     }
     
+    // Filter by status - default to 'pending' (in progress) applications
+    // Status values: 'pending', 'accepted', 'rejected'
+    if (status) {
+      console.log('Filtering by status:', status);
+      query = query.eq('status', status);
+      
+      // Log the business logic behind the filtering
+      if (status === 'pending') {
+        console.log('Showing only in-progress applications (pending status)');
+      } else if (status === 'accepted') {
+        console.log('Showing only accepted applications');
+      } else if (status === 'rejected') {
+        console.log('Showing only rejected applications');
+      }
+    }
+    
     const { data, error } = await query;
-    console.log('Applications query result:', { dataCount: data?.length || 0, error });
+    console.log('Applications query result:', { 
+      dataCount: data?.length || 0, 
+      status: status,
+      error 
+    });
     
     if (error) throw error;
     res.json(data);

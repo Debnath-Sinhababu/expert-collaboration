@@ -160,7 +160,7 @@ export const api = {
   },
 
   applications: {
-    getAll: async (params?: { expert_id?: string; project_id?: string; institution_id?: string; page?: number; limit?: number }) => {
+    getAll: async (params?: { expert_id?: string; project_id?: string; institution_id?: string; page?: number; limit?: number; status?: string }) => {
       const headers = await getAuthHeaders()
       const query = new URLSearchParams({
         ...params as any,

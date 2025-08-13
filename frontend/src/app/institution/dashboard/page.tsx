@@ -152,7 +152,7 @@ export default function InstitutionDashboard() {
       // Initial light calls (experts list is paginated below). Lists are fed by paginated hooks
       const [projectsResponse, applicationsResponse, expertsResponse,bookingsResponse] = await Promise.all([
         api.projects.getAll(),
-        api.applications.getAll(),
+        api.applications.getAll({ status: 'pending' }),
         api.experts.getAll(),
         api.bookings.getAll({ institution_id: institutionProfile.id })
       ])
@@ -167,10 +167,14 @@ export default function InstitutionDashboard() {
       
       const institutionProjects = projects.filter((project: any) => project.institution_id === institutionProfile.id)
       setProjects(institutionProjects)
-      
+
+      console.log('institutionProjects', institutionProjects)
+      console.log('applications', applications)
       const projectApplications = applications.filter((app: any) => 
         institutionProjects.some((project: any) => project.id === app.project_id)
       )
+
+      console.log('projectApplications', projectApplications)
       setApplications(projectApplications)
 
       // Fetch all ratings (to compute expert aggregates globally)
@@ -269,7 +273,7 @@ export default function InstitutionDashboard() {
   } = usePagination(
     async (page: number) => {
       if (!institution?.id) return []
-      return await api.applications.getAll({ page, limit: 10, institution_id: institution?.id })
+      return await api.applications.getAll({ page, limit: 10, institution_id: institution?.id, status: 'pending' })
     },
     [institution?.id]
   )
@@ -510,39 +514,7 @@ export default function InstitutionDashboard() {
     }
   }
 
-  // Fetch projects for the institution
-  const fetchProjects = async () => {
-    try {
-      const projectsResponse = await api.projects.getAll()
-      const institutionProjects = projectsResponse.filter((project: any) => project.institution_id === institution.id)
-      setProjects(institutionProjects)
-    } catch (error) {
-      console.error('Error fetching projects:', error)
-    }
-  }
 
-  // Fetch applications for the institution's projects
-  const fetchApplications = async () => {
-    try {
-      const applicationsResponse = await api.applications.getAll()
-      const projectApplications = applicationsResponse.filter((app: any) => 
-        projects.some((project: any) => project.id === app.project_id)
-      )
-      setApplications(projectApplications)
-    } catch (error) {
-      console.error('Error fetching applications:', error)
-    }
-  }
-
-  // Fetch bookings for the institution
-  const fetchBookings = async () => {
-    try {
-      const bookingsData = await api.bookings.getAll({ institution_id: institution.id })
-      setBookings(bookingsData)
-    } catch (error) {
-      console.error('Error fetching bookings:', error)
-    }
-  }
 
   // Get status variant for badges
   const getStatusVariant = (status: string) => {
