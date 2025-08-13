@@ -394,6 +394,8 @@ app.put('/api/institutions/:id', async (req, res) => {
 
 app.get('/api/projects', async (req, res) => {
   try {
+    console.log('GET /api/projects - Query params:', req.query);
+
     const { 
       page = 1, 
       limit = 10, 
@@ -402,10 +404,14 @@ app.get('/api/projects', async (req, res) => {
       min_hourly_rate = '', 
       max_hourly_rate = '',
       status = '',
-      institution_id = ''
+      institution_id = '',
+      expert_id = '' // used for filtering out applied projects
     } = req.query;
+
     const offset = (parseInt(page) - 1) * parseInt(limit);
-    
+    console.log(`Pagination: page=${page}, limit=${limit}, offset=${offset}`);
+
+    // Start building base query
     let query = supabase
       .from('projects')
       .select(`
@@ -418,35 +424,61 @@ app.get('/api/projects', async (req, res) => {
       `)
       .range(offset, offset + parseInt(limit) - 1)
       .order('created_at', { ascending: false });
-    
+
+    // Search filter
     if (search) {
       query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
     }
-    
-    if (type) {
-      query = query.eq('type', type);
+
+    // Other filters
+    if (type) query = query.eq('type', type);
+    if (min_hourly_rate) query = query.gte('hourly_rate', parseFloat(min_hourly_rate));
+    if (max_hourly_rate) query = query.lte('hourly_rate', parseFloat(max_hourly_rate));
+    if (status) query = query.eq('status', status);
+    if (institution_id) query = query.eq('institution_id', institution_id);
+
+    // Expert filtering: remove projects they already applied to
+    if (expert_id && expert_id.trim() !== '') {
+      console.log('Filtering out projects already applied to by expert:', expert_id);
+
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (uuidRegex.test(expert_id)) {
+        const serviceClient = createClient(
+          process.env.SUPABASE_URL,
+          process.env.SUPABASE_SERVICE_ROLE_KEY
+        );
+      
+        // Get project IDs from applications
+        const { data: appliedProjects, error: subqueryError } = await serviceClient
+          .from('applications')
+          .select('project_id')
+          .eq('expert_id', expert_id);
+
+        if (subqueryError) {
+          console.log('Error fetching applied projects:', subqueryError);
+        } else {
+          console.log('Applied projects:', appliedProjects);
+          const projectIds = appliedProjects.map(row => row.project_id);
+          console.log('Project IDs:', projectIds);
+          if (projectIds.length > 0) {
+            query = query.not('id', 'in', `(${projectIds.join(',')})`);
+          }
+        }
+      } else {
+        console.log('Invalid expert_id format, skipping expert filtering');
+      }
     }
-    
-    if (min_hourly_rate) {
-      query = query.gte('hourly_rate', parseFloat(min_hourly_rate));
-    }
-    
-    if (max_hourly_rate) {
-      query = query.lte('hourly_rate', parseFloat(max_hourly_rate));
-    }
-    
-    if (status) {
-      query = query.eq('status', status);
-    }
-    if (institution_id) {
-      query = query.eq('institution_id', institution_id);
-    }
-    
+
+    // Run main query
     const { data, error } = await query;
-    
+
     if (error) throw error;
+
+    console.log(`Projects query result: ${data?.length || 0} projects returned`);
     res.json(data);
+
   } catch (error) {
+    console.error('GET projects error:', error);
     res.status(500).json({ error: error.message });
   }
 });
