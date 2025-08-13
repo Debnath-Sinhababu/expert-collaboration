@@ -10,7 +10,9 @@ import { supabase } from '@/lib/supabase'
 
 export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false)
-  const { isConnected, notifications, connect, disconnect } = useSocket()
+  const [isClearing, setIsClearing] = useState(false)
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
+  const { isConnected, notifications, connect, disconnect, clearNotifications } = useSocket()
 
   useEffect(() => {
     let isMounted = true;
@@ -34,6 +36,28 @@ export default function NotificationBell() {
       disconnect();
     };
   }, [connect, disconnect])
+
+  const handleClearAll = async () => {
+    if (notifications.length > 0) {
+      setIsClearing(true);
+      try {
+        clearNotifications();
+        setShowClearConfirm(false);
+        // Optionally close the dropdown after clearing
+        setIsOpen(false);
+      } catch (error) {
+        console.error('Error clearing notifications:', error);
+      } finally {
+        setIsClearing(false);
+      }
+    }
+  }
+
+  const handleClearClick = () => {
+    if (notifications.length > 0) {
+      setShowClearConfirm(true);
+    }
+  }
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -167,16 +191,39 @@ export default function NotificationBell() {
           <div className="p-3 border-t border-gray-200 bg-gray-50">
             <div className="flex items-center justify-between text-xs text-gray-500">
               <span>Socket Status: {isConnected ? 'Connected' : 'Disconnected'}</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  // Clear notifications logic would go here
-                }}
-                className="text-xs"
-              >
-                Clear All
-              </Button>
+              {showClearConfirm ? (
+                <div className="flex items-center space-x-2">
+                  <span className="text-red-600">Clear all?</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleClearAll}
+                    className="text-xs bg-red-50 text-red-600 border-red-200 hover:bg-red-100 transition-colors"
+                    disabled={isClearing}
+                  >
+                    {isClearing ? 'Clearing...' : 'Yes'}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowClearConfirm(false)}
+                    className="text-xs"
+                    disabled={isClearing}
+                  >
+                    No
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClearClick}
+                  className="text-xs hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors"
+                  disabled={notifications.length === 0 || isClearing}
+                >
+                  Clear All ({notifications.length})
+                </Button>
+              )}
             </div>
           </div>
         )}

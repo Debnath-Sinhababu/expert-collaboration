@@ -111,6 +111,7 @@ export const api = {
       max_hourly_rate?: number;
       status?: string;
       institution_id?: string;
+      expert_id?: string; // Add expert_id to filter out projects they've already applied to
     }) => {
       const headers = await getAuthHeaders()
       const query = new URLSearchParams({

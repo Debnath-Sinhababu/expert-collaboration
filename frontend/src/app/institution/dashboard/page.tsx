@@ -1047,12 +1047,12 @@ export default function InstitutionDashboard() {
 
         {/* Main Content */}
         <Tabs defaultValue="projects" className="space-y-6">
-          <TabsList className="flex w-full gap-2 overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-6 sm:gap-0 sm:overflow-visible scrollbar-hide">
+          <TabsList className="flex w-full gap-2 overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-5 sm:gap-0 sm:overflow-visible scrollbar-hide">
             <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start ml-3 sm:ml-0" value="projects">My Projects</TabsTrigger>
             <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start" value="applications">Applications</TabsTrigger>
             <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start" value="bookings">Bookings</TabsTrigger>
             <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start" value="experts">Browse Experts</TabsTrigger>
-            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start" value="notifications">Notifications</TabsTrigger>
+            {/* <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start" value="notifications">Notifications</TabsTrigger> */}
             <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start mr-3 sm:mr-0" value="profile">Profile</TabsTrigger>
           </TabsList>
 
@@ -1686,7 +1686,7 @@ export default function InstitutionDashboard() {
           </TabsContent>
 
           {/* Notifications Tab */}
-          <TabsContent value="notifications">
+          {/* <TabsContent value="notifications">
             <Card>
               <CardHeader>
                 <CardTitle>Notifications</CardTitle>
@@ -1730,7 +1730,7 @@ export default function InstitutionDashboard() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          </TabsContent> */}
 
           {/* Profile Tab */}
           <TabsContent value="profile">

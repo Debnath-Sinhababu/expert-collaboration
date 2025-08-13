@@ -110,7 +110,7 @@ export default function ExpertDashboard() {
     coverLetter: '',
     proposedRate: ''
   })
-  const [visibleProjects, setVisibleProjects] = useState<ProjectListItem[]>([])
+
   const [profileForm, setProfileForm] = useState({
     name: '',
     email: '',
@@ -278,10 +278,11 @@ export default function ExpertDashboard() {
         limit: 10,
         search: searchTerm,
         type: filterType === 'all' ? '' : filterType,
-        status: 'open'
+        status: 'open',
+        expert_id: expert?.id // Pass expert_id to filter out projects they've already applied to
       });
     },
-    [searchTerm, filterType]
+    [searchTerm, filterType, expert?.id] // Add expert?.id to dependencies
   );
 
   // Paginate expert's own applications
@@ -407,19 +408,7 @@ export default function ExpertDashboard() {
 
   const expertAggregate = computeExpertRating()
 
-  // Build a quick lookup for project ids the expert has already applied to
-  
-
-  // Only show projects that the expert has NOT applied to yet
- 
-
-  useEffect(() => {
-    if (!projects || !applications) return
-    
-    const appliedProjectIds = new Set(applications.map((a: Application) => a.project_id))
-    const visibleProjects = (projects as ProjectListItem[]).filter((p: ProjectListItem) => !appliedProjectIds.has(p.id))
-    setVisibleProjects(visibleProjects)
-  }, [projects, applications])
+  // Projects are now filtered by the backend API based on expert_id
 
   if (loading) {
     return (
@@ -755,7 +744,7 @@ export default function ExpertDashboard() {
                   </Select>
                 </div>
 
-                {visibleProjects.length === 0 && !projectsLoading ? (
+                                 {(projects as ProjectListItem[]).length === 0 && !projectsLoading ? (
                   <div className="text-center py-8">
                     <Search className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-600">No projects found</p>
@@ -763,7 +752,7 @@ export default function ExpertDashboard() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {visibleProjects.map((project: ProjectListItem) => (
+                                         {(projects as ProjectListItem[]).map((project: ProjectListItem) => (
                       <div key={project.id} className="border rounded-lg p-6">
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex-1">
