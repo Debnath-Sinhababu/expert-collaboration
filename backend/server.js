@@ -474,6 +474,38 @@ app.get('/api/projects', async (req, res) => {
 
     if (error) throw error;
 
+    // If we have projects, fetch application counts for each project
+    if (data && data.length > 0) {
+      const projectIds = data.map(project => project.id);
+      
+      // Fetch application counts for all projects
+      const { data: applicationCounts, error: countsError } = await supabase
+        .from('applications')
+        .select('project_id, status')
+        .in('project_id', projectIds);
+
+      if (countsError) {
+        console.log('Error fetching application counts:', countsError);
+      } else {
+        // Calculate counts for each project
+        const projectCounts = {};
+        applicationCounts.forEach(app => {
+          if (!projectCounts[app.project_id]) {
+            projectCounts[app.project_id] = { total: 0, pending: 0 };
+          }
+          projectCounts[app.project_id].total++;
+          if (app.status === 'pending') {
+            projectCounts[app.project_id].pending++;
+          }
+        });
+
+        // Attach counts to each project
+        data.forEach(project => {
+          project.applicationCounts = projectCounts[project.id] || { total: 0, pending: 0 };
+        });
+      }
+    }
+
     console.log(`Projects query result: ${data?.length || 0} projects returned`);
     res.json(data);
 
@@ -743,6 +775,61 @@ app.get('/api/applications', async (req, res) => {
     res.json(data);
   } catch (error) {
     console.log('GET applications error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// New endpoint just for getting application counts (for stats display)
+app.get('/api/applications/counts', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    let supabaseClient = supabase;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      supabaseClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        }
+      );
+    }
+
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+    if (userError) throw userError;
+
+    const { expert_id, project_id, institution_id, status = 'pending' } = req.query;
+    
+    let query = supabaseClient
+      .from('applications')
+      .select('status');
+    
+    if (expert_id) query = query.eq('expert_id', expert_id);
+    if (project_id) query = query.eq('project_id', project_id);
+    if (institution_id) query = query.eq('institution_id', institution_id);
+    if (status) query = query.eq('status', status);
+    
+    const { data, error } = await query;
+    
+    if (error) throw error;
+    
+    // Calculate counts by status
+    const applicationCounts = {
+      total: data?.length || 0,
+      pending: data?.filter(a => a.status === 'pending').length || 0,
+      accepted: data?.filter(a => a.status === 'accepted').length || 0,
+      rejected: data?.filter(a => a.status === 'rejected').length || 0
+    };
+    
+    console.log('Application counts fetched:', applicationCounts);
+    res.json(applicationCounts);
+  } catch (error) {
+    console.error('Application counts fetch error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1136,6 +1223,60 @@ app.get('/api/bookings', async (req, res) => {
   }
 });
 
+// New endpoint just for getting booking counts (for stats display)
+app.get('/api/bookings/counts', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    let supabaseClient = supabase;
+   
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      supabaseClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        }
+      );
+    }
+
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+    if (userError) throw userError;
+
+    const { expert_id, institution_id } = req.query;
+    
+    let query = supabaseClient
+      .from('bookings')
+      .select('status');
+    
+    if (expert_id) query = query.eq('expert_id', expert_id);
+    if (institution_id) query = query.eq('institution_id', institution_id);
+    
+    const { data, error } = await query;
+    
+    if (error) throw error;
+    
+    // Calculate counts by status
+    const bookingCounts = {
+      total: data?.length || 0,
+      in_progress: data?.filter(b => b.status === 'in_progress').length || 0,
+      completed: data?.filter(b => b.status === 'completed').length || 0,
+      cancelled: data?.filter(b => b.status === 'cancelled').length || 0,
+      pending: data?.filter(b => b.status === 'pending').length || 0
+    };
+    
+    console.log('Booking counts fetched:', bookingCounts);
+    res.json(bookingCounts);
+  } catch (error) {
+    console.error('Booking counts fetch error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post('/api/ratings', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
@@ -1207,6 +1348,50 @@ app.post('/api/ratings', async (req, res) => {
       }
       
       console.log('Rating created successfully with service role:', serviceData[0]);
+      
+      // After creating the rating with service role, update the expert's aggregate rating
+      try {
+        const expertId = req.body.expert_id;
+        console.log('Expert ID:', expertId);
+        if (expertId) {
+          console.log('Updating expert rating for expert_id:', expertId);
+          
+          // Calculate aggregate rating for this expert
+          const { data: ratingsData, error: ratingsError } = await serviceClient
+            .from('ratings')
+            .select('rating')
+            .eq('expert_id', expertId);
+          
+          if (ratingsError) {
+            console.error('Error fetching ratings for aggregate calculation:', ratingsError);
+          } else {
+            // Calculate average rating
+            const totalRatings = ratingsData.length;
+            const sumRatings = ratingsData.reduce((sum, item) => sum + (item.rating || 0), 0);
+            const averageRating = totalRatings > 0 ? (sumRatings / totalRatings).toFixed(1) : 0;
+            
+            console.log(`Expert ${expertId} - Total ratings: ${totalRatings}, Sum: ${sumRatings}, Average: ${averageRating}`);
+            
+            // Update the expert's rating column
+            const { error: updateError } = await serviceClient
+              .from('experts')
+              .update({ 
+                rating: parseFloat(averageRating)
+              })
+              .eq('id', expertId);
+            
+            if (updateError) {
+              console.error('Error updating expert rating:', updateError);
+            } else {
+              console.log(`Successfully updated expert ${expertId} rating to ${averageRating}`);
+            }
+          }
+        }
+      } catch (updateError) {
+        console.error('Error in expert rating update process:', updateError);
+        // Don't fail the rating creation if the update fails
+      }
+      
       res.status(201).json(serviceData[0]);
       return;
     }
@@ -1217,6 +1402,9 @@ app.post('/api/ratings', async (req, res) => {
     }
     
     console.log('Rating created successfully:', data[0]);
+    
+  
+    
     res.status(201).json(data[0]);
   } catch (error) {
     console.error('Rating creation error:', error);

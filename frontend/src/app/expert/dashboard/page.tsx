@@ -87,6 +87,7 @@ export default function ExpertDashboard() {
 
   const [expert, setExpert] = useState<ExpertProfile | null>(null)
   const [applications, setApplications] = useState<Application[]>([])
+  const [applicationCounts, setApplicationCounts] = useState<any>({ total: 0, pending: 0, accepted: 0, rejected: 0 })
   interface Booking {
     id: string
     status: string
@@ -323,6 +324,17 @@ export default function ExpertDashboard() {
     setBookings(pagedBookings as Booking[])
   }, [pagedBookings])
 
+  const fetchApplicationCounts = async () => {
+    try {
+      if (expert?.id) {
+        const counts = await api.applications.getCounts({ expert_id: expert.id, status: 'pending' })
+        setApplicationCounts(counts)
+      }
+    } catch (error) {
+      console.error('Error fetching application counts:', error)
+    }
+  }
+
   const handleSearchProjects = (term: string, type: string) => {
     setSearchTerm(term)
     setFilterType(type)
@@ -340,6 +352,8 @@ export default function ExpertDashboard() {
         setSuccess('Application submitted successfully!')
         setApplicationForm({ coverLetter: '', proposedRate: '' })
         loadExpertData()
+        // Refresh application counts after submitting new application
+        setTimeout(() => fetchApplicationCounts(), 1000)
       } else {
         setError(response.error || 'Failed to submit application')
       }
@@ -398,11 +412,18 @@ export default function ExpertDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Fetch application counts when expert data is loaded
+  useEffect(() => {
+    if (expert?.id) {
+      fetchApplicationCounts()
+    }
+  }, [expert?.id])
+
   const computeExpertRating = (): { avg: number; count: number } => {
     const count = expertRatings.length
     if (count === 0) return { avg: 0, count: 0 }
     const sum = expertRatings.reduce((acc: number, r: RatingItem) => acc + (Number(r.rating) || 0), 0)
-    const avg = Math.round((sum / count) * 10) / 10
+    const avg = expert?.rating || 0
     return { avg, count }
   }
 
@@ -468,7 +489,8 @@ export default function ExpertDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Applications</p>
-                  <p className="text-2xl font-bold text-gray-900">{applications.length}</p>
+                  <p className="text-2xl font-bold text-gray-900">{applicationCounts.total}</p>
+                  <p className="text-xs text-gray-500">{applicationCounts.pending} pending</p>
                 </div>
                 <Briefcase className="h-8 w-8 text-blue-600" />
               </div>

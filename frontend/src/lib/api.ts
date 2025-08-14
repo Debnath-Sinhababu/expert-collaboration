@@ -168,6 +168,14 @@ export const api = {
       }).toString()
       return fetch(`${API_BASE_URL}/api/applications${query ? `?${query}` : ''}`, { headers }).then(res => res.json())
     },
+    getCounts: async (params?: { expert_id?: string; project_id?: string; institution_id?: string; status?: string }) => {
+      const headers = await getAuthHeaders()
+      const query = new URLSearchParams({
+        ...params as any,
+        _t: Date.now().toString()
+      }).toString()
+      return fetch(`${API_BASE_URL}/api/applications/counts${query ? `?${query}` : ''}`, { headers }).then(res => res.json())
+    },
     create: async (data: any) => {
       const headers = await getAuthHeaders()
       return fetch(`${API_BASE_URL}/api/applications`, {
@@ -191,6 +199,11 @@ export const api = {
       const headers = await getAuthHeaders()
       const query = new URLSearchParams(params as any).toString()
       return fetch(`${API_BASE_URL}/api/bookings${query ? `?${query}` : ''}`, { headers }).then(res => res.json())
+    },
+    getCounts: async (params?: { expert_id?: string; institution_id?: string }) => {
+      const headers = await getAuthHeaders()
+      const query = new URLSearchParams(params as any).toString()
+      return fetch(`${API_BASE_URL}/api/bookings/counts${query ? `?${query}` : ''}`, { headers }).then(res => res.json())
     },
     create: async (data: any) => {
       const headers = await getAuthHeaders()

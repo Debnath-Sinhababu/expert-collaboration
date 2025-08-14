@@ -15,6 +15,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Drawer } from '@/components/ui/drawer'
+import ProjectApplications from '@/components/ProjectApplications'
 import { 
   GraduationCap, 
   Building, 
@@ -51,6 +53,7 @@ export default function InstitutionDashboard() {
   const [projects, setProjects] = useState<any[]>([])
   const [applications, setApplications] = useState<any[]>([])
   const [bookings, setBookings] = useState<any[]>([])
+  const [bookingCounts, setBookingCounts] = useState<any>({ total: 0, in_progress: 0, completed: 0, cancelled: 0, pending: 0 })
   const [ratings, setRatings] = useState<any[]>([])
   const [allRatings, setAllRatings] = useState<any[]>([])
   const [ratingModalOpen, setRatingModalOpen] = useState(false)
@@ -74,6 +77,8 @@ export default function InstitutionDashboard() {
   const [submittingProject, setSubmittingProject] = useState(false)
   const [editingProject, setEditingProject] = useState<any>(null)
   const [showEditForm, setShowEditForm] = useState(false)
+  const [applicationsDrawerOpen, setApplicationsDrawerOpen] = useState(false)
+  const [selectedProject, setSelectedProject] = useState<{ id: string; title?: string } | null>(null)
   const [profileForm, setProfileForm] = useState({
     name: '',
     type: '',
@@ -150,11 +155,12 @@ export default function InstitutionDashboard() {
       })
       
       // Initial light calls (experts list is paginated below). Lists are fed by paginated hooks
-      const [projectsResponse, applicationsResponse, expertsResponse,bookingsResponse] = await Promise.all([
+      const [projectsResponse, applicationsResponse, expertsResponse, bookingsResponse, bookingCountsResponse] = await Promise.all([
         api.projects.getAll(),
         api.applications.getAll({ status: 'pending' }),
         api.experts.getAll(),
-        api.bookings.getAll({ institution_id: institutionProfile.id })
+        api.bookings.getAll({ institution_id: institutionProfile.id }),
+        api.bookings.getCounts({ institution_id: institutionProfile.id })
       ])
 
       // Handle API responses that might have data property
@@ -162,8 +168,10 @@ export default function InstitutionDashboard() {
       const applications = Array.isArray(applicationsResponse) ? applicationsResponse : (applicationsResponse?.data || [])
       const experts = Array.isArray(expertsResponse) ? expertsResponse : (expertsResponse?.data || [])
       const bookings = Array.isArray(bookingsResponse) ? bookingsResponse : (bookingsResponse?.data || [])
+      const counts = bookingCountsResponse || { total: 0, in_progress: 0, completed: 0, cancelled: 0, pending: 0 }
 
       setBookings(bookings)
+      setBookingCounts(counts)
       
       const institutionProjects = projects.filter((project: any) => project.institution_id === institutionProfile.id)
       setProjects(institutionProjects)
@@ -301,8 +309,28 @@ export default function InstitutionDashboard() {
     setBookings(pagedBookings)
   }, [pagedBookings])
 
+  // Refresh booking counts when institution changes (for stats display)
+  useEffect(() => {
+    if (institution?.id) {
+      fetchBookingCounts()
+    }
+  }, [institution?.id])
+
+
+
   const handleSearchExperts = (term: string) => {
     setSearchTerm(term)
+  }
+
+  const fetchBookingCounts = async () => {
+    try {
+      if (institution?.id) {
+        const counts = await api.bookings.getCounts({ institution_id: institution.id })
+        setBookingCounts(counts)
+      }
+    } catch (error) {
+      console.error('Error fetching booking counts:', error)
+    }
   }
 
   const handleProfileUpdate = async () => {
@@ -439,6 +467,11 @@ export default function InstitutionDashboard() {
       required_expertise: project.required_expertise.join(', ')
     })
     setShowEditForm(true)
+  }
+
+  const handleViewApplications = (project: any) => {
+    setSelectedProject({ id: project.id, title: project.title })
+    setApplicationsDrawerOpen(true)
   }
 
   const handleUpdateProject = async (e: React.FormEvent) => {
@@ -954,13 +987,15 @@ export default function InstitutionDashboard() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Applications</p>
-                  <p className="text-2xl font-bold text-gray-900">{applications.length}</p>
-                  <p className="text-xs text-gray-500">
-                    {applications.filter(app => app.status === 'pending').length} pending
-                  </p>
-                </div>
+                                  <div>
+                    <p className="text-sm font-medium text-gray-600">Applications</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {projects.reduce((total, project) => total + (project.applicationCounts?.total || 0), 0)}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {projects.reduce((total, project) => total + (project.applicationCounts?.pending || 0), 0)} pending
+                    </p>
+                  </div>
                 <Users className="h-8 w-8 text-green-600" />
               </div>
             </CardContent>
@@ -972,7 +1007,7 @@ export default function InstitutionDashboard() {
                 <div>
                   <p className="text-sm font-medium text-gray-600">Active Bookings</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {bookings.filter(b => b.status === 'in_progress').length}
+                    {bookingCounts.in_progress}
                   </p>
                   <p className="text-xs text-gray-500">in progress</p>
                 </div>
@@ -987,7 +1022,7 @@ export default function InstitutionDashboard() {
                 <div>
                   <p className="text-sm font-medium text-gray-600">Completed</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {bookings.filter(b => b.status === 'completed').length}
+                    {bookingCounts.completed}
                   </p>
                   <p className="text-xs text-gray-500">bookings</p>
                 </div>
@@ -1019,9 +1054,8 @@ export default function InstitutionDashboard() {
 
         {/* Main Content */}
         <Tabs defaultValue="projects" className="space-y-6">
-          <TabsList className="flex w-full gap-2 overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-5 sm:gap-0 sm:overflow-visible scrollbar-hide">
+          <TabsList className="flex w-full gap-2 overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-4 sm:gap-0 sm:overflow-visible scrollbar-hide">
             <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start ml-3 sm:ml-0" value="projects">My Projects</TabsTrigger>
-            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start" value="applications">Applications</TabsTrigger>
             <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start" value="bookings">Bookings</TabsTrigger>
             <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start" value="experts">Browse Experts</TabsTrigger>
             {/* <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start" value="notifications">Notifications</TabsTrigger> */}
@@ -1100,9 +1134,14 @@ export default function InstitutionDashboard() {
                             Posted: {new Date(project.created_at).toLocaleDateString()}
                           </div>
                           <div className="flex flex-wrap gap-2">
-                            <Button size="sm" variant="outline" className="flex-1 sm:flex-none">
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="flex-1 sm:flex-none"
+                              onClick={() => handleViewApplications(project)}
+                            >
                               <Eye className="h-4 w-4 mr-2" />
-                              View Applications ({applications.filter(app => app.project_id === project.id).length})
+                              View Applications ({project.applicationCounts?.pending || 0})
                             </Button>
                             <Button size="sm" variant="outline" onClick={() => handleEditProject(project)} className="flex-1 sm:flex-none">
                               <Edit className="h-4 w-4 mr-2" />
@@ -1144,184 +1183,7 @@ export default function InstitutionDashboard() {
           </TabsContent>
 
           {/* Applications Tab */}
-          <TabsContent value="applications">
-            <Card>
-              <CardHeader>
-                <CardTitle>Applications</CardTitle>
-                <CardDescription>
-                  Review and manage applications from experts
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {applications.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600">No applications yet</p>
-                    <p className="text-sm text-gray-500">Applications will appear here when experts apply to your projects</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {applications.map((application) => {
-                      const project = projects.find(p => p.id === application.project_id)
-                      const expert: any = experts.find((e: any) => e.id === application.expert_id)
-                      return (
-                        <div key={application.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                          <div className="flex items-center justify-between mb-3 min-w-0">
-                            <div className="min-w-0 flex-1">
-                              <h3 className="font-semibold text-lg truncate pr-2">{expert?.name || 'Expert'}</h3>
-                              <p className="text-sm text-gray-600 truncate pr-2">Applied to: {project?.title}</p>
-                            </div>
-                            <Badge className={getApplicationStatusColor(application.status)}>
-                              <div className="flex items-center space-x-1">
-                                {getStatusIcon(application.status)}
-                                <span className="capitalize">{application.status}</span>
-                              </div>
-                            </Badge>
-                          </div>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                            <div>
-                              <span className="text-sm text-gray-500">Expert Domain:</span>
-                              <p className="font-medium">{expert?.domain_expertise}</p>
-                            </div>
-                            <div>
-                              <span className="text-sm text-gray-500">Proposed Rate:</span>
-                              <p className="font-medium">₹{application.proposed_rate}/hour</p>
-                            </div>
-                          <div>
-                            <span className="text-sm text-gray-500">Expert Rating:</span>
-                            {(() => {
-                              const agg = getExpertAggregate(expert?.id)
-                              return (
-                                <p className="font-medium">{agg.avg || 0}/5 ({agg.count || 0} reviews)</p>
-                              )
-                            })()}
-                          </div>
-                            <div>
-                              <span className="text-sm text-gray-500">Applied On:</span>
-                              <p className="font-medium">{new Date(application.applied_at).toLocaleDateString()}</p>
-                            </div>
-                          </div>
-
-                          {application.cover_letter && (
-                            <div className="mb-4">
-                              <span className="text-sm text-gray-500">Cover Letter:</span>
-                              <p className="text-sm mt-1 p-3 bg-gray-50 rounded-lg">{application.cover_letter}</p>
-                            </div>
-                          )}
-
-                          <div className="flex items-center justify-between">
-                            <div className="flex space-x-2">
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <Button size="sm" variant="outline">
-                                    <Eye className="h-4 w-4 mr-2" />
-                                    View Expert Profile
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent className="max-w-2xl">
-                                  <DialogHeader>
-                                    <DialogTitle>{expert?.name}</DialogTitle>
-                                    <DialogDescription>Expert Profile Details</DialogDescription>
-                                  </DialogHeader>
-                                  <div className="space-y-4">
-                                    <div>
-                                      <h4 className="font-medium mb-2">Professional Bio</h4>
-                                      <p className="text-sm text-gray-600">{expert?.bio}</p>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                      <div>
-                                        <h4 className="font-medium mb-1">Domain Expertise</h4>
-                                        <p className="text-sm">{expert?.domain_expertise}</p>
-                                      </div>
-                                      <div>
-                                        <h4 className="font-medium mb-1">Hourly Rate</h4>
-                                        <p className="text-sm">₹{expert?.hourly_rate}</p>
-                                      </div>
-                                      <div>
-                                        <h4 className="font-medium mb-1">Experience</h4>
-                                        <p className="text-sm">{expert?.experience_years || 0} years</p>
-                                      </div>
-                                      <div>
-                                        <h4 className="font-medium mb-1">Verification</h4>
-                                        <Badge variant={expert?.is_verified ? "default" : "secondary"}>
-                                          {expert?.is_verified ? 'Verified' : 'Pending'}
-                                        </Badge>
-                                      </div>
-                                    </div>
-                                    {expert?.qualifications && (
-                                      <div>
-                                        <h4 className="font-medium mb-1">Qualifications</h4>
-                                        <p className="text-sm">{expert.qualifications}</p>
-                                      </div>
-                                    )}
-                                    {expert?.resume_url && (
-                                      <div>
-                                        <h4 className="font-medium mb-1">Resume</h4>
-                                        <a 
-                                          href={expert.resume_url} 
-                                          target="_blank" 
-                                          rel="noopener noreferrer"
-                                          className="text-blue-600 hover:underline text-sm"
-                                        >
-                                          View Resume
-                                        </a>
-                                      </div>
-                                    )}
-                                  </div>
-                                </DialogContent>
-                              </Dialog>
-                            </div>
-                            
-                            {application.status === 'pending' && (
-                              <div className="flex flex-wrap gap-2">
-                                <Button 
-                                  size="sm" 
-                                  className="bg-green-600 hover:bg-green-700 flex-1 sm:flex-none"
-                                  onClick={() => handleApplicationAction(application.id, 'accept')}
-                                >
-                                  <UserCheck className="h-4 w-4 mr-2" />
-                                  Accept
-                                </Button>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline"
-                                  className="flex-1 sm:flex-none"
-                                  onClick={() => handleApplicationAction(application.id, 'reject')}
-                                >
-                                  <UserX className="h-4 w-4 mr-2" />
-                                  Reject
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })}
-                    {/* Infinite loader sentinel for applications */}
-                    {(hasMoreApplications && !applicationsLoading) && (
-                      <div 
-                        ref={(el) => {
-                          if (el) {
-                            const observer = new IntersectionObserver(([entry]) => {
-                              if (entry.isIntersecting) {
-                                loadMoreApplications();
-                              }
-                            }, { threshold: 0.1 });
-                            observer.observe(el);
-                            return () => observer.disconnect();
-                          }
-                        }}
-                        className="text-center py-4 text-sm text-gray-500"
-                      >
-                        Loading more applications...
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+        
 
           {/* Bookings Tab */}
           <TabsContent value="bookings">
@@ -1911,6 +1773,23 @@ export default function InstitutionDashboard() {
         booking={selectedBooking}
         onRatingSubmitted={handleRatingSubmitted}
       />
+
+      {/* Applications Drawer */}
+      <Drawer
+        open={applicationsDrawerOpen}
+        onOpenChange={setApplicationsDrawerOpen}
+        title={`Applications for: ${selectedProject?.title || 'Project'}`}
+      >
+        {selectedProject && (
+          <ProjectApplications
+            projectId={selectedProject.id}
+            projectTitle={selectedProject.title || ''}
+            onClose={() => setApplicationsDrawerOpen(false)}
+            pageSize={20}
+            institutionId={institution?.id || ''}
+          />
+        )}
+      </Drawer>
     </div>
   )
 }
