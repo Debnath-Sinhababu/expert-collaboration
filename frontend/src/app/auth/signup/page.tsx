@@ -8,11 +8,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { GraduationCap, Eye, EyeOff, Users, BookOpen } from 'lucide-react'
+import { Eye, EyeOff, Users, BookOpen } from 'lucide-react'
+import Logo from '@/components/Logo'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 
-export default function SignupPage() {
+export const dynamic = 'force-dynamic'
+
+export default function Signup() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -22,14 +25,14 @@ export default function SignupPage() {
   const [success, setSuccess] = useState('')
   const [activeTab, setActiveTab] = useState('expert')
   const router = useRouter()
-  const searchParams = useSearchParams()
 
-  useEffect(() => {
-    const role = searchParams.get('role')
-    if (role === 'expert' || role === 'institution') {
-      setActiveTab(role)
-    }
-  }, [searchParams])
+  // Temporarily removed useSearchParams to fix build issue
+  // useEffect(() => {
+  //   const role = searchParams.get('role')
+  //   if (role === 'expert' || role === 'institution') {
+  //     setActiveTab(role)
+  //   }
+  // }, [searchParams])
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -57,6 +60,7 @@ export default function SignupPage() {
           data: {
             role: activeTab,
           },
+          emailRedirectTo:`${window.location.origin}/confirmemail`
         },
       })
 
@@ -73,8 +77,8 @@ export default function SignupPage() {
           }
         }, 2000)
       }
-    } catch (error: any) {
-      setError(error.message)
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'An error occurred')
     } finally {
       setLoading(false)
     }
@@ -86,7 +90,7 @@ export default function SignupPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center space-x-2 mb-4">
-            <GraduationCap className="h-8 w-8 text-blue-600" />
+            <Logo size="md" />
             <span className="text-2xl font-bold text-gray-900">Expert Collaboration</span>
           </Link>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Join Our Platform</h1>

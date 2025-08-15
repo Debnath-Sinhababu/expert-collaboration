@@ -85,6 +85,7 @@ CREATE TABLE IF NOT EXISTS bookings (
     hours_booked INTEGER,
     status VARCHAR(50) DEFAULT 'confirmed', -- confirmed, in_progress, completed, cancelled
     payment_status VARCHAR(50) DEFAULT 'pending', -- pending, paid, refunded
+    is_rated BOOLEAN DEFAULT FALSE, -- Track if booking has been rated
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -169,19 +170,54 @@ CREATE POLICY "Anyone can view verified institutions" ON institutions FOR SELECT
 
 CREATE POLICY "Anyone can view open projects" ON projects FOR SELECT USING (status = 'open');
 CREATE POLICY "Institutions can manage their own projects" ON projects FOR ALL USING (auth.uid() IN (SELECT user_id FROM institutions WHERE id = institution_id));
+CREATE POLICY "Institutions can create projects" ON projects FOR INSERT WITH CHECK (auth.uid() IN (SELECT user_id FROM institutions WHERE id = institution_id));
 
 CREATE POLICY "Experts can view their own applications" ON applications FOR SELECT USING (auth.uid() IN (SELECT user_id FROM experts WHERE id = expert_id));
 CREATE POLICY "Institutions can view applications to their projects" ON applications FOR SELECT USING (auth.uid() IN (SELECT user_id FROM institutions WHERE id = (SELECT institution_id FROM projects WHERE id = project_id)));
 CREATE POLICY "Experts can create applications" ON applications FOR INSERT WITH CHECK (auth.uid() IN (SELECT user_id FROM experts WHERE id = expert_id));
+CREATE POLICY "Institutions can update applications to their own projects"
+  ON applications
+  FOR UPDATE
+  USING (
+    auth.uid() IN (
+      SELECT user_id
+      FROM institutions
+      WHERE id = (
+        SELECT institution_id
+        FROM projects
+        WHERE projects.id = applications.project_id
+      )
+    )
+  );
+
 
 CREATE POLICY "Users can view their own bookings" ON bookings FOR SELECT USING (
     auth.uid() IN (SELECT user_id FROM experts WHERE id = expert_id) OR
     auth.uid() IN (SELECT user_id FROM institutions WHERE id = institution_id)
 );
 
+
+CREATE POLICY "Institutions can create bookings for their projects" ON bookings FOR INSERT WITH CHECK (
+    auth.uid() IN (SELECT user_id FROM institutions WHERE id = institution_id)
+);
+
+CREATE POLICY "Users can update their own bookings" ON bookings FOR UPDATE USING (
+    auth.uid() IN (SELECT user_id FROM experts WHERE id = expert_id) OR
+    auth.uid() IN (SELECT user_id FROM institutions WHERE id = institution_id)
+);
+
+CREATE POLICY "Users can delete their own bookings" ON bookings FOR DELETE USING (
+    auth.uid() IN (SELECT user_id FROM experts WHERE id = expert_id) OR
+    auth.uid() IN (SELECT user_id FROM institutions WHERE id = institution_id)
+);
+
 CREATE POLICY "Users can view ratings" ON ratings FOR SELECT TO authenticated;
 CREATE POLICY "Users can create ratings for their bookings" ON ratings FOR INSERT WITH CHECK (
-    auth.uid() IN (SELECT user_id FROM experts WHERE id = expert_id) OR
+    -- Allow institutions to create ratings
+    auth.uid() IN (SELECT user_id FROM institutions WHERE id = institution_id)
+);
+CREATE POLICY "Users can update their own ratings" ON ratings FOR UPDATE USING (
+    -- Only institutions can update their own ratings
     auth.uid() IN (SELECT user_id FROM institutions WHERE id = institution_id)
 );
 

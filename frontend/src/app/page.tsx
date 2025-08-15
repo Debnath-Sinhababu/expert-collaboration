@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { GraduationCap, Users, BookOpen, Star } from 'lucide-react'
+import { Users, BookOpen, Star } from 'lucide-react'
 import Link from 'next/link'
+import Logo from '@/components/Logo'
 
 export default function Home() {
   const [user, setUser] = useState<any>(null)
@@ -37,9 +38,31 @@ export default function Home() {
     )
   }
 
-  if (user) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+ 
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      {/* Header */}
+      <header className="bg-white shadow-sm">
+        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+          <div className="flex items-center space-x-2">
+            <Logo size="md" />
+            <span className="text-2xl font-bold text-gray-900">Expert Collaboration</span>
+          </div>
+          <div className="space-x-4">
+            <Link href="/auth/login">
+              <Button variant="outline">Login</Button>
+            </Link>
+            <Link href="/auth/signup">
+              <Button className="bg-blue-600 hover:bg-blue-700">Sign Up</Button>
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      {
+        user && 
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="container mx-auto px-4 py-8">
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-gray-900 mb-4">
@@ -64,31 +87,16 @@ export default function Home() {
           </div>
         </div>
       </div>
-    )
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <GraduationCap className="h-8 w-8 text-blue-600" />
-            <span className="text-2xl font-bold text-gray-900">Expert Collaboration</span>
-          </div>
-          <div className="space-x-4">
-            <Link href="/auth/login">
-              <Button variant="outline">Login</Button>
-            </Link>
-            <Link href="/auth/signup">
-              <Button className="bg-blue-600 hover:bg-blue-700">Sign Up</Button>
-            </Link>
-          </div>
-        </div>
-      </header>
+      }
 
       {/* Hero Section */}
-      <section className="container mx-auto px-4 py-16 text-center">
+      {
+        !user &&
+        <section className="container mx-auto px-4 py-16 text-center">
+        {/* Hero Logo */}
+        <div className="flex justify-center mb-8">
+          <Logo size="lg" />
+        </div>
         <h1 className="text-5xl font-bold text-gray-900 mb-6">
           Connect Universities with
           <span className="text-blue-600"> Expert Professionals</span>
@@ -110,6 +118,8 @@ export default function Home() {
           </Link>
         </div>
       </section>
+      }
+    
 
       {/* Features Section */}
       <section className="container mx-auto px-4 py-16">
@@ -127,10 +137,11 @@ export default function Home() {
             </CardHeader>
             <CardContent>
               <ul className="text-sm text-gray-600 space-y-2">
-                <li>• Build comprehensive profile</li>
-                <li>• Set your availability & rates</li>
-                <li>• Apply to interesting projects</li>
-                <li>• Get verified and rated</li>
+              <li>• Build a comprehensive professional profile</li>
+<li>• Set your availability and preferred rates</li>
+<li>• Apply to relevant and exciting projects</li>
+<li>• Get verified, rated, and recognized</li>
+
               </ul>
             </CardContent>
           </Card>
@@ -144,11 +155,12 @@ export default function Home() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ul className="text-sm text-gray-600 space-y-2">
-                <li>• Post guest lectures & workshops</li>
-                <li>• Review expert applications</li>
-                <li>• Book experts up to ₹5,000</li>
-                <li>• Rate and provide feedback</li>
+              <ul className="text-sm text-gray-600 space-y-2 ">
+              <li>• Post your academic or project requirements</li>
+<li>• Review and shortlist expert applications</li>
+<li>• Book the right experts for your needs</li>
+<li>• Rate and share constructive feedback</li>
+
               </ul>
             </CardContent>
           </Card>
@@ -194,7 +206,7 @@ export default function Home() {
       <footer className="bg-gray-900 text-white py-8">
         <div className="container mx-auto px-4 text-center">
           <div className="flex items-center justify-center space-x-2 mb-4">
-            <GraduationCap className="h-6 w-6" />
+            <Logo size="sm" />
             <span className="text-xl font-bold">Expert Collaboration</span>
           </div>
           <p className="text-gray-400">

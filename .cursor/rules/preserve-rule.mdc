@@ -1,0 +1,4 @@
+---
+alwaysApply: true
+---
+Preserve all existing logic, data flow, and functionality in the current codebase unless explicitly instructed otherwise. When making changes, limit edits to the minimum necessary to fulfill the request. Do not refactor, rename, restructure, or remove any code unless it is part of the requested change. Assume that all existing behavior is intentional and production-critical. Ensure backward compatibility and avoid introducing breaking changes. Verify that any new code integrates seamlessly with the current structure without altering unrelated features.
