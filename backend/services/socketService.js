@@ -24,7 +24,10 @@ class SocketService {
     });
 
     // Setup Redis connections (use one URL env var)
-    const redisUrl = process.env.REDIS_URL || process.env.UPSTASH_REDIS_REST_URL;
+    let redisUrl = process.env.UPSTASH_REDIS_REST_URL
+    if(process.env.NODE_ENV === 'production'){
+     redisUrl = process.env.REDIS_URL
+    }
     if (!redisUrl) {
       console.warn('No REDIS_URL found — continuing without Redis adapter (not recommended for production)');
       this.setupEventHandlers();
