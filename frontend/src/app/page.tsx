@@ -38,35 +38,7 @@ export default function Home() {
     )
   }
 
-  // if (user) {
-  //   return (
-  //     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-  //       <div className="container mx-auto px-4 py-8">
-  //         <div className="text-center mb-8">
-  //           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-  //             Welcome back to Expert Collaboration
-  //           </h1>
-  //           <p className="text-xl text-gray-600">
-  //             Continue your journey in connecting education with expertise
-  //           </p>
-  //         </div>
-          
-  //         <div className="flex justify-center space-x-4">
-  //           <Link href="/expert/dashboard">
-  //             <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
-  //               Expert Dashboard
-  //             </Button>
-  //           </Link>
-  //           <Link href="/institution/dashboard">
-  //             <Button size="lg" variant="outline">
-  //               Institution Dashboard
-  //             </Button>
-  //           </Link>
-  //         </div>
-  //       </div>
-  //     </div>
-  //   )
-  // }
+ 
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -88,8 +60,39 @@ export default function Home() {
         </div>
       </header>
 
+      {
+        user && 
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">
+              Welcome back to Expert Collaboration
+            </h1>
+            <p className="text-xl text-gray-600">
+              Continue your journey in connecting education with expertise
+            </p>
+          </div>
+          
+          <div className="flex justify-center space-x-4">
+            <Link href="/expert/dashboard">
+              <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
+                Expert Dashboard
+              </Button>
+            </Link>
+            <Link href="/institution/dashboard">
+              <Button size="lg" variant="outline">
+                Institution Dashboard
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+      }
+
       {/* Hero Section */}
-      <section className="container mx-auto px-4 py-16 text-center">
+      {
+        !user &&
+        <section className="container mx-auto px-4 py-16 text-center">
         {/* Hero Logo */}
         <div className="flex justify-center mb-8">
           <Logo size="lg" />
@@ -115,6 +118,8 @@ export default function Home() {
           </Link>
         </div>
       </section>
+      }
+    
 
       {/* Features Section */}
       <section className="container mx-auto px-4 py-16">
