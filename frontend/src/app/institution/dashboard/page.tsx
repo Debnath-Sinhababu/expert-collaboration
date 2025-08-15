@@ -17,8 +17,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Drawer } from '@/components/ui/drawer'
 import ProjectApplications from '@/components/ProjectApplications'
+import Logo from '@/components/Logo'
 import { 
-  GraduationCap, 
   Building, 
   Plus, 
   Users, 
@@ -673,7 +673,7 @@ export default function InstitutionDashboard() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <Link href="/" className="flex items-center space-x-2">
-              <GraduationCap className="h-8 w-8 text-blue-600" />
+              <Logo size="md" />
               <span className="text-xl sm:text-2xl font-bold text-gray-900">Expert Collaboration</span>
             </Link>
             

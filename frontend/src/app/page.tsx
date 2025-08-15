@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { GraduationCap, Users, BookOpen, Star } from 'lucide-react'
+import { Users, BookOpen, Star } from 'lucide-react'
 import Link from 'next/link'
+import Logo from '@/components/Logo'
 
 export default function Home() {
   const [user, setUser] = useState<any>(null)
@@ -73,7 +74,7 @@ export default function Home() {
       <header className="bg-white shadow-sm">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-2">
-            <GraduationCap className="h-8 w-8 text-blue-600" />
+            <Logo size="md" />
             <span className="text-2xl font-bold text-gray-900">Expert Collaboration</span>
           </div>
           <div className="space-x-4">
@@ -89,6 +90,10 @@ export default function Home() {
 
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-16 text-center">
+        {/* Hero Logo */}
+        <div className="flex justify-center mb-8">
+          <Logo size="lg" />
+        </div>
         <h1 className="text-5xl font-bold text-gray-900 mb-6">
           Connect Universities with
           <span className="text-blue-600"> Expert Professionals</span>
@@ -196,7 +201,7 @@ export default function Home() {
       <footer className="bg-gray-900 text-white py-8">
         <div className="container mx-auto px-4 text-center">
           <div className="flex items-center justify-center space-x-2 mb-4">
-            <GraduationCap className="h-6 w-6" />
+            <Logo size="sm" />
             <span className="text-xl font-bold">Expert Collaboration</span>
           </div>
           <p className="text-gray-400">

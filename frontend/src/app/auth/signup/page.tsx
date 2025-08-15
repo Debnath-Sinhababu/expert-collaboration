@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { GraduationCap, Eye, EyeOff, Users, BookOpen } from 'lucide-react'
+import { Eye, EyeOff, Users, BookOpen } from 'lucide-react'
+import Logo from '@/components/Logo'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 
@@ -87,7 +88,7 @@ export default function SignupPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center space-x-2 mb-4">
-            <GraduationCap className="h-8 w-8 text-blue-600" />
+            <Logo size="md" />
             <span className="text-2xl font-bold text-gray-900">Expert Collaboration</span>
           </Link>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Join Our Platform</h1>

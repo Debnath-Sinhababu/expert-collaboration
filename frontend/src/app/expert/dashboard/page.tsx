@@ -16,8 +16,8 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import NotificationBell from '@/components/NotificationBell'
+import Logo from '@/components/Logo'
 import { 
-  GraduationCap, 
   User, 
   Briefcase, 
   Calendar, 
@@ -448,7 +448,7 @@ export default function ExpertDashboard() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center space-x-2">
-              <GraduationCap className="h-8 w-8 text-blue-600" />
+              <Logo size="md" />
               <span className="text-xl font-bold text-gray-900">Expert Collaboration</span>
             </Link>
             
