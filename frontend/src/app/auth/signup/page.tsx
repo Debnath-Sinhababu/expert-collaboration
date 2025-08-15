@@ -60,7 +60,7 @@ export default function Signup() {
           data: {
             role: activeTab,
           },
-          emailRedirectTo:`${window.location.origin}/confirmemail`
+          emailRedirectTo:`${process.env.NEXT_PUBLIC_FRONTEND_URL}/confirmemail`
         },
       })
 
