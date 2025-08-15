@@ -1,5 +1,7 @@
+const { createClient } = require('redis');
 const { Redis } = require('@upstash/redis');
 const sgMail = require('@sendgrid/mail');
+
 
 let redis = null; // Will be initialized lazily
 
@@ -19,22 +21,39 @@ class NotificationService {
   initializeRedis() {
     if (!this.redis) {
       console.log('Initializing Redis client...');
-      console.log('Redis URL:', process.env.UPSTASH_REDIS_REST_URL);
-      console.log('Redis Token:', process.env.UPSTASH_REDIS_REST_TOKEN ? '***' : 'undefined');
-      
-      if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
-        console.error('Redis environment variables not available yet');
-        return false;
+  
+      if (process.env.NODE_ENV === 'production') {
+        // Production: Use REDIS_URL for standard Redis connection
+        console.log('Redis URL:', process.env.REDIS_URL);
+        if (!process.env.REDIS_URL) {
+          console.error('REDIS_URL not available');
+          return false;
+        }
+     
+        this.redis = createClient({
+          url: process.env.REDIS_URL,
+        });
+        this.redis.on('error', (err) => console.error('Redis error', err));
+        this.redis.connect().catch((err) => console.error('Redis connection error', err));
+        return true;
+      } else {
+        // Development: Use Upstash REST API client
+        console.log('Upstash REST URL:', process.env.UPSTASH_REDIS_REST_URL);
+        console.log('Upstash REST Token:', process.env.UPSTASH_REDIS_REST_TOKEN ? '***' : 'undefined');
+        if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+          console.error('Upstash REST env vars not available');
+          return false;
+        }
+        this.redis = new Redis({
+          url: process.env.UPSTASH_REDIS_REST_URL,
+          token: process.env.UPSTASH_REDIS_REST_TOKEN,
+        });
+        return true;
       }
-      
-      this.redis = new Redis({
-        url: process.env.UPSTASH_REDIS_REST_URL,
-        token: process.env.UPSTASH_REDIS_REST_TOKEN,
-      });
-      return true;
     }
     return true;
   }
+  
 
   async addToQueue(notification) {
     if (!this.initializeRedis()) {
