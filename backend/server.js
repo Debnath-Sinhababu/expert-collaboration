@@ -1630,16 +1630,19 @@ app.post('/api/student/login', async (req, res) => {
   try {
     console.log('Student login request received:', req.body);
     
-    const { universityName, rollNumber, studentName, email, batch } = req.body;
-    
-    if (!universityName || !rollNumber || !studentName || !batch) {
+    const { universityName, rollNumber, studentName, email, batch, mobile } = req.body;
+ 
+    // Strict 10-digit numeric mobile validation
+    const mobileValid = typeof mobile === 'string' && /^\d{10}$/.test(mobile);
+
+    if (!universityName || !rollNumber || !studentName || !batch || !mobileValid) {
       return res.status(400).json({ 
         success: false, 
-        error: 'University name, roll number, student name, and batch are required' 
+        error: 'Invalid input. University, roll number, student name, batch, and a valid 10-digit mobile are required.' 
       });
     }
 
-    const result = await studentFeedbackService.studentLogin(universityName, rollNumber, studentName, email, batch);
+    const result = await studentFeedbackService.studentLogin(universityName, rollNumber, studentName, email, batch, mobile);
     console.log('Student login result:', result);
     
     if (result.success) {

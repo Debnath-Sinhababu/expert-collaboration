@@ -26,7 +26,7 @@ export default function StudentFeedbackPage() {
     universityName: '',
     rollNumber: '',
     studentName: '',
-    email: '',
+    mobile: '',
     batch: '' as '' | 'ET' | 'PROMPT_ENGINEERING',
   })
   const [loading, setLoading] = useState(false)
@@ -39,6 +39,27 @@ export default function StudentFeedbackPage() {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
+  // Strict 10-digit numeric validation
+  const isMobileValid = () => {
+    return /^\d{10}$/.test(formData.mobile)
+  }
+
+  // Sanitize mobile input to digits only and cap at 10
+  const handleMobileChange = (raw: string) => {
+    const digitsOnly = raw.replace(/\D/g, '').slice(0, 10)
+    setFormData(prev => ({ ...prev, mobile: digitsOnly }))
+  }
+
+  const isFormValid = () => {
+    return (
+      !!formData.universityName &&
+      !!formData.rollNumber &&
+      !!formData.studentName &&
+      !!formData.batch &&
+      isMobileValid()
+    )
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -46,7 +67,7 @@ export default function StudentFeedbackPage() {
     setSuccess('')
 
     try {
-      if (!formData.universityName || !formData.rollNumber || !formData.studentName || !formData.batch) {
+      if (!isFormValid()) {
         throw new Error('Please fill in all required fields')
       }
 
@@ -59,8 +80,8 @@ export default function StudentFeedbackPage() {
           universityName: formData.universityName,
           rollNumber: formData.rollNumber,
           studentName: formData.studentName,
-          email: formData.email || '',
           batch: formData.batch,
+          mobile: formData.mobile,
         }),
       })
 
@@ -249,20 +270,27 @@ export default function StudentFeedbackPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email (Optional)</Label>
+                <Label htmlFor="mobile" className="flex items-center space-x-2">
+                  <span>Mobile Number *</span>
+                </Label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter your email address"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
+                  id="mobile"
+                  inputMode="numeric"
+                  pattern="\d*"
+                  maxLength={10}
+                  placeholder="Enter 10-digit mobile number"
+                  value={formData.mobile}
+                  onChange={(e) => handleMobileChange(e.target.value)}
                 />
+                {!isMobileValid() && formData.mobile.length > 0 && (
+                  <p className="text-xs text-red-600">Please enter a valid 10-digit mobile number.</p>
+                )}
               </div>
 
               <Button
                 type="submit"
                 className="w-full bg-blue-600 hover:bg-blue-700"
-                disabled={loading}
+                disabled={loading || !isFormValid()}
               >
                 {loading ? 'Logging in...' : 'Login & Access Feedback'}
               </Button>

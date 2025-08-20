@@ -10,7 +10,7 @@ class StudentFeedbackService {
   }
 
   // Student login/registration
-  async studentLogin(universityName, rollNumber, studentName, email = null, batch = null) {
+  async studentLogin(universityName, rollNumber, studentName, email = null, batch = null, mobile = null) {
     try {
       // First, get or create university
       let { data: university, error: uniError } = await this.supabase
@@ -50,7 +50,8 @@ class StudentFeedbackService {
             roll_number: rollNumber,
             student_name: studentName,
             email: email,
-            batch: batch
+            batch: batch,
+            mobile: mobile
           }])
           .select()
           .single();
@@ -61,14 +62,15 @@ class StudentFeedbackService {
         throw studentError;
       } else if (student) {
         // Student exists: update batch if provided and different
-        if (batch && student.batch !== batch) {
+        const updates = {};
+        if (batch && student.batch !== batch) updates.batch = batch;
+        if (mobile && student.mobile !== mobile) updates.mobile = mobile;
+        if (Object.keys(updates).length > 0) {
           const { error: updateErr } = await this.supabase
             .from('students')
-            .update({ batch })
+            .update(updates)
             .eq('id', student.id);
-          if (!updateErr) {
-            student.batch = batch;
-          }
+          if (!updateErr) Object.assign(student, updates);
         }
       }
 
