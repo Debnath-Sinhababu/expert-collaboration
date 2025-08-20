@@ -109,13 +109,13 @@ export default function FeedbackAnalyticsPage() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-100 flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-md px-4">
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
               <Logo size="lg" />
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Access</h1>
-            <p className="text-gray-600">Enter your email to access feedback analytics</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Admin Access</h1>
+            <p className="text-sm sm:text-base text-gray-600">Enter your email to access feedback analytics</p>
           </div>
 
           <Card>
@@ -160,26 +160,28 @@ export default function FeedbackAnalyticsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-100 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-100 p-3 sm:p-4">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-4">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <Logo size="lg" />
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Feedback Analytics Dashboard</h1>
-              <p className="text-gray-600">Comprehensive analysis of student feedback</p>
+            <div className="min-w-0">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 break-words">Feedback Analytics Dashboard</h1>
+              <p className="text-sm sm:text-base text-gray-600 mt-1">Comprehensive analysis of student feedback</p>
             </div>
           </div>
           
-          <div className="flex space-x-3">
-            <Button onClick={loadAnalytics} variant="outline" disabled={loading}>
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+            <Button onClick={loadAnalytics} variant="outline" disabled={loading} className="w-full sm:w-auto">
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
+              <span className="hidden sm:inline">Refresh</span>
+              <span className="sm:hidden">🔄</span>
             </Button>
-            <Button onClick={exportData} variant="outline">
+            <Button onClick={exportData} variant="outline" className="w-full sm:w-auto">
               <Download className="h-4 w-4 mr-2" />
-              Export Data
+              <span className="hidden sm:inline">Export Data</span>
+              <span className="sm:hidden">📥</span>
             </Button>
           </div>
         </div>
@@ -200,15 +202,15 @@ export default function FeedbackAnalyticsPage() {
         {analytics && (
           <>
             {/* Overview Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Submissions</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-xs sm:text-sm font-medium">Total Submissions</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{analytics.totalSubmissions}</div>
-                  <p className="text-xs text-muted-foreground">
+                <CardContent className="pt-2">
+                  <div className="text-xl sm:text-2xl font-bold">{analytics.totalSubmissions}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
                     Student feedback responses
                   </p>
                 </CardContent>
@@ -216,14 +218,14 @@ export default function FeedbackAnalyticsPage() {
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Very Good</CardTitle>
-                  <Star className="h-4 w-4 text-green-600" />
+                  <CardTitle className="text-xs sm:text-sm font-medium">Very Good</CardTitle>
+                  <Star className="h-4 w-4 text-green-600 flex-shrink-0" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-green-600">
+                <CardContent className="pt-2">
+                  <div className="text-xl sm:text-2xl font-bold text-green-600">
                     {analytics.overallPercentages.VERY_GOOD}%
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground mt-1">
                     {analytics.ratingCounts.VERY_GOOD} responses
                   </p>
                 </CardContent>
@@ -231,14 +233,14 @@ export default function FeedbackAnalyticsPage() {
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Good</CardTitle>
-                  <CheckCircle className="h-4 w-4 text-blue-600" />
+                  <CardTitle className="text-xs sm:text-sm font-medium">Good</CardTitle>
+                  <CheckCircle className="h-4 w-4 text-blue-600 flex-shrink-0" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-blue-600">
+                <CardContent className="pt-2">
+                  <div className="text-xl sm:text-2xl font-bold text-blue-600">
                     {analytics.overallPercentages.GOOD}%
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground mt-1">
                     {analytics.ratingCounts.GOOD} responses
                   </p>
                 </CardContent>
@@ -246,14 +248,14 @@ export default function FeedbackAnalyticsPage() {
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Average & Below</CardTitle>
-                  <AlertCircle className="h-4 w-4 text-yellow-600" />
+                  <CardTitle className="text-xs sm:text-sm font-medium">Average & Below</CardTitle>
+                  <AlertCircle className="h-4 w-4 text-yellow-600 flex-shrink-0" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-yellow-600">
+                <CardContent className="pt-2">
+                  <div className="text-xl sm:text-2xl font-bold text-yellow-600">
                     {((parseFloat(analytics.overallPercentages.AVERAGE) + parseFloat(analytics.overallPercentages.BAD))).toFixed(1)}%
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground mt-1">
                     {analytics.ratingCounts.AVERAGE + analytics.ratingCounts.BAD} responses
                   </p>
                 </CardContent>
@@ -261,7 +263,7 @@ export default function FeedbackAnalyticsPage() {
             </div>
 
             {/* Rating Distribution */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
@@ -277,14 +279,14 @@ export default function FeedbackAnalyticsPage() {
                           {getRatingIcon(rating)}
                           <span className="capitalize">{rating.replace('_', ' ')}</span>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <div className="w-24 bg-gray-200 rounded-full h-2">
+                        <div className="flex items-center space-x-2 min-w-0">
+                          <div className="w-16 sm:w-24 bg-gray-200 rounded-full h-2 flex-shrink-0">
                             <div 
                               className={`h-2 rounded-full ${getRatingColor(rating).split(' ')[0]}`}
                               style={{ width: `${percentage}%` }}
                             ></div>
                           </div>
-                          <span className="text-sm font-medium w-12 text-right">{percentage}%</span>
+                          <span className="text-sm font-medium w-8 sm:w-12 text-right flex-shrink-0">{percentage}%</span>
                         </div>
                       </div>
                     ))}
@@ -309,13 +311,13 @@ export default function FeedbackAnalyticsPage() {
                           </span>
                           <Badge variant="secondary">{stats.total} responses</Badge>
                         </div>
-                        <div className="grid grid-cols-4 gap-2 text-xs">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                           {Object.entries(stats.ratings).map(([rating, count]) => (
                             <div key={rating} className="text-center">
-                              <div className={`p-2 rounded ${getRatingColor(rating)}`}>
+                              <div className={`p-1 sm:p-2 rounded text-xs sm:text-sm ${getRatingColor(rating)}`}>
                                 {count}
                               </div>
-                              <div className="text-xs mt-1 capitalize">
+                              <div className="text-xs mt-1 capitalize truncate">
                                 {rating.replace('_', ' ')}
                               </div>
                             </div>
@@ -340,29 +342,31 @@ export default function FeedbackAnalyticsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   {analytics.recentFeedback.map((feedback, index) => (
-                    <div key={feedback.id} className="border rounded-lg p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center space-x-3">
+                    <div key={feedback.id} className="border rounded-lg p-3 sm:p-4">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 min-w-0">
                           <Badge className={getRatingColor(feedback.rating)}>
                             {feedback.rating.replace('_', ' ')}
                           </Badge>
-                          <span className="font-medium">
-                            {feedback.students?.student_name || 'Unknown Student'}
-                          </span>
-                          <span className="text-sm text-gray-500">
-                            ({feedback.students?.universities?.name || 'Unknown University'})
-                          </span>
+                          <div className="min-w-0">
+                            <span className="font-medium block truncate">
+                              {feedback.students?.student_name || 'Unknown Student'}
+                            </span>
+                            <span className="text-sm text-gray-500 block truncate">
+                              ({feedback.students?.universities?.name || 'Unknown University'})
+                            </span>
+                          </div>
                         </div>
-                        <span className="text-sm text-gray-500">
+                        <span className="text-sm text-gray-500 flex-shrink-0">
                           {new Date(feedback.submitted_at).toLocaleDateString()}
                         </span>
                       </div>
                       
                       <div className="mb-2">
                         <span className="text-sm font-medium">Session: </span>
-                        <span className="text-sm text-gray-600">
+                        <span className="text-sm text-gray-600 break-words">
                           {feedback.feedback_sessions?.session_type === 'ET' ? 'Emerging Technologies' : 'Prompt Engineering'} - {feedback.feedback_sessions?.topic}
                         </span>
                       </div>
@@ -370,21 +374,21 @@ export default function FeedbackAnalyticsPage() {
                       {feedback.pros && (
                         <div className="mb-2">
                           <span className="text-sm font-medium text-green-700">Pros: </span>
-                          <span className="text-sm text-gray-600">{feedback.pros}</span>
+                          <span className="text-sm text-gray-600 break-words">{feedback.pros}</span>
                         </div>
                       )}
 
                       {feedback.cons && (
                         <div className="mb-2">
                           <span className="text-sm font-medium text-red-700">Cons: </span>
-                          <span className="text-sm text-gray-600">{feedback.cons}</span>
+                          <span className="text-sm text-gray-600 break-words">{feedback.cons}</span>
                         </div>
                       )}
 
                       {feedback.additional_comments && (
                         <div>
                           <span className="text-sm font-medium text-blue-700">Comments: </span>
-                          <span className="text-sm text-gray-600">{feedback.additional_comments}</span>
+                          <span className="text-sm text-gray-600 break-words">{feedback.additional_comments}</span>
                         </div>
                       )}
                     </div>
