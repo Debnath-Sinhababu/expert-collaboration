@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,12 +21,22 @@ import {
 } from 'lucide-react'
 import Logo from '@/components/Logo'
 
+interface PaginationInfo {
+  currentPage: number
+  totalPages: number
+  totalItems: number
+  itemsPerPage: number
+  hasNextPage: boolean
+  hasPrevPage: boolean
+}
+
 interface AnalyticsData {
   totalSubmissions: number
   overallPercentages: Record<string, string>
   ratingCounts: Record<string, number>
   sessionTypeStats: Record<string, any>
   recentFeedback: any[]
+  pagination: PaginationInfo
 }
 
 export default function FeedbackAnalyticsPage() {
@@ -35,6 +45,58 @@ export default function FeedbackAnalyticsPage() {
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [allFeedback, setAllFeedback] = useState<any[]>([])
+  const [showScrollTop, setShowScrollTop] = useState(false)
+  const sentinelRef = useRef<HTMLDivElement>(null)
+
+  // Handle scroll events for scroll-to-top button
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 300)
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  // Intersection Observer for infinite scrolling
+  useEffect(() => {
+    if (!sentinelRef.current || !analytics?.pagination.hasNextPage || loadingMore || loading) {
+      return
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            // Add a small delay to prevent rapid successive calls
+            setTimeout(() => {
+              if (analytics?.pagination.hasNextPage && !loadingMore && !loading) {
+                loadAnalytics(currentPage + 1, true)
+              }
+            }, 100)
+          }
+        })
+      },
+      {
+        rootMargin: '200px', // Start loading when 200px away from the target for smoother experience
+        threshold: 0.1
+      }
+    )
+
+    // Observe the sentinel element using ref
+    observer.observe(sentinelRef.current)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [analytics?.pagination.hasNextPage, loadingMore, loading, currentPage, analytics?.pagination])
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   const handleAuthenticate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -48,12 +110,19 @@ export default function FeedbackAnalyticsPage() {
     loadAnalytics()
   }
 
-  const loadAnalytics = async () => {
-    setLoading(true)
+  const loadAnalytics = async (page = 1, append = false) => {
+    if (append) {
+      setLoadingMore(true)
+    } else {
+      setLoading(true)
+      setCurrentPage(1)
+      setAllFeedback([])
+    }
+    
     setError('')
 
     try {
-      const response = await fetch('http://localhost:8000/api/admin/feedback-analytics', {
+      const response = await fetch(`http://localhost:8000/api/admin/feedback-analytics?page=${page}&limit=10`, {
         headers: {
           'Authorization': `Bearer ${email}` // Using email as token for simplicity
         }
@@ -62,7 +131,20 @@ export default function FeedbackAnalyticsPage() {
       const result = await response.json()
 
       if (result.success) {
-        setAnalytics(result.analytics)
+        if (append) {
+          // Append new feedback to existing list
+          setAllFeedback(prev => [...prev, ...result.analytics.recentFeedback])
+          setAnalytics(prev => prev ? {
+            ...prev,
+            recentFeedback: [...prev.recentFeedback, ...result.analytics.recentFeedback],
+            pagination: result.analytics.pagination
+          } : result.analytics)
+        } else {
+          // Set initial data
+          setAnalytics(result.analytics)
+          setAllFeedback(result.analytics.recentFeedback)
+        }
+        setCurrentPage(page)
       } else {
         setError(result.error || 'Failed to load analytics')
       }
@@ -70,6 +152,7 @@ export default function FeedbackAnalyticsPage() {
       setError('Failed to load analytics')
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
   }
 
@@ -173,7 +256,7 @@ export default function FeedbackAnalyticsPage() {
           </div>
           
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
-            <Button onClick={loadAnalytics} variant="outline" disabled={loading} className="w-full sm:w-auto">
+            <Button onClick={() => loadAnalytics(1, false)} variant="outline" disabled={loading} className="w-full sm:w-auto">
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Refresh</span>
               <span className="sm:hidden">🔄</span>
@@ -343,7 +426,14 @@ export default function FeedbackAnalyticsPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3 sm:space-y-4">
-                  {analytics.recentFeedback.map((feedback, index) => (
+                  {allFeedback.length === 0 && !loading ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <TrendingUp className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                      <p>No feedback submissions yet</p>
+                      <p className="text-sm">Feedback will appear here once students start submitting</p>
+                    </div>
+                  ) : (
+                    allFeedback.map((feedback, index) => (
                     <div key={feedback.id} className="border rounded-lg p-3 sm:p-4">
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 min-w-0">
@@ -392,11 +482,63 @@ export default function FeedbackAnalyticsPage() {
                         </div>
                       )}
                     </div>
-                  ))}
+                  ))
+                  )}
+                  
+
+                  
+                  {/* Loading More Indicator */}
+                  {loadingMore && (
+                    <div className="text-center pt-4">
+                      <div className="flex items-center justify-center space-x-2 text-gray-600">
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                        <span>Loading more feedback...</span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* No More Feedback Message */}
+                  {!analytics?.pagination.hasNextPage && allFeedback.length > 0 && (
+                    <div className="text-center pt-4">
+                      <div className="text-gray-500 text-sm">
+                        🎉 All feedback has been loaded!
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Pagination Info */}
+                  {analytics?.pagination && (
+                    <div className="text-center pt-4 border-t border-gray-200">
+                      <p className="text-sm text-gray-600">
+                        Showing {allFeedback.length} of {analytics.pagination.totalItems} feedback submissions
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Page {analytics.pagination.currentPage} of {analytics.pagination.totalPages}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Intersection Observer Sentinel */}
+                  <div ref={sentinelRef} className="h-4 w-full flex items-center justify-center">
+                    {analytics?.pagination.hasNextPage && !loadingMore && (
+                      <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin opacity-50" />
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </>
+        )}
+        
+        {/* Scroll to Top Button */}
+        {showScrollTop && (
+          <button
+            onClick={scrollToTop}
+            className="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg transition-all duration-300 z-50"
+            aria-label="Scroll to top"
+          >
+            <TrendingUp className="h-5 w-5 rotate-180" />
+          </button>
         )}
       </div>
     </div>

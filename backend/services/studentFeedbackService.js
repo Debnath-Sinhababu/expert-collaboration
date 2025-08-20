@@ -137,7 +137,7 @@ class StudentFeedbackService {
   }
 
   // Get analytics (only for authorized user)
-  async getAnalytics() {
+  async getAnalytics(page = 1, limit = 10) {
     try {
       // Get overall statistics
       const { data: overallStats, error: statsError } = await this.supabase
@@ -145,7 +145,7 @@ class StudentFeedbackService {
         .select('rating');
 
       if (statsError) throw statsError;
-
+      console.log(overallStats,'overallstats');
       // Calculate percentages
       const total = overallStats.length;
       const ratingCounts = {
@@ -176,7 +176,7 @@ class StudentFeedbackService {
 
       const sessionTypeStats = {
         ET: { total: 0, ratings: { VERY_GOOD: 0, GOOD: 0, AVERAGE: 0, BAD: 0 } },
-        PROMPT_ENGINEERING: { total: 0, ratings: { VERY_GOOD: 0, GOOD: 0, AVERAGE: 0, BAD: 0 } }
+        PROMPT_ENGINEERING: { total: 0, ratings: { VERY_GOOD: 0,GOOD: 0, AVERAGE: 0, BAD: 0 } }
       };
 
       sessionStats.forEach(feedback => {
@@ -185,16 +185,17 @@ class StudentFeedbackService {
         sessionTypeStats[sessionType].ratings[feedback.rating]++;
       });
 
-      // Get recent feedback with student details
-      const { data: recentFeedback, error: recentError } = await this.supabase
+      // Get paginated feedback with student details
+      const offset = (page - 1) * limit;
+      const { data: recentFeedback, error: recentError, count } = await this.supabase
         .from('student_feedback')
         .select(`
           *,
           students(student_name, roll_number, universities(name)),
           feedback_sessions(session_type, topic, expert_name)
-        `)
+        `, { count: 'exact' })
         .order('submitted_at', { ascending: false })
-        .limit(50);
+        .range(offset, offset + limit - 1);
 
       if (recentError) throw recentError;
 
@@ -205,7 +206,15 @@ class StudentFeedbackService {
           overallPercentages: percentages,
           ratingCounts,
           sessionTypeStats,
-          recentFeedback
+          recentFeedback,
+          pagination: {
+            currentPage: page,
+            totalPages: Math.ceil((count || 0) / limit),
+            totalItems: count || 0,
+            itemsPerPage: limit,
+            hasNextPage: page < Math.ceil((count || 0) / limit),
+            hasPrevPage: page > 1
+          }
         }
       };
     } catch (error) {

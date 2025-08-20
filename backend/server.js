@@ -1730,7 +1730,11 @@ app.get('/api/admin/feedback-analytics', async (req, res) => {
       return res.status(403).json({ success: false, error: 'Access denied' });
     }
 
-    const result = await studentFeedbackService.getAnalytics();
+    // Get pagination parameters
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+
+    const result = await studentFeedbackService.getAnalytics(page, limit);
     res.json(result);
   } catch (error) {
     console.error('Get analytics error:', error);
