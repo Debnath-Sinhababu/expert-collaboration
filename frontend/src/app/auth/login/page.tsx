@@ -161,6 +161,17 @@ export default function LoginPage() {
                 </Link>
               </p>
             </div>
+            {/* Student feedback entry point - minimal link */}
+            <div className="mt-4">
+              <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-center">
+                <Link
+                  href="/student-feedback"
+                  className="text-sm font-medium text-blue-700 hover:underline"
+                >
+                  Student? Open the Feedback Form (ET / Prompt Engineering)
+                </Link>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

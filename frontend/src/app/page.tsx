@@ -185,6 +185,30 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Student Feedback Section */}
+      <section className="bg-green-50 py-16">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">
+            Student Feedback Portal
+          </h2>
+          <p className="text-xl text-gray-600 mb-8">
+            Share your experience and help improve our ET and Prompt Engineering sessions
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link href="/student-feedback">
+              <Button size="lg" className="bg-green-600 hover:bg-green-700 text-white">
+                Provide Feedback
+              </Button>
+            </Link>
+            <Link href="/admin/feedback-analytics">
+              <Button size="lg" variant="outline" className="border-green-600 text-green-600 hover:bg-green-50">
+                View Analytics
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="bg-blue-600 text-white py-16">
         <div className="container mx-auto px-4 text-center">

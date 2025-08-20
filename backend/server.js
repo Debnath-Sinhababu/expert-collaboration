@@ -28,7 +28,12 @@ const supabase = createClient(
 
 app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'https://www.calxmap.in',
+    process.env.FRONTEND_URL
+  ].filter(Boolean),
   credentials: true
 }));
 app.use(morgan('combined'));
@@ -1613,6 +1618,136 @@ app.delete('/api/bookings/:id', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// ========================================
+// STUDENT FEEDBACK SYSTEM ROUTES
+// ========================================
+// Import student feedback service
+const studentFeedbackService = require('./services/studentFeedbackService');
+
+// Student login route
+app.post('/api/student/login', async (req, res) => {
+  try {
+    console.log('Student login request received:', req.body);
+    
+    const { universityName, rollNumber, studentName, email, batch, mobile } = req.body;
+ 
+    // Strict 10-digit numeric mobile validation
+    const mobileValid = typeof mobile === 'string' && /^\d{10}$/.test(mobile);
+
+    if (!universityName || !rollNumber || !studentName || !batch || !mobileValid) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid input. University, roll number, student name, batch, and a valid 10-digit mobile are required.' 
+      });
+    }
+
+    const result = await studentFeedbackService.studentLogin(universityName, rollNumber, studentName, email, batch, mobile);
+    console.log('Student login result:', result);
+    
+    if (result.success) {
+      // Return student data directly (frontend will handle session management)
+      res.json({
+        success: true,
+        student: result.student,
+        university: result.university
+      });
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('Student login error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Get available feedback sessions
+app.get('/api/student/sessions', async (req, res) => {
+  try {
+    const result = await studentFeedbackService.getFeedbackSessions();
+    res.json(result);
+  } catch (error) {
+    console.error('Get sessions error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Get student's feedback status
+app.get('/api/student/feedback-status', async (req, res) => {
+  try {
+    const { studentId } = req.query;
+    
+    if (!studentId) {
+      return res.status(400).json({ success: false, error: 'Student ID is required' });
+    }
+
+    const result = await studentFeedbackService.getStudentFeedbackStatus(studentId);
+    res.json(result);
+  } catch (error) {
+    console.error('Get feedback status error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Submit feedback
+app.post('/api/student/feedback', async (req, res) => {
+  try {
+    const { studentId, sessionId, rating, pros, cons, additionalComments } = req.body;
+    
+    if (!studentId || !sessionId || !rating) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Student ID, session ID, and rating are required' 
+      });
+    }
+
+    const result = await studentFeedbackService.submitFeedback(
+      studentId, 
+      sessionId, 
+      rating, 
+      pros, 
+      cons, 
+      additionalComments
+    );
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Submit feedback error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Analytics dashboard (only for authorized user)
+app.get('/api/admin/feedback-analytics', async (req, res) => {
+  try {
+    // Check if user is authorized (hardcoded email check)
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, error: 'Authorization required' });
+    }
+
+    const token = authHeader.substring(7);
+    
+    // Verify the token contains the authorized email
+    if (!token.includes('debnathsinhababu2017@gmail.com')) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
+    // Get pagination parameters
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+
+    const result = await studentFeedbackService.getAnalytics(page, limit);
+    res.json(result);
+  } catch (error) {
+    console.error('Get analytics error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// ========================================
+// END STUDENT FEEDBACK SYSTEM ROUTES
+// ========================================
 
 // Test endpoint to verify authentication context
 
