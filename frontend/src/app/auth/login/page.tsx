@@ -168,7 +168,7 @@ export default function LoginPage() {
                   href="/student-feedback"
                   className="text-sm font-medium text-blue-700 hover:underline"
                 >
-                  Student? Go to Feedback Login
+                  Student? Open the Feedback Form (ET / Prompt Engineering)
                 </Link>
               </div>
             </div>
