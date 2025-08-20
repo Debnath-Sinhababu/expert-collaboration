@@ -1630,16 +1630,16 @@ app.post('/api/student/login', async (req, res) => {
   try {
     console.log('Student login request received:', req.body);
     
-    const { universityName, rollNumber, studentName, email } = req.body;
+    const { universityName, rollNumber, studentName, email, batch } = req.body;
     
-    if (!universityName || !rollNumber || !studentName) {
+    if (!universityName || !rollNumber || !studentName || !batch) {
       return res.status(400).json({ 
         success: false, 
-        error: 'University name, roll number, and student name are required' 
+        error: 'University name, roll number, student name, and batch are required' 
       });
     }
 
-    const result = await studentFeedbackService.studentLogin(universityName, rollNumber, studentName, email);
+    const result = await studentFeedbackService.studentLogin(universityName, rollNumber, studentName, email, batch);
     console.log('Student login result:', result);
     
     if (result.success) {

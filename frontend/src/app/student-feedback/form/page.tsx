@@ -62,14 +62,14 @@ export default function FeedbackFormPage() {
       return
     }
 
-    const student = JSON.parse(storedStudentData)
+    const student = JSON.parse(storedStudentData) as any
     const university = JSON.parse(storedUniversityData)
     
     setStudentData(student)
     setUniversityData(university)
-    
+
     // Load available sessions and feedback status
-    loadSessionsAndCheckStatus(student.id)
+    loadSessionsAndCheckStatus(student.id, student.batch || null)
   }, [router])
 
   // Additional protection: check on every render if student has completed all feedback
@@ -82,14 +82,16 @@ export default function FeedbackFormPage() {
     }
   }, [studentData, sessions, submittedSessions, router])
 
-  const loadSessionsAndCheckStatus = async (studentId: string) => {
+  const loadSessionsAndCheckStatus = async (studentId: string, batch: 'ET' | 'PROMPT_ENGINEERING' | null) => {
     try {
       // Load sessions first
       const sessionsResponse = await fetch('http://localhost:8000/api/student/sessions')
       const sessionsResult = await sessionsResponse.json()
       
       if (sessionsResult.success) {
-        setSessions(sessionsResult.sessions)
+        const allSessions: Session[] = sessionsResult.sessions
+        const filtered = batch ? allSessions.filter((s: Session) => s.session_type === batch) : allSessions
+        setSessions(filtered)
         
         // Now load feedback status
         const statusResponse = await fetch(`http://localhost:8000/api/student/feedback-status?studentId=${studentId}`)
@@ -98,9 +100,8 @@ export default function FeedbackFormPage() {
         if (statusResult.success) {
           setSubmittedSessions(statusResult.submittedSessions)
           
-          // Check if student has already completed all sessions
-          if (statusResult.submittedSessions.length >= sessionsResult.sessions.length) {
-            // All feedback already submitted, redirect to completion page
+          // If any submission exists, redirect to completion (single submission total)
+          if (Array.isArray(statusResult.submittedSessions) && statusResult.submittedSessions.length > 0) {
             router.push('/student-feedback/complete')
             return
           }
@@ -130,6 +131,14 @@ export default function FeedbackFormPage() {
     
     if (!sessionFeedback || !sessionFeedback.rating) {
       setError('Please select a rating for this session')
+      return
+    }
+
+    // Prevent submission if student's batch does not match this session's type
+    const current = sessions.find(s => s.id === sessionId)
+    const studentBatch = (studentData as any)?.batch as 'ET' | 'PROMPT_ENGINEERING' | undefined
+    if (current && studentBatch && current.session_type !== studentBatch) {
+      router.push('/student-feedback/complete')
       return
     }
 
@@ -395,24 +404,6 @@ export default function FeedbackFormPage() {
           </Alert>
         )}
 
-        {/* Navigation */}
-        <div className="flex justify-between">
-          <Button
-            variant="outline"
-            onClick={() => setCurrentSessionIndex(prev => Math.max(0, prev - 1))}
-            disabled={currentSessionIndex === 0}
-          >
-            Previous Session
-          </Button>
-
-          <Button
-            variant="outline"
-            onClick={() => setCurrentSessionIndex(prev => Math.min(sessions.length - 1, prev + 1))}
-            disabled={currentSessionIndex === sessions.length - 1}
-          >
-            Next Session
-          </Button>
-        </div>
       </div>
     </div>
   )

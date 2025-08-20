@@ -26,7 +26,8 @@ export default function StudentFeedbackPage() {
     universityName: '',
     rollNumber: '',
     studentName: '',
-    email: ''
+    email: '',
+    batch: '' as '' | 'ET' | 'PROMPT_ENGINEERING',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -45,7 +46,7 @@ export default function StudentFeedbackPage() {
     setSuccess('')
 
     try {
-      if (!formData.universityName || !formData.rollNumber || !formData.studentName) {
+      if (!formData.universityName || !formData.rollNumber || !formData.studentName || !formData.batch) {
         throw new Error('Please fill in all required fields')
       }
 
@@ -54,7 +55,13 @@ export default function StudentFeedbackPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          universityName: formData.universityName,
+          rollNumber: formData.rollNumber,
+          studentName: formData.studentName,
+          email: formData.email || '',
+          batch: formData.batch,
+        }),
       })
 
       const result = await response.json()
@@ -63,6 +70,8 @@ export default function StudentFeedbackPage() {
         // Store student data in localStorage for session management
         localStorage.setItem('studentData', JSON.stringify(result.student))
         localStorage.setItem('universityData', JSON.stringify(result.university))
+        // Store selected batch for session-level enforcement
+        localStorage.setItem('studentBatch', formData.batch)
         
         // Check if student has already submitted feedback
         const checkFeedbackStatus = async () => {
@@ -74,7 +83,8 @@ export default function StudentFeedbackPage() {
               const statusResponse = await fetch(`http://localhost:8000/api/student/feedback-status?studentId=${result.student.id}`)
               const statusResult = await statusResponse.json()
               
-              if (statusResult.success && statusResult.submittedSessions.length >= sessionsResult.sessions.length) {
+              // If any submission exists for this roll already, go to completion
+              if (statusResult.success && statusResult.submittedSessions.length > 0) {
                 // All feedback already submitted, redirect to completion page
                 setSuccess('Login successful! Redirecting to completion page...')
                 setTimeout(() => {
@@ -216,6 +226,26 @@ export default function StudentFeedbackPage() {
                   onChange={(e) => handleInputChange('studentName', e.target.value)}
                   required
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="batch" className="flex items-center space-x-2">
+                  <Hash className="h-4 w-4" />
+                  <span>Batch *</span>
+                </Label>
+                <Select
+                  value={formData.batch}
+                  onValueChange={(value) => handleInputChange('batch', value)}
+                  required
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select your batch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ET">ET (Emerging Technologies)</SelectItem>
+                    <SelectItem value="PROMPT_ENGINEERING">Prompt Engineering</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
