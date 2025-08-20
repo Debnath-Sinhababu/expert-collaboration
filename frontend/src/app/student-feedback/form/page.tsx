@@ -85,7 +85,7 @@ export default function FeedbackFormPage() {
   const loadSessionsAndCheckStatus = async (studentId: string, batch: 'ET' | 'PROMPT_ENGINEERING' | null) => {
     try {
       // Load sessions first
-      const sessionsResponse = await fetch('http://localhost:8000/api/student/sessions')
+      const sessionsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/student/sessions`)
       const sessionsResult = await sessionsResponse.json()
       
       if (sessionsResult.success) {
@@ -94,7 +94,7 @@ export default function FeedbackFormPage() {
         setSessions(filtered)
         
         // Now load feedback status
-        const statusResponse = await fetch(`http://localhost:8000/api/student/feedback-status?studentId=${studentId}`)
+        const statusResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/student/feedback-status?studentId=${studentId}`)
         const statusResult = await statusResponse.json()
         
         if (statusResult.success) {
@@ -146,7 +146,7 @@ export default function FeedbackFormPage() {
     setError('')
 
     try {
-      const response = await fetch('http://localhost:8000/api/student/feedback', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/student/feedback`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

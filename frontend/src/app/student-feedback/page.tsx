@@ -11,14 +11,7 @@ import { GraduationCap, User, Hash, Building } from 'lucide-react'
 import Logo from '@/components/Logo'
 
 const UNIVERSITIES = [
-  'Delhi University',
-  'Jawaharlal Nehru University',
-  'Ambedkar University Delhi',
-  'Delhi Technological University',
-  'Netaji Subhas University of Technology',
-  'Guru Gobind Singh Indraprastha University',
-  'Delhi Skill and Entrepreneurship University',
-  'Other'
+ 'FOSTIIMA Business School'
 ]
 
 export default function StudentFeedbackPage() {
@@ -71,7 +64,7 @@ export default function StudentFeedbackPage() {
         throw new Error('Please fill in all required fields')
       }
 
-      const response = await fetch('http://localhost:8000/api/student/login', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/student/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -97,11 +90,11 @@ export default function StudentFeedbackPage() {
         // Check if student has already submitted feedback
         const checkFeedbackStatus = async () => {
           try {
-            const sessionsResponse = await fetch('http://localhost:8000/api/student/sessions')
+            const sessionsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/student/sessions`)
             const sessionsResult = await sessionsResponse.json()
             
             if (sessionsResult.success) {
-              const statusResponse = await fetch(`http://localhost:8000/api/student/feedback-status?studentId=${result.student.id}`)
+              const statusResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/student/feedback-status?studentId=${result.student.id}`)
               const statusResult = await statusResponse.json()
               
               // If any submission exists for this roll already, go to completion
