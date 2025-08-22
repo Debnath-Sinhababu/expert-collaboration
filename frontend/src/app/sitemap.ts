@@ -1,16 +1,20 @@
-import { MetadataRoute } from 'next'
+import { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://calxmap.in'
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://calxmap.in";
 
-  const routes = ['', '/auth/login', '/auth/signup', '/expert/dashboard', '/institution/dashboard', '/student-feedback', '/student-feedback/form', '/admin/feedback-analytics']
+  const routes = [
+    { path: "/", priority: 1.0 },
+    { path: "/auth/signup", priority: 0.9 },
+  ];
 
-  const now = new Date().toISOString()
+  const lastModified = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
 
   return routes.map((route) => ({
-    url: `${siteUrl}${route || '/'}`,
-    lastModified: now,
-    changeFrequency: 'weekly',
-    priority: route === '' ? 1.0 : 0.7,
-  }))
+    url: `${siteUrl}${route.path}`,
+    lastModified,
+    changeFrequency: "weekly",
+    priority: route.priority,
+  }));
 }
+
