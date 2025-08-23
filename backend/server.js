@@ -40,9 +40,26 @@ app.use(morgan('combined'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Expert Collaboration API is running' });
+app.get('/api/health', async (req, res) => {
+  try {
+    // Run a very lightweight Supabase query
+    const { error } = await supabase
+      .from('experts')
+      .select('id')   // only select id
+      .limit(1);      // just 1 row
+    
+    if (error) {
+      console.error('Health check failed:', error.message);
+      return res.status(500).json({ status: 'ERROR', message: error.message });
+    }
+
+    res.json({ status: 'OK', message: 'API and Supabase are running' });
+  } catch (err) {
+    console.error('Health check exception:', err.message);
+    res.status(500).json({ status: 'ERROR', message: err.message });
+  }
 });
+
 
 app.get('/api/experts', async (req, res) => {
   console.log('GET /api/experts - Query params:', req.query);
