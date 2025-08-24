@@ -60,6 +60,10 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+app.get('/api/health-static', (req, res) => {
+  res.json({ status: 'OK' });
+});
+
 
 app.get('/api/experts', async (req, res) => {
   console.log('GET /api/experts - Query params:', req.query);
