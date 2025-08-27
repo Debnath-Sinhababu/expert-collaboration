@@ -667,9 +667,15 @@ export default function InstitutionDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-800 relative">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-r from-purple-400/20 to-pink-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-r from-indigo-400/20 to-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-pink-400/10 to-indigo-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
+      </div>
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="bg-white/90 backdrop-blur-md shadow-lg border-b border-gray-200/50 relative z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <Link href="/" className="flex items-center space-x-2">
@@ -683,7 +689,7 @@ export default function InstitutionDashboard() {
                 <span className="text-sm sm:text-base text-gray-700 truncate">{institution?.name}</span>
               </div>
               <NotificationBell />
-              <Button variant="outline" size="sm" onClick={handleLogout} className="w-full sm:w-auto">
+              <Button variant="outline" size="sm" onClick={handleLogout} className="w-full sm:w-auto hover:bg-gray-100/80">
                 <LogOut className="h-4 w-4 mr-2" />
                 Logout
               </Button>
@@ -692,25 +698,25 @@ export default function InstitutionDashboard() {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 relative z-10">
         {error && (
-          <Alert variant="destructive" className="mb-6">
+          <Alert variant="destructive" className="mb-6 bg-red-50/90 backdrop-blur-md border-red-200">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
         {/* Welcome Section */}
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="min-w-0">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 truncate">
+          <div className="min-w-0 text-center sm:text-left">
+            <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4 truncate drop-shadow-2xl">
               Welcome back, {institution?.name}!
             </h1>
-            <p className="text-sm sm:text-base text-gray-600">
+            <p className="text-lg sm:text-xl text-gray-200 drop-shadow-lg">
               Manage your projects, review applications, and connect with qualified experts.
             </p>
           </div>
           <Dialog open={showProjectForm} onOpenChange={setShowProjectForm}>
-            <Button className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto" onClick={handleCreateProject}>
+            <Button className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all w-full sm:w-auto" onClick={handleCreateProject}>
               <Plus className="h-4 w-4 mr-2" />
               Post New Project
             </Button>
@@ -969,7 +975,7 @@ export default function InstitutionDashboard() {
 
         {/* Stats Cards */}
         <div className="grid md:grid-cols-4 gap-6 mb-8">
-          <Card>
+          <Card className="bg-white/90 backdrop-blur-md border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -979,12 +985,14 @@ export default function InstitutionDashboard() {
                     {projects.filter(p => p.status === 'open').length} open
                   </p>
                 </div>
-                <Briefcase className="h-8 w-8 text-blue-600" />
+                <div className="p-3 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full shadow-lg">
+                  <Briefcase className="h-8 w-8 text-white" />
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-white/90 backdrop-blur-md border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                                   <div>
@@ -996,12 +1004,14 @@ export default function InstitutionDashboard() {
                       {projects.reduce((total, project) => total + (project.applicationCounts?.pending || 0), 0)} pending
                     </p>
                   </div>
-                <Users className="h-8 w-8 text-green-600" />
+                <div className="p-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full shadow-lg">
+                  <Users className="h-8 w-8 text-white" />
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-white/90 backdrop-blur-md border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -1011,12 +1021,14 @@ export default function InstitutionDashboard() {
                   </p>
                   <p className="text-xs text-gray-500">in progress</p>
                 </div>
-                <BookOpen className="h-8 w-8 text-orange-600" />
+                <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full shadow-lg">
+                  <BookOpen className="h-8 w-8 text-white" />
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-white/90 backdrop-blur-md border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -1026,7 +1038,9 @@ export default function InstitutionDashboard() {
                   </p>
                   <p className="text-xs text-gray-500">bookings</p>
                 </div>
-                <CheckCircle className="h-8 w-8 text-green-600" />
+                <div className="p-3 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full shadow-lg">
+                  <CheckCircle className="h-8 w-8 text-white" />
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -1054,12 +1068,12 @@ export default function InstitutionDashboard() {
 
         {/* Main Content */}
         <Tabs defaultValue="projects" className="space-y-6">
-          <TabsList className="flex w-full gap-2 overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-4 sm:gap-0 sm:overflow-visible scrollbar-hide">
-            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start ml-3 sm:ml-0" value="projects">My Projects</TabsTrigger>
-            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start" value="bookings">Bookings</TabsTrigger>
-            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start" value="experts">Browse Experts</TabsTrigger>
+          <TabsList className="flex w-full gap-2 overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-4 sm:gap-0 sm:overflow-visible scrollbar-hide bg-white/90 backdrop-blur-md border-0 shadow-lg">
+            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start ml-3 sm:ml-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" value="projects">My Projects</TabsTrigger>
+            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" value="bookings">Bookings</TabsTrigger>
+            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" value="experts">Browse Experts</TabsTrigger>
             {/* <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start" value="notifications">Notifications</TabsTrigger> */}
-            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start mr-3 sm:mr-0" value="profile">Profile</TabsTrigger>
+            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start mr-3 sm:mr-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" value="profile">Profile</TabsTrigger>
           </TabsList>
 
           {/* Projects Tab */}
