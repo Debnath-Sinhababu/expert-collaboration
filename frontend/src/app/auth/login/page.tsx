@@ -78,15 +78,21 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen bg-gradient-to-tl from-slate-100 via-indigo-50 to-purple-100 relative overflow-hidden">
+      {/* Background Elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-indigo-400/20 to-purple-600/20 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-slate-400/20 to-indigo-600/20 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-purple-400/10 to-indigo-400/10 rounded-full blur-3xl"></div>
+      </div>
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-100">
+      <header className="relative bg-white/90 backdrop-blur-md shadow-sm border-b border-slate-200/50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center space-x-3">
               <Logo size="md" />
               <div>
-                <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                <span className="text-2xl font-bold bg-gradient-to-r from-slate-700 to-indigo-600 bg-clip-text text-transparent">
                   Expert Collaboration
                 </span>
                 <p className="text-xs text-gray-500 font-medium">Connecting Excellence</p>
@@ -102,14 +108,14 @@ export default function LoginPage() {
         </div>
       </header>
 
-      <div className="flex items-center justify-center min-h-[calc(100vh-80px)] p-4">
+      <div className="relative flex items-center justify-center min-h-[calc(100vh-80px)] p-4">
         <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-12 items-center">
           {/* Left Side - Branding */}
           <div className="hidden lg:block space-y-8">
             <div className="space-y-6">
               <h1 className="text-5xl font-bold text-gray-900 leading-tight">
                 Welcome Back to
-                <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> Expert Collaboration</span>
+                <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"> Expert Collaboration</span>
               </h1>
               <p className="text-xl text-gray-600 leading-relaxed">
                 Continue your journey in transforming expertise into influence and connections into opportunities.
@@ -118,7 +124,7 @@ export default function LoginPage() {
 
             <div className="space-y-6">
               <div className="flex items-start space-x-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+                <div className="w-12 h-12 bg-gradient-to-r from-slate-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
                   <Shield className="h-6 w-6 text-white" />
                 </div>
                 <div>
@@ -128,7 +134,7 @@ export default function LoginPage() {
               </div>
 
               <div className="flex items-start space-x-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl flex items-center justify-center">
+                <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
                   <Zap className="h-6 w-6 text-white" />
                 </div>
                 <div>
@@ -141,7 +147,7 @@ export default function LoginPage() {
 
           {/* Right Side - Login Form */}
           <div className="w-full max-w-md mx-auto lg:mx-0">
-            <Card className="border-0 shadow-2xl bg-white/80 backdrop-blur-md">
+            <Card className="border-0 shadow-2xl bg-white/90 backdrop-blur-md ring-1 ring-slate-200/50">
               <CardHeader className="text-center pb-8">
                 <div className="flex justify-center mb-6 lg:hidden">
                   <Logo size="lg" />
@@ -161,7 +167,7 @@ export default function LoginPage() {
                       placeholder="Enter your email address"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="h-12 text-base border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                      className="h-12 text-base border-slate-200 focus:border-indigo-500 focus:ring-indigo-500"
                       required
                     />
                   </div>
@@ -174,7 +180,7 @@ export default function LoginPage() {
                         placeholder="Enter your password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="h-12 text-base border-gray-200 focus:border-blue-500 focus:ring-blue-500 pr-12"
+                        className="h-12 text-base border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 pr-12"
                         required
                       />
                       <Button
@@ -201,7 +207,7 @@ export default function LoginPage() {
 
                   <Button 
                     type="submit" 
-                    className="w-full h-12 text-base font-medium bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg" 
+                    className="w-full h-12 text-base font-medium bg-gradient-to-r from-slate-600 to-indigo-600 hover:from-slate-700 hover:to-indigo-700 text-white shadow-lg transform hover:scale-[1.02] transition-all duration-200" 
                     disabled={loading}
                   >
                     {loading ? 'Signing in...' : 'Sign In to Dashboard'}
@@ -219,24 +225,24 @@ export default function LoginPage() {
 
                 <div className="text-center">
                   <Link href="/auth/signup">
-                    <Button variant="outline" className="w-full h-12 text-base font-medium border-gray-200 hover:bg-gray-50">
+                    <Button variant="outline" className="w-full h-12 text-base font-medium border-slate-200 hover:bg-slate-50 hover:border-indigo-300 transition-all duration-200">
                       Create Your Account
                     </Button>
                   </Link>
                 </div>
 
                 <div className="text-center">
-                  <Link href="#forgot-password" className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                  <Link href="#forgot-password" className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
                     Forgot your password?
                   </Link>
                 </div>
 
                 {/* Student feedback entry point - minimal link */}
                 <div className="mt-4">
-                  <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-center">
+                  <div className="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-center">
                     <Link
                       href="/student-feedback"
-                      className="text-sm font-medium text-blue-700 hover:underline"
+                      className="text-sm font-medium text-indigo-700 hover:underline"
                     >
                       Student? Open the Feedback Form (ET / Prompt Engineering)
                     </Link>

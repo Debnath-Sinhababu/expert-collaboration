@@ -77,15 +77,21 @@ export default function Signup() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-100 relative overflow-hidden">
+      {/* Background Elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-bl from-indigo-400/20 to-purple-600/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-purple-400/20 to-pink-600/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute top-1/3 left-1/3 w-96 h-96 bg-gradient-to-r from-pink-400/10 to-indigo-400/10 rounded-full blur-3xl"></div>
+      </div>
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-100">
+      <header className="relative bg-white/90 backdrop-blur-md shadow-sm border-b border-purple-200/50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center space-x-3">
               <Logo size="md" />
               <div>
-                <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                <span className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-pink-600 bg-clip-text text-transparent">
                   Expert Collaboration
                 </span>
                 <p className="text-xs text-gray-500 font-medium">Connecting Excellence</p>
@@ -101,14 +107,14 @@ export default function Signup() {
         </div>
       </header>
 
-      <div className="flex items-center justify-center min-h-[calc(100vh-80px)] p-4">
+      <div className="relative flex items-center justify-center min-h-[calc(100vh-80px)] p-4">
         <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-12 items-center">
           {/* Left Side - Branding */}
           <div className="hidden lg:block space-y-8">
             <div className="space-y-6">
               <h1 className="text-5xl font-bold text-gray-900 leading-tight">
                 Join the Future of
-                <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> Expert Collaboration</span>
+                <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent"> Expert Collaboration</span>
               </h1>
               <p className="text-xl text-gray-600 leading-relaxed">
                 Transform your expertise into influence and build meaningful connections with leading organizations worldwide.
@@ -117,7 +123,7 @@ export default function Signup() {
 
             <div className="space-y-6">
               <div className="flex items-start space-x-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+                <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
                   <Shield className="h-6 w-6 text-white" />
                 </div>
                 <div>
@@ -127,7 +133,7 @@ export default function Signup() {
               </div>
 
               <div className="flex items-start space-x-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl flex items-center justify-center">
+                <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
                   <Zap className="h-6 w-6 text-white" />
                 </div>
                 <div>
@@ -137,7 +143,7 @@ export default function Signup() {
               </div>
 
               <div className="flex items-start space-x-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 rounded-xl flex items-center justify-center">
+                <div className="w-12 h-12 bg-gradient-to-r from-pink-500 to-rose-600 rounded-xl flex items-center justify-center shadow-lg">
                   <CheckCircle className="h-6 w-6 text-white" />
                 </div>
                 <div>
@@ -150,7 +156,7 @@ export default function Signup() {
 
           {/* Right Side - Signup Form */}
           <div className="w-full max-w-md mx-auto lg:mx-0">
-            <Card className="border-0 shadow-2xl bg-white/80 backdrop-blur-md">
+            <Card className="border-0 shadow-2xl bg-white/90 backdrop-blur-md ring-1 ring-purple-200/50">
               <CardHeader className="text-center pb-8">
                 <div className="flex justify-center mb-6 lg:hidden">
                   <Logo size="lg" />
@@ -162,7 +168,7 @@ export default function Signup() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-                  <TabsList className="grid w-full grid-cols-3 h-12">
+                  <TabsList className="grid w-full grid-cols-3 h-12 bg-gradient-to-r from-indigo-50 to-purple-50">
                     <TabsTrigger value="expert" className="flex items-center space-x-2 text-sm">
                       <Users className="h-4 w-4" />
                       <span>Expert</span>
@@ -178,16 +184,16 @@ export default function Signup() {
                   </TabsList>
                   
                   <TabsContent value="expert" className="mt-4">
-                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                      <h4 className="font-semibold text-blue-900 mb-2">For Experts</h4>
-                      <p className="text-sm text-blue-700">
+                    <div className="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-lg p-4 border border-indigo-200 shadow-sm">
+                      <h4 className="font-semibold text-indigo-900 mb-2">For Experts</h4>
+                      <p className="text-sm text-indigo-700">
                         Share your expertise with leading universities and corporations. Build your brand and unlock flexible opportunities.
                       </p>
                     </div>
                   </TabsContent>
                   
                   <TabsContent value="institution" className="mt-4">
-                    <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg p-4 border border-purple-200 shadow-sm">
                       <h4 className="font-semibold text-purple-900 mb-2">For Universities</h4>
                       <p className="text-sm text-purple-700">
                         Connect with industry experts to enhance academic excellence and bridge the gap with industry.
@@ -196,9 +202,9 @@ export default function Signup() {
                   </TabsContent>
 
                   <TabsContent value="corporate" className="mt-4">
-                    <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-                      <h4 className="font-semibold text-green-900 mb-2">For Corporates</h4>
-                      <p className="text-sm text-green-700">
+                    <div className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-lg p-4 border border-pink-200 shadow-sm">
+                      <h4 className="font-semibold text-pink-900 mb-2">For Corporates</h4>
+                      <p className="text-sm text-pink-700">
                         Find specialized talent including CAs, lawyers, and build strategic partnerships with experts.
                       </p>
                     </div>
@@ -226,7 +232,7 @@ export default function Signup() {
                       placeholder="Enter your email address"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="h-12 text-base border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                      className="h-12 text-base border-purple-200 focus:border-purple-500 focus:ring-purple-500"
                       required
                     />
                   </div>
@@ -240,7 +246,7 @@ export default function Signup() {
                         placeholder="Create a strong password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="h-12 text-base border-gray-200 focus:border-blue-500 focus:ring-blue-500 pr-12"
+                        className="h-12 text-base border-purple-200 focus:border-purple-500 focus:ring-purple-500 pr-12"
                         required
                       />
                       <Button
@@ -267,14 +273,14 @@ export default function Signup() {
                       placeholder="Confirm your password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="h-12 text-base border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                      className="h-12 text-base border-purple-200 focus:border-purple-500 focus:ring-purple-500"
                       required
                     />
                   </div>
 
                   <Button
                     type="submit"
-                    className="w-full h-12 text-base font-medium bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg"
+                    className="w-full h-12 text-base font-medium bg-gradient-to-r from-indigo-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 text-white shadow-lg transform hover:scale-[1.02] transition-all duration-200"
                     disabled={loading}
                   >
                     {loading ? 'Creating account...' : `Create ${activeTab === 'expert' ? 'Expert' : activeTab === 'institution' ? 'University' : 'Corporate'} Account`}
@@ -292,7 +298,7 @@ export default function Signup() {
 
                 <div className="text-center">
                   <Link href="/auth/login">
-                    <Button variant="outline" className="w-full h-12 text-base font-medium border-gray-200 hover:bg-gray-50">
+                    <Button variant="outline" className="w-full h-12 text-base font-medium border-purple-200 hover:bg-purple-50 hover:border-purple-300 transition-all duration-200">
                       Sign In to Your Account
                     </Button>
                   </Link>
@@ -300,10 +306,10 @@ export default function Signup() {
 
                 {/* Student feedback entry point - minimal link */}
                 <div className="mt-4">
-                  <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-center">
+                  <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 text-center">
                     <Link
                       href="/student-feedback"
-                      className="text-sm font-medium text-blue-700 hover:underline"
+                      className="text-sm font-medium text-purple-700 hover:underline"
                     >
                       Student? Open the Feedback Form (ET / Prompt Engineering)
                     </Link>
