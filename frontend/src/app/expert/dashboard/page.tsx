@@ -455,7 +455,7 @@ export default function ExpertDashboard() {
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center space-x-2">
               <Logo size="md" />
-              <span className="text-xl font-bold text-gray-900">Expert Collaboration</span>
+              <span className="text-xl font-bold text-gray-900">Calxmap</span>
             </Link>
             
             <div className="flex items-center space-x-4">

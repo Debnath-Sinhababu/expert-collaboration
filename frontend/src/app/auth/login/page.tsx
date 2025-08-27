@@ -95,7 +95,7 @@ export default function LoginPage() {
               <Logo size="md" />
               <div>
                 <span className="text-2xl font-bold bg-gradient-to-r from-slate-700 to-indigo-600 bg-clip-text text-transparent">
-                  Expert Collaboration
+                 Calxmap
                 </span>
                 <p className="text-xs text-gray-500 font-medium">Connecting Excellence</p>
               </div>
@@ -117,7 +117,7 @@ export default function LoginPage() {
             <div className="space-y-6">
               <h1 className="text-5xl font-bold text-white leading-tight">
                 Welcome Back to
-                <span className="bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent"> Expert Collaboration</span>
+                <span className="bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent ml-1">Calxmap</span>
               </h1>
               <p className="text-xl text-gray-200 leading-relaxed">
                 Continue your journey in transforming expertise into influence and connections into opportunities.
@@ -156,7 +156,7 @@ export default function LoginPage() {
                 </div>
                 <CardTitle className="text-3xl font-bold text-gray-900">Sign In</CardTitle>
                 <CardDescription className="text-gray-600 text-lg">
-                  Access your expert collaboration dashboard
+                  Access your  dashboard
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -221,7 +221,7 @@ export default function LoginPage() {
                     <span className="w-full border-t border-gray-200" />
                   </div>
                   <div className="relative flex justify-center text-sm">
-                    <span className="px-4 bg-white text-gray-500">New to Expert Collaboration?</span>
+                    <span className="px-4 bg-white text-gray-500">New to Calxmap?</span>
                   </div>
                 </div>
 

@@ -680,7 +680,7 @@ export default function InstitutionDashboard() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <Link href="/" className="flex items-center space-x-2">
               <Logo size="md" />
-              <span className="text-xl sm:text-2xl font-bold text-gray-900">Expert Collaboration</span>
+              <span className="text-xl sm:text-2xl font-bold text-gray-900">Calxmap</span>
             </Link>
             
             <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4">

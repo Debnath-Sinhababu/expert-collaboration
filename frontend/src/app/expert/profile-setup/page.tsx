@@ -154,7 +154,7 @@ export default function ExpertProfileSetup() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center space-x-2 mb-4">
             <GraduationCap className="h-8 w-8 text-blue-600" />
-            <span className="text-2xl font-bold text-gray-900">Expert Collaboration</span>
+            <span className="text-2xl font-bold text-gray-900">Calxmap</span>
           </Link>
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Complete Your Expert Profile</h1>
           <p className="text-xl text-gray-600">

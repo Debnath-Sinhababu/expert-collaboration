@@ -4,7 +4,10 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Carousel } from '@/components/ui/carousel'
+import { Carousel, CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious, } from '@/components/ui/carousel'
 import { 
   Users, 
   BookOpen, 
@@ -22,10 +25,14 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import Logo from '@/components/Logo'
+import Autoplay from "embla-carousel-autoplay"
+
 
 export default function Home() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+
+  const [itemsPerView, setItemsPerView] = useState(3);
 
   useEffect(() => {
     const getUser = async () => {
@@ -45,6 +52,29 @@ export default function Home() {
     return () => subscription.unsubscribe()
   }, [])
 
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      if (width < 640) {
+        setItemsPerView(1); // Mobile
+      } else if (width < 1024) {
+        setItemsPerView(2); // Tablet
+      } else {
+        setItemsPerView(3); // Desktop
+      }
+    };
+
+    // Set initial value
+    handleResize();
+    
+    // Add event listener
+    window.addEventListener('resize', handleResize);
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -54,38 +84,39 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-800">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-800 overflow-x-hidden">
       {/* Modern Header */}
-      <header className="bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-100 sticky top-0 z-50">
+      <header className="bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-100 sticky top-0 left-0 z-50 w-full">
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
               <Logo size="md" />
               <div>
                 <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  Expert Collaboration
+                 Calxmap
                 </span>
                 <p className="text-xs text-gray-500 font-medium">Connecting Excellence</p>
               </div>
             </div>
             
-            <nav className="hidden md:flex items-center space-x-8">
+            {/* <nav className="hidden md:flex items-center space-x-8">
               <Link href="#home" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">Home</Link>
               <Link href="#about" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">About</Link>
               <Link href="#how-it-works" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">How it Works</Link>
               <Link href="#contact" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">Contact</Link>
-            </nav>
+            </nav> */}
             
-            <div className="flex items-center space-x-3">
-              <Link href="/auth/login">
-                <Button variant="ghost" className="font-medium">Login</Button>
-              </Link>
-              <Link href="/auth/signup">
-                <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium shadow-lg">
-                  Sign Up
-                </Button>
-              </Link>
-            </div>
+            <div className="flex items-center gap-2">
+  <Link href="/auth/login">
+    <Button variant="ghost" className="font-medium">Login</Button>
+  </Link>
+  <Link href="/auth/signup">
+    <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium shadow-lg">
+      Sign Up
+    </Button>
+  </Link>
+</div>
+
           </div>
         </div>
       </header>
@@ -93,7 +124,7 @@ export default function Home() {
       {user && (
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
           <div className="container mx-auto px-4 py-12 text-center">
-            <h1 className="text-4xl font-bold mb-4">Welcome back to Expert Collaboration</h1>
+            <h1 className="text-4xl font-bold mb-4">Welcome back to Calxmap</h1>
             <p className="text-xl text-blue-100 mb-8">Continue your journey in connecting education with expertise</p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/expert/dashboard">
@@ -137,7 +168,7 @@ export default function Home() {
             </div>
 
             {/* Audience-Specific Banners */}
-            <div className="grid lg:grid-cols-3 gap-8 mb-16">
+            <div className="grid lg:grid-cols-2 gap-10 mb-16">
               {/* Expert Banner */}
               <Card className="relative overflow-hidden group hover:shadow-2xl transition-all duration-300 border-0 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 hover:scale-105">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-transparent"></div>
@@ -219,7 +250,7 @@ export default function Home() {
               </Card>
 
               {/* Corporate Banner */}
-              <Card className="relative overflow-hidden group hover:shadow-2xl transition-all duration-300 border-0 bg-gradient-to-br from-emerald-600 via-green-700 to-teal-800 hover:scale-105">
+              {/* <Card className="relative overflow-hidden group hover:shadow-2xl transition-all duration-300 border-0 bg-gradient-to-br from-emerald-600 via-green-700 to-teal-800 hover:scale-105">
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-400/20 to-transparent"></div>
                 <CardHeader className="pb-4 relative z-10">
                   <div className="w-16 h-16 bg-gradient-to-r from-emerald-400 to-teal-500 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg">
@@ -256,7 +287,7 @@ export default function Home() {
                     </Button>
                   </Link>
                 </CardContent>
-              </Card>
+              </Card> */}
             </div>
           </section>
 
@@ -327,57 +358,87 @@ export default function Home() {
                 </p>
               </div>
 
-              <Carousel itemsPerView={3} autoPlay={true} className="mb-12">
-                <Card className="mx-4 hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6 text-center">
-                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <GraduationCap className="h-8 w-8 text-blue-600" />
-                    </div>
-                    <h3 className="font-bold text-gray-900 mb-2">IIT Delhi</h3>
-                    <p className="text-sm text-gray-600">Leading technical education with industry experts</p>
-                  </CardContent>
-                </Card>
+              <Carousel
+      opts={{
+        align: "start",
+       
+      }}
+      plugins={[
+        Autoplay({
+          delay: 2000,
+        }),
+      ]}
+      className="w-full max-w-5xl mx-auto mb-12"
+    >
+      <CarouselContent>
+        {/* IIT Delhi */}
+        <CarouselItem className="basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4 h-full">
+          <Card className="h-full flex flex-col justify-between mx-2 hover:shadow-lg transition-shadow">
+            <CardContent className="p-6 text-center flex-1 flex flex-col justify-between">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <GraduationCap className="h-8 w-8 text-blue-600" />
+              </div>
+              <h3 className="font-bold text-gray-900 mb-2">IIT Delhi</h3>
+              <p className="text-sm text-gray-600">
+                Leading technical education with industry experts
+              </p>
+            </CardContent>
+          </Card>
+        </CarouselItem>
 
-                <Card className="mx-4 hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6 text-center">
-                    <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <BookOpen className="h-8 w-8 text-purple-600" />
-                    </div>
-                    <h3 className="font-bold text-gray-900 mb-2">Delhi University</h3>
-                    <p className="text-sm text-gray-600">Bridging academia with professional expertise</p>
-                  </CardContent>
-                </Card>
+        {/* Delhi University */}
+        <CarouselItem className="basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4 h-full">
+          <Card className="h-full flex flex-col justify-between mx-2 hover:shadow-lg transition-shadow">
+            <CardContent className="p-6 text-center">
+              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <BookOpen className="h-8 w-8 text-purple-600" />
+              </div>
+              <h3 className="font-bold text-gray-900 mb-2">Delhi University</h3>
+              <p className="text-sm text-gray-600">
+                Bridging academia with professional expertise
+              </p>
+            </CardContent>
+          </Card>
+        </CarouselItem>
 
-                <Card className="mx-4 hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6 text-center">
-                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Building className="h-8 w-8 text-green-600" />
-                    </div>
-                    <h3 className="font-bold text-gray-900 mb-2">AIIMS</h3>
-                    <p className="text-sm text-gray-600">Medical excellence through expert collaboration</p>
-                  </CardContent>
-                </Card>
+        {/* AIIMS */}
+     
 
-                <Card className="mx-4 hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6 text-center">
-                    <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <GraduationCap className="h-8 w-8 text-indigo-600" />
-                    </div>
-                    <h3 className="font-bold text-gray-900 mb-2">JNU</h3>
-                    <p className="text-sm text-gray-600">Excellence in research and liberal education</p>
-                  </CardContent>
-                </Card>
+        {/* JNU */}
+        <CarouselItem className="basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4">
+          <Card className="mx-2 hover:shadow-lg transition-shadow">
+            <CardContent className="p-6 text-center">
+              <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <GraduationCap className="h-8 w-8 text-indigo-600" />
+              </div>
+              <h3 className="font-bold text-gray-900 mb-2">JNU</h3>
+              <p className="text-sm text-gray-600">
+                Excellence in research and liberal education
+              </p>
+            </CardContent>
+          </Card>
+        </CarouselItem>
 
-                <Card className="mx-4 hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6 text-center">
-                    <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <BookOpen className="h-8 w-8 text-teal-600" />
-                    </div>
-                    <h3 className="font-bold text-gray-900 mb-2">IISc Bangalore</h3>
-                    <p className="text-sm text-gray-600">Premier institute for advanced scientific research</p>
-                  </CardContent>
-                </Card>
-              </Carousel>
+        {/* IISc Bangalore */}
+        <CarouselItem className="basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4">
+          <Card className="mx-2 hover:shadow-lg transition-shadow">
+            <CardContent className="p-6 text-center">
+              <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <BookOpen className="h-8 w-8 text-teal-600" />
+              </div>
+              <h3 className="font-bold text-gray-900 mb-2">IISc Bangalore</h3>
+              <p className="text-sm text-gray-600">
+                Premier institute for advanced scientific research
+              </p>
+            </CardContent>
+          </Card>
+        </CarouselItem>
+      </CarouselContent>
+
+      {/* Navigation buttons */}
+      <CarouselPrevious />
+      <CarouselNext />
+    </Carousel>
             </div>
           </section>
 
@@ -398,192 +459,145 @@ export default function Home() {
                 </p>
               </div>
 
-              <Carousel itemsPerView={3} autoPlay={true} className="mb-12">
-                <Card className="mx-4 hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6 text-center">
-                    <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden">
-                      <div className="w-full h-full bg-gray-200 rounded-full flex items-center justify-center">
-                        <Users className="h-8 w-8 text-gray-600" />
-                      </div>
-                    </div>
-                    <h3 className="font-bold text-gray-900 mb-1">Dr. Rajesh Kumar</h3>
-                    <div className="flex justify-center items-center mb-2">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className={`h-4 w-4 ${i < 5 ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} />
-                      ))}
-                      <span className="text-sm text-gray-600 ml-2">5.0</span>
-                    </div>
-                    <p className="text-sm text-gray-600 font-medium">AI & Machine Learning</p>
-                    <p className="text-xs text-gray-500">15+ years experience</p>
-                  </CardContent>
-                </Card>
+              <Carousel
+      opts={{
+        align: "start"
+        
+      }}
+      plugins={[
+        Autoplay({
+          delay: 2000,
+        }),
+      ]}
+     
+      className="w-full max-w-6xl mx-auto mb-12"
+    >
+      <CarouselContent>
+        {/* Dr. Rajesh Kumar */}
+        <CarouselItem className="basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4 h-full">
+          <Card className="h-full flex flex-col justify-between mx-2 hover:shadow-lg transition-shadow">
+            <CardContent className="p-6 text-center flex-1 flex flex-col justify-between">
+              <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden">
+                <div className="w-full h-full bg-gray-200 rounded-full flex items-center justify-center">
+                  <Users className="h-8 w-8 text-gray-600" />
+                </div>
+              </div>
+              <h3 className="font-bold text-gray-900 mb-1">Dr. Rajesh Kumar</h3>
+              <div className="flex justify-center items-center mb-2">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="h-4 w-4 text-yellow-400 fill-current" />
+                ))}
+                <span className="text-sm text-gray-600 ml-2">5.0</span>
+              </div>
+              <p className="text-sm text-gray-600 font-medium">AI & Machine Learning</p>
+              <p className="text-xs text-gray-500">15+ years experience</p>
+            </CardContent>
+          </Card>
+        </CarouselItem>
 
-                <Card className="mx-4 hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6 text-center">
-                    <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden">
-                      <div className="w-full h-full bg-gray-200 rounded-full flex items-center justify-center">
-                        <Users className="h-8 w-8 text-gray-600" />
-                      </div>
-                    </div>
-                    <h3 className="font-bold text-gray-900 mb-1">Prof. Priya Sharma</h3>
-                    <div className="flex justify-center items-center mb-2">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className={`h-4 w-4 ${i < 4 ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} />
-                      ))}
-                      <span className="text-sm text-gray-600 ml-2">4.8</span>
-                    </div>
-                    <p className="text-sm text-gray-600 font-medium">Data Science & Analytics</p>
-                    <p className="text-xs text-gray-500">12+ years experience</p>
-                  </CardContent>
-                </Card>
+        {/* Prof. Priya Sharma */}
+        <CarouselItem className="basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4 h-full">
+          <Card className="h-full flex flex-col justify-between mx-2 hover:shadow-lg transition-shadow">
+            <CardContent className="p-6 text-center flex-1 flex flex-col justify-between">
+              <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden">
+                <div className="w-full h-full bg-gray-200 rounded-full flex items-center justify-center">
+                  <Users className="h-8 w-8 text-gray-600" />
+                </div>
+              </div>
+              <h3 className="font-bold text-gray-900 mb-1">Prof. Priya Sharma</h3>
+              <div className="flex justify-center items-center mb-2">
+                {[...Array(5)].map((_, i) => (
+                  <Star
+                    key={i}
+                    className={`h-4 w-4 ${i < 4 ? "text-yellow-400 fill-current" : "text-gray-300"}`}
+                  />
+                ))}
+                <span className="text-sm text-gray-600 ml-2">4.8</span>
+              </div>
+              <p className="text-sm text-gray-600 font-medium">Data Science & Analytics</p>
+              <p className="text-xs text-gray-500">12+ years experience</p>
+            </CardContent>
+          </Card>
+        </CarouselItem>
 
-                <Card className="mx-4 hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6 text-center">
-                    <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden">
-                      <div className="w-full h-full bg-gray-200 rounded-full flex items-center justify-center">
-                        <Users className="h-8 w-8 text-gray-600" />
-                      </div>
-                    </div>
-                    <h3 className="font-bold text-gray-900 mb-1">Mr. Arjun Patel</h3>
-                    <div className="flex justify-center items-center mb-2">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className={`h-4 w-4 ${i < 5 ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} />
-                      ))}
-                      <span className="text-sm text-gray-600 ml-2">4.9</span>
-                    </div>
-                    <p className="text-sm text-gray-600 font-medium">Blockchain & Fintech</p>
-                    <p className="text-xs text-gray-500">10+ years experience</p>
-                  </CardContent>
-                </Card>
+        {/* Mr. Arjun Patel */}
+        <CarouselItem className="basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4 h-full">
+          <Card className="h-full flex flex-col justify-between mx-2 hover:shadow-lg transition-shadow">
+            <CardContent className="p-6 text-center flex-1 flex flex-col justify-between">
+              <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden">
+                <div className="w-full h-full bg-gray-200 rounded-full flex items-center justify-center">
+                  <Users className="h-8 w-8 text-gray-600" />
+                </div>
+              </div>
+              <h3 className="font-bold text-gray-900 mb-1">Mr. Arjun Patel</h3>
+              <div className="flex justify-center items-center mb-2">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="h-4 w-4 text-yellow-400 fill-current" />
+                ))}
+                <span className="text-sm text-gray-600 ml-2">4.9</span>
+              </div>
+              <p className="text-sm text-gray-600 font-medium">Blockchain & Fintech</p>
+              <p className="text-xs text-gray-500">10+ years experience</p>
+            </CardContent>
+          </Card>
+        </CarouselItem>
 
-                <Card className="mx-4 hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6 text-center">
-                    <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden">
-                      <div className="w-full h-full bg-gray-200 rounded-full flex items-center justify-center">
-                        <Users className="h-8 w-8 text-gray-600" />
-                      </div>
-                    </div>
-                    <h3 className="font-bold text-gray-900 mb-1">Dr. Meera Singh</h3>
-                    <div className="flex justify-center items-center mb-2">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className={`h-4 w-4 ${i < 5 ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} />
-                      ))}
-                      <span className="text-sm text-gray-600 ml-2">4.7</span>
-                    </div>
-                    <p className="text-sm text-gray-600 font-medium">Digital Marketing</p>
-                    <p className="text-xs text-gray-500">8+ years experience</p>
-                  </CardContent>
-                </Card>
+        {/* Dr. Meera Singh */}
+        <CarouselItem className="basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4 h-full">
+          <Card className="h-full flex flex-col justify-between mx-2 hover:shadow-lg transition-shadow">
+            <CardContent className="p-6 text-center flex-1 flex flex-col justify-between">
+              <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden">
+                <div className="w-full h-full bg-gray-200 rounded-full flex items-center justify-center">
+                  <Users className="h-8 w-8 text-gray-600" />
+                </div>
+              </div>
+              <h3 className="font-bold text-gray-900 mb-1">Dr. Meera Singh</h3>
+              <div className="flex justify-center items-center mb-2">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="h-4 w-4 text-yellow-400 fill-current" />
+                ))}
+                <span className="text-sm text-gray-600 ml-2">4.7</span>
+              </div>
+              <p className="text-sm text-gray-600 font-medium">Digital Marketing</p>
+              <p className="text-xs text-gray-500">8+ years experience</p>
+            </CardContent>
+          </Card>
+        </CarouselItem>
 
-                <Card className="mx-4 hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6 text-center">
-                    <div className="w-16 h-16 bg-gradient-to-r from-cyan-500 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden">
-                      <div className="w-full h-full bg-gray-200 rounded-full flex items-center justify-center">
-                        <Users className="h-8 w-8 text-gray-600" />
-                      </div>
-                    </div>
-                    <h3 className="font-bold text-gray-900 mb-1">Mr. Vikram Gupta</h3>
-                    <div className="flex justify-center items-center mb-2">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className={`h-4 w-4 ${i < 5 ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} />
-                      ))}
-                      <span className="text-sm text-gray-600 ml-2">4.9</span>
-                    </div>
-                    <p className="text-sm text-gray-600 font-medium">Legal & Compliance</p>
-                    <p className="text-xs text-gray-500">20+ years experience</p>
-                  </CardContent>
-                </Card>
-              </Carousel>
+        {/* Mr. Vikram Gupta */}
+        <CarouselItem className="basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4 h-full">
+          <Card className="h-full flex flex-col justify-between mx-2 hover:shadow-lg transition-shadow">
+            <CardContent className="p-6 text-center flex-1 flex flex-col justify-between">
+              <div className="w-16 h-16 bg-gradient-to-r from-cyan-500 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden">
+                <div className="w-full h-full bg-gray-200 rounded-full flex items-center justify-center">
+                  <Users className="h-8 w-8 text-gray-600" />
+                </div>
+              </div>
+              <h3 className="font-bold text-gray-900 mb-1">Mr. Vikram Gupta</h3>
+              <div className="flex justify-center items-center mb-2">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="h-4 w-4 text-yellow-400 fill-current" />
+                ))}
+                <span className="text-sm text-gray-600 ml-2">4.9</span>
+              </div>
+              <p className="text-sm text-gray-600 font-medium">Legal & Compliance</p>
+              <p className="text-xs text-gray-500">20+ years experience</p>
+            </CardContent>
+          </Card>
+        </CarouselItem>
+      </CarouselContent>
+
+      {/* Navigation buttons */}
+      <CarouselPrevious/>
+      <CarouselNext/>
+    </Carousel>
             </div>
           </section>
 
           {/* Corporate Partners Section */}
-          <section className="bg-gradient-to-tl from-indigo-900 via-purple-800 to-slate-800 py-20 relative overflow-hidden">
-            {/* Background Elements */}
-            <div className="absolute inset-0">
-              <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-tl from-indigo-600/10 via-purple-600/15 to-slate-600/10"></div>
-              <div className="absolute top-20 right-20 w-80 h-80 bg-gradient-to-l from-indigo-400/20 to-purple-400/20 rounded-full blur-3xl"></div>
-              <div className="absolute bottom-20 left-20 w-96 h-96 bg-gradient-to-r from-purple-400/20 to-slate-400/20 rounded-full blur-3xl"></div>
-            </div>
-            
-            <div className="container mx-auto px-4 relative z-10">
-              <div className="text-center mb-16">
-                <h2 className="text-4xl font-bold text-white mb-4">Corporate Partners</h2>
-                <p className="text-xl text-indigo-200">
-                  Leading organizations building strategic partnerships with experts
-                </p>
-              </div>
-
-              <Carousel itemsPerView={3} autoPlay={true} className="mb-12">
-                <Card className="mx-4 hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6 text-center">
-                    <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Briefcase className="h-8 w-8 text-orange-600" />
-                    </div>
-                    <h3 className="font-bold text-gray-900 mb-2">Infosys</h3>
-                    <p className="text-sm text-gray-600">Technology leadership through expert networks</p>
-                    <p className="text-xs text-gray-500 mt-2">IT Services & Consulting</p>
-                  </CardContent>
-                </Card>
-
-                <Card className="mx-4 hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6 text-center">
-                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Award className="h-8 w-8 text-red-600" />
-                    </div>
-                    <h3 className="font-bold text-gray-900 mb-2">TCS</h3>
-                    <p className="text-sm text-gray-600">Innovation through strategic expert partnerships</p>
-                    <p className="text-xs text-gray-500 mt-2">Technology Solutions</p>
-                  </CardContent>
-                </Card>
-
-                <Card className="mx-4 hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6 text-center">
-                    <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Globe className="h-8 w-8 text-indigo-600" />
-                    </div>
-                    <h3 className="font-bold text-gray-900 mb-2">Wipro</h3>
-                    <p className="text-sm text-gray-600">Global expertise for digital transformation</p>
-                    <p className="text-xs text-gray-500 mt-2">Digital Services</p>
-                  </CardContent>
-                </Card>
-
-                <Card className="mx-4 hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6 text-center">
-                    <div className="w-16 h-16 bg-cyan-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Building className="h-8 w-8 text-cyan-600" />
-                    </div>
-                    <h3 className="font-bold text-gray-900 mb-2">Accenture</h3>
-                    <p className="text-sm text-gray-600">Professional services and technology solutions</p>
-                    <p className="text-xs text-gray-500 mt-2">Management Consulting</p>
-                  </CardContent>
-                </Card>
-
-                <Card className="mx-4 hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6 text-center">
-                    <div className="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Zap className="h-8 w-8 text-pink-600" />
-                    </div>
-                    <h3 className="font-bold text-gray-900 mb-2">Deloitte</h3>
-                    <p className="text-sm text-gray-600">Audit, consulting, and advisory services</p>
-                    <p className="text-xs text-gray-500 mt-2">Professional Services</p>
-                  </CardContent>
-                </Card>
-
-                <Card className="mx-4 hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6 text-center">
-                    <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Award className="h-8 w-8 text-yellow-600" />
-                    </div>
-                    <h3 className="font-bold text-gray-900 mb-2">KPMG</h3>
-                    <p className="text-sm text-gray-600">Audit, tax and advisory services</p>
-                    <p className="text-xs text-gray-500 mt-2">Big Four Accounting</p>
-                  </CardContent>
-                </Card>
-              </Carousel>
-            </div>
-          </section>
-
+       
+         
+        
           {/* Call-to-Action Section */}
           <section className="bg-gradient-to-r from-pink-700 via-purple-700 to-indigo-700 py-20 relative overflow-hidden">
             {/* Dynamic Background Elements */}
@@ -615,7 +629,7 @@ export default function Home() {
                   </Button>
                 </Link>
                 <Link href="#how-it-works">
-                  <Button size="lg" variant="outline" className="border-2 border-white text-white hover:bg-white hover:text-pink-700 font-bold text-xl px-12 py-6 shadow-2xl hover:shadow-3xl transition-all hover:scale-105">
+                  <Button size="lg" variant="outline" className="bg-gradient-to-r from-white to-pink-100 text-pink-700 hover:text-pink-700 hover:from-pink-50 hover:to-purple-100 font-bold text-xl px-12 py-6 shadow-2xl hover:shadow-3xl transition-all hover:scale-105 border-2 border-white/20">
                     Learn More
                   </Button>
                 </Link>
@@ -632,7 +646,7 @@ export default function Home() {
             <div>
               <div className="flex items-center space-x-3 mb-6">
                 <Logo size="sm" />
-                <span className="text-xl font-bold">Expert Collaboration</span>
+                <span className="text-xl font-bold">Calxmap</span>
               </div>
               <p className="text-gray-400 leading-relaxed">
                 Transforming expertise into influence and connections into opportunities. 
@@ -673,7 +687,7 @@ export default function Home() {
           
           <div className="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center">
             <p className="text-gray-400">
-              © 2025 Expert Collaboration. All rights reserved.
+              © 2025 Calxmap. All rights reserved.
             </p>
             <div className="flex space-x-6 mt-4 md:mt-0">
               <Link href="#twitter" className="text-gray-400 hover:text-white transition-colors">Twitter</Link>
