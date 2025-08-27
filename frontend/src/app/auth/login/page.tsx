@@ -78,15 +78,17 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-tl from-slate-100 via-indigo-50 to-purple-100 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-800 via-indigo-900 to-purple-900 relative overflow-hidden">
       {/* Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-indigo-400/20 to-purple-600/20 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-slate-400/20 to-indigo-600/20 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-purple-400/10 to-indigo-400/10 rounded-full blur-3xl"></div>
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-indigo-500/40 to-purple-600/40 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-slate-500/40 to-indigo-600/40 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-purple-500/30 to-indigo-500/30 rounded-full blur-3xl"></div>
+        <div className="absolute top-20 left-20 w-64 h-64 bg-gradient-to-br from-indigo-400/20 to-slate-600/20 rounded-full blur-2xl"></div>
+        <div className="absolute bottom-20 right-20 w-64 h-64 bg-gradient-to-tl from-purple-400/20 to-indigo-600/20 rounded-full blur-2xl"></div>
       </div>
       {/* Header */}
-      <header className="relative bg-white/90 backdrop-blur-md shadow-sm border-b border-slate-200/50">
+      <header className="relative bg-white/95 backdrop-blur-md shadow-lg border-b border-slate-300/50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center space-x-3">
@@ -113,11 +115,11 @@ export default function LoginPage() {
           {/* Left Side - Branding */}
           <div className="hidden lg:block space-y-8">
             <div className="space-y-6">
-              <h1 className="text-5xl font-bold text-gray-900 leading-tight">
+              <h1 className="text-5xl font-bold text-white leading-tight">
                 Welcome Back to
-                <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"> Expert Collaboration</span>
+                <span className="bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent"> Expert Collaboration</span>
               </h1>
-              <p className="text-xl text-gray-600 leading-relaxed">
+              <p className="text-xl text-gray-200 leading-relaxed">
                 Continue your journey in transforming expertise into influence and connections into opportunities.
               </p>
             </div>
@@ -128,8 +130,8 @@ export default function LoginPage() {
                   <Shield className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Secure Platform</h3>
-                  <p className="text-gray-600">Your data is protected with enterprise-grade security and privacy measures.</p>
+                  <h3 className="text-lg font-semibold text-white mb-2">Secure Platform</h3>
+                  <p className="text-gray-200">Your data is protected with enterprise-grade security and privacy measures.</p>
                 </div>
               </div>
 
@@ -138,8 +140,8 @@ export default function LoginPage() {
                   <Zap className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Instant Access</h3>
-                  <p className="text-gray-600">Get immediate access to your dashboard and start collaborating with experts.</p>
+                  <h3 className="text-lg font-semibold text-white mb-2">Instant Access</h3>
+                  <p className="text-gray-200">Get immediate access to your dashboard and start collaborating with experts.</p>
                 </div>
               </div>
             </div>
@@ -147,7 +149,7 @@ export default function LoginPage() {
 
           {/* Right Side - Login Form */}
           <div className="w-full max-w-md mx-auto lg:mx-0">
-            <Card className="border-0 shadow-2xl bg-white/90 backdrop-blur-md ring-1 ring-slate-200/50">
+            <Card className="border-0 shadow-2xl bg-white/95 backdrop-blur-md ring-1 ring-white/20">
               <CardHeader className="text-center pb-8">
                 <div className="flex justify-center mb-6 lg:hidden">
                   <Logo size="lg" />

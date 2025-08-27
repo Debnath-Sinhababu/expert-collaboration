@@ -77,15 +77,17 @@ export default function Signup() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-100 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 relative overflow-hidden">
       {/* Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-bl from-indigo-400/20 to-purple-600/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-purple-400/20 to-pink-600/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute top-1/3 left-1/3 w-96 h-96 bg-gradient-to-r from-pink-400/10 to-indigo-400/10 rounded-full blur-3xl"></div>
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-bl from-indigo-500/40 to-purple-600/40 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-purple-500/40 to-pink-600/40 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute top-1/3 left-1/3 w-96 h-96 bg-gradient-to-r from-pink-500/30 to-indigo-500/30 rounded-full blur-3xl"></div>
+        <div className="absolute top-10 right-10 w-64 h-64 bg-gradient-to-bl from-purple-400/20 to-pink-600/20 rounded-full blur-2xl"></div>
+        <div className="absolute bottom-10 left-10 w-64 h-64 bg-gradient-to-tr from-indigo-400/20 to-purple-600/20 rounded-full blur-2xl"></div>
       </div>
       {/* Header */}
-      <header className="relative bg-white/90 backdrop-blur-md shadow-sm border-b border-purple-200/50">
+      <header className="relative bg-white/95 backdrop-blur-md shadow-lg border-b border-purple-300/50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center space-x-3">
@@ -112,11 +114,11 @@ export default function Signup() {
           {/* Left Side - Branding */}
           <div className="hidden lg:block space-y-8">
             <div className="space-y-6">
-              <h1 className="text-5xl font-bold text-gray-900 leading-tight">
+              <h1 className="text-5xl font-bold text-white leading-tight">
                 Join the Future of
-                <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent"> Expert Collaboration</span>
+                <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent"> Expert Collaboration</span>
               </h1>
-              <p className="text-xl text-gray-600 leading-relaxed">
+              <p className="text-xl text-gray-200 leading-relaxed">
                 Transform your expertise into influence and build meaningful connections with leading organizations worldwide.
               </p>
             </div>
@@ -127,8 +129,8 @@ export default function Signup() {
                   <Shield className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Verified Network</h3>
-                  <p className="text-gray-600">Join a trusted community of verified experts and leading institutions.</p>
+                  <h3 className="text-lg font-semibold text-white mb-2">Verified Network</h3>
+                  <p className="text-gray-200">Join a trusted community of verified experts and leading institutions.</p>
                 </div>
               </div>
 
@@ -137,8 +139,8 @@ export default function Signup() {
                   <Zap className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Instant Opportunities</h3>
-                  <p className="text-gray-600">Get immediate access to exciting projects and collaboration opportunities.</p>
+                  <h3 className="text-lg font-semibold text-white mb-2">Instant Opportunities</h3>
+                  <p className="text-gray-200">Get immediate access to exciting projects and collaboration opportunities.</p>
                 </div>
               </div>
 
@@ -147,8 +149,8 @@ export default function Signup() {
                   <CheckCircle className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Professional Growth</h3>
-                  <p className="text-gray-600">Build your brand and expand your professional network globally.</p>
+                  <h3 className="text-lg font-semibold text-white mb-2">Professional Growth</h3>
+                  <p className="text-gray-200">Build your brand and expand your professional network globally.</p>
                 </div>
               </div>
             </div>
@@ -156,7 +158,7 @@ export default function Signup() {
 
           {/* Right Side - Signup Form */}
           <div className="w-full max-w-md mx-auto lg:mx-0">
-            <Card className="border-0 shadow-2xl bg-white/90 backdrop-blur-md ring-1 ring-purple-200/50">
+            <Card className="border-0 shadow-2xl bg-white/95 backdrop-blur-md ring-1 ring-white/20">
               <CardHeader className="text-center pb-8">
                 <div className="flex justify-center mb-6 lg:hidden">
                   <Logo size="lg" />
