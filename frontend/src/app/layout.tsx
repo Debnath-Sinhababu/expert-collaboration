@@ -31,22 +31,22 @@ export const metadata: Metadata = {
     'expert networking platform',
     'expert collaboration',
   ],
-  authors: [{ name: "Calxmap Team", url: "https://calxmap.in" }],
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://calxmap.in"),
+  authors: [{ name: "Calxmap Team", url: "https://www.calxmap.in" }],
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://www.calxmap.in"),
   alternates: {
     canonical: "/",
   },
   openGraph: {
     type: "website",
     locale: "en_IN",
-    url: process.env.NEXT_PUBLIC_SITE_URL || "https://calxmap.in",
+    url: process.env.NEXT_PUBLIC_SITE_URL || "https://www.calxmap.in",
     siteName: "Calxmap",
     title: "Calxmap - Expert Networking Platform",
     description:
       "Transforming expertise into influence and connections into opportunities. Join the world’s first Expert Networking Platform.",
     images: [
       {
-        url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://calxmap.in'}/images/logo.png`,
+        url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.calxmap.in'}/images/logo.png`,
         width: 1200,
         height: 630,
         alt: "Calxmap - Expert Networking Platform",

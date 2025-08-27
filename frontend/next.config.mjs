@@ -34,6 +34,21 @@ const nextConfig = {
     }
     return config;
   },
+  async redirects() {
+    return [
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'host',
+            value: 'calxmap.in', // non-www domain
+          },
+        ],
+        destination: 'https://www.calxmap.in/:path*', // redirect to www
+        permanent: true, // 301 redirect
+      },
+    ];
+  },
 };
 
 export default nextConfig;
