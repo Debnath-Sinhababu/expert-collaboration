@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import NotificationBell from '@/components/NotificationBell'
+import ProfileDropdown from '@/components/ProfileDropdown'
 import Logo from '@/components/Logo'
 import { 
   User, 
@@ -24,8 +25,6 @@ import {
   DollarSign, 
   Star, 
   MessageSquare,
-  
-  LogOut,
   
   Clock,
   CheckCircle,
@@ -85,6 +84,7 @@ export default function ExpertDashboard() {
     type?: string
   }
 
+  const [user, setUser] = useState<any>(null)
   const [expert, setExpert] = useState<ExpertProfile | null>(null)
   const [applications, setApplications] = useState<Application[]>([])
   const [applicationCounts, setApplicationCounts] = useState<any>({ total: 0, pending: 0, accepted: 0, rejected: 0 })
@@ -112,16 +112,7 @@ export default function ExpertDashboard() {
     proposedRate: ''
   })
 
-  const [profileForm, setProfileForm] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    bio: '',
-    qualifications: '',
-    domain_expertise: '',
-    hourly_rate: '',
-    resume_url: ''
-  })
+
   const router = useRouter()
 
   const getUser = async (): Promise<SessionUser | null> => {
@@ -130,6 +121,7 @@ export default function ExpertDashboard() {
       router.push('/auth/login')
       return null
     }
+    setUser(user)
     return user as unknown as SessionUser
   }
 
@@ -197,16 +189,7 @@ export default function ExpertDashboard() {
         }
         setExpert(expertData)
         
-        setProfileForm({
-          name: expertData.name || '',
-          email: expertData.email ?? '',
-          phone: expertProfile.phone || '',
-          bio: expertData.bio || '',
-          qualifications: Array.isArray(expertData.qualifications) ? expertData.qualifications.join(', ') : '',
-          domain_expertise: Array.isArray(expertData.domain_expertise) ? expertData.domain_expertise.join(', ') : '',
-          hourly_rate: String(expertData.hourly_rate ?? 0),
-          resume_url: expertData.resume_url || ''
-        })
+
       } else {
         const defaultData: ExpertProfile = {
           name: currentUser.user_metadata?.name || 'Expert User',
@@ -219,16 +202,7 @@ export default function ExpertDashboard() {
         }
         setExpert(defaultData)
         
-        setProfileForm({
-          name: defaultData.name || '',
-          email: defaultData.email ?? '',
-          phone: '',
-          bio: '',
-          qualifications: '',
-          domain_expertise: '',
-          hourly_rate: '0',
-          resume_url: ''
-        })
+
       }
     } catch (error) {
       console.error('Error loading expert data:', error)
@@ -243,10 +217,7 @@ export default function ExpertDashboard() {
     }
   }
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/')
-  }
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -364,48 +335,7 @@ export default function ExpertDashboard() {
     }
   }
 
-  const handleProfileUpdate = async () => {
-    try {
-      setLoading(true)
-      const currentUser = await getUser()
-      if (!currentUser) return
 
-      const updateData = {
-        ...profileForm,
-        qualifications: profileForm.qualifications.split(',').map((q: string) => q.trim()).filter(q => q),
-        domain_expertise: profileForm.domain_expertise.split(',').map((d: string) => d.trim()).filter(d => d),
-        hourly_rate: parseFloat(profileForm.hourly_rate) || 0
-      }
-      
-      let updatedExpert
-      if (expert?.id) {
-        console.log('Updating existing expert profile with ID:', expert.id)
-        updatedExpert = await api.experts.update(expert.id, updateData)
-      } else {
-        console.log('Creating new expert profile for user:', currentUser.id)
-        const createData = {
-          ...updateData,
-          user_id: currentUser.id
-        }
-        updatedExpert = await api.experts.create(createData)
-      }
-      
-      if (updatedExpert && updatedExpert.id) {
-        setExpert(updatedExpert)
-        console.log('Expert profile updated/created successfully:', updatedExpert)
-      }
-      
-      setError('')
-      setSuccess('Profile updated successfully!')
-      setTimeout(() => setSuccess(''), 3000)
-      
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error'
-      setError(message)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   useEffect(() => {
     loadExpertData()
@@ -463,15 +393,13 @@ export default function ExpertDashboard() {
               <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white hover:bg-slate-800/50 border border-transparent hover:border-slate-600 transition-all duration-300">
                 <MessageSquare className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="sm" onClick={handleLogout} className="text-slate-300 hover:text-white hover:bg-slate-800/50 border border-transparent hover:border-slate-600 transition-all duration-300">
-                <LogOut className="h-4 w-4" />
-              </Button>
+              <ProfileDropdown user={user} userType="expert" />
             </div>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 relative z-10">
+      <main className="container mx-auto px-4 py-8 relative z-10 mt-20">
         {error && (
           <Alert className="mb-6 bg-red-50/90 backdrop-blur-md border-red-200" variant="destructive">
             <AlertDescription>{error}</AlertDescription>
@@ -561,7 +489,7 @@ export default function ExpertDashboard() {
         </div>
 
         <Tabs defaultValue="applications" className="space-y-6">
-        <TabsList className="flex w-full gap-2 overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-6 sm:gap-0 sm:overflow-visible scrollbar-hide bg-white/95 backdrop-blur-sm border-0 shadow-2xl">
+        <TabsList className="flex w-full gap-2 overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-5 sm:gap-0 sm:overflow-visible scrollbar-hide bg-white/95 backdrop-blur-sm border-0 shadow-2xl">
         <TabsTrigger className="px-3 py-2 snap-start ml-3 sm:ml-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white hover:bg-slate-100/80 transition-all rounded-lg" value="applications">
           My Applications
         </TabsTrigger>
@@ -574,11 +502,8 @@ export default function ExpertDashboard() {
         <TabsTrigger className="px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white hover:bg-slate-100/80 transition-all rounded-lg" value="availability">
           Availability
         </TabsTrigger>
-        <TabsTrigger className="px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white hover:bg-slate-100/80 transition-all rounded-lg" value="notifications">
+        <TabsTrigger className="px-3 py-2 snap-start mr-3 sm:mr-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white hover:bg-slate-100/80 transition-all rounded-lg" value="notifications">
           Notifications
-        </TabsTrigger>
-        <TabsTrigger className="px-3 py-2 snap-start mr-3 sm:mr-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white hover:bg-slate-100/80 transition-all rounded-lg" value="profile">
-          Profile
         </TabsTrigger>
       </TabsList>
 
@@ -956,154 +881,7 @@ export default function ExpertDashboard() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="profile" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Expert Profile</CardTitle>
-                <CardDescription>
-                  Manage your professional profile and credentials
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <div className="flex items-center space-x-4">
-                    <div className="h-20 w-20 bg-blue-100 rounded-full flex items-center justify-center">
-                      <User className="h-10 w-10 text-blue-600" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold">{expert?.name}</h3>
-                      <p className="text-gray-600">{expert?.email}</p>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <Badge variant={expert?.is_verified ? 'default' : 'secondary'}>
-                          {expert?.kyc_status || 'Pending'}
-                        </Badge>
-                        {expert?.is_verified ? (
-                          <Shield className="h-4 w-4 text-green-600" />
-                        ) : (
-                          <AlertCircle className="h-4 w-4 text-yellow-600" />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <Label htmlFor="name">Full Name</Label>
-                      <Input 
-                        id="name" 
-                        value={profileForm.name}
-                        onChange={(e) => setProfileForm({...profileForm, name: e.target.value})}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="email">Email</Label>
-                      <Input 
-                        id="email" 
-                        value={profileForm.email}
-                        onChange={(e) => setProfileForm({...profileForm, email: e.target.value})}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="phone">Phone</Label>
-                      <Input 
-                        id="phone" 
-                        value={profileForm.phone}
-                        onChange={(e) => setProfileForm({...profileForm, phone: e.target.value})}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="hourlyRate">Hourly Rate (₹)</Label>
-                      <Input 
-                        id="hourlyRate" 
-                        type="number" 
-                        value={profileForm.hourly_rate}
-                        onChange={(e) => setProfileForm({...profileForm, hourly_rate: e.target.value})}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="bio">Professional Bio</Label>
-                    <Textarea 
-                      id="bio" 
-                      placeholder="Tell institutions about your expertise and experience..."
-                      rows={4}
-                      value={profileForm.bio}
-                      onChange={(e) => setProfileForm({...profileForm, bio: e.target.value})}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="qualifications">Qualifications</Label>
-                    <Textarea 
-                      id="qualifications" 
-                      placeholder="List your degrees, certifications, and credentials..."
-                      rows={3}
-                      value={profileForm.qualifications}
-                      onChange={(e) => setProfileForm({...profileForm, qualifications: e.target.value})}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="expertise">Domain Expertise</Label>
-                    <Textarea 
-                      id="expertise" 
-                      placeholder="Specify your areas of expertise (e.g., Machine Learning, Data Science, Web Development)..."
-                      rows={3}
-                      value={profileForm.domain_expertise}
-                      onChange={(e) => setProfileForm({...profileForm, domain_expertise: e.target.value})}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="resume">Resume URL</Label>
-                    <Input 
-                      id="resume" 
-                      placeholder="https://example.com/resume.pdf"
-                      value={profileForm.resume_url}
-                      onChange={(e) => setProfileForm({...profileForm, resume_url: e.target.value})}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-semibold">Rating & Reviews</h4>
-                      <div className="flex items-center space-x-2">
-                        <div className="flex items-center">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <Star 
-                              key={star} 
-                              className={`h-4 w-4 ${star <= Math.round(expertAggregate.avg) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} 
-                            />
-                          ))}
-                        </div>
-                        <span className="text-sm text-gray-600">
-                          {expertAggregate.avg} ({expertAggregate.count} reviews)
-                        </span>
-                      </div>
-                    </div>
-                    <Button variant="outline">
-                      <Award className="h-4 w-4 mr-2" />
-                      View Reviews
-                    </Button>
-                  </div>
-
-                  <Button className="w-full" onClick={handleProfileUpdate} disabled={loading}>
-                    {loading ? 'Updating...' : 'Update Profile'}
-                  </Button>
-
-                  {!expert?.is_verified && (
-                    <Alert>
-                      <Shield className="h-4 w-4" />
-                      <AlertDescription>
-                        Complete your KYC verification to unlock more opportunities and build trust with institutions.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+          
         </Tabs>
       </main>
     </div>

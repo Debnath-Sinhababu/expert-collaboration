@@ -17,13 +17,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Drawer } from '@/components/ui/drawer'
 import ProjectApplications from '@/components/ProjectApplications'
+import ProfileDropdown from '@/components/ProfileDropdown'
 import Logo from '@/components/Logo'
 import { 
   Building, 
   Plus, 
   Users, 
   Star, 
-  LogOut,
   Eye,
   Clock,
   CheckCircle,
@@ -79,18 +79,7 @@ export default function InstitutionDashboard() {
   const [showEditForm, setShowEditForm] = useState(false)
   const [applicationsDrawerOpen, setApplicationsDrawerOpen] = useState(false)
   const [selectedProject, setSelectedProject] = useState<{ id: string; title?: string } | null>(null)
-  const [profileForm, setProfileForm] = useState({
-    name: '',
-    type: '',
-    description: '',
-    email: '',
-    phone: '',
-    website_url: '',
-    city: '',
-    state: '',
-    country: '',
-    address: ''
-  })
+
   const router = useRouter()
   
 
@@ -141,18 +130,7 @@ export default function InstitutionDashboard() {
       
       setInstitution(institutionProfile)
       
-      setProfileForm({
-        name: institutionProfile.name || '',
-        type: institutionProfile.type || '',
-        description: institutionProfile.description || '',
-        email: institutionProfile.email || '',
-        phone: institutionProfile.phone || '',
-        website_url: institutionProfile.website_url || '',
-        city: institutionProfile.city || '',
-        state: institutionProfile.state || '',
-        country: institutionProfile.country || 'India',
-        address: institutionProfile.address || ''
-      })
+
       
       // Initial light calls (experts list is paginated below). Lists are fed by paginated hooks
       const [projectsResponse, applicationsResponse, expertsResponse, bookingsResponse, bookingCountsResponse] = await Promise.all([
@@ -202,10 +180,7 @@ export default function InstitutionDashboard() {
     }
   }
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/')
-  }
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -333,43 +308,7 @@ export default function InstitutionDashboard() {
     }
   }
 
-  const handleProfileUpdate = async () => {
-    try {
-      setSubmittingProject(true)
-      const currentUser = await supabase.auth.getUser()
-      if (!currentUser.data.user) return
 
-      const updateData = {
-        ...profileForm
-      }
-      
-      let updatedInstitution
-      if (institution?.id) {
-        console.log('Updating existing institution profile with ID:', institution.id)
-        updatedInstitution = await api.institutions.update(institution.id, updateData)
-      } else {
-        console.log('Creating new institution profile for user:', currentUser.data.user.id)
-        const createData = {
-          ...updateData,
-          user_id: currentUser.data.user.id
-        }
-        updatedInstitution = await api.institutions.create(createData)
-      }
-      
-      if (updatedInstitution && updatedInstitution.id) {
-        setInstitution(updatedInstitution)
-        console.log('Institution profile updated/created successfully:', updatedInstitution)
-      }
-      
-      setError('')
-      
-    } catch (error: any) {
-      console.error('Institution profile update error:', error)
-      setError(`Failed to update profile: ${error.message}`)
-    } finally {
-      setSubmittingProject(false)
-    }
-  }
 
   const handleProjectSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -692,16 +631,13 @@ export default function InstitutionDashboard() {
                 <span className="text-sm sm:text-base text-slate-300 truncate">{institution?.name}</span>
               </div>
               <NotificationBell />
-              <Button variant="outline" size="sm" onClick={handleLogout} className="w-full sm:w-auto text-slate-300 hover:text-white hover:bg-slate-800/50 border-slate-600 hover:border-slate-500 transition-all duration-300">
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
-              </Button>
+              <ProfileDropdown user={user} userType="institution" />
             </div>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8 relative z-10">
+      <div className="container mx-auto px-4 py-8 relative z-10 mt-20">
         {error && (
           <Alert variant="destructive" className="mb-6 bg-red-50/90 backdrop-blur-md border-red-200">
             <AlertDescription>{error}</AlertDescription>
@@ -1071,12 +1007,10 @@ export default function InstitutionDashboard() {
 
         {/* Main Content */}
         <Tabs defaultValue="projects" className="space-y-6">
-          <TabsList className="flex w-full gap-2 overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-4 sm:gap-0 sm:overflow-visible scrollbar-hide bg-white/90 backdrop-blur-md border-0 shadow-lg">
+          <TabsList className="flex w-full gap-2 overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-3 sm:gap-0 sm:overflow-visible scrollbar-hide bg-white/90 backdrop-blur-md border-0 shadow-lg">
             <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start ml-3 sm:ml-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" value="projects">My Projects</TabsTrigger>
             <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" value="bookings">Bookings</TabsTrigger>
-            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" value="experts">Browse Experts</TabsTrigger>
-            {/* <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start" value="notifications">Notifications</TabsTrigger> */}
-            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start mr-3 sm:mr-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" value="profile">Profile</TabsTrigger>
+            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start mr-3 sm:mr-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" value="experts">Browse Experts</TabsTrigger>
           </TabsList>
 
           {/* Projects Tab */}
@@ -1584,202 +1518,14 @@ export default function InstitutionDashboard() {
           </TabsContent> */}
 
           {/* Profile Tab */}
-          <TabsContent value="profile">
-            <div className="grid gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Institution Profile</CardTitle>
-                  <CardDescription>
-                    Manage your institution profile and information
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-6">
-                    <div className="flex items-center space-x-4">
-                      <div className="h-20 w-20 bg-blue-100 rounded-full flex items-center justify-center">
-                        <Building className="h-10 w-10 text-blue-600" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold">{institution?.name}</h3>
-                        <p className="text-gray-600">{institution?.email}</p>
-                        <div className="flex items-center space-x-2 mt-1">
-                          <Badge variant={institution?.is_verified ? 'default' : 'secondary'}>
-                            {institution?.is_verified ? 'Verified' : 'Pending'}
-                          </Badge>
-                          {institution?.is_verified ? (
-                            <Shield className="h-4 w-4 text-green-600" />
-                          ) : (
-                            <AlertCircle className="h-4 w-4 text-yellow-600" />
-                          )}
-                        </div>
-                      </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <Label htmlFor="name">Institution Name</Label>
-                        <Input 
-                          id="name" 
-                          value={profileForm.name}
-                          onChange={(e) => setProfileForm({...profileForm, name: e.target.value})}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="type">Institution Type</Label>
-                        <Select value={profileForm.type} onValueChange={(value) => setProfileForm({...profileForm, type: value})}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select institution type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="university">University</SelectItem>
-                            <SelectItem value="college">College</SelectItem>
-                            <SelectItem value="institute">Institute</SelectItem>
-                            <SelectItem value="school">School</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="email">Email</Label>
-                        <Input 
-                          id="email" 
-                          value={profileForm.email}
-                          onChange={(e) => setProfileForm({...profileForm, email: e.target.value})}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="website">Website URL</Label>
-                        <Input 
-                          id="website" 
-                          value={profileForm.website_url}
-                          onChange={(e) => setProfileForm({...profileForm, website_url: e.target.value})}
-                          placeholder="https://example.com"
-                        />
-                      </div>
-                    </div>
 
-                    <div>
-                      <Label htmlFor="description">Description</Label>
-                      <Textarea 
-                        id="description" 
-                        placeholder="Describe your institution..."
-                        rows={4}
-                        value={profileForm.description}
-                        onChange={(e) => setProfileForm({...profileForm, description: e.target.value})}
-                      />
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div>
-                        <Label htmlFor="city">City</Label>
-                        <Input 
-                          id="city" 
-                          value={profileForm.city}
-                          onChange={(e) => setProfileForm({...profileForm, city: e.target.value})}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="state">State</Label>
-                        <Input 
-                          id="state" 
-                          value={profileForm.state}
-                          onChange={(e) => setProfileForm({...profileForm, state: e.target.value})}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="country">Country</Label>
-                        <Input 
-                          id="country" 
-                          value={profileForm.country}
-                          onChange={(e) => setProfileForm({...profileForm, country: e.target.value})}
-                        />
-                      </div>
-                    </div>
 
-                    <div>
-                      <Label htmlFor="address">Address</Label>
-                      <Textarea 
-                        id="address" 
-                        placeholder="Full address..."
-                        rows={2}
-                        value={profileForm.address}
-                        onChange={(e) => setProfileForm({...profileForm, address: e.target.value})}
-                      />
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <Label htmlFor="phone">Phone</Label>
-                        <Input 
-                          id="phone" 
-                          value={profileForm.phone}
-                          onChange={(e) => setProfileForm({...profileForm, phone: e.target.value})}
-                        />
-                      </div>
-                    </div>
 
-                    <Button className="w-full" onClick={handleProfileUpdate} disabled={submittingProject}>
-                      {submittingProject ? 'Updating...' : 'Update Profile'}
-                    </Button>
 
-                    {!institution?.is_verified && (
-                      <Alert>
-                        <Shield className="h-4 w-4" />
-                        <AlertDescription>
-                          Complete your institution verification to build trust with experts and access premium features.
-                        </AlertDescription>
-                      </Alert>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Institution Statistics</CardTitle>
-                  <CardDescription>
-                    Your institution's performance and verification status
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="grid md:grid-cols-4 gap-4">
-                      <div className="text-center p-4 border rounded-lg">
-                        <Briefcase className="h-8 w-8 mx-auto mb-2 text-blue-600" />
-                        <p className="text-sm font-medium">Total Projects</p>
-                        <p className="text-lg font-bold">{projects.length}</p>
-                      </div>
-                      <div className="text-center p-4 border rounded-lg">
-                        <Users className="h-8 w-8 mx-auto mb-2 text-green-600" />
-                        <p className="text-sm font-medium">Applications</p>
-                        <p className="text-lg font-bold">{applications.length}</p>
-                      </div>
-                      <div className="text-center p-4 border rounded-lg">
-                        <Star className="h-8 w-8 mx-auto mb-2 text-yellow-600" />
-                        <p className="text-sm font-medium">Average Rating</p>
-                        <p className="text-lg font-bold">{institution?.rating || 0}/5</p>
-                      </div>
-                      <div className="text-center p-4 border rounded-lg">
-                        <Shield className="h-8 w-8 mx-auto mb-2 text-gray-600" />
-                        <p className="text-sm font-medium">Verification</p>
-                        <Badge variant={institution?.is_verified ? "default" : "secondary"} className="mt-1">
-                          {institution?.is_verified ? 'Verified' : 'Pending'}
-                        </Badge>
-                      </div>
-                    </div>
-                    
-                    {!institution?.is_verified && (
-                      <Alert>
-                        <Shield className="h-4 w-4" />
-                        <AlertDescription>
-                          Complete your institution verification to build trust with experts and access premium features.
-                        </AlertDescription>
-                      </Alert>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+              
         </Tabs>
       </div>
 
