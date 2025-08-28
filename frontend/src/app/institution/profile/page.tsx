@@ -60,8 +60,8 @@ export default function InstitutionProfile() {
     state: '',
     pincode: '',
     contact_person: '',
-    contact_email: '',
-    contact_phone: '',
+    email: '',
+    phone: '',
     established_year: '',
     accreditation: '',
     student_count: ''
@@ -100,8 +100,8 @@ export default function InstitutionProfile() {
             state: institutionProfile.state || '',
             pincode: institutionProfile.pincode || '',
             contact_person: institutionProfile.contact_person || '',
-            contact_email: institutionProfile.contact_email || '',
-            contact_phone: institutionProfile.contact_phone || '',
+            email: institutionProfile.email || '',
+            phone: institutionProfile.phone || '',
             established_year: institutionProfile.established_year?.toString() || '',
             accreditation: institutionProfile.accreditation || '',
             student_count: institutionProfile.student_count?.toString() || ''
@@ -464,26 +464,27 @@ export default function InstitutionProfile() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="contact_phone" className="text-slate-700">Contact Phone</Label>
+                        <Label htmlFor="phone" className="text-slate-700">Contact Phone *</Label>
                         <Input
-                          id="contact_phone"
+                          id="phone"
                           placeholder="Enter contact phone number"
-                          value={formData.contact_phone}
-                          onChange={(e) => handleInputChange('contact_phone', e.target.value)}
+                          value={formData.phone}
+                          onChange={(e) => handleInputChange('phone', e.target.value)}
                           className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
                           disabled={!editing}
+                          required
                         />
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="contact_email" className="text-slate-700">Contact Email</Label>
+                      <Label htmlFor="email" className="text-slate-700">Contact Email</Label>
                       <Input
-                        id="contact_email"
+                        id="email"
                         type="email"
                         placeholder="Enter contact email"
-                        value={formData.contact_email}
-                        onChange={(e) => handleInputChange('contact_email', e.target.value)}
+                        value={formData.email}
+                        onChange={(e) => handleInputChange('email', e.target.value)}
                         className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
                         disabled={!editing}
                       />

@@ -637,7 +637,7 @@ export default function InstitutionDashboard() {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8 relative z-10 mt-20">
+      <div className="container mx-auto px-4 py-8 relative z-10">
         {error && (
           <Alert variant="destructive" className="mb-6 bg-red-50/90 backdrop-blur-md border-red-200">
             <AlertDescription>{error}</AlertDescription>
@@ -1408,7 +1408,7 @@ export default function InstitutionDashboard() {
                                       <p className="text-sm">{expert.qualifications}</p>
                                     </div>
                                   )}
-                                  {expert.availability && expert.availability.length > 0 && (
+                                  {/* {expert.availability && expert.availability.length > 0 && (
                                     <div>
                                       <h4 className="font-medium mb-2">Availability</h4>
                                       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -1419,7 +1419,7 @@ export default function InstitutionDashboard() {
                                         ))}
                                       </div>
                                     </div>
-                                  )}
+                                  )} */}
                                   {expert.resume_url && (
                                     <div>
                                       <h4 className="font-medium mb-1">Resume</h4>

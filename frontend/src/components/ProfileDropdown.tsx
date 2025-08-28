@@ -15,12 +15,15 @@ import {
 import Link from 'next/link'
 
 interface ProfileDropdownProps {
-  user: any
+  user: any,
+  expert?: any,
   userType: 'expert' | 'institution'
 }
 
-export default function ProfileDropdown({ user, userType }: ProfileDropdownProps) {
+export default function ProfileDropdown({ user, expert, userType }: ProfileDropdownProps) {
   const router = useRouter()
+
+ console.log(expert,'expert')
 
   const handleLogout = async () => {
     try {
@@ -59,6 +62,7 @@ export default function ProfileDropdown({ user, userType }: ProfileDropdownProps
     return 'User'
   }
 
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -67,13 +71,13 @@ export default function ProfileDropdown({ user, userType }: ProfileDropdownProps
           className="flex items-center space-x-2 p-2 hover:bg-slate-800/50 transition-all duration-300 group"
         >
           <Avatar className="w-8 h-8 border-2 border-slate-600 group-hover:border-blue-400 transition-all duration-300">
-            <AvatarImage src={user?.user_metadata?.avatar_url} />
+            <AvatarImage src={expert?.photo_url} alt={expert?.name || 'Profile'} />
             <AvatarFallback className="text-sm font-medium bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
               {getUserInitials()}
             </AvatarFallback>
           </Avatar>
           <span className="text-slate-300 group-hover:text-white transition-colors duration-300 hidden sm:block">
-            {getUserDisplayName()}
+            {expert?.name || getUserDisplayName()}
           </span>
           <ChevronDown className="h-4 w-4 text-slate-400 transition-transform duration-300" />
         </Button>
@@ -88,13 +92,13 @@ export default function ProfileDropdown({ user, userType }: ProfileDropdownProps
         <div className="p-4 border-b border-slate-700/50">
           <div className="flex items-start space-x-3">
             <Avatar className="w-10 h-10 border-2 border-slate-600 flex-shrink-0">
-              <AvatarImage src={user?.user_metadata?.avatar_url} />
+              <AvatarImage src={expert?.photo_url} alt={expert?.name || 'Profile'} />
               <AvatarFallback className="text-sm font-medium bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
                 {getUserInitials()}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
-              <p className="text-white font-medium truncate">{getUserDisplayName()}</p>
+              <p className="text-white font-medium truncate">{expert?.name || getUserDisplayName()}</p>
               <p className="text-slate-400 text-sm break-words leading-relaxed">{user?.email}</p>
               <p className="text-blue-400 text-xs font-medium capitalize mt-1">{userType}</p>
             </div>

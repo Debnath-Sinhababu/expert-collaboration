@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { GraduationCap, Upload, Calendar, DollarSign } from 'lucide-react'
+import { GraduationCap, Upload, Calendar, DollarSign, X, Camera } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
@@ -76,6 +76,10 @@ export default function ExpertProfileSetup() {
     linkedin_url: ''
   })
 
+  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string>('')
+  const [photoError, setPhotoError] = useState('')
+
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -103,35 +107,88 @@ export default function ExpertProfileSetup() {
     }))
   }
 
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      setPhotoError('Please select a valid image file (JPEG, PNG, or WebP)')
+      return
+    }
+
+    // Validate file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      setPhotoError('File size must be less than 5MB')
+      return
+    }
+
+    setPhotoError('')
+    setSelectedPhoto(file)
+    
+    // Create preview
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      setPhotoPreview(e.target?.result as string)
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
+  const removePhoto = () => {
+    setSelectedPhoto(null)
+    setPhotoPreview('')
+    setPhotoError('')
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
     setError('')
 
     try {
-      if (!formData.name || !formData.bio || !formData.domain_expertise || !formData.hourly_rate) {
-        throw new Error('Please fill in all required fields')
+      if (!formData.name || !formData.bio || !formData.domain_expertise || !formData.hourly_rate || !formData.phone || !selectedPhoto) {
+        throw new Error('Please fill in all required fields including profile photo and phone number')
       }
 
-      const expertData = {
-        ...formData,
-        user_id: user.id,
-        email: user.email,
-        hourly_rate: parseFloat(formData.hourly_rate),
-        experience_years: parseInt(formData.experience_years) || 0,
-        availability: formData.availability,
-        created_at: new Date().toISOString(),
-        verified: false,
-        rating: 0,
-        total_projects: 0
+      // Create FormData for file upload
+      const formDataToSend = new FormData()
+      formDataToSend.append('user_id', user.id)
+      formDataToSend.append('email', user.email)
+      formDataToSend.append('name', formData.name)
+      formDataToSend.append('bio', formData.bio)
+      formDataToSend.append('phone', formData.phone)
+      formDataToSend.append('qualifications', formData.qualifications)
+      formDataToSend.append('domain_expertise', formData.domain_expertise)
+      formDataToSend.append('hourly_rate', formData.hourly_rate.toString())
+      formDataToSend.append('resume_url', formData.resume_url)
+      formDataToSend.append('experience_years', formData.experience_years)
+      formDataToSend.append('linkedin_url', formData.linkedin_url)
+      formDataToSend.append('availability', JSON.stringify(formData.availability))
+      
+      // Add the photo file
+      if (selectedPhoto) {
+        formDataToSend.append('profile_photo', selectedPhoto)
       }
 
-      await api.experts.create(expertData)
+      // Call the API with FormData
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/experts`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+        },
+        body: formDataToSend
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to create profile')
+      }
       setSuccess('Profile created successfully! Redirecting to dashboard...')
       
-      setTimeout(() => {
         router.push('/expert/dashboard')
-      }, 2000)
+      
     } catch (error: any) {
       setError(error.message)
     } finally {
@@ -211,13 +268,14 @@ export default function ExpertProfileSetup() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="phone" className="text-slate-700">Phone Number</Label>
+                    <Label htmlFor="phone" className="text-slate-700">Phone Number *</Label>
                     <Input
                       id="phone"
                       placeholder="Enter your phone number"
                       value={formData.phone}
                       onChange={(e) => handleInputChange('phone', e.target.value)}
                       className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
+                      required
                     />
                   </div>
                 </div>
@@ -245,6 +303,74 @@ export default function ExpertProfileSetup() {
                     rows={3}
                     className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
                   />
+                </div>
+
+                {/* Profile Photo Upload */}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="profile_photo" className="text-slate-700 flex items-center space-x-2">
+                      <Camera className="h-4 w-4" />
+                      <span>Profile Photo *</span>
+                    </Label>
+                    <p className="text-sm text-slate-500">Upload a professional photo (JPEG, PNG, or WebP, max 5MB)</p>
+                  </div>
+
+                  {/* Photo Upload Area */}
+                  <div className="space-y-4">
+                    {!photoPreview ? (
+                      <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors duration-300">
+                        <input
+                          type="file"
+                          id="profile_photo"
+                          accept="image/jpeg,image/jpg,image/png,image/webp"
+                          onChange={handlePhotoSelect}
+                          className="hidden"
+                        />
+                        <label htmlFor="profile_photo" className="cursor-pointer">
+                          <div className="space-y-3">
+                            <div className="mx-auto w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center">
+                              <Upload className="h-8 w-8 text-slate-400" />
+                            </div>
+                            <div>
+                              <p className="text-slate-600 font-medium">Click to upload photo</p>
+                              <p className="text-sm text-slate-500">or drag and drop</p>
+                            </div>
+                          </div>
+                        </label>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <div className="flex items-center space-x-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                          <Avatar className="w-20 h-20 border-4 border-blue-200">
+                            <AvatarImage src={photoPreview} />
+                            <AvatarFallback className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+                              {formData.name?.charAt(0) || 'E'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <p className="text-sm text-slate-600 font-medium">Photo selected</p>
+                            <p className="text-xs text-slate-500">{selectedPhoto?.name}</p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={removePhoto}
+                            className="text-red-600 border-red-300 hover:bg-red-50 hover:border-red-400 hover:text-red-700 transition-all duration-300"
+                          >
+                            <X className="h-4 w-4 mr-1" />
+                            Remove
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {photoError && (
+                      <Alert variant="destructive">
+                        <AlertDescription>{photoError}</AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
                 </div>
               </div>
 

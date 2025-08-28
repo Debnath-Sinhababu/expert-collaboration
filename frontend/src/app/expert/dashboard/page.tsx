@@ -61,6 +61,9 @@ export default function ExpertDashboard() {
     resume_url?: string
     availability?: string[]
     phone?: string
+    photo_url?: string
+    profile_photo_thumbnail_url?: string
+    profile_photo_small_url?: string
   }
 
   type Application = {
@@ -185,7 +188,11 @@ export default function ExpertDashboard() {
           qualifications: expertProfile.qualifications || [],
           domain_expertise: expertProfile.domain_expertise || [],
           resume_url: expertProfile.resume_url || '',
-          availability: expertProfile.availability || []
+          availability: expertProfile.availability || [],
+          photo_url: expertProfile.photo_url || '',
+          profile_photo_thumbnail_url: expertProfile.profile_photo_thumbnail_url || '',
+          phone: expertProfile.phone || '',
+          profile_photo_small_url: expertProfile.profile_photo_small_url || '',
         }
         setExpert(expertData)
         
@@ -393,13 +400,13 @@ export default function ExpertDashboard() {
               <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white hover:bg-slate-800/50 border border-transparent hover:border-slate-600 transition-all duration-300">
                 <MessageSquare className="h-4 w-4" />
               </Button>
-              <ProfileDropdown user={user} userType="expert" />
+              <ProfileDropdown user={user} expert={expert} userType="expert" />
             </div>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 relative z-10 mt-20">
+      <main className="container mx-auto px-4 py-8 relative z-10">
         {error && (
           <Alert className="mb-6 bg-red-50/90 backdrop-blur-md border-red-200" variant="destructive">
             <AlertDescription>{error}</AlertDescription>

@@ -73,13 +73,14 @@ export default function ExpertProfile() {
       const expertsResponse = await api.experts.getAll()
       if (expertsResponse && Array.isArray(expertsResponse)) {
         const expertProfile = expertsResponse.find((exp: any) => exp.user_id === userId)
+        console.log(expertProfile,'expertProfile')
         if (expertProfile) {
           setExpert(expertProfile)
           setFormData({
             name: expertProfile.name || '',
             bio: expertProfile.bio || '',
             qualifications: expertProfile.qualifications || '',
-            domain_expertise: expertProfile.domain_expertise || '',
+            domain_expertise: expertProfile.domain_expertise[0] || '',
             resume_url: expertProfile.resume_url || '',
             hourly_rate: expertProfile.hourly_rate?.toString() || '',
             photo_url: expertProfile.photo_url || '',
@@ -93,6 +94,8 @@ export default function ExpertProfile() {
       console.error('Error loading expert data:', error)
     }
   }
+
+  console.log(formData,'formData')
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -110,6 +113,7 @@ export default function ExpertProfile() {
 
       const expertData = {
         ...formData,
+        domain_expertise: [formData.domain_expertise],
         hourly_rate: parseFloat(formData.hourly_rate),
         experience_years: parseInt(formData.experience_years) || 0,
         updated_at: new Date().toISOString()

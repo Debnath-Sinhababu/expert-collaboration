@@ -104,13 +104,12 @@ export default function InstitutionProfileSetup() {
         rating: 0,
         total_projects: 0
       }
-
+      
       await api.institutions.create(institutionData)
       setSuccess('Institution profile created successfully! Redirecting to dashboard...')
       
-      setTimeout(() => {
         router.push('/institution/dashboard')
-      }, 2000)
+      
     } catch (error: any) {
       setError(error.message)
     } finally {
@@ -323,12 +322,13 @@ export default function InstitutionProfileSetup() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="contact_phone">Contact Phone</Label>
+                    <Label htmlFor="contact_phone">Contact Phone *</Label>
                     <Input
                       id="contact_phone"
                       placeholder="Enter contact phone number"
                       value={formData.contact_phone}
                       onChange={(e) => handleInputChange('contact_phone', e.target.value)}
+                      required
                     />
                   </div>
                 </div>
