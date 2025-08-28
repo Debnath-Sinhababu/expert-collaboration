@@ -264,8 +264,8 @@ app.put('/api/experts/:id', upload.single('profile_photo'), async (req, res) => 
 
     if (fetchError) throw fetchError;
 
-    let updateData = { ...req.body };
-
+    let updateData = { ...req.body,domain_expertise:[req.body.domain_expertise.trim()],qualifications:[req.body.qualifications.trim()] };
+    
     // Handle profile photo update if new photo is uploaded
     if (req.file) {
       // Delete old photo from Cloudinary if exists
