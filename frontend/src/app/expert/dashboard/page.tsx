@@ -433,37 +433,37 @@ export default function ExpertDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-indigo-900 to-purple-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
-          <p className="text-gray-200">Loading dashboard...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
+          <p className="text-slate-300">Loading dashboard...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-800 via-indigo-900 to-purple-900 relative">
+    <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 relative">
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-r from-cyan-400/20 to-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-r from-purple-400/20 to-pink-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-indigo-400/10 to-purple-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
+        <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
       </div>
-      <header className="bg-white/90 backdrop-blur-md shadow-lg border-b border-gray-200/50 relative z-10">
+      <header className="bg-slate-900/95 backdrop-blur-xl shadow-2xl border-b border-slate-700/50 relative z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center space-x-2">
+            <Link href="/" className="flex items-center space-x-2 group">
               <Logo size="md" />
-              <span className="text-xl font-bold text-gray-900">Calxmap</span>
+              <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Calxmap</span>
             </Link>
             
             <div className="flex items-center space-x-4">
               <NotificationBell />
-              <Button variant="ghost" size="sm" className="hover:bg-gray-100/80">
+              <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white hover:bg-slate-800/50 border border-transparent hover:border-slate-600 transition-all duration-300">
                 <MessageSquare className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="sm" onClick={handleLogout} className="hover:bg-gray-100/80">
+              <Button variant="ghost" size="sm" onClick={handleLogout} className="text-slate-300 hover:text-white hover:bg-slate-800/50 border border-transparent hover:border-slate-600 transition-all duration-300">
                 <LogOut className="h-4 w-4" />
               </Button>
             </div>
@@ -485,32 +485,32 @@ export default function ExpertDashboard() {
         )}
 
         <div className="mb-8 text-center">
-          <h1 className="text-4xl font-bold text-white mb-4 drop-shadow-2xl">Expert Dashboard</h1>
-          <p className="text-xl text-gray-200 drop-shadow-lg">Welcome back, {expert?.name}</p>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent mb-4 drop-shadow-2xl">Expert Dashboard</h1>
+          <p className="text-xl text-slate-300 drop-shadow-lg">Welcome back, {expert?.name}</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-white/90 backdrop-blur-md border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+          <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105 hover:-translate-y-2" style={{boxShadow: '0 25px 50px -12px rgba(59, 130, 246, 0.25), 0 0 0 1px rgba(59, 130, 246, 0.15)'}}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Applications</p>
-                  <p className="text-2xl font-bold text-gray-900">{applicationCounts.total}</p>
-                  <p className="text-xs text-gray-500">{applicationCounts.pending} pending</p>
+                  <p className="text-sm font-medium text-slate-700">Applications</p>
+                  <p className="text-2xl font-bold text-slate-900">{applicationCounts.total}</p>
+                  <p className="text-xs text-slate-500">{applicationCounts.pending} pending</p>
                 </div>
-                <div className="p-3 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full shadow-lg">
+                <div className="p-3 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full shadow-lg">
                   <Briefcase className="h-8 w-8 text-white" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/90 backdrop-blur-md border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+          <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105 hover:-translate-y-2" style={{boxShadow: '0 25px 50px -12px rgba(34, 197, 94, 0.25), 0 0 0 1px rgba(34, 197, 94, 0.15)'}}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Hourly Rate</p>
-                  <p className="text-2xl font-bold text-gray-900">₹{expert?.hourly_rate}</p>
+                  <p className="text-sm font-medium text-slate-700">Hourly Rate</p>
+                  <p className="text-2xl font-bold text-slate-900">₹{expert?.hourly_rate}</p>
                 </div>
                 <div className="p-3 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full shadow-lg">
                   <DollarSign className="h-8 w-8 text-white" />
@@ -519,13 +519,13 @@ export default function ExpertDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-white/90 backdrop-blur-md border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+          <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105 hover:-translate-y-2" style={{boxShadow: '0 25px 50px -12px rgba(251, 191, 36, 0.25), 0 0 0 1px rgba(251, 191, 36, 0.15)'}}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Rating</p>
-                  <p className="text-2xl font-bold text-gray-900">{expertAggregate.avg}/5</p>
-                  <p className="text-xs text-gray-500">{expertAggregate.count} reviews</p>
+                  <p className="text-sm font-medium text-slate-700">Rating</p>
+                  <p className="text-2xl font-bold text-slate-900">{expertAggregate.avg}/5</p>
+                  <p className="text-xs text-slate-500">{expertAggregate.count} reviews</p>
                 </div>
                 <div className="flex items-center">
                   {[1, 2, 3, 4, 5].map((star) => (
@@ -539,11 +539,11 @@ export default function ExpertDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-white/90 backdrop-blur-md border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+          <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105 hover:-translate-y-2" style={{boxShadow: '0 25px 50px -12px rgba(147, 51, 234, 0.25), 0 0 0 1px rgba(147, 51, 234, 0.15)'}}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">KYC Status</p>
+                  <p className="text-sm font-medium text-slate-700">KYC Status</p>
                   <Badge variant={expert?.is_verified ? 'default' : 'secondary'}>
                     {expert?.kyc_status || 'Pending'}
                   </Badge>
@@ -561,42 +561,42 @@ export default function ExpertDashboard() {
         </div>
 
         <Tabs defaultValue="applications" className="space-y-6">
-        <TabsList className="flex w-full gap-2 overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-6 sm:gap-0 sm:overflow-visible scrollbar-hide bg-white/90 backdrop-blur-md border-0 shadow-lg">
-        <TabsTrigger className="px-3 py-2 snap-start ml-3 sm:ml-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" value="applications">
+        <TabsList className="flex w-full gap-2 overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-6 sm:gap-0 sm:overflow-visible scrollbar-hide bg-white/95 backdrop-blur-sm border-0 shadow-2xl">
+        <TabsTrigger className="px-3 py-2 snap-start ml-3 sm:ml-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white hover:bg-slate-100/80 transition-all rounded-lg" value="applications">
           My Applications
         </TabsTrigger>
-        <TabsTrigger className="px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" value="projects">
+        <TabsTrigger className="px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white hover:bg-slate-100/80 transition-all rounded-lg" value="projects">
           Browse Projects
         </TabsTrigger>
-        <TabsTrigger className="px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" value="bookings">
+        <TabsTrigger className="px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white hover:bg-slate-100/80 transition-all rounded-lg" value="bookings">
           Bookings
         </TabsTrigger>
-        <TabsTrigger className="px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" value="availability">
+        <TabsTrigger className="px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white hover:bg-slate-100/80 transition-all rounded-lg" value="availability">
           Availability
         </TabsTrigger>
-        <TabsTrigger className="px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" value="notifications">
+        <TabsTrigger className="px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white hover:bg-slate-100/80 transition-all rounded-lg" value="notifications">
           Notifications
         </TabsTrigger>
-        <TabsTrigger className="px-3 py-2 snap-start mr-3 sm:mr-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" value="profile">
+        <TabsTrigger className="px-3 py-2 snap-start mr-3 sm:mr-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white hover:bg-slate-100/80 transition-all rounded-lg" value="profile">
           Profile
         </TabsTrigger>
       </TabsList>
 
 
           <TabsContent value="applications" className="space-y-6">
-            <Card className="bg-white/90 backdrop-blur-md border-0 shadow-xl">
+            <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 hover:scale-[1.02] hover:-translate-y-1" style={{boxShadow: '0 25px 50px -12px rgba(59, 130, 246, 0.25), 0 0 0 1px rgba(59, 130, 246, 0.15)'}}>
               <CardHeader>
-                <CardTitle className="text-gray-900">My Applications</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-slate-900">My Applications</CardTitle>
+                <CardDescription className="text-slate-600">
                   Track the status of your project applications
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {applications.length === 0 ? (
                   <div className="text-center py-8">
-                    <Briefcase className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600">No applications yet</p>
-                    <p className="text-sm text-gray-500">Browse projects to start applying</p>
+                    <Briefcase className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                    <p className="text-slate-600">No applications yet</p>
+                    <p className="text-sm text-slate-500">Browse projects to start applying</p>
                   </div>
                 ) : (
                   <div className="space-y-4">

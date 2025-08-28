@@ -660,36 +660,39 @@ export default function InstitutionDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-400 mx-auto mb-4"></div>
+          <p className="text-slate-300">Loading dashboard...</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-800 relative">
+    <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 relative">
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-r from-purple-400/20 to-pink-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-r from-indigo-400/20 to-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-pink-400/10 to-indigo-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
+        <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
       </div>
       {/* Header */}
-      <header className="bg-white/90 backdrop-blur-md shadow-lg border-b border-gray-200/50 relative z-10">
+      <header className="bg-slate-900/95 backdrop-blur-xl shadow-2xl border-b border-slate-700/50 relative z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <Link href="/" className="flex items-center space-x-2">
+            <Link href="/" className="flex items-center space-x-2 group">
               <Logo size="md" />
-              <span className="text-xl sm:text-2xl font-bold text-gray-900">Calxmap</span>
+              <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Calxmap</span>
             </Link>
             
             <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4">
               <div className="flex items-center space-x-2">
-                <Building className="h-5 w-5 text-gray-600" />
-                <span className="text-sm sm:text-base text-gray-700 truncate">{institution?.name}</span>
+                <Building className="h-5 w-5 text-slate-400" />
+                <span className="text-sm sm:text-base text-slate-300 truncate">{institution?.name}</span>
               </div>
               <NotificationBell />
-              <Button variant="outline" size="sm" onClick={handleLogout} className="w-full sm:w-auto hover:bg-gray-100/80">
+              <Button variant="outline" size="sm" onClick={handleLogout} className="w-full sm:w-auto text-slate-300 hover:text-white hover:bg-slate-800/50 border-slate-600 hover:border-slate-500 transition-all duration-300">
                 <LogOut className="h-4 w-4 mr-2" />
                 Logout
               </Button>
@@ -708,15 +711,15 @@ export default function InstitutionDashboard() {
         {/* Welcome Section */}
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="min-w-0 text-center sm:text-left">
-            <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4 truncate drop-shadow-2xl">
+            <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent mb-4 truncate drop-shadow-2xl">
               Welcome back, {institution?.name}!
             </h1>
-            <p className="text-lg sm:text-xl text-gray-200 drop-shadow-lg">
+            <p className="text-lg sm:text-xl text-slate-300 drop-shadow-lg">
               Manage your projects, review applications, and connect with qualified experts.
             </p>
           </div>
           <Dialog open={showProjectForm} onOpenChange={setShowProjectForm}>
-            <Button className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all w-full sm:w-auto" onClick={handleCreateProject}>
+            <Button className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-2xl hover:shadow-3xl hover:shadow-blue-500/25 transition-all duration-300 w-full sm:w-auto border-2 border-blue-400/20 hover:border-blue-400/40" onClick={handleCreateProject}>
               <Plus className="h-4 w-4 mr-2" />
               Post New Project
             </Button>
