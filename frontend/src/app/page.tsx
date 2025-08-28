@@ -144,27 +144,70 @@ export default function Home() {
       </header>
 
       {user && (
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-          <div className="container mx-auto px-4 py-12 text-center">
-            <h1 className="text-4xl font-bold mb-4">Welcome back to Calxmap</h1>
-            <p className="text-xl text-blue-100 mb-8">Continue your journey in connecting education with expertise</p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/expert/dashboard">
-                <Button size="lg" className="bg-white text-blue-600 hover:bg-gray-100 font-medium">
-                  Expert Dashboard
-                </Button>
-              </Link>
-              <Link href="/institution/dashboard">
-                <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-blue-600">
-                  Institution Dashboard
-                </Button>
-              </Link>
+        <div className="bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 relative overflow-hidden">
+          {/* Background Elements */}
+          <div className="absolute inset-0">
+            <div className="absolute top-10 left-10 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl"></div>
+            <div className="absolute bottom-10 right-10 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl"></div>
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
+          </div>
+          
+          <div className="container mx-auto px-4 py-16 text-center relative z-10">
+            <div className="max-w-4xl mx-auto">
+              <h1 className="text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent">
+                Welcome back to Calxmap
+              </h1>
+              <p className="text-xl lg:text-2xl text-slate-300 mb-12 max-w-3xl mx-auto leading-relaxed">
+                Continue your journey in connecting education with expertise. Your dashboard awaits with new opportunities and insights.
+              </p>
+              
+              <div className="flex flex-col sm:flex-row gap-6 justify-center">
+                <Link href="/expert/dashboard">
+                  <Button size="lg" className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-bold text-lg px-8 py-6 shadow-2xl hover:shadow-3xl hover:shadow-blue-500/25 transition-all duration-300 hover:scale-105 hover:-translate-y-1 border-2 border-blue-400/20 hover:border-blue-400/40 group">
+                    <Users className="mr-3 h-6 w-6 group-hover:scale-110 transition-transform duration-300" />
+                    Expert Dashboard
+                    <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
+                  </Button>
+                </Link>
+                                  <Link href="/institution/dashboard">
+                    <Button size="lg" className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-bold text-lg px-8 py-6 shadow-2xl hover:shadow-3xl hover:shadow-blue-500/25 transition-all duration-300 hover:scale-105 hover:-translate-y-1 border-2 border-blue-400/20 hover:border-blue-400/40 group">
+                      <Building className="mr-3 h-6 w-6 group-hover:scale-110 transition-transform duration-300" />
+                      Institution Dashboard
+                      <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
+                    </Button>
+                  </Link>
+              </div>
+              
+              {/* Trust indicators */}
+              <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="text-center group">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-500/20 to-indigo-500/20 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                    <TrendingUp className="h-8 w-8 text-blue-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-white mb-2">Active Projects</h3>
+                  <p className="text-slate-400">Track your ongoing collaborations</p>
+                </div>
+                <div className="text-center group">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                    <Users2 className="h-8 w-8 text-indigo-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-white mb-2">Network Growth</h3>
+                  <p className="text-slate-400">Expand your professional connections</p>
+                </div>
+                <div className="text-center group">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                    <BarChart3 className="h-8 w-8 text-purple-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-white mb-2">Performance Insights</h3>
+                  <p className="text-slate-400">Monitor your impact metrics</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {!user && (
+     
         <>
           {/* Hero Section */}
           <section className="relative bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 py-20 lg:py-32 overflow-hidden">
@@ -212,7 +255,7 @@ export default function Home() {
                     </Button>
                   </Link>
                   <Link href="#how-it-works">
-                    <Button size="lg" variant="outline" className="border-2 border-slate-400 text-slate-300 hover:bg-slate-700 hover:text-white font-medium text-xl px-8 py-6 hover:border-slate-300 hover:-translate-y-1 transition-all duration-300">
+                    <Button size="lg" className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-bold text-xl px-8 py-6 shadow-2xl hover:shadow-3xl hover:shadow-blue-500/25 transition-all duration-300 hover:scale-105 hover:-translate-y-1 border-2 border-blue-400/20 hover:border-blue-400/40">
                       <Play className="mr-2 h-5 w-5" />
                       See How It Works
                     </Button>
@@ -601,7 +644,7 @@ export default function Home() {
                   </Button>
                 </Link>
                 <Link href="#how-it-works">
-                  <Button size="lg" variant="outline" className="border-2 border-white/30 text-white hover:bg-white/10 hover:text-white font-bold text-xl px-12 py-6 shadow-2xl hover:shadow-3xl transition-all hover:scale-105 hover:-translate-y-1">
+                  <Button size="lg" className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-bold text-xl px-12 py-6 shadow-2xl hover:shadow-3xl hover:shadow-blue-500/25 transition-all duration-300 hover:scale-105 hover:-translate-y-1 border-2 border-blue-400/20 hover:border-blue-400/40">
                     Learn More
                   </Button>
                 </Link>
@@ -609,7 +652,7 @@ export default function Home() {
             </div>
           </section>
         </>
-      )}
+   
 
       {/* Professional Footer */}
       <footer className="bg-slate-900 text-white py-16">

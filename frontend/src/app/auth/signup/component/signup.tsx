@@ -326,7 +326,7 @@ export default function Signup() {
 
                 <div className="text-center">
                   <Link href="/auth/login">
-                    <Button variant="outline" className="w-full h-12 text-base font-medium border-slate-200 hover:bg-slate-50 hover:border-blue-300 transition-all duration-300">
+                    <Button className="w-full h-12 text-base font-medium bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white border-2 border-slate-500/30 hover:border-slate-400/50 transition-all duration-300 shadow-lg hover:shadow-xl">
                       Sign In to Your Account
                     </Button>
                   </Link>
