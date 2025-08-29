@@ -739,6 +739,96 @@ export default function Home() {
             </div>
           </section>
 
+          {/* Student Feedback & Analytics Section */}
+          <section className="py-20 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 relative overflow-hidden">
+            <div className="absolute inset-0">
+              <div className="absolute top-10 left-10 w-96 h-96 bg-purple-500/15 rounded-full blur-3xl"></div>
+              <div className="absolute bottom-10 right-10 w-80 h-80 bg-pink-500/15 rounded-full blur-3xl"></div>
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-full blur-3xl"></div>
+            </div>
+            
+            <div className="container mx-auto px-4 relative z-10">
+              <div className="text-center mb-16">
+                <h2 className="text-4xl font-bold text-white mb-4">Student Feedback & Analytics</h2>
+                <p className="text-xl text-slate-300 max-w-3xl mx-auto">
+                  Empowering students to share their voice and administrators to make data-driven decisions
+                </p>
+              </div>
+
+              <div className="grid lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
+                {/* Student Feedback Portal */}
+                <Card className="border-0 bg-white/10 backdrop-blur-xl shadow-2xl border border-white/20 hover:shadow-purple-500/25 transition-all duration-500 group hover:scale-105 hover:-translate-y-2">
+                  <CardHeader className="text-center pb-6">
+                    <div className="w-20 h-20 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform shadow-2xl">
+                      <BookOpen className="h-10 w-10 text-white" />
+                    </div>
+                    <CardTitle className="text-3xl font-bold text-white mb-4">Student Feedback Portal</CardTitle>
+                    <CardDescription className="text-slate-300 text-lg">
+                      Share your valuable feedback on expert sessions and help improve learning experiences
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="text-center pb-8">
+                    <div className="space-y-4 mb-8">
+                      <div className="flex items-center justify-center space-x-3 text-slate-300">
+                        <CheckCircle className="h-5 w-5 text-green-400" />
+                        <span>Anonymous & Secure Feedback</span>
+                      </div>
+                      <div className="flex items-center justify-center space-x-3 text-slate-300">
+                        <CheckCircle className="h-5 w-5 text-green-400" />
+                        <span>Quick & Easy Submission</span>
+                      </div>
+                      <div className="flex items-center justify-center space-x-3 text-slate-300">
+                        <CheckCircle className="h-5 w-5 text-green-400" />
+                        <span>Help Drive Improvements</span>
+                      </div>
+                    </div>
+                    <Link href="/student-feedback">
+                      <Button size="lg" className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold text-lg px-8 py-6 shadow-2xl hover:shadow-3xl transition-all hover:scale-105 border-2 border-purple-400/20 hover:shadow-purple-500/30 hover:-translate-y-1">
+                        Access Feedback Portal
+                        <ArrowRight className="ml-2 h-5 w-5" />
+                      </Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+
+                {/* Analytics Dashboard */}
+                <Card className="border-0 bg-white/10 backdrop-blur-xl shadow-2xl border border-white/20 hover:shadow-blue-500/25 transition-all duration-500 group hover:scale-105 hover:-translate-y-2">
+                  <CardHeader className="text-center pb-6">
+                    <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform shadow-2xl">
+                      <BarChart3 className="h-10 w-10 text-white" />
+                    </div>
+                    <CardTitle className="text-3xl font-bold text-white mb-4">Analytics Dashboard</CardTitle>
+                    <CardDescription className="text-slate-300 text-lg">
+                      Comprehensive insights and analytics for administrators and educators
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="text-center pb-8">
+                    <div className="space-y-4 mb-8">
+                      <div className="flex items-center justify-center space-x-3 text-slate-300">
+                        <CheckCircle className="h-5 w-5 text-green-400" />
+                        <span>Real-time Feedback Analytics</span>
+                      </div>
+                      <div className="flex items-center justify-center space-x-3 text-slate-300">
+                        <CheckCircle className="h-5 w-5 text-green-400" />
+                        <span>Performance Insights</span>
+                      </div>
+                      <div className="flex items-center justify-center space-x-3 text-slate-300">
+                        <CheckCircle className="h-5 w-5 text-green-400" />
+                        <span>Data-Driven Decisions</span>
+                      </div>
+                    </div>
+                    <Link href="/admin/feedback-analytics">
+                      <Button size="lg" className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-bold text-lg px-8 py-6 shadow-2xl hover:shadow-3xl transition-all hover:scale-105 border-2 border-blue-400/20 hover:shadow-blue-500/30 hover:-translate-y-1">
+                        View Analytics
+                        <ArrowRight className="ml-2 h-5 w-5" />
+                      </Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </section>
+
           {/* Call-to-Action Section */}
           <section className="py-20 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 relative overflow-hidden">
             <div className="absolute inset-0">
