@@ -14,6 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { GraduationCap, Building, Globe, MapPin, ArrowLeft, Save, Edit, Users, Shield, Star, Calendar, Award } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 const INSTITUTION_TYPES = [
   'University',
@@ -123,8 +124,29 @@ export default function InstitutionProfile() {
     setError('')
 
     try {
-      if (!formData.name || !formData.type || !formData.description || !formData.contact_person) {
-        throw new Error('Please fill in all required fields')
+      // Validate required fields with toast messages
+      if (!formData.name?.trim()) {
+        toast.error('Please enter institution name')
+        setSaving(false)
+        return
+      }
+
+      if (!formData.type) {
+        toast.error('Please select institution type')
+        setSaving(false)
+        return
+      }
+
+      if (!formData.description?.trim()) {
+        toast.error('Please enter institution description')
+        setSaving(false)
+        return
+      }
+
+      if (!formData.contact_person?.trim()) {
+        toast.error('Please enter contact person name')
+        setSaving(false)
+        return
       }
 
       const institutionData = {
@@ -136,7 +158,7 @@ export default function InstitutionProfile() {
 
       if (institution?.id) {
         await api.institutions.update(institution.id, institutionData)
-        setSuccess('Profile updated successfully!')
+        toast.success('Profile updated successfully!')
       } else {
         await api.institutions.create({
           ...institutionData,
@@ -144,15 +166,11 @@ export default function InstitutionProfile() {
           email: user.email,
           created_at: new Date().toISOString()
         })
-        setSuccess('Profile created successfully!')
+        toast.success('Profile created successfully!')
       }
       
       await loadInstitutionData(user.id)
       setEditing(false)
-      
-      setTimeout(() => {
-        setSuccess('')
-      }, 3000)
     } catch (error: any) {
       setError(error.message)
     } finally {
@@ -214,7 +232,7 @@ export default function InstitutionProfile() {
                   <Avatar className="w-24 h-24 mx-auto mb-4 border-4 border-blue-200">
                     <AvatarImage src={institution?.logo_url} />
                     <AvatarFallback className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
-                      {institution?.name?.charAt(0) || user?.email?.charAt(0) || 'I'}
+                      {institution?.name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'I'}
                     </AvatarFallback>
                   </Avatar>
                   <h2 className="text-2xl font-bold text-slate-900 mb-2">{institution?.name || 'Institution'}</h2>
@@ -478,7 +496,7 @@ export default function InstitutionProfile() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="email" className="text-slate-700">Contact Email</Label>
+                      <Label htmlFor="email" className="text-slate-700">Contact Email *</Label>
                       <Input
                         id="email"
                         type="email"
@@ -487,6 +505,7 @@ export default function InstitutionProfile() {
                         onChange={(e) => handleInputChange('email', e.target.value)}
                         className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
                         disabled={!editing}
+                        required
                       />
                     </div>
                   </div>

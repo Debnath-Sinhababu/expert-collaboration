@@ -11,9 +11,11 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { GraduationCap, Upload, Calendar, DollarSign, X, Camera, FileText, Download } from 'lucide-react'
+import { Upload, Calendar, DollarSign, X, Camera, FileText, Download } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
+import Logo from '@/components/Logo'
 
 const EXPERTISE_DOMAINS = [
   'Computer Science & IT',
@@ -206,8 +208,41 @@ export default function ExpertProfileSetup() {
     setError('')
 
     try {
-      if (!formData.name || !formData.bio || !formData.domain_expertise || !formData.hourly_rate || !formData.phone || !selectedPhoto) {
-        throw new Error('Please fill in all required fields including profile photo and phone number')
+      // Validate required fields with toast messages
+      if (!formData.name?.trim()) {
+        toast.error('Please enter your full name')
+        setSaving(false)
+        return
+      }
+
+      if (!formData.bio?.trim()) {
+        toast.error('Please enter your professional bio')
+        setSaving(false)
+        return
+      }
+
+      if (!formData.phone?.trim()) {
+        toast.error('Please enter your phone number')
+        setSaving(false)
+        return
+      }
+
+      if (!formData.domain_expertise) {
+        toast.error('Please select your domain expertise')
+        setSaving(false)
+        return
+      }
+
+      if (!formData.hourly_rate) {
+        toast.error('Please enter your hourly rate')
+        setSaving(false)
+        return
+      }
+
+      if (!selectedPhoto) {
+        toast.error('Please upload a profile photo')
+        setSaving(false)
+        return
       }
 
       // Create FormData for file upload
@@ -288,7 +323,7 @@ export default function ExpertProfileSetup() {
         {/* Header */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center space-x-2 mb-4 group">
-            <GraduationCap className="h-8 w-8 text-blue-400 group-hover:text-blue-300 transition-colors duration-300" />
+            <Logo size="sm" />
             <span className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Calxmap</span>
           </Link>
           <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent mb-2">Complete Your Expert Profile</h1>

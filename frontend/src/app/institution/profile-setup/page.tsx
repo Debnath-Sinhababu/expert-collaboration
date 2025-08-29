@@ -10,9 +10,11 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { GraduationCap, Building, Globe, MapPin } from 'lucide-react'
+import { Building, Globe, MapPin } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
+import Logo from '@/components/Logo'
 
 const INSTITUTION_TYPES = [
   'University',
@@ -89,8 +91,29 @@ export default function InstitutionProfileSetup() {
     setError('')
 
     try {
-      if (!formData.name || !formData.type || !formData.description || !formData.contact_person) {
-        throw new Error('Please fill in all required fields')
+      // Validate required fields with toast messages
+      if (!formData.name?.trim()) {
+        toast.error('Please enter institution name')
+        setSaving(false)
+        return
+      }
+
+      if (!formData.type) {
+        toast.error('Please select institution type')
+        setSaving(false)
+        return
+      }
+
+      if (!formData.description?.trim()) {
+        toast.error('Please enter institution description')
+        setSaving(false)
+        return
+      }
+
+      if (!formData.contact_person?.trim()) {
+        toast.error('Please enter contact person name')
+        setSaving(false)
+        return
       }
 
       const institutionData = {
@@ -106,7 +129,7 @@ export default function InstitutionProfileSetup() {
       }
       
       await api.institutions.create(institutionData)
-      setSuccess('Institution profile created successfully! Redirecting to dashboard...')
+      toast.success('Institution profile created successfully! Redirecting to dashboard...')
       
         router.push('/institution/dashboard')
       
@@ -141,7 +164,7 @@ export default function InstitutionProfileSetup() {
         {/* Header */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center space-x-2 mb-4 group">
-            <GraduationCap className="h-8 w-8 text-blue-400 group-hover:text-blue-300 transition-colors duration-300" />
+            <Logo size="sm" />
             <span className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Calxmap</span>
           </Link>
           <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent mb-2">Complete Your Institution Profile</h1>
@@ -334,13 +357,14 @@ export default function InstitutionProfileSetup() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="contact_email">Contact Email</Label>
+                  <Label htmlFor="contact_email">Contact Email *</Label>
                   <Input
                     id="contact_email"
                     type="email"
                     placeholder="Enter contact email"
                     value={formData.contact_email}
                     onChange={(e) => handleInputChange('contact_email', e.target.value)}
+                    required
                   />
                 </div>
               </div>

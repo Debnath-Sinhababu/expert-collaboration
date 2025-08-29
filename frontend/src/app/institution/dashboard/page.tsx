@@ -631,7 +631,7 @@ export default function InstitutionDashboard() {
                 <span className="text-sm sm:text-base text-slate-300 truncate">{institution?.name}</span>
               </div>
               <NotificationBell />
-              <ProfileDropdown user={user} userType="institution" />
+              <ProfileDropdown user={user} institution={institution} userType="institution"  />
             </div>
           </div>
         </div>

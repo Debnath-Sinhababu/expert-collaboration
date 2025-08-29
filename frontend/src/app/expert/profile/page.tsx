@@ -497,7 +497,7 @@ export default function ExpertProfile() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="phone" className="text-slate-700">Phone Number</Label>
+                        <Label htmlFor="phone" className="text-slate-700">Phone Number *</Label>
                         <Input
                           id="phone"
                           placeholder="Enter your phone number"
@@ -505,6 +505,7 @@ export default function ExpertProfile() {
                           onChange={(e) => handleInputChange('phone', e.target.value)}
                           className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
                           disabled={!editing}
+                          required
                         />
                       </div>
                     </div>

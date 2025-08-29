@@ -17,10 +17,11 @@ import Link from 'next/link'
 interface ProfileDropdownProps {
   user: any,
   expert?: any,
+  institution?: any,
   userType: 'expert' | 'institution'
 }
 
-export default function ProfileDropdown({ user, expert, userType }: ProfileDropdownProps) {
+export default function ProfileDropdown({ user, expert,institution, userType }: ProfileDropdownProps) {
   const router = useRouter()
 
  console.log(expert,'expert')
@@ -43,8 +44,11 @@ export default function ProfileDropdown({ user, expert, userType }: ProfileDropd
   }
 
   const getUserInitials = () => {
-    if (user?.user_metadata?.full_name) {
-      return user.user_metadata.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase()
+    if (expert?.name) {
+      return expert?.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase()
+    }
+    if (institution?.name) {
+      return institution?.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase()
     }
     if (user?.email) {
       return user.email.charAt(0).toUpperCase()
@@ -77,7 +81,7 @@ export default function ProfileDropdown({ user, expert, userType }: ProfileDropd
             </AvatarFallback>
           </Avatar>
           <span className="text-slate-300 group-hover:text-white transition-colors duration-300 hidden sm:block">
-            {expert?.name || getUserDisplayName()}
+            {expert?.name || institution?.name}
           </span>
           <ChevronDown className="h-4 w-4 text-slate-400 transition-transform duration-300" />
         </Button>
@@ -98,7 +102,7 @@ export default function ProfileDropdown({ user, expert, userType }: ProfileDropd
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
-              <p className="text-white font-medium truncate">{expert?.name || getUserDisplayName()}</p>
+              <p className="text-white font-medium truncate">{expert?.name || institution?.name}</p>
               <p className="text-slate-400 text-sm break-words leading-relaxed">{user?.email}</p>
               <p className="text-blue-400 text-xs font-medium capitalize mt-1">{userType}</p>
             </div>
