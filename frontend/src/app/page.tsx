@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -8,6 +8,8 @@ import { Carousel, CarouselContent,
   CarouselItem,
   CarouselNext,
   CarouselPrevious, } from '@/components/ui/carousel'
+import CountUp from 'react-countup'
+import { useInView } from 'react-intersection-observer'
 import { 
   Users, 
   BookOpen, 
@@ -39,6 +41,13 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [itemsPerView, setItemsPerView] = useState(3);
   const [scrolled, setScrolled] = useState(false);
+  
+  // Intersection observer for statistics animation
+  const { ref: statsRef, inView } = useInView({
+    threshold: 0.3,
+    triggerOnce: true,
+    rootMargin: '-50px 0px'
+  });
 
   useEffect(() => {
     const getUser = async () => {
@@ -239,7 +248,7 @@ export default function Home() {
                 <div className="bg-slate-800/80 backdrop-blur-sm rounded-2xl p-8 mb-12 shadow-2xl border border-slate-600">
                   <div className="flex items-center justify-center mb-4">
                     <Target className="h-8 w-8 text-red-400 mr-3" />
-                    <h3 className="text-xl font-semibold text-white">The Problem We Solve</h3>
+                    <h3 className="text-xl font-semibold text-white">About Us</h3>
                   </div>
                   <p className="text-lg text-slate-300 max-w-3xl mx-auto">
                     Universities struggle to find qualified industry experts. Corporations need specialized knowledge. 
@@ -469,7 +478,7 @@ export default function Home() {
           </section>
 
           {/* Statistics Section */}
-          <section className="py-20 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 relative overflow-hidden">
+          <section ref={statsRef} className="py-20 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 relative overflow-hidden">
             {/* Background Elements */}
             <div className="absolute inset-0">
               <div className="absolute top-10 left-10 w-80 h-80 bg-blue-500/15 rounded-full blur-3xl"></div>
@@ -485,22 +494,75 @@ export default function Home() {
 
               <div className="grid md:grid-cols-4 gap-8">
                 <div className="text-center group">
-                  <div className="text-5xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:scale-110 transition-transform">500+</div>
+                  <div className="text-5xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:scale-110 transition-transform">
+                    {inView ? (
+                      <CountUp 
+                        start={0} 
+                        end={500} 
+                        duration={2.5} 
+                        delay={0.2}
+                        suffix="+"
+                        className="inline-block"
+                      />
+                    ) : (
+                      "0+"
+                    )}
+                  </div>
                   <div className="text-slate-200 font-medium">Verified Experts</div>
                   <div className="w-2 h-2 bg-blue-400 rounded-full mx-auto mt-3 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 </div>
                 <div className="text-center group">
-                  <div className="text-5xl font-bold mb-2 bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent group-hover:scale-110 transition-transform">50+</div>
+                  <div className="text-5xl font-bold mb-2 bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent group-hover:scale-110 transition-transform">
+                    {inView ? (
+                      <CountUp 
+                        start={0} 
+                        end={50} 
+                        duration={2.5} 
+                        delay={0.4}
+                        suffix="+"
+                        className="inline-block"
+                      />
+                    ) : (
+                      "0+"
+                    )}
+                  </div>
                   <div className="text-slate-200 font-medium">Universities</div>
                   <div className="w-2 h-2 bg-indigo-400 rounded-full mx-auto mt-3 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 </div>
                 <div className="text-center group">
-                  <div className="text-5xl font-bold mb-2 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent group-hover:scale-110 transition-transform">1000+</div>
+                  <div className="text-5xl font-bold mb-2 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent group-hover:scale-110 transition-transform">
+                    {inView ? (
+                      <CountUp 
+                        start={0} 
+                        end={1000} 
+                        duration={2.5} 
+                        delay={0.6}
+                        suffix="+"
+                        className="inline-block"
+                      />
+                    ) : (
+                      "0+"
+                    )}
+                  </div>
                   <div className="text-slate-200 font-medium">Successful Projects</div>
                   <div className="w-2 h-2 bg-purple-400 rounded-full mx-auto mt-3 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 </div>
                 <div className="text-center group">
-                  <div className="text-5xl font-bold mb-2 bg-gradient-to-r from-pink-400 to-rose-400 bg-clip-text text-transparent group-hover:scale-110 transition-transform">4.9/5</div>
+                  <div className="text-5xl font-bold mb-2 bg-gradient-to-r from-pink-400 to-rose-400 bg-clip-text text-transparent group-hover:scale-110 transition-transform">
+                    {inView ? (
+                      <CountUp 
+                        start={0} 
+                        end={4.9} 
+                        duration={2.5} 
+                        delay={0.8}
+                        decimals={1}
+                        className="inline-block"
+                      />
+                    ) : (
+                      "0.0"
+                    )}
+                    <span className="text-3xl">/5</span>
+                  </div>
                   <div className="text-slate-200 font-medium">Average Rating</div>
                   <div className="w-2 h-2 bg-pink-400 rounded-full mx-auto mt-3 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 </div>
@@ -542,13 +604,24 @@ export default function Home() {
                     { name: "IISc Bangalore", desc: "Premier institute for advanced scientific research", icon: BookOpen, color: "teal" },
                   ].map((uni, index) => (
                     <CarouselItem key={index} className="basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4">
-                      <Card className="h-full mx-2 hover:shadow-2xl transition-all duration-500 border-0 shadow-lg bg-white/95 backdrop-blur-sm hover:scale-105 hover:-translate-y-2" style={{boxShadow: '0 15px 35px -10px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.08)'}}>
-                        <CardContent className="p-6 text-center">
-                          <div className={`w-16 h-16 bg-${uni.color}-100 rounded-full flex items-center justify-center mx-auto mb-4`}>
-                            <uni.icon className={`h-8 w-8 text-${uni.color}-600`} />
+                      <Card className="h-full mx-2 transition-all duration-500 border-0 hover:scale-105 hover:-translate-y-2 bg-gradient-to-br from-slate-800/80 via-slate-700/80 to-slate-800/80 backdrop-blur-xl border border-slate-600/30 shadow-2xl hover:shadow-blue-500/25" style={{boxShadow: '0 25px 50px -12px rgba(59, 130, 246, 0.25), 0 0 0 1px rgba(59, 130, 246, 0.15)'}}>
+                        <CardContent className="p-6 text-center relative overflow-hidden">
+                          {/* Glowing background effect */}
+                          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-indigo-500/5 to-purple-500/5 rounded-lg"></div>
+                          
+                          {/* Icon with enhanced styling */}
+                          <div className={`w-16 h-16 bg-gradient-to-r from-${uni.color}-500 to-${uni.color === 'blue' ? 'indigo' : uni.color === 'purple' ? 'pink' : uni.color === 'indigo' ? 'blue' : 'teal'}-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg border-2 border-${uni.color}-400/30 relative z-10`}>
+                            <uni.icon className="h-8 w-8 text-white drop-shadow-lg" />
+                            {/* Subtle glow effect */}
+                            <div className={`absolute inset-0 bg-${uni.color}-500/20 rounded-full blur-xl`}></div>
                           </div>
-                          <h3 className="font-bold text-gray-900 mb-2">{uni.name}</h3>
-                          <p className="text-sm text-gray-700">{uni.desc}</p>
+                          
+                          {/* Content with enhanced typography */}
+                          <h3 className="font-bold text-white mb-2 text-lg relative z-10 drop-shadow-sm">{uni.name}</h3>
+                          <p className="text-sm text-slate-300 relative z-10">{uni.desc}</p>
+                          
+                          {/* Bottom accent line */}
+                          <div className={`absolute bottom-0 left-1/2 transform -translate-x-1/2 w-16 h-0.5 bg-gradient-to-r from-${uni.color}-400 to-${uni.color === 'blue' ? 'indigo' : uni.color === 'purple' ? 'pink' : uni.color === 'indigo' ? 'blue' : 'teal'}-400 rounded-full mt-4`}></div>
                         </CardContent>
                       </Card>
                     </CarouselItem>
@@ -595,22 +668,34 @@ export default function Home() {
                     { name: "Mr. Vikram Gupta", rating: "4.9", expertise: "Legal & Compliance", experience: "20+ years", color: "cyan" },
                   ].map((expert, index) => (
                     <CarouselItem key={index} className="basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4">
-                      <Card className="h-full mx-2 hover:shadow-2xl transition-all duration-500 border-0 shadow-lg bg-white/95 backdrop-blur-sm hover:scale-105 hover:-translate-y-2" style={{boxShadow: '0 15px 35px -10px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.08)'}}>
-                        <CardContent className="p-6 text-center">
-                          <div className={`w-16 h-16 bg-gradient-to-r from-${expert.color}-500 to-${expert.color === 'blue' ? 'indigo' : expert.color === 'purple' ? 'pink' : expert.color === 'green' ? 'blue' : expert.color === 'orange' ? 'red' : 'teal'}-500 rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden`}>
-                            <div className="w-full h-full bg-gray-200 rounded-full flex items-center justify-center">
-                              <Users className="h-8 w-8 text-gray-600" />
-                            </div>
+                      <Card className="h-full mx-2 transition-all duration-500 border-0 hover:scale-105 hover:-translate-y-2 bg-gradient-to-br from-slate-800/80 via-slate-700/80 to-slate-800/80 backdrop-blur-xl border border-slate-600/30 shadow-2xl hover:shadow-purple-500/25" style={{boxShadow: '0 25px 50px -12px rgba(147, 51, 234, 0.25), 0 0 0 1px rgba(147, 51, 234, 0.15)'}}>
+                        <CardContent className="p-6 text-center relative overflow-hidden">
+                          {/* Glowing background effect */}
+                          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-pink-500/5 to-rose-500/5 rounded-lg"></div>
+                          
+                          {/* Enhanced avatar with gradient */}
+                          <div className={`w-16 h-16 bg-gradient-to-r from-${expert.color}-500 to-${expert.color === 'blue' ? 'indigo' : expert.color === 'purple' ? 'pink' : expert.color === 'green' ? 'emerald' : expert.color === 'orange' ? 'amber' : 'cyan'}-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg border-2 border-${expert.color}-400/30 relative z-10 overflow-hidden`}>
+                            <Users className="h-8 w-8 text-white drop-shadow-lg" />
+                            {/* Subtle glow effect */}
+                            <div className={`absolute inset-0 bg-${expert.color}-500/20 rounded-full blur-xl`}></div>
                           </div>
-                          <h3 className="font-bold text-gray-900 mb-1">{expert.name}</h3>
-                          <div className="flex justify-center items-center mb-2">
+                          
+                          {/* Content with enhanced typography */}
+                          <h3 className="font-bold text-white mb-1 text-lg relative z-10 drop-shadow-sm">{expert.name}</h3>
+                          
+                          {/* Enhanced rating display */}
+                          <div className="flex justify-center items-center mb-2 relative z-10">
                             {[...Array(5)].map((_, i) => (
-                              <Star key={i} className={`h-4 w-4 ${i < Math.floor(parseFloat(expert.rating)) ? "text-yellow-400 fill-current" : "text-gray-300"}`} />
+                              <Star key={i} className={`h-4 w-4 ${i < Math.floor(parseFloat(expert.rating)) ? "text-yellow-400 fill-current drop-shadow-sm" : "text-slate-500"}`} />
                             ))}
-                            <span className="text-sm text-gray-700 ml-2">{expert.rating}</span>
+                            <span className="text-sm text-slate-200 ml-2 font-medium">{expert.rating}</span>
                           </div>
-                          <p className="text-sm text-gray-700 font-medium">{expert.expertise}</p>
-                          <p className="text-xs text-gray-600">{expert.experience} experience</p>
+                          
+                          <p className="text-sm text-slate-200 font-medium relative z-10">{expert.expertise}</p>
+                          <p className="text-xs text-slate-400 relative z-10">{expert.experience} experience</p>
+                          
+                          {/* Bottom accent line */}
+                          <div className={`absolute bottom-0 left-1/2 transform -translate-x-1/2 w-16 h-0.5 bg-gradient-to-r from-${expert.color}-400 to-${expert.color === 'blue' ? 'indigo' : expert.color === 'purple' ? 'pink' : expert.color === 'green' ? 'emerald' : expert.color === 'orange' ? 'amber' : 'cyan'}-400 rounded-full mt-4`}></div>
                         </CardContent>
                       </Card>
                     </CarouselItem>
