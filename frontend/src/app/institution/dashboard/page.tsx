@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Drawer } from '@/components/ui/drawer'
@@ -1305,11 +1306,19 @@ export default function InstitutionDashboard() {
                 ) : (
                   <div className="space-y-4">
                     {experts.map((expert: any) => (
-                      <div key={expert.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                      <div key={expert.id} className="border rounded-lg p-4 shadow-md transition-shadow">
                         <div className="flex items-center justify-between mb-3 min-w-0">
-                          <div className="min-w-0 flex-1">
-                            <h3 className="font-semibold text-lg truncate pr-2">{expert.name}</h3>
-                            <p className="text-sm text-gray-600 truncate pr-2">{expert.domain_expertise}</p>
+                          <div className="flex items-center space-x-3 min-w-0 flex-1">
+                            <Avatar className="w-12 h-12 border-2 border-blue-200">
+                              <AvatarImage src={expert.photo_url} />
+                              <AvatarFallback className="text-lg font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+                                {expert.name?.charAt(0) || 'E'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0 flex-1">
+                              <h3 className="font-semibold text-lg truncate pr-2">{expert.name}</h3>
+                              <p className="text-sm text-gray-600 truncate pr-2">{expert.domain_expertise}</p>
+                            </div>
                           </div>
                           <div className="flex items-center space-x-2">
                             <Badge variant={expert.is_verified ? "default" : "secondary"}>
@@ -1380,6 +1389,18 @@ export default function InstitutionDashboard() {
                                   <DialogDescription>Complete Expert Profile</DialogDescription>
                                 </DialogHeader>
                                 <div className="space-y-4">
+                                  <div className="flex items-center space-x-4 mb-4">
+                                    <Avatar className="w-16 h-16 border-2 border-blue-200">
+                                      <AvatarImage src={expert.photo_url} />
+                                      <AvatarFallback className="text-xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+                                        {expert.name?.charAt(0) || 'E'}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                      <h4 className="font-semibold text-lg">{expert.name}</h4>
+                                      <p className="text-sm text-gray-600">{expert.domain_expertise}</p>
+                                    </div>
+                                  </div>
                                   <div>
                                     <h4 className="font-medium mb-2">Professional Bio</h4>
                                     <p className="text-sm text-gray-600">{expert.bio}</p>
@@ -1550,6 +1571,7 @@ export default function InstitutionDashboard() {
             onClose={() => setApplicationsDrawerOpen(false)}
             pageSize={20}
             institutionId={institution?.id || ''}
+            onRefreshBookings={refreshBookings}
           />
         )}
       </Drawer>

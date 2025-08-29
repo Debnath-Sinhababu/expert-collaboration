@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { 
   Users, 
   Eye, 
@@ -21,9 +22,10 @@ interface ProjectApplicationsProps {
   onClose: () => void
   pageSize?: number
   institutionId: string
+  onRefreshBookings?: () => void
 }
 
-export default function ProjectApplications({ projectId, projectTitle, onClose, pageSize = 20, institutionId }: ProjectApplicationsProps) {
+export default function ProjectApplications({ projectId, projectTitle, onClose, pageSize = 20, institutionId, onRefreshBookings }: ProjectApplicationsProps) {
   const [applications, setApplications] = useState<any[]>([])
   const [expertDetails, setExpertDetails] = useState<Record<string, any>>({})
   const [error, setError] = useState('')
@@ -128,6 +130,12 @@ export default function ProjectApplications({ projectId, projectTitle, onClose, 
       
       // Refresh applications after action
       refreshApplications()
+      
+      // If accepting, also refresh bookings to show the new booking immediately
+      if (action === 'accept' && onRefreshBookings) {
+        onRefreshBookings()
+      }
+      
       setError('')
       setSuccessMessage(`Application ${action === 'accept' ? 'accepted' : 'rejected'} successfully!`)
       
@@ -286,6 +294,18 @@ export default function ProjectApplications({ projectId, projectTitle, onClose, 
                                 <DialogDescription>Expert Profile Details</DialogDescription>
                               </DialogHeader>
                               <div className="space-y-4">
+                                <div className="flex items-center space-x-4 mb-4">
+                                  <Avatar className="w-16 h-16 border-2 border-blue-200">
+                                    <AvatarImage src={expertDetail?.photo_url} />
+                                    <AvatarFallback className="text-xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+                                      {expert?.name?.charAt(0) || 'E'}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <h4 className="font-semibold text-lg">{expert?.name || 'Expert'}</h4>
+                                    <p className="text-sm text-gray-600">{expertDetail?.domain_expertise || 'Domain not specified'}</p>
+                                  </div>
+                                </div>
                                 <div>
                                   <h4 className="font-medium mb-2">Professional Bio</h4>
                                   <p className="text-sm text-gray-600">{expert?.bio || 'No bio available'}</p>

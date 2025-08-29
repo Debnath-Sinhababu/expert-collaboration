@@ -769,7 +769,7 @@ export default function ExpertDashboard() {
                                   rows={4}
                                 />
                               </div>
-                              <div>
+                              {/* <div>
                                 <Label htmlFor="proposedRate">Proposed Hourly Rate (₹)</Label>
                                 <Input
                                   id="proposedRate"
@@ -778,11 +778,11 @@ export default function ExpertDashboard() {
                                   value={applicationForm.proposedRate}
                                   onChange={(e) => setApplicationForm({...applicationForm, proposedRate: e.target.value})}
                                 />
-                              </div>
+                              </div> */}
                               <Button 
                                 onClick={() => handleApplicationSubmit(project.id)}
                                 className="w-full"
-                                disabled={!applicationForm.coverLetter || !applicationForm.proposedRate}
+                                disabled={!applicationForm.coverLetter}
                               >
                                 Submit Application
                               </Button>
