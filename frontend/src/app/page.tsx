@@ -34,6 +34,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import Logo from '@/components/Logo'
+import BackgroundBannerCarousel from '@/components/BackgroundBannerCarousel'
 import Autoplay from "embla-carousel-autoplay"
 
 export default function Home() {
@@ -224,6 +225,9 @@ export default function Home() {
             <div className="absolute inset-0">
               <div className="absolute top-20 left-20 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl"></div>
               <div className="absolute bottom-20 right-20 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl"></div>
+              
+              {/* Background Banner Carousel */}
+              <BackgroundBannerCarousel />
             </div>
             
             <div className="container mx-auto px-4 relative z-10">
@@ -280,6 +284,20 @@ export default function Home() {
             <div className="absolute inset-0">
               <div className="absolute top-10 right-10 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl"></div>
               <div className="absolute bottom-10 left-10 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl"></div>
+              
+              {/* Academic Institution Banners */}
+              <div className="absolute top-20 left-16 w-28 h-6 bg-gradient-to-r from-blue-500/25 to-indigo-500/25 rounded-lg blur-sm transform rotate-12 animate-pulse delay-500"></div>
+              <div className="absolute top-32 right-24 w-32 h-5 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-lg blur-sm transform -rotate-12 animate-pulse delay-1000"></div>
+              <div className="absolute top-16 left-1/4 w-24 h-7 bg-gradient-to-r from-purple-500/30 to-pink-500/30 rounded-lg blur-sm transform rotate-6 animate-pulse delay-300"></div>
+              
+              <div className="absolute bottom-20 right-16 w-20 h-6 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-lg blur-sm transform -rotate-6 animate-pulse delay-1500"></div>
+              <div className="absolute bottom-32 left-24 w-36 h-5 bg-gradient-to-r from-indigo-500/25 to-blue-500/25 rounded-lg blur-sm transform rotate-12 animate-pulse delay-2000"></div>
+              <div className="absolute bottom-16 right-1/3 w-26 h-6 bg-gradient-to-r from-purple-500/20 to-indigo-500/20 rounded-lg blur-sm transform -rotate-12 animate-pulse delay-800"></div>
+              
+              {/* Research Institute Elements */}
+              <div className="absolute top-1/3 left-1/8 w-18 h-18 bg-gradient-to-r from-blue-500/12 to-indigo-500/12 rounded-full blur-xl animate-pulse delay-600"></div>
+              <div className="absolute top-2/5 right-1/6 w-22 h-22 bg-gradient-to-r from-indigo-500/8 to-purple-500/8 rounded-full blur-xl animate-pulse delay-1200"></div>
+              <div className="absolute bottom-1/3 left-1/6 w-16 h-16 bg-gradient-to-r from-purple-500/15 to-pink-500/15 rounded-full blur-xl animate-pulse delay-900"></div>
             </div>
             <div className="container mx-auto px-4 relative z-10">
               <div className="text-center mb-16">
@@ -483,6 +501,20 @@ export default function Home() {
             <div className="absolute inset-0">
               <div className="absolute top-10 left-10 w-80 h-80 bg-blue-500/15 rounded-full blur-3xl"></div>
               <div className="absolute bottom-10 right-10 w-96 h-96 bg-indigo-500/15 rounded-full blur-3xl"></div>
+              
+              {/* University Achievement Banners */}
+              <div className="absolute top-24 left-20 w-32 h-6 bg-gradient-to-r from-blue-500/25 to-indigo-500/25 rounded-lg blur-sm transform rotate-12 animate-pulse delay-300"></div>
+              <div className="absolute top-36 right-28 w-28 h-5 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-lg blur-sm transform -rotate-12 animate-pulse delay-800"></div>
+              <div className="absolute top-20 left-1/3 w-24 h-7 bg-gradient-to-r from-purple-500/30 to-pink-500/30 rounded-lg blur-sm transform rotate-6 animate-pulse delay-500"></div>
+              
+              <div className="absolute bottom-24 right-20 w-20 h-6 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-lg blur-sm transform -rotate-6 animate-pulse delay-1200"></div>
+              <div className="absolute bottom-36 left-28 w-36 h-5 bg-gradient-to-r from-indigo-500/25 to-blue-500/25 rounded-lg blur-sm transform rotate-12 animate-pulse delay-1500"></div>
+              <div className="absolute bottom-20 right-1/3 w-26 h-6 bg-gradient-to-r from-purple-500/20 to-indigo-500/20 rounded-lg blur-sm transform -rotate-12 animate-pulse delay-1000"></div>
+              
+              {/* Academic Excellence Elements */}
+              <div className="absolute top-1/4 left-1/8 w-20 h-20 bg-gradient-to-r from-blue-500/12 to-indigo-500/12 rounded-full blur-xl animate-pulse delay-600"></div>
+              <div className="absolute top-2/5 right-1/6 w-24 h-24 bg-gradient-to-r from-indigo-500/8 to-purple-500/8 rounded-full blur-xl animate-pulse delay-1000"></div>
+              <div className="absolute bottom-1/3 left-1/6 w-18 h-18 bg-gradient-to-r from-purple-500/15 to-pink-500/15 rounded-full blur-xl animate-pulse delay-700"></div>
             </div>
             <div className="container mx-auto px-4 relative z-10">
               <div className="text-center mb-16">
