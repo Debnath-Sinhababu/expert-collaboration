@@ -58,6 +58,51 @@ class ImageUploadService {
   }
 
   /**
+   * Upload PDF to Cloudinary
+   * @param {Buffer} pdfBuffer - PDF buffer from multer
+   * @param {string} folder - Cloudinary folder (e.g., 'expert-documents')
+   * @param {string} publicId - Optional public ID for the PDF
+   * @returns {Promise<Object>} Upload result with URL and public ID
+   */
+  static async uploadPDF(pdfBuffer, folder = 'expert-documents', publicId = null) {
+    try {
+      // Convert buffer to base64 string
+      const base64PDF = `data:application/pdf;base64,${pdfBuffer.toString('base64')}`;
+      
+      // Upload options for PDF
+      const uploadOptions = {
+        folder: folder,
+        resource_type: 'raw',
+        format: 'pdf',
+        flags: 'attachment' // Makes PDF downloadable
+      };
+
+      // Add public ID if provided
+      if (publicId) {
+        uploadOptions.public_id = publicId;
+      }
+
+      // Upload to Cloudinary
+      const result = await cloudinary.uploader.upload(base64PDF, uploadOptions);
+      
+      return {
+        success: true,
+        url: result.secure_url,
+        publicId: result.public_id,
+        format: result.format,
+        size: result.bytes,
+        originalName: result.original_filename || 'document.pdf'
+      };
+    } catch (error) {
+      console.error('PDF upload error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
    * Delete image from Cloudinary
    * @param {string} publicId - Cloudinary public ID
    * @returns {Promise<Object>} Deletion result
@@ -97,6 +142,32 @@ class ImageUploadService {
       return uploadResult;
     } catch (error) {
       console.error('Image update error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Update PDF (delete old and upload new)
+   * @param {Buffer} newPdfBuffer - New PDF buffer
+   * @param {string} oldPublicId - Old PDF public ID to delete
+   * @param {string} folder - Cloudinary folder
+   * @returns {Promise<Object>} Update result
+   */
+  static async updatePDF(newPdfBuffer, oldPublicId = null, folder = 'expert-documents') {
+    try {
+      // Delete old PDF if exists
+      if (oldPublicId) {
+        await this.deleteImage(oldPublicId); // Can reuse deleteImage for PDFs
+      }
+
+      // Upload new PDF
+      const uploadResult = await this.uploadPDF(newPdfBuffer, folder);
+      return uploadResult;
+    } catch (error) {
+      console.error('PDF update error:', error);
       return {
         success: false,
         error: error.message

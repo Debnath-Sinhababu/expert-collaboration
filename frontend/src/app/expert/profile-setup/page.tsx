@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { GraduationCap, Upload, Calendar, DollarSign, X, Camera } from 'lucide-react'
+import { GraduationCap, Upload, Calendar, DollarSign, X, Camera, FileText, Download } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
@@ -79,6 +79,12 @@ export default function ExpertProfileSetup() {
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string>('')
   const [photoError, setPhotoError] = useState('')
+  
+  const [selectedResume, setSelectedResume] = useState<File | null>(null)
+  const [resumeError, setResumeError] = useState('')
+  
+  const [selectedQualifications, setSelectedQualifications] = useState<File | null>(null)
+  const [qualificationsError, setQualificationsError] = useState('')
 
   useEffect(() => {
     const getUser = async () => {
@@ -142,6 +148,58 @@ export default function ExpertProfileSetup() {
     setPhotoError('')
   }
 
+  const handleResumeSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (file.type !== 'application/pdf') {
+      setResumeError('Please select a valid PDF file')
+      return
+    }
+
+    // Validate file size (20MB limit)
+    if (file.size > 20 * 1024 * 1024) {
+      setResumeError('File size must be less than 20MB')
+      return
+    }
+
+    setResumeError('')
+    setSelectedResume(file)
+    e.target.value = ''
+  }
+
+  const removeResume = () => {
+    setSelectedResume(null)
+    setResumeError('')
+  }
+
+  const handleQualificationsSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (file.type !== 'application/pdf') {
+      setQualificationsError('Please select a valid PDF file')
+      return
+    }
+
+    // Validate file size (20MB limit)
+    if (file.size > 20 * 1024 * 1024) {
+      setQualificationsError('File size must be less than 20MB')
+      return
+    }
+
+    setQualificationsError('')
+    setSelectedQualifications(file)
+    e.target.value = ''
+  }
+
+  const removeQualifications = () => {
+    setSelectedQualifications(null)
+    setQualificationsError('')
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
@@ -170,6 +228,16 @@ export default function ExpertProfileSetup() {
       // Add the photo file
       if (selectedPhoto) {
         formDataToSend.append('profile_photo', selectedPhoto)
+      }
+      
+      // Add resume PDF if selected
+      if (selectedResume) {
+        formDataToSend.append('resume', selectedResume)
+      }
+      
+      // Add qualifications PDF if selected
+      if (selectedQualifications) {
+        formDataToSend.append('qualifications', selectedQualifications)
       }
 
       // Call the API with FormData
@@ -303,6 +371,57 @@ export default function ExpertProfileSetup() {
                     rows={3}
                     className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
                   />
+                  <p className="text-xs text-slate-500">Brief summary of your qualifications (optional)</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="qualifications_pdf" className="text-slate-700">Qualifications Documents (PDF)</Label>
+                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+                    <input
+                      type="file"
+                      id="qualifications_pdf"
+                      accept=".pdf"
+                      onChange={handleQualificationsSelect}
+                      className="hidden"
+                    />
+                    <label htmlFor="qualifications_pdf" className="cursor-pointer">
+                      <FileText className="mx-auto h-12 w-12 text-slate-400 mb-4" />
+                      <p className="text-sm text-slate-600 mb-2">
+                        <span className="font-medium text-blue-600 hover:text-blue-500">
+                          Click to upload
+                        </span>{' '}
+                        or drag and drop
+                      </p>
+                      <p className="text-xs text-slate-500">PDF files only, max 20MB (optional)</p>
+                    </label>
+                  </div>
+                  
+                  {/* Qualifications PDF Preview */}
+                  {selectedQualifications && (
+                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <FileText className="h-5 w-5 text-blue-600" />
+                          <span className="text-sm font-medium text-blue-900">
+                            {selectedQualifications.name}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={removeQualifications}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {qualificationsError && (
+                    <Alert variant="destructive" className="mt-2">
+                      <AlertDescription>{qualificationsError}</AlertDescription>
+                    </Alert>
+                  )}
                 </div>
 
                 {/* Profile Photo Upload */}
@@ -438,14 +557,53 @@ export default function ExpertProfileSetup() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="resume_url" className="text-slate-700">Resume/CV Link</Label>
-                  <Input
-                    id="resume_url"
-                    placeholder="Link to your resume or CV (Google Drive, Dropbox, etc.)"
-                    value={formData.resume_url}
-                    onChange={(e) => handleInputChange('resume_url', e.target.value)}
-                    className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
-                  />
+                  <Label htmlFor="resume" className="text-slate-700">Resume/CV (PDF)</Label>
+                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+                    <input
+                      type="file"
+                      id="resume"
+                      accept=".pdf"
+                      onChange={handleResumeSelect}
+                      className="hidden"
+                    />
+                    <label htmlFor="resume" className="cursor-pointer">
+                      <FileText className="mx-auto h-12 w-12 text-slate-400 mb-4" />
+                      <p className="text-sm text-slate-600 mb-2">
+                        <span className="font-medium text-blue-600 hover:text-blue-500">
+                          Click to upload
+                        </span>{' '}
+                        or drag and drop
+                      </p>
+                      <p className="text-xs text-slate-500">PDF files only, max 20MB</p>
+                    </label>
+                  </div>
+                  
+                  {/* Resume Preview */}
+                  {selectedResume && (
+                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <FileText className="h-5 w-5 text-blue-600" />
+                          <span className="text-sm font-medium text-blue-900">
+                            {selectedResume.name}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={removeResume}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {resumeError && (
+                    <Alert variant="destructive" className="mt-2">
+                      <AlertDescription>{resumeError}</AlertDescription>
+                    </Alert>
+                  )}
                 </div>
               </div>
 
