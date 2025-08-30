@@ -407,7 +407,7 @@ export default function InstitutionProfileSetup() {
                 </div>
               </div>
 
-              <div className="flex justify-between pt-6">
+              <div className="flex justify-between pt-6 flex-wrap gap-3">
                 <Link href="/auth/login">
                   <Button variant="outline" className="border-slate-300 text-slate-600 hover:bg-slate-50 hover:border-slate-400 hover:text-slate-700 transition-all duration-300">
                     Back to Login

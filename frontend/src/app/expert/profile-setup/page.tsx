@@ -404,7 +404,7 @@ export default function ExpertProfileSetup() {
                     value={formData.qualifications}
                     onChange={(e) => handleInputChange('qualifications', e.target.value)}
                     rows={3}
-                    className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
+                    className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
                   />
                   <p className="text-xs text-slate-500">Brief summary of your qualifications (optional)</p>
                 </div>
@@ -437,7 +437,7 @@ export default function ExpertProfileSetup() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
                           <FileText className="h-5 w-5 text-blue-600" />
-                          <span className="text-sm font-medium text-blue-900">
+                          <span className="text-sm font-medium text-blue-900 break-all">
                             {selectedQualifications.name}
                           </span>
                         </div>
@@ -494,27 +494,34 @@ export default function ExpertProfileSetup() {
                       </div>
                     ) : (
                       <div className="relative">
-                        <div className="flex items-center space-x-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
-                          <Avatar className="w-20 h-20 border-4 border-blue-200">
-                            <AvatarImage src={photoPreview} />
-                            <AvatarFallback className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
-                              {formData.name?.charAt(0) || 'E'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1">
-                            <p className="text-sm text-slate-600 font-medium">Photo selected</p>
-                            <p className="text-xs text-slate-500">{selectedPhoto?.name}</p>
+                        <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 overflow-hidden">
+                          {/* Top row: Avatar and Remove button */}
+                          <div className="flex items-center justify-between mb-3">
+                            <Avatar className="w-20 h-20 border-4 border-blue-200 flex-shrink-0">
+                              <AvatarImage src={photoPreview} />
+                              <AvatarFallback className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+                                {formData.name?.charAt(0) || 'E'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={removePhoto}
+                              className="text-red-600 border-red-300 hover:bg-red-50 hover:border-red-400 hover:text-red-700 transition-all duration-300 px-2 py-1 h-6 text-xs flex-shrink-0"
+                            >
+                              <X className="h-3 w-3 mr-1" />
+                              Remove
+                            </Button>
                           </div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={removePhoto}
-                            className="text-red-600 border-red-300 hover:bg-red-50 hover:border-red-400 hover:text-red-700 transition-all duration-300"
-                          >
-                            <X className="h-4 w-4 mr-1" />
-                            Remove
-                          </Button>
+                          
+                          {/* Bottom row: Image information */}
+                          <div className="text-center sm:text-left w-full min-w-0">
+                            <p className="text-sm text-slate-600 font-medium">Photo selected</p>
+                            <div className="w-full overflow-hidden">
+                              <p className="text-xs text-slate-500 break-all">{selectedPhoto?.name}</p>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -619,7 +626,7 @@ export default function ExpertProfileSetup() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
                           <FileText className="h-5 w-5 text-blue-600" />
-                          <span className="text-sm font-medium text-blue-900">
+                          <span className="text-sm font-medium text-blue-900 break-all">
                             {selectedResume.name}
                           </span>
                         </div>
@@ -645,7 +652,7 @@ export default function ExpertProfileSetup() {
               {/* Availability */}
            
 
-              <div className="flex justify-between pt-6">
+              <div className="flex justify-between pt-6 flex-wrap gap-3">
                 <Link href="/auth/login">
                   <Button variant="outline" className="border-slate-300 text-slate-600 hover:bg-slate-50 hover:border-slate-400 hover:text-slate-700 transition-all duration-300">
                     Back to Login

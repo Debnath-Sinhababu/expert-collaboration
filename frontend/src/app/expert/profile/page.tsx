@@ -568,7 +568,7 @@ export default function ExpertProfile() {
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center space-x-2">
                                   <FileText className="h-5 w-5 text-blue-600" />
-                                  <span className="text-sm font-medium text-blue-900">
+                                  <span className="text-sm font-medium text-blue-900 break-all">
                                     {selectedQualifications.name}
                                   </span>
                                 </div>
@@ -646,27 +646,34 @@ export default function ExpertProfile() {
                             </div>
                           ) : (
                             <div className="relative">
-                              <div className="flex items-center space-x-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
-                                <Avatar className="w-20 h-20 border-4 border-blue-200">
-                                  <AvatarImage src={photoPreview} />
-                                  <AvatarFallback className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
-                                    {formData.name?.charAt(0) || 'E'}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div className="flex-1">
-                                  <p className="text-sm text-slate-600 font-medium">New photo selected</p>
-                                  <p className="text-xs text-slate-500">{selectedPhoto?.name}</p>
+                              <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 overflow-hidden">
+                                {/* Top row: Avatar and Remove button */}
+                                <div className="flex items-center justify-between mb-3">
+                                  <Avatar className="w-20 h-20 border-4 border-blue-200 flex-shrink-0">
+                                    <AvatarImage src={photoPreview} />
+                                    <AvatarFallback className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+                                      {formData.name?.charAt(0) || 'E'}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={removePhoto}
+                                    className="text-red-600 border-red-300 hover:bg-red-50 hover:border-red-400 hover:text-red-700 transition-all duration-300 px-2 py-1 h-6 text-xs flex-shrink-0"
+                                  >
+                                    <X className="h-3 w-3 mr-1" />
+                                    Remove
+                                  </Button>
                                 </div>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={removePhoto}
-                                  className="text-red-600 border-red-300 hover:bg-red-50 hover:border-red-400 hover:text-red-700 transition-all duration-300"
-                                >
-                                  <X className="h-4 w-4 mr-1" />
-                                  Remove
-                                </Button>
+                                
+                                {/* Bottom row: Image information */}
+                                <div className="text-center sm:text-left w-full min-w-0">
+                                  <p className="text-sm text-slate-600 font-medium">New photo selected</p>
+                                  <div className="w-full overflow-hidden">
+                                    <p className="text-xs text-slate-500 break-all">{selectedPhoto?.name}</p>
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           )}
@@ -780,7 +787,7 @@ export default function ExpertProfile() {
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center space-x-2">
                                   <FileText className="h-5 w-5 text-blue-600" />
-                                  <span className="text-sm font-medium text-blue-900">
+                                  <span className="text-sm font-medium text-blue-900 break-all">
                                     {selectedResume.name}
                                   </span>
                                 </div>
