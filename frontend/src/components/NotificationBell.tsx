@@ -112,13 +112,13 @@ export default function NotificationBell() {
         <Button
           variant="ghost"
           size="icon"
-          className="relative text-white hover:text-white hover:bg-transparent"
+          className="relative text-white hover:text-white hover:bg-transparent w-9 h-9 sm:w-10 sm:h-10"
         >
-          <Bell className="h-5 w-5" />
+          <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
           {unreadCount > 0 && (
             <Badge 
               variant="destructive" 
-              className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs flex items-center justify-center"
+              className="absolute -top-1 -right-1 h-4 w-4 sm:h-5 sm:w-5 rounded-full p-0 text-xs flex items-center justify-center"
             >
               {unreadCount > 99 ? '99+' : unreadCount}
             </Badge>
@@ -126,40 +126,40 @@ export default function NotificationBell() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent 
-        className="w-80 max-w-[calc(100vw-2rem)] max-h-96 p-0 bg-white/95 backdrop-blur-sm border-0 shadow-2xl" 
+        className="w-72 sm:w-80 max-w-[calc(100vw-2rem)] max-h-96 p-0 bg-white/95 backdrop-blur-sm border-0 shadow-2xl" 
         align="end"
         side="bottom"
         sideOffset={8}
       >
-        <div className="flex items-center justify-between p-4 border-b border-slate-200">
-          <h3 className="font-semibold text-slate-900">Notifications</h3>
+        <div className="flex items-center justify-between p-3 sm:p-4 border-b border-slate-200">
+          <h3 className="font-semibold text-slate-900 text-sm sm:text-base">Notifications</h3>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setIsOpen(false)}
-            className="text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-300"
+            className="text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-300 w-8 h-8 sm:w-9 sm:h-9"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3 w-3 sm:h-4 sm:w-4" />
           </Button>
         </div>
 
         <div className="max-h-80 overflow-y-auto">
           {notifications.length === 0 ? (
-            <div className="p-4 text-center text-slate-500">
-              <Bell className="h-8 w-8 mx-auto mb-2 text-slate-300" />
-              <p>No notifications yet</p>
+            <div className="p-3 sm:p-4 text-center text-slate-500">
+              <Bell className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-2 text-slate-300" />
+              <p className="text-sm sm:text-base">No notifications yet</p>
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
               {notifications.map((notification, index) => (
                 <div
                   key={index}
-                  className={`p-4 border-l-4 ${getNotificationColor(notification.type)}`}
+                  className={`p-3 sm:p-4 border-l-4 ${getNotificationColor(notification.type)}`}
                 >
-                  <div className="flex items-start space-x-3">
+                  <div className="flex items-start space-x-2 sm:space-x-3">
                     {getNotificationIcon(notification.type)}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-900">
+                      <p className="text-xs sm:text-sm font-medium text-slate-900">
                         {notification.message}
                       </p>
                       {notification.projectTitle && (
@@ -189,7 +189,7 @@ export default function NotificationBell() {
         </div>
 
         {notifications.length > 0 && (
-          <div className="p-3 border-t border-slate-200 bg-slate-50">
+          <div className="p-2 sm:p-3 border-t border-slate-200 bg-slate-50">
             <div className="flex items-center justify-between text-xs text-slate-500">
               <span>Socket Status: {isConnected ? 'Connected' : 'Disconnected'}</span>
               {showClearConfirm ? (
@@ -199,7 +199,7 @@ export default function NotificationBell() {
                     variant="outline"
                     size="sm"
                     onClick={handleClearAll}
-                    className="text-xs bg-red-50 text-red-600 border-red-200 hover:bg-red-100 transition-colors"
+                    className="text-xs bg-red-50 text-red-600 border-red-200 hover:bg-red-100 transition-colors px-2 py-1"
                     disabled={isClearing}
                   >
                     {isClearing ? 'Clearing...' : 'Yes'}
@@ -208,7 +208,7 @@ export default function NotificationBell() {
                     variant="ghost"
                     size="sm"
                     onClick={() => setShowClearConfirm(false)}
-                    className="text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-300"
+                    className="text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-300 px-2 py-1"
                     disabled={isClearing}
                   >
                     No
@@ -219,7 +219,7 @@ export default function NotificationBell() {
                   variant="outline"
                   size="sm"
                   onClick={handleClearClick}
-                  className="text-xs hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all duration-300"
+                  className="text-xs hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all duration-300 px-2 py-1"
                   disabled={notifications.length === 0 || isClearing}
                 >
                   Clear All ({notifications.length})

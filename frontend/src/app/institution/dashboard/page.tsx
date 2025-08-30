@@ -619,20 +619,19 @@ export default function InstitutionDashboard() {
       </div>
       {/* Header */}
       <header className="bg-slate-900/95 backdrop-blur-xl shadow-2xl border-b border-slate-700/50 relative z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
+          <div className="flex justify-between items-center">
             <Link href="/" className="flex items-center space-x-2 group">
               <Logo size="md" />
-              <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Calxmap</span>
+              <span className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Calxmap</span>
             </Link>
             
-            <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4">
-              <div className="flex items-center space-x-2">
-                <Building className="h-5 w-5 text-slate-400" />
-                <span className="text-sm sm:text-base text-slate-300 truncate">{institution?.name}</span>
+            <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 lg:gap-4">
+            
+              <div className="flex items-center space-x-2 order-2 sm:order-none">
+                <NotificationBell />
+                <ProfileDropdown user={user} institution={institution} userType="institution"  />
               </div>
-              <NotificationBell />
-              <ProfileDropdown user={user} institution={institution} userType="institution"  />
             </div>
           </div>
         </div>
@@ -648,7 +647,7 @@ export default function InstitutionDashboard() {
         {/* Welcome Section */}
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="min-w-0 text-center sm:text-left">
-            <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent mb-4 truncate drop-shadow-2xl">
+            <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent mb-4 drop-shadow-2xl">
               Welcome back, {institution?.name}!
             </h1>
             <p className="text-lg sm:text-xl text-slate-300 drop-shadow-lg">
