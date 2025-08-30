@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { 
   Users, 
   Eye, 
@@ -21,9 +22,10 @@ interface ProjectApplicationsProps {
   onClose: () => void
   pageSize?: number
   institutionId: string
+  onRefreshBookings?: () => void
 }
 
-export default function ProjectApplications({ projectId, projectTitle, onClose, pageSize = 20, institutionId }: ProjectApplicationsProps) {
+export default function ProjectApplications({ projectId, projectTitle, onClose, pageSize = 20, institutionId, onRefreshBookings }: ProjectApplicationsProps) {
   const [applications, setApplications] = useState<any[]>([])
   const [expertDetails, setExpertDetails] = useState<Record<string, any>>({})
   const [error, setError] = useState('')
@@ -128,6 +130,12 @@ export default function ProjectApplications({ projectId, projectTitle, onClose, 
       
       // Refresh applications after action
       refreshApplications()
+      
+      // If accepting, also refresh bookings to show the new booking immediately
+      if (action === 'accept' && onRefreshBookings) {
+        onRefreshBookings()
+      }
+      
       setError('')
       setSuccessMessage(`Application ${action === 'accept' ? 'accepted' : 'rejected'} successfully!`)
       
@@ -158,7 +166,7 @@ export default function ProjectApplications({ projectId, projectTitle, onClose, 
       <div className="flex-1 overflow-y-auto p-4">
         {/* Success Message */}
         {successMessage && (
-          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md text-green-700 text-sm">
+          <div className="mb-4 p-3 bg-green-50/90 backdrop-blur-sm border border-green-200 rounded-md text-green-700 text-sm">
             {successMessage}
           </div>
         )}
@@ -166,13 +174,13 @@ export default function ProjectApplications({ projectId, projectTitle, onClose, 
         <div className="space-y-4">
           {applicationsLoading && applications.length === 0 ? (
             <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-              <p className="mt-2 text-gray-600">Loading applications...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto"></div>
+              <p className="mt-2 text-slate-600">Loading applications...</p>
             </div>
           ) : applications.length === 0 ? (
             <div className="text-center py-8">
-              <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">No applications found for this project</p>
+              <Users className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+              <p className="text-slate-600">No applications found for this project</p>
             </div>
           ) : (
             applications.map((application) => {
@@ -182,11 +190,11 @@ export default function ProjectApplications({ projectId, projectTitle, onClose, 
               const expertAggregate = getExpertAggregate(application.expert_id)
 
               return (
-                <Card key={application.id} className="hover:shadow-md transition-shadow">
+                <Card key={application.id} className="bg-white/95 backdrop-blur-sm border-0 shadow-lg hover:shadow-2xl hover:shadow-blue-500/20 transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                        <div className="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center">
                           {expert?.photo_url ? (
                             <img 
                               src={expert.photo_url} 
@@ -194,12 +202,12 @@ export default function ProjectApplications({ projectId, projectTitle, onClose, 
                               className="w-10 h-10 rounded-full object-cover"
                             />
                           ) : (
-                            <Users className="h-5 w-5 text-gray-600" />
+                            <Users className="h-5 w-5 text-slate-600" />
                           )}
                         </div>
                         <div>
-                          <h3 className="font-semibold text-gray-900">{expert?.name || 'Unknown Expert'}</h3>
-                          <p className="text-sm text-gray-600">${expert?.hourly_rate || 0}/hr</p>
+                          <h3 className="font-semibold text-slate-900">{expert?.name || 'Unknown Expert'}</h3>
+                          <p className="text-sm text-slate-600">${expert?.hourly_rate || 0}/hr</p>
                         </div>
                       </div>
                       <Badge 
@@ -213,35 +221,35 @@ export default function ProjectApplications({ projectId, projectTitle, onClose, 
                   <CardContent>
                     <div className="space-y-3">
                       <div>
-                        <p className="text-sm text-gray-600 mb-2">{expert?.bio || 'No bio available'}</p>
+                        <p className="text-sm text-slate-600 mb-2">{expert?.bio || 'No bio available'}</p>
                       </div>
                       
                       {/* Expert Details Grid */}
                       {expertDetail && (
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
-                            <span className="text-gray-500">Domain Expertise:</span>
-                            <p className="font-medium">{expertDetail.domain_expertise || 'Not specified'}</p>
+                            <span className="text-slate-500">Domain Expertise:</span>
+                            <p className="font-medium text-slate-700">{expertDetail.domain_expertise || 'Not specified'}</p>
                           </div>
                           <div>
-                            <span className="text-gray-500">Hourly Rate:</span>
-                            <p className="font-medium">${expert?.hourly_rate || 0}/hr</p>
+                            <span className="text-slate-500">Hourly Rate:</span>
+                            <p className="font-medium text-slate-700">${expert?.hourly_rate || 0}/hr</p>
                           </div>
                           <div>
-                            <span className="text-gray-500">Experience:</span>
-                            <p className="font-medium">{expertDetail.experience_years || 0} years</p>
+                            <span className="text-slate-500">Experience:</span>
+                            <p className="font-medium text-slate-700">{expertDetail.experience_years || 0} years</p>
                           </div>
                           <div>
-                            <span className="text-gray-500">Verification:</span>
+                            <span className="text-slate-500">Verification:</span>
                             <Badge variant={expertDetail.is_verified ? "default" : "secondary"} className="ml-1">
                               {expertDetail.is_verified ? 'Verified' : 'Pending'}
                             </Badge>
                           </div>
                           <div>
-                            <span className="text-gray-500">Rating:</span>
+                            <span className="text-slate-500">Rating:</span>
                             <div className="flex items-center space-x-1">
                               <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                              <span className="font-medium">{expertAggregate.rating}/5</span>
+                              <span className="font-medium text-slate-700">{expertAggregate.rating}/5</span>
                             </div>
                           </div>
                         </div>
@@ -249,12 +257,12 @@ export default function ProjectApplications({ projectId, projectTitle, onClose, 
                       
                       {expertDetail?.qualifications && (
                         <div>
-                          <span className="text-sm text-gray-500">Qualifications:</span>
-                          <p className="text-sm mt-1">{expertDetail.qualifications}</p>
+                          <span className="text-sm text-slate-500">Qualifications:</span>
+                          <p className="text-sm mt-1 text-slate-700">{expertDetail.qualifications}</p>
                         </div>
                       )}
                       
-                      <div className="flex items-center justify-between text-sm text-gray-600">
+                      <div className="flex items-center justify-between text-sm text-slate-600">
                         <div className="flex items-center space-x-4">
                           <div className="flex items-center space-x-1">
                             <Clock className="h-4 w-4" />
@@ -267,7 +275,7 @@ export default function ProjectApplications({ projectId, projectTitle, onClose, 
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+                      <div className="flex items-center justify-between pt-3 border-t border-slate-200">
                         <div className="flex items-center space-x-2">
                           <Dialog>
                             <DialogTrigger asChild>
@@ -286,6 +294,18 @@ export default function ProjectApplications({ projectId, projectTitle, onClose, 
                                 <DialogDescription>Expert Profile Details</DialogDescription>
                               </DialogHeader>
                               <div className="space-y-4">
+                                <div className="flex items-center space-x-4 mb-4">
+                                  <Avatar className="w-16 h-16 border-2 border-blue-200">
+                                    <AvatarImage src={expertDetail?.photo_url} />
+                                    <AvatarFallback className="text-xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+                                      {expert?.name?.charAt(0) || 'E'}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <h4 className="font-semibold text-lg">{expert?.name || 'Expert'}</h4>
+                                    <p className="text-sm text-gray-600">{expertDetail?.domain_expertise || 'Domain not specified'}</p>
+                                  </div>
+                                </div>
                                 <div>
                                   <h4 className="font-medium mb-2">Professional Bio</h4>
                                   <p className="text-sm text-gray-600">{expert?.bio || 'No bio available'}</p>
@@ -332,7 +352,7 @@ export default function ProjectApplications({ projectId, projectTitle, onClose, 
                             size="sm"
                             onClick={() => handleApplicationAction(application.id, 'reject')}
                             disabled={processingApplications[application.id]}
-                            className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+                            className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 transition-all duration-300"
                           >
                             <XCircle className="h-4 w-4 mr-1" />
                             {processingApplications[application.id] ? 'Processing...' : 'Reject'}
@@ -341,7 +361,7 @@ export default function ProjectApplications({ projectId, projectTitle, onClose, 
                             size="sm"
                             onClick={() => handleApplicationAction(application.id, 'accept')}
                             disabled={processingApplications[application.id]}
-                            className="bg-green-600 hover:bg-green-700"
+                            className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white shadow-lg hover:shadow-xl hover:shadow-green-500/25 transition-all duration-300 border-2 border-green-400/20 hover:border-green-400/40"
                           >
                             <CheckCircle className="h-4 w-4 mr-1" />
                             {processingApplications[application.id] ? 'Processing...' : 'Accept'}
@@ -361,7 +381,7 @@ export default function ProjectApplications({ projectId, projectTitle, onClose, 
             <Button 
               onClick={loadMoreApplications}
               disabled={applicationsLoading}
-              variant="outline"
+              className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-lg hover:shadow-xl hover:shadow-blue-500/25 transition-all duration-300 border-2 border-blue-400/20 hover:border-blue-400/40"
             >
               {applicationsLoading ? 'Loading...' : 'Load More Applications'}
             </Button>

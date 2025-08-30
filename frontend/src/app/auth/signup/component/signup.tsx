@@ -1,81 +1,87 @@
 'use client'
-
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Eye, EyeOff, ArrowLeft, Shield, Zap, CheckCircle, Users, GraduationCap } from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Eye, EyeOff, Users, BookOpen, Building, ArrowLeft, Shield, Zap, CheckCircle, Star, Globe, Award } from 'lucide-react'
 import Logo from '@/components/Logo'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 
-export default function LoginPage() {
+export const dynamic = 'force-dynamic'
+
+export default function Signup() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [activeTab, setActiveTab] = useState('expert')
   const router = useRouter()
+  const searchParam = useSearchParams()
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
+    setSuccess('')
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match')
+      setLoading(false)
+      return
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long')
+      setLoading(false)
+      return
+    }
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            role: activeTab,
+          },
+          emailRedirectTo:`${process.env.NEXT_PUBLIC_FRONTEND_URL}/confirmemail`
+        },
       })
 
       if (error) throw error
 
       if (data.user) {
-        const userMetadata = data.user.user_metadata
-        const role = userMetadata?.role
+        setSuccess('Account created successfully! Please check your email to verify your account.')
         
-        if (role === 'expert') {
-          try {
-            const experts = await api.experts.getAll()
-            const userExpert = experts.find((expert: any) => expert.user_id === data.user.id)
-            
-            if (userExpert) {
-              router.push('/expert/dashboard')
-            } else {
-              router.push('/expert/profile-setup')
-            }
-          } catch (error) {
-            console.error('Error checking expert profile:', error)
+        setTimeout(() => {
+          if (activeTab === 'expert') {
             router.push('/expert/profile-setup')
-          }
-        } else if (role === 'institution') {
-          try {
-            const institutions = await api.institutions.getAll()
-            const userInstitution = institutions.find((institution: any) => institution.user_id === data.user.id)
-            
-            if (userInstitution) {
-              router.push('/institution/dashboard')
-            } else {
-              router.push('/institution/profile-setup')
-            }
-          } catch (error) {
-            console.error('Error checking institution profile:', error)
+          } else {
             router.push('/institution/profile-setup')
           }
-        } else {
-          router.push('/')
-        }
+        }, 2000)
       }
-    } catch (error: any) {
-      setError(error.message)
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'An error occurred')
     } finally {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    const role = searchParam.get('role') || 'expert'  // fallback to 'expert'
+    setActiveTab(role)
+  }, [searchParam])
+  
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 relative overflow-hidden">
@@ -83,9 +89,9 @@ export default function LoginPage() {
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-purple-500/15 to-indigo-500/15 rounded-full blur-3xl"></div>
-        <div className="absolute top-20 left-20 w-64 h-64 bg-gradient-to-br from-indigo-400/15 to-slate-600/15 rounded-full blur-2xl"></div>
-        <div className="absolute bottom-20 right-20 w-64 h-64 bg-gradient-to-tl from-purple-400/15 to-indigo-600/15 rounded-full blur-2xl"></div>
+        <div className="absolute top-1/3 left-1/3 w-96 h-96 bg-gradient-to-r from-purple-500/15 to-indigo-500/15 rounded-full blur-3xl"></div>
+        <div className="absolute top-10 right-10 w-64 h-64 bg-gradient-to-bl from-purple-400/15 to-indigo-600/15 rounded-full blur-2xl"></div>
+        <div className="absolute bottom-10 left-10 w-64 h-64 bg-gradient-to-tr from-indigo-400/15 to-purple-600/15 rounded-full blur-2xl"></div>
       </div>
       
       {/* Enhanced Header */}
@@ -123,11 +129,11 @@ export default function LoginPage() {
           <div className="hidden lg:block space-y-8">
             <div className="space-y-6">
               <h1 className="text-5xl font-bold text-white leading-tight">
-                Welcome Back to
-                <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent ml-2">Calxmap</span>
+                Join the Future of
+                <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent"> Calxmap</span>
               </h1>
               <p className="text-xl text-slate-200 leading-relaxed">
-                Continue your journey in transforming expertise into influence and connections into opportunities.
+                Transform your expertise into influence and build meaningful connections with leading organizations worldwide.
               </p>
             </div>
 
@@ -137,8 +143,8 @@ export default function LoginPage() {
                   <Shield className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-white mb-2">Enterprise Security</h3>
-                  <p className="text-slate-300">Your data is protected with enterprise-grade security and privacy measures.</p>
+                  <h3 className="text-lg font-semibold text-white mb-2">Verified Network</h3>
+                  <p className="text-slate-300">Join a trusted community of verified experts and leading institutions.</p>
                 </div>
               </div>
 
@@ -147,39 +153,47 @@ export default function LoginPage() {
                   <Zap className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-white mb-2">Instant Access</h3>
-                  <p className="text-slate-300">Get immediate access to your dashboard and start collaborating with experts.</p>
+                  <h3 className="text-lg font-semibold text-white mb-2">Instant Opportunities</h3>
+                  <p className="text-slate-300">Get immediate access to exciting projects and collaboration opportunities.</p>
                 </div>
               </div>
 
               <div className="flex items-start space-x-4 group">
                 <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                  <Users className="h-6 w-6 text-white" />
+                  <Globe className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-white mb-2">Global Network</h3>
-                  <p className="text-slate-300">Connect with verified experts and institutions worldwide.</p>
+                  <h3 className="text-lg font-semibold text-white mb-2">Global Reach</h3>
+                  <p className="text-slate-300">Connect with organizations and experts from around the world.</p>
                 </div>
               </div>
             </div>
 
             {/* Trust indicators */}
             <div className="pt-6 border-t border-slate-600/30">
-              <p className="text-sm text-slate-400 mb-3">Trusted by leading institutions</p>
-              <div className="flex items-center space-x-4">
+              <p className="text-sm text-slate-400 mb-3">Why professionals choose Calxmap</p>
+              <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-center space-x-2">
-                  <CheckCircle className="h-4 w-4 text-green-400" />
-                  <span className="text-sm text-slate-300">500+ Experts</span>
+                  <Star className="h-4 w-4 text-yellow-400 fill-current" />
+                  <span className="text-sm text-slate-300">4.9/5 Rating</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <CheckCircle className="h-4 w-4 text-green-400" />
+                  <span className="text-sm text-slate-300">1000+ Projects</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Award className="h-4 w-4 text-blue-400" />
+                  <span className="text-sm text-slate-300">Verified Experts</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Users className="h-4 w-4 text-purple-400" />
                   <span className="text-sm text-slate-300">50+ Universities</span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Right Side - Enhanced Login Form */}
+          {/* Right Side - Enhanced Signup Form */}
           <div className="w-full max-w-md mx-auto lg:mx-0 relative group">
             {/* Subtle background glow */}
             <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-2xl blur-2xl group-hover:from-blue-500/15 group-hover:to-indigo-500/15 transition-all duration-500"></div>
@@ -188,13 +202,56 @@ export default function LoginPage() {
                 <div className="flex justify-center mb-6 lg:hidden">
                   <Logo size="lg" />
                 </div>
-                <CardTitle className="text-3xl font-bold text-slate-900">Welcome Back</CardTitle>
+                <CardTitle className="text-3xl font-bold text-slate-900">Create Account</CardTitle>
                 <CardDescription className="text-slate-600 text-lg">
-                  Sign in to your dashboard
+                  Choose your role and join our platform
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <form onSubmit={handleLogin} className="space-y-6">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+                  <TabsList className="grid w-full grid-cols-2 h-12 bg-gradient-to-r from-slate-50 to-blue-50 p-1">
+                    <TabsTrigger value="expert" className="flex items-center space-x-2 text-sm data-[state=active]:bg-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/20 transition-all duration-300 rounded-lg">
+                      <Users className="h-4 w-4" />
+                      <span>Expert</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="institution" className="flex items-center space-x-2 text-sm data-[state=active]:bg-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/20 transition-all duration-300 rounded-lg">
+                      <BookOpen className="h-4 w-4" />
+                      <span>University</span>
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                                      <TabsContent value="expert" className="mt-4">
+                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200 shadow-sm hover:shadow-md hover:shadow-blue-500/20 transition-all duration-300">
+                        <h4 className="font-semibold text-blue-900 mb-2">For Experts</h4>
+                        <p className="text-sm text-blue-700">
+                          Share your expertise with leading universities and corporations. Build your brand and unlock flexible opportunities.
+                        </p>
+                      </div>
+                    </TabsContent>
+                    
+                                         <TabsContent value="institution" className="mt-4">
+                       <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg p-4 border border-purple-200 shadow-sm hover:shadow-md hover:shadow-purple-500/20 transition-all duration-300">
+                         <h4 className="font-semibold text-purple-900 mb-2">For Universities</h4>
+                         <p className="text-sm text-purple-700">
+                           Connect with industry experts to enhance academic excellence and bridge the gap with industry.
+                         </p>
+                       </div>
+                     </TabsContent>
+                </Tabs>
+
+                <form onSubmit={handleSignup} className="space-y-6">
+                  {error && (
+                    <Alert variant="destructive" className="border-red-200 bg-red-50">
+                      <AlertDescription className="text-red-700">{error}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  {success && (
+                    <Alert className="border-green-200 bg-green-50">
+                      <AlertDescription className="text-green-700">{success}</AlertDescription>
+                    </Alert>
+                  )}
+
                   <div className="space-y-2">
                     <Label htmlFor="email" className="text-sm font-medium text-slate-700">Email Address</Label>
                     <Input
@@ -207,13 +264,14 @@ export default function LoginPage() {
                       required
                     />
                   </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="password" className="text-sm font-medium text-slate-700">Password</Label>
                     <div className="relative">
                       <Input
                         id="password"
                         type={showPassword ? 'text' : 'password'}
-                        placeholder="Enter your password"
+                        placeholder="Create a strong password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         className="h-12 text-base border-slate-200 focus:border-blue-500 focus:ring-blue-500 pr-12 transition-all duration-300 focus:shadow-lg focus:shadow-blue-500/20"
@@ -235,18 +293,25 @@ export default function LoginPage() {
                     </div>
                   </div>
 
-                  {error && (
-                    <Alert variant="destructive" className="border-red-200 bg-red-50">
-                      <AlertDescription className="text-red-700">{error}</AlertDescription>
-                    </Alert>
-                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword" className="text-sm font-medium text-slate-700">Confirm Password</Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      placeholder="Confirm your password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="h-12 text-base border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300 focus:shadow-lg focus:shadow-blue-500/20"
+                      required
+                    />
+                  </div>
 
-                  <Button 
-                    type="submit" 
-                    className="w-full h-12 text-base font-medium bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-lg hover:shadow-xl hover:shadow-blue-500/25 transform hover:scale-[1.02] transition-all duration-300 border-2 border-blue-400/20 hover:border-blue-400/40" 
+                  <Button
+                    type="submit"
+                    className="w-full h-12 text-base font-medium bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-lg hover:shadow-xl hover:shadow-blue-500/25 transform hover:scale-[1.02] transition-all duration-300 border-2 border-blue-400/20 hover:border-blue-400/40"
                     disabled={loading}
                   >
-                    {loading ? 'Signing in...' : 'Sign In to Dashboard'}
+                    {loading ? 'Creating account...' : `Create ${activeTab === 'expert' ? 'Expert' : 'University'} Account`}
                   </Button>
                 </form>
 
@@ -255,21 +320,15 @@ export default function LoginPage() {
                     <span className="w-full border-t border-slate-200" />
                   </div>
                   <div className="relative flex justify-center text-sm">
-                    <span className="px-4 bg-white text-slate-500">New to Calxmap?</span>
+                    <span className="px-4 bg-white text-slate-500">Already have an account?</span>
                   </div>
                 </div>
 
                 <div className="text-center">
-                  <Link href="/auth/signup">
+                  <Link href="/auth/login">
                     <Button className="w-full h-12 text-base font-medium bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white border-2 border-slate-500/30 hover:border-slate-400/50 transition-all duration-300 shadow-lg hover:shadow-xl">
-                      Create Your Account
+                      Sign In to Your Account
                     </Button>
-                  </Link>
-                </div>
-
-                <div className="text-center">
-                  <Link href="#forgot-password" className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors duration-300">
-                    Forgot your password?
                   </Link>
                 </div>
 

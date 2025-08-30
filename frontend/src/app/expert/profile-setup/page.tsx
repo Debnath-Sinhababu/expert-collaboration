@@ -11,9 +11,11 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { GraduationCap, Upload, Calendar, DollarSign } from 'lucide-react'
+import { Upload, Calendar, DollarSign, X, Camera, FileText, Download } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
+import Logo from '@/components/Logo'
 
 const EXPERTISE_DOMAINS = [
   'Computer Science & IT',
@@ -76,6 +78,16 @@ export default function ExpertProfileSetup() {
     linkedin_url: ''
   })
 
+  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string>('')
+  const [photoError, setPhotoError] = useState('')
+  
+  const [selectedResume, setSelectedResume] = useState<File | null>(null)
+  const [resumeError, setResumeError] = useState('')
+  
+  const [selectedQualifications, setSelectedQualifications] = useState<File | null>(null)
+  const [qualificationsError, setQualificationsError] = useState('')
+
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -103,35 +115,183 @@ export default function ExpertProfileSetup() {
     }))
   }
 
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      setPhotoError('Please select a valid image file (JPEG, PNG, or WebP)')
+      return
+    }
+
+    // Validate file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      setPhotoError('File size must be less than 5MB')
+      return
+    }
+
+    setPhotoError('')
+    setSelectedPhoto(file)
+    
+    // Create preview
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      setPhotoPreview(e.target?.result as string)
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
+  const removePhoto = () => {
+    setSelectedPhoto(null)
+    setPhotoPreview('')
+    setPhotoError('')
+  }
+
+  const handleResumeSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (file.type !== 'application/pdf') {
+      setResumeError('Please select a valid PDF file')
+      return
+    }
+
+    // Validate file size (20MB limit)
+    if (file.size > 20 * 1024 * 1024) {
+      setResumeError('File size must be less than 20MB')
+      return
+    }
+
+    setResumeError('')
+    setSelectedResume(file)
+    e.target.value = ''
+  }
+
+  const removeResume = () => {
+    setSelectedResume(null)
+    setResumeError('')
+  }
+
+  const handleQualificationsSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (file.type !== 'application/pdf') {
+      setQualificationsError('Please select a valid PDF file')
+      return
+    }
+
+    // Validate file size (20MB limit)
+    if (file.size > 20 * 1024 * 1024) {
+      setQualificationsError('File size must be less than 20MB')
+      return
+    }
+
+    setQualificationsError('')
+    setSelectedQualifications(file)
+    e.target.value = ''
+  }
+
+  const removeQualifications = () => {
+    setSelectedQualifications(null)
+    setQualificationsError('')
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
     setError('')
 
     try {
-      if (!formData.name || !formData.bio || !formData.domain_expertise || !formData.hourly_rate) {
-        throw new Error('Please fill in all required fields')
+      // Validate required fields with toast messages
+      if (!formData.name?.trim()) {
+        toast.error('Please enter your full name')
+        setSaving(false)
+        return
       }
 
-      const expertData = {
-        ...formData,
-        user_id: user.id,
-        email: user.email,
-        hourly_rate: parseFloat(formData.hourly_rate),
-        experience_years: parseInt(formData.experience_years) || 0,
-        availability: formData.availability,
-        created_at: new Date().toISOString(),
-        verified: false,
-        rating: 0,
-        total_projects: 0
+      if (!formData.bio?.trim()) {
+        toast.error('Please enter your professional bio')
+        setSaving(false)
+        return
       }
 
-      await api.experts.create(expertData)
+      if (!formData.phone?.trim()) {
+        toast.error('Please enter your phone number')
+        setSaving(false)
+        return
+      }
+
+      if (!formData.domain_expertise) {
+        toast.error('Please select your domain expertise')
+        setSaving(false)
+        return
+      }
+
+      if (!formData.hourly_rate) {
+        toast.error('Please enter your hourly rate')
+        setSaving(false)
+        return
+      }
+
+      if (!selectedPhoto) {
+        toast.error('Please upload a profile photo')
+        setSaving(false)
+        return
+      }
+
+      // Create FormData for file upload
+      const formDataToSend = new FormData()
+      formDataToSend.append('user_id', user.id)
+      formDataToSend.append('email', user.email)
+      formDataToSend.append('name', formData.name)
+      formDataToSend.append('bio', formData.bio)
+      formDataToSend.append('phone', formData.phone)
+      formDataToSend.append('qualifications', formData.qualifications)
+      formDataToSend.append('domain_expertise', formData.domain_expertise)
+      formDataToSend.append('hourly_rate', formData.hourly_rate.toString())
+      formDataToSend.append('resume_url', formData.resume_url)
+      formDataToSend.append('experience_years', formData.experience_years)
+      formDataToSend.append('linkedin_url', formData.linkedin_url)
+      formDataToSend.append('availability', JSON.stringify(formData.availability))
+      
+      // Add the photo file
+      if (selectedPhoto) {
+        formDataToSend.append('profile_photo', selectedPhoto)
+      }
+      
+      // Add resume PDF if selected
+      if (selectedResume) {
+        formDataToSend.append('resume', selectedResume)
+      }
+      
+      // Add qualifications PDF if selected
+      if (selectedQualifications) {
+        formDataToSend.append('qualifications', selectedQualifications)
+      }
+
+      // Call the API with FormData
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/experts`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+        },
+        body: formDataToSend
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to create profile')
+      }
       setSuccess('Profile created successfully! Redirecting to dashboard...')
       
-      setTimeout(() => {
         router.push('/expert/dashboard')
-      }, 2000)
+      
     } catch (error: any) {
       setError(error.message)
     } finally {
@@ -141,31 +301,41 @@ export default function ExpertProfileSetup() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-400 mx-auto mb-4"></div>
+          <p className="text-slate-300">Loading profile setup...</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">
-      <div className="container mx-auto px-4 max-w-4xl">
+    <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 relative py-8">
+      {/* Background Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-20 w-64 h-64 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
+      </div>
+      
+      <div className="container mx-auto px-4 max-w-4xl relative z-10">
         {/* Header */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center space-x-2 mb-4">
-            <GraduationCap className="h-8 w-8 text-blue-600" />
-            <span className="text-2xl font-bold text-gray-900">Expert Collaboration</span>
+          <Link href="/" className="inline-flex items-center space-x-2 mb-4 group">
+            <Logo size="sm" />
+            <span className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Calxmap</span>
           </Link>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Complete Your Expert Profile</h1>
-          <p className="text-xl text-gray-600">
-            Tell us about your expertise and availability to start receiving project opportunities
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent mb-2">Complete Your Expert Profile</h1>
+          <p className="text-xl text-slate-300">
+            Tell us about your expertise and start receiving project opportunities
           </p>
         </div>
 
-        <Card>
+        <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 hover:scale-[1.02] hover:-translate-y-1" style={{boxShadow: '0 25px 50px -12px rgba(59, 130, 246, 0.25), 0 0 0 1px rgba(59, 130, 246, 0.15)'}}>
           <CardHeader>
-            <CardTitle>Expert Profile Setup</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-slate-900">Expert Profile Setup</CardTitle>
+            <CardDescription className="text-slate-600">
               Complete your profile to start connecting with universities and institutions
             </CardDescription>
           </CardHeader>
@@ -185,64 +355,188 @@ export default function ExpertProfileSetup() {
 
               {/* Basic Information */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Basic Information</h3>
+                <h3 className="text-lg font-semibold text-slate-800">Basic Information</h3>
                 
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Full Name *</Label>
+                    <Label htmlFor="name" className="text-slate-700">Full Name *</Label>
                     <Input
                       id="name"
                       placeholder="Enter your full name"
                       value={formData.name}
                       onChange={(e) => handleInputChange('name', e.target.value)}
+                      className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
                       required
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
+                    <Label htmlFor="phone" className="text-slate-700">Phone Number *</Label>
                     <Input
                       id="phone"
                       placeholder="Enter your phone number"
                       value={formData.phone}
                       onChange={(e) => handleInputChange('phone', e.target.value)}
+                      className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
+                      required
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="bio">Professional Bio *</Label>
+                  <Label htmlFor="bio" className="text-slate-700">Professional Bio *</Label>
                   <Textarea
                     id="bio"
                     placeholder="Describe your professional background, expertise, and what makes you unique..."
                     value={formData.bio}
                     onChange={(e) => handleInputChange('bio', e.target.value)}
                     rows={4}
+                    className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
                     required
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="qualifications">Qualifications & Certifications</Label>
+                  <Label htmlFor="qualifications" className="text-slate-700">Qualifications & Certifications</Label>
                   <Textarea
                     id="qualifications"
                     placeholder="List your degrees, certifications, and relevant qualifications..."
                     value={formData.qualifications}
                     onChange={(e) => handleInputChange('qualifications', e.target.value)}
                     rows={3}
+                    className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
                   />
+                  <p className="text-xs text-slate-500">Brief summary of your qualifications (optional)</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="qualifications_pdf" className="text-slate-700">Qualifications Documents (PDF)</Label>
+                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+                    <input
+                      type="file"
+                      id="qualifications_pdf"
+                      accept=".pdf"
+                      onChange={handleQualificationsSelect}
+                      className="hidden"
+                    />
+                    <label htmlFor="qualifications_pdf" className="cursor-pointer">
+                      <FileText className="mx-auto h-12 w-12 text-slate-400 mb-4" />
+                      <p className="text-sm text-slate-600 mb-2">
+                        <span className="font-medium text-blue-600 hover:text-blue-500">
+                          Click to upload
+                        </span>{' '}
+                        or drag and drop
+                      </p>
+                      <p className="text-xs text-slate-500">PDF files only, max 20MB (optional)</p>
+                    </label>
+                  </div>
+                  
+                  {/* Qualifications PDF Preview */}
+                  {selectedQualifications && (
+                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <FileText className="h-5 w-5 text-blue-600" />
+                          <span className="text-sm font-medium text-blue-900">
+                            {selectedQualifications.name}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={removeQualifications}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {qualificationsError && (
+                    <Alert variant="destructive" className="mt-2">
+                      <AlertDescription>{qualificationsError}</AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+
+                {/* Profile Photo Upload */}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="profile_photo" className="text-slate-700 flex items-center space-x-2">
+                      <Camera className="h-4 w-4" />
+                      <span>Profile Photo *</span>
+                    </Label>
+                    <p className="text-sm text-slate-500">Upload a professional photo (JPEG, PNG, or WebP, max 5MB)</p>
+                  </div>
+
+                  {/* Photo Upload Area */}
+                  <div className="space-y-4">
+                    {!photoPreview ? (
+                      <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors duration-300">
+                        <input
+                          type="file"
+                          id="profile_photo"
+                          accept="image/jpeg,image/jpg,image/png,image/webp"
+                          onChange={handlePhotoSelect}
+                          className="hidden"
+                        />
+                        <label htmlFor="profile_photo" className="cursor-pointer">
+                          <div className="space-y-3">
+                            <div className="mx-auto w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center">
+                              <Upload className="h-8 w-8 text-slate-400" />
+                            </div>
+                            <div>
+                              <p className="text-slate-600 font-medium">Click to upload photo</p>
+                              <p className="text-sm text-slate-500">or drag and drop</p>
+                            </div>
+                          </div>
+                        </label>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <div className="flex items-center space-x-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                          <Avatar className="w-20 h-20 border-4 border-blue-200">
+                            <AvatarImage src={photoPreview} />
+                            <AvatarFallback className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+                              {formData.name?.charAt(0) || 'E'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <p className="text-sm text-slate-600 font-medium">Photo selected</p>
+                            <p className="text-xs text-slate-500">{selectedPhoto?.name}</p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={removePhoto}
+                            className="text-red-600 border-red-300 hover:bg-red-50 hover:border-red-400 hover:text-red-700 transition-all duration-300"
+                          >
+                            <X className="h-4 w-4 mr-1" />
+                            Remove
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {photoError && (
+                      <Alert variant="destructive">
+                        <AlertDescription>{photoError}</AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
                 </div>
               </div>
 
               {/* Professional Details */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Professional Details</h3>
+                <h3 className="text-lg font-semibold text-slate-800">Professional Details</h3>
                 
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="domain_expertise">Domain Expertise *</Label>
+                    <Label htmlFor="domain_expertise" className="text-slate-700">Domain Expertise *</Label>
                     <Select value={formData.domain_expertise} onValueChange={(value) => handleInputChange('domain_expertise', value)}>
-                      <SelectTrigger>
+                      <SelectTrigger className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300">
                         <SelectValue placeholder="Select your primary domain" />
                       </SelectTrigger>
                       <SelectContent>
@@ -256,88 +550,110 @@ export default function ExpertProfileSetup() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="experience_years">Years of Experience</Label>
+                    <Label htmlFor="experience_years" className="text-slate-700">Years of Experience</Label>
                     <Input
                       id="experience_years"
                       type="number"
                       placeholder="Enter years of experience"
                       value={formData.experience_years}
                       onChange={(e) => handleInputChange('experience_years', e.target.value)}
+                      className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
                     />
                   </div>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="hourly_rate">Hourly Rate (₹) *</Label>
+                    <Label htmlFor="hourly_rate" className="text-slate-700">Hourly Rate (₹) *</Label>
                     <div className="relative">
-                      <DollarSign className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <DollarSign className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                       <Input
                         id="hourly_rate"
                         type="number"
                         placeholder="Enter your hourly rate"
                         value={formData.hourly_rate}
                         onChange={(e) => handleInputChange('hourly_rate', e.target.value)}
-                        className="pl-10"
+                        className="pl-10 border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
                         required
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="linkedin_url">LinkedIn Profile</Label>
+                    <Label htmlFor="linkedin_url" className="text-slate-700">LinkedIn Profile</Label>
                     <Input
                       id="linkedin_url"
                       placeholder="https://linkedin.com/in/yourprofile"
                       value={formData.linkedin_url}
                       onChange={(e) => handleInputChange('linkedin_url', e.target.value)}
+                      className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="resume_url">Resume/CV Link</Label>
-                  <Input
-                    id="resume_url"
-                    placeholder="Link to your resume or CV (Google Drive, Dropbox, etc.)"
-                    value={formData.resume_url}
-                    onChange={(e) => handleInputChange('resume_url', e.target.value)}
-                  />
+                  <Label htmlFor="resume" className="text-slate-700">Resume/CV (PDF)</Label>
+                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+                    <input
+                      type="file"
+                      id="resume"
+                      accept=".pdf"
+                      onChange={handleResumeSelect}
+                      className="hidden"
+                    />
+                    <label htmlFor="resume" className="cursor-pointer">
+                      <FileText className="mx-auto h-12 w-12 text-slate-400 mb-4" />
+                      <p className="text-sm text-slate-600 mb-2">
+                        <span className="font-medium text-blue-600 hover:text-blue-500">
+                          Click to upload
+                        </span>{' '}
+                        or drag and drop
+                      </p>
+                      <p className="text-xs text-slate-500">PDF files only, max 20MB</p>
+                    </label>
+                  </div>
+                  
+                  {/* Resume Preview */}
+                  {selectedResume && (
+                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <FileText className="h-5 w-5 text-blue-600" />
+                          <span className="text-sm font-medium text-blue-900">
+                            {selectedResume.name}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={removeResume}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {resumeError && (
+                    <Alert variant="destructive" className="mt-2">
+                      <AlertDescription>{resumeError}</AlertDescription>
+                    </Alert>
+                  )}
                 </div>
               </div>
 
               {/* Availability */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold flex items-center space-x-2">
-                  <Calendar className="h-5 w-5" />
-                  <span>Weekly Availability</span>
-                </h3>
-                <p className="text-sm text-gray-600">
-                  Select the time slots when you're typically available for academic engagements
-                </p>
-                
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  {AVAILABILITY_SLOTS.map((slot) => (
-                    <label key={slot} className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.availability.includes(slot)}
-                        onChange={(e) => handleAvailabilityChange(slot, e.target.checked)}
-                        className="rounded border-gray-300"
-                      />
-                      <span className="text-sm">{slot}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
+           
 
               <div className="flex justify-between pt-6">
                 <Link href="/auth/login">
-                  <Button variant="outline">Back to Login</Button>
+                  <Button variant="outline" className="border-slate-300 text-slate-600 hover:bg-slate-50 hover:border-slate-400 hover:text-slate-700 transition-all duration-300">
+                    Back to Login
+                  </Button>
                 </Link>
                 <Button
                   type="submit"
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-lg hover:shadow-xl hover:shadow-blue-500/25 transition-all duration-300 border-2 border-blue-400/20 hover:border-blue-400/40"
                   disabled={saving}
                 >
                   {saving ? 'Creating Profile...' : 'Complete Profile Setup'}

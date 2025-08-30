@@ -10,9 +10,11 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { GraduationCap, Building, Globe, MapPin } from 'lucide-react'
+import { Building, Globe, MapPin } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
+import Logo from '@/components/Logo'
 
 const INSTITUTION_TYPES = [
   'University',
@@ -89,8 +91,29 @@ export default function InstitutionProfileSetup() {
     setError('')
 
     try {
-      if (!formData.name || !formData.type || !formData.description || !formData.contact_person) {
-        throw new Error('Please fill in all required fields')
+      // Validate required fields with toast messages
+      if (!formData.name?.trim()) {
+        toast.error('Please enter institution name')
+        setSaving(false)
+        return
+      }
+
+      if (!formData.type) {
+        toast.error('Please select institution type')
+        setSaving(false)
+        return
+      }
+
+      if (!formData.description?.trim()) {
+        toast.error('Please enter institution description')
+        setSaving(false)
+        return
+      }
+
+      if (!formData.contact_person?.trim()) {
+        toast.error('Please enter contact person name')
+        setSaving(false)
+        return
       }
 
       const institutionData = {
@@ -104,13 +127,12 @@ export default function InstitutionProfileSetup() {
         rating: 0,
         total_projects: 0
       }
-
-      await api.institutions.create(institutionData)
-      setSuccess('Institution profile created successfully! Redirecting to dashboard...')
       
-      setTimeout(() => {
+      await api.institutions.create(institutionData)
+      toast.success('Institution profile created successfully! Redirecting to dashboard...')
+      
         router.push('/institution/dashboard')
-      }, 2000)
+      
     } catch (error: any) {
       setError(error.message)
     } finally {
@@ -120,31 +142,41 @@ export default function InstitutionProfileSetup() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-400 mx-auto mb-4"></div>
+          <p className="text-slate-300">Loading profile setup...</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">
-      <div className="container mx-auto px-4 max-w-4xl">
+    <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 relative py-8">
+      {/* Background Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-20 w-64 h-64 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
+      </div>
+      
+      <div className="container mx-auto px-4 max-w-4xl relative z-10">
         {/* Header */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center space-x-2 mb-4">
-            <GraduationCap className="h-8 w-8 text-blue-600" />
-            <span className="text-2xl font-bold text-gray-900">Expert Collaboration</span>
+          <Link href="/" className="inline-flex items-center space-x-2 mb-4 group">
+            <Logo size="sm" />
+            <span className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Calxmap</span>
           </Link>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Complete Your Institution Profile</h1>
-          <p className="text-xl text-gray-600">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent mb-2">Complete Your Institution Profile</h1>
+          <p className="text-xl text-slate-300">
             Set up your institution profile to start posting projects and finding experts
           </p>
         </div>
 
-        <Card>
+        <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 hover:scale-[1.02] hover:-translate-y-1" style={{boxShadow: '0 25px 50px -12px rgba(59, 130, 246, 0.25), 0 0 0 1px rgba(59, 130, 246, 0.15)'}}>
           <CardHeader>
-            <CardTitle>Institution Profile Setup</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-slate-900">Institution Profile Setup</CardTitle>
+            <CardDescription className="text-slate-600">
               Complete your institution profile to start connecting with qualified experts
             </CardDescription>
           </CardHeader>
@@ -164,27 +196,28 @@ export default function InstitutionProfileSetup() {
 
               {/* Basic Information */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold flex items-center space-x-2">
-                  <Building className="h-5 w-5" />
+                <h3 className="text-lg font-semibold flex items-center space-x-2 text-slate-800">
+                  <Building className="h-5 w-5 text-blue-500" />
                   <span>Basic Information</span>
                 </h3>
                 
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Institution Name *</Label>
+                    <Label htmlFor="name" className="text-slate-700">Institution Name *</Label>
                     <Input
                       id="name"
                       placeholder="Enter institution name"
                       value={formData.name}
                       onChange={(e) => handleInputChange('name', e.target.value)}
+                      className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
                       required
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="type">Institution Type *</Label>
+                    <Label htmlFor="type" className="text-slate-700">Institution Type *</Label>
                     <Select value={formData.type} onValueChange={(value) => handleInputChange('type', value)}>
-                      <SelectTrigger>
+                      <SelectTrigger className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300">
                         <SelectValue placeholder="Select institution type" />
                       </SelectTrigger>
                       <SelectContent>
@@ -199,22 +232,23 @@ export default function InstitutionProfileSetup() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="description">Institution Description *</Label>
+                  <Label htmlFor="description" className="text-slate-700">Institution Description *</Label>
                   <Textarea
                     id="description"
                     placeholder="Describe your institution, its mission, and academic focus..."
                     value={formData.description}
                     onChange={(e) => handleInputChange('description', e.target.value)}
                     rows={4}
+                    className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
                     required
                   />
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="website_url">Website URL</Label>
+                    <Label htmlFor="website_url" className="text-slate-700">Website URL</Label>
                     <div className="relative">
-                      <Globe className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Globe className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                       <Input
                         id="website_url"
                         placeholder="https://www.yourinstitution.edu"
@@ -311,24 +345,26 @@ export default function InstitutionProfileSetup() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="contact_phone">Contact Phone</Label>
+                    <Label htmlFor="contact_phone">Contact Phone *</Label>
                     <Input
                       id="contact_phone"
                       placeholder="Enter contact phone number"
                       value={formData.contact_phone}
                       onChange={(e) => handleInputChange('contact_phone', e.target.value)}
+                      required
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="contact_email">Contact Email</Label>
+                  <Label htmlFor="contact_email">Contact Email *</Label>
                   <Input
                     id="contact_email"
                     type="email"
                     placeholder="Enter contact email"
                     value={formData.contact_email}
                     onChange={(e) => handleInputChange('contact_email', e.target.value)}
+                    required
                   />
                 </div>
               </div>
@@ -373,11 +409,13 @@ export default function InstitutionProfileSetup() {
 
               <div className="flex justify-between pt-6">
                 <Link href="/auth/login">
-                  <Button variant="outline">Back to Login</Button>
+                  <Button variant="outline" className="border-slate-300 text-slate-600 hover:bg-slate-50 hover:border-slate-400 hover:text-slate-700 transition-all duration-300">
+                    Back to Login
+                  </Button>
                 </Link>
                 <Button
                   type="submit"
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-lg hover:shadow-xl hover:shadow-blue-500/25 transition-all duration-300 border-2 border-blue-400/20 hover:border-blue-400/40"
                   disabled={saving}
                 >
                   {saving ? 'Creating Profile...' : 'Complete Profile Setup'}

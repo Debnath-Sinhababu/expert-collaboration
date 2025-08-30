@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS experts (
     phone VARCHAR(20),
     bio TEXT,
     photo_url TEXT,
+    experience_years INTEGER, 
     qualifications TEXT[],
     domain_expertise TEXT[],
     hourly_rate DECIMAL(10,2),
@@ -18,6 +19,10 @@ CREATE TABLE IF NOT EXISTS experts (
     kyc_status VARCHAR(50) DEFAULT 'pending',
     rating DECIMAL(3,2) DEFAULT 0.00,
     total_ratings INTEGER DEFAULT 0,
+     profile_photo_public_id VARCHAR(255), -- NEW
+    profile_photo_thumbnail_url TEXT,     -- NEW
+    profile_photo_small_url TEXT,  
+    linkedin_url TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -38,6 +43,11 @@ CREATE TABLE IF NOT EXISTS institutions (
     country VARCHAR(100) DEFAULT 'India',
     is_verified BOOLEAN DEFAULT FALSE,
     rating DECIMAL(3,2) DEFAULT 0.00,
+     contact_person VARCHAR(255),
+     pincode VARCHAR(20),
+     accreditation VARCHAR(255), 
+    student_count INTEGER,           
+    established_year INTEGER,
     total_ratings INTEGER DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -135,6 +145,7 @@ CREATE INDEX IF NOT EXISTS idx_bookings_institution_id ON bookings(institution_i
 CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id);
 CREATE INDEX IF NOT EXISTS idx_messages_receiver_id ON messages(receiver_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_experts_profile_photo ON experts(profile_photo_public_id);
 
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$

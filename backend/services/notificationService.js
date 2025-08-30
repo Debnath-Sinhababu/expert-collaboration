@@ -141,10 +141,10 @@ class NotificationService {
       await this.sgMail.send({
         from: {
           email: process.env.SENDGRID_FROM_EMAIL || 'noreply@expertcollaboration.com',
-          name: 'Expert Collaboration Platform'
+          name: 'Calxmap Team'
         },
         to: data.email,
-        subject: `Expert Collaboration - ${type.replace('_', ' ').toUpperCase()}`,
+        subject: `Calxmap - ${type.replace('_', ' ').toUpperCase()}`,
         html: emailContent,
       });
 

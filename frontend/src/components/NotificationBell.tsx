@@ -112,7 +112,7 @@ export default function NotificationBell() {
         <Button
           variant="ghost"
           size="icon"
-          className="relative"
+          className="relative text-white hover:text-white hover:bg-transparent"
         >
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
@@ -126,17 +126,18 @@ export default function NotificationBell() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent 
-        className="w-80 max-w-[calc(100vw-2rem)] max-h-96 p-0" 
+        className="w-80 max-w-[calc(100vw-2rem)] max-h-96 p-0 bg-white/95 backdrop-blur-sm border-0 shadow-2xl" 
         align="end"
         side="bottom"
         sideOffset={8}
       >
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <h3 className="font-semibold text-gray-900">Notifications</h3>
+        <div className="flex items-center justify-between p-4 border-b border-slate-200">
+          <h3 className="font-semibold text-slate-900">Notifications</h3>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setIsOpen(false)}
+            className="text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-300"
           >
             <X className="h-4 w-4" />
           </Button>
@@ -144,12 +145,12 @@ export default function NotificationBell() {
 
         <div className="max-h-80 overflow-y-auto">
           {notifications.length === 0 ? (
-            <div className="p-4 text-center text-gray-500">
-              <Bell className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+            <div className="p-4 text-center text-slate-500">
+              <Bell className="h-8 w-8 mx-auto mb-2 text-slate-300" />
               <p>No notifications yet</p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-slate-100">
               {notifications.map((notification, index) => (
                 <div
                   key={index}
@@ -158,25 +159,25 @@ export default function NotificationBell() {
                   <div className="flex items-start space-x-3">
                     {getNotificationIcon(notification.type)}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="text-sm font-medium text-slate-900">
                         {notification.message}
                       </p>
                       {notification.projectTitle && (
-                        <p className="text-xs text-gray-600 mt-1">
+                        <p className="text-xs text-slate-600 mt-1">
                           Project: {notification.projectTitle}
                         </p>
                       )}
                       {notification.expertName && (
-                        <p className="text-xs text-gray-600">
+                        <p className="text-xs text-slate-600">
                           Expert: {notification.expertName}
                         </p>
                       )}
                       {notification.institutionName && (
-                        <p className="text-xs text-gray-600">
+                        <p className="text-xs text-slate-600">
                           Institution: {notification.institutionName}
                         </p>
                       )}
-                      <p className="text-xs text-gray-400 mt-2">
+                      <p className="text-xs text-slate-400 mt-2">
                         {formatTime(notification.timestamp)}
                       </p>
                     </div>
@@ -188,8 +189,8 @@ export default function NotificationBell() {
         </div>
 
         {notifications.length > 0 && (
-          <div className="p-3 border-t border-gray-200 bg-gray-50">
-            <div className="flex items-center justify-between text-xs text-gray-500">
+          <div className="p-3 border-t border-slate-200 bg-slate-50">
+            <div className="flex items-center justify-between text-xs text-slate-500">
               <span>Socket Status: {isConnected ? 'Connected' : 'Disconnected'}</span>
               {showClearConfirm ? (
                 <div className="flex items-center space-x-2">
@@ -207,7 +208,7 @@ export default function NotificationBell() {
                     variant="ghost"
                     size="sm"
                     onClick={() => setShowClearConfirm(false)}
-                    className="text-xs"
+                    className="text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-300"
                     disabled={isClearing}
                   >
                     No
@@ -218,7 +219,7 @@ export default function NotificationBell() {
                   variant="outline"
                   size="sm"
                   onClick={handleClearClick}
-                  className="text-xs hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors"
+                  className="text-xs hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all duration-300"
                   disabled={notifications.length === 0 || isClearing}
                 >
                   Clear All ({notifications.length})

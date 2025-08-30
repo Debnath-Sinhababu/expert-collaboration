@@ -27,7 +27,7 @@ export default function ConfirmEmailPage() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center space-x-2 mb-6">
             <GraduationCap className="h-8 w-8 sm:h-10 sm:w-10 text-blue-600" />
-            <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Expert Collaboration</span>
+            <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Calxmap</span>
           </Link>
         </div>
 
@@ -56,7 +56,7 @@ export default function ConfirmEmailPage() {
             </CardTitle>
             
             <CardDescription className="text-base sm:text-lg text-gray-600 max-w-md mx-auto">
-              Your account has been verified and activated. Welcome to Expert Collaboration!
+              Your account has been verified and activated. Welcome to Calxmap!
             </CardDescription>
           </CardHeader>
 
@@ -124,7 +124,7 @@ export default function ConfirmEmailPage() {
         {/* Footer */}
         <div className="text-center mt-8">
           <p className="text-sm text-gray-500">
-            Thank you for choosing Expert Collaboration
+            Thank you for choosing Calxmap
           </p>
         </div>
       </div>

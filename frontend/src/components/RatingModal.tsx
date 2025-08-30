@@ -71,10 +71,10 @@ export function RatingModal({ isOpen, onClose, booking, onRatingSubmitted }: Rat
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] bg-white/95 backdrop-blur-sm border-0 shadow-2xl">
         <DialogHeader>
-          <DialogTitle>Rate Expert</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-slate-900">Rate Expert</DialogTitle>
+          <DialogDescription className="text-slate-600">
             Rate your experience with {booking?.expert?.name || 'this expert'} for the project "{booking?.project?.title || 'this project'}".
           </DialogDescription>
         </DialogHeader>
@@ -82,7 +82,7 @@ export function RatingModal({ isOpen, onClose, booking, onRatingSubmitted }: Rat
         <div className="grid gap-4 py-4">
           {/* Star Rating */}
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium">Rating</label>
+            <label className="text-sm font-medium text-slate-700">Rating</label>
             <div className="flex gap-1">
               {[1, 2, 3, 4, 5].map((star) => (
                 <button
@@ -91,19 +91,19 @@ export function RatingModal({ isOpen, onClose, booking, onRatingSubmitted }: Rat
                   onClick={() => setRating(star)}
                   onMouseEnter={() => setHoverRating(star)}
                   onMouseLeave={() => setHoverRating(0)}
-                  className="focus:outline-none"
+                  className="focus:outline-none hover:scale-110 transition-transform duration-200"
                 >
                   <Star
                     className={`h-8 w-8 transition-colors ${
                       star <= (hoverRating || rating)
                         ? 'fill-yellow-400 text-yellow-400'
-                        : 'text-gray-300'
+                        : 'text-slate-300'
                     }`}
                   />
                 </button>
               ))}
             </div>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-slate-500">
               {rating > 0 && (
                 <>
                   {rating === 1 && 'Poor'}
@@ -118,7 +118,7 @@ export function RatingModal({ isOpen, onClose, booking, onRatingSubmitted }: Rat
 
           {/* Feedback */}
           <div className="flex flex-col gap-2">
-            <label htmlFor="feedback" className="text-sm font-medium">
+            <label htmlFor="feedback" className="text-sm font-medium text-slate-700">
               Feedback (Optional)
             </label>
             <Textarea
@@ -127,15 +127,16 @@ export function RatingModal({ isOpen, onClose, booking, onRatingSubmitted }: Rat
               value={feedback}
               onChange={(e) => setFeedback(e.target.value)}
               rows={4}
+              className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
             />
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={isSubmitting}>
+          <Button variant="outline" onClick={handleClose} disabled={isSubmitting} className="border-slate-300 text-slate-600 hover:bg-slate-50 hover:border-slate-400 hover:text-slate-700 transition-all duration-300">
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting || rating === 0}>
+          <Button onClick={handleSubmit} disabled={isSubmitting || rating === 0} className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-lg hover:shadow-xl hover:shadow-blue-500/25 transition-all duration-300 border-2 border-blue-400/20 hover:border-blue-400/40">
             {isSubmitting ? 'Submitting...' : 'Submit Rating'}
           </Button>
         </DialogFooter>

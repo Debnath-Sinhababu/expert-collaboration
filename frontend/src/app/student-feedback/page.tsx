@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { GraduationCap, User, Hash, Building } from 'lucide-react'
+import { GraduationCap, User, Hash, Building, BookOpen, Star, ArrowRight, Shield, TrendingUp } from 'lucide-react'
 import Logo from '@/components/Logo'
+import Link from 'next/link'
 
 const UNIVERSITIES = [
  'FOSTIIMA Business School'
@@ -98,206 +99,253 @@ export default function StudentFeedbackPage() {
               const statusResult = await statusResponse.json()
               
               // If any submission exists for this roll already, go to completion
-              if (statusResult.success && statusResult.submittedSessions.length > 0) {
-                // All feedback already submitted, redirect to completion page
-                setSuccess('Login successful! Redirecting to completion page...')
-                setTimeout(() => {
-                  window.location.href = '/student-feedback/complete'
-                }, 1500)
-              } else {
-                // Not all feedback submitted, redirect to form
-                setSuccess('Login successful! Redirecting to feedback form...')
-                setTimeout(() => {
-                  window.location.href = '/student-feedback/form'
-                }, 1500)
+              if (statusResult.success && statusResult.submissions && statusResult.submissions.length > 0) {
+                window.location.href = '/student-feedback/complete'
+                return
               }
+              
+              // Check if there are sessions available for feedback
+              const availableSessions = sessionsResult.sessions.filter((s: any) => 
+                s.session_type === formData.batch
+              )
+              
+              if (availableSessions.length === 0) {
+                setError('No sessions available for the selected batch. Please contact your administrator.')
+                setLoading(false)
+                return
+              }
+              
+              // Go to feedback form
+              window.location.href = '/student-feedback/form'
             } else {
-              // Fallback to form if sessions can't be loaded
-              setSuccess('Login successful! Redirecting to feedback form...')
-              setTimeout(() => {
-                window.location.href = '/student-feedback/form'
-              }, 1500)
+              setError('Failed to load sessions. Please try again.')
+              setLoading(false)
             }
           } catch (error) {
-            // Fallback to form if there's an error
-            setSuccess('Login successful! Redirecting to feedback form...')
-            setTimeout(() => {
-              window.location.href = '/student-feedback/form'
-            }, 1500)
+            console.error('Error checking feedback status:', error)
+            setError('Failed to check feedback status. Please try again.')
+            setLoading(false)
           }
         }
         
         checkFeedbackStatus()
-        setStudentData(result.student)
-        setIsLoggedIn(true)
       } else {
-        setError(result.error || 'Login failed')
+        setError(result.message || 'Login failed. Please check your details and try again.')
+        setLoading(false)
       }
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'An error occurred')
-    } finally {
+      console.error('Login error:', error)
+      setError('An unexpected error occurred. Please try again.')
       setLoading(false)
     }
   }
 
-  if (isLoggedIn) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-100 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-6">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-              <p className="text-green-600 font-medium">Redirecting to feedback form...</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <Logo size="lg" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Student Feedback Portal</h1>
-          <p className="text-gray-600">Provide feedback for ET and Prompt Engineering sessions</p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
+      {/* Background Elements */}
+      <div className="absolute inset-0">
+        <div className="absolute top-20 left-20 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-20 right-20 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-purple-500/5 to-pink-500/5 rounded-full blur-3xl"></div>
+      </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <GraduationCap className="h-5 w-5 text-blue-600" />
-              <span>Student Login</span>
-            </CardTitle>
-            <CardDescription>
-              Enter your details to access the feedback forms
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Header */}
+      <div className="relative z-10">
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex items-center justify-between">
+            <Link href="/" className="flex items-center space-x-3 group">
+              <Logo size="sm" />
+              <span className="text-2xl font-bold text-white group-hover:text-blue-400 transition-colors">
+                Calxmap
+              </span>
+            </Link>
+            <Link href="/" className="text-slate-300 hover:text-white transition-colors">
+              ← Back to Home
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="container mx-auto px-4 relative z-10">
+        <div className="max-w-4xl mx-auto py-20">
+          {/* Hero Section */}
+          <div className="text-center mb-16">
+            <div className="flex justify-center mb-6">
+              <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center shadow-2xl">
+                <BookOpen className="h-10 w-10 text-white" />
+              </div>
+            </div>
+            <h1 className="text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
+              Student
+              <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent"> Feedback</span>
+              <br />
+              Portal
+            </h1>
+            <p className="text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed">
+              Share your valuable feedback on expert sessions and help us improve the learning experience. 
+              Your voice matters in shaping the future of knowledge sharing.
+            </p>
+          </div>
+
+          {/* Features */}
+          <div className="grid md:grid-cols-3 gap-6 mb-12">
+            <div className="text-center p-6 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
+              <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Shield className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="text-lg font-semibold text-white mb-2">Secure & Private</h3>
+              <p className="text-slate-300 text-sm">Your feedback is completely anonymous and secure</p>
+            </div>
+            
+            <div className="text-center p-6 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
+              <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Star className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="text-lg font-semibold text-white mb-2">Quick & Easy</h3>
+              <p className="text-slate-300 text-sm">Complete feedback in just a few minutes</p>
+            </div>
+            
+            <div className="text-center p-6 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
+              <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <TrendingUp className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="text-lg font-semibold text-white mb-2">Drive Improvement</h3>
+              <p className="text-slate-300 text-sm">Help enhance future learning sessions</p>
+            </div>
+          </div>
+
+          {/* Login Form */}
+          <Card className="border-0 bg-white/10 backdrop-blur-xl shadow-2xl border border-white/20">
+            <CardHeader className="text-center pb-6">
+              <CardTitle className="text-3xl font-bold text-white mb-2">Access Your Feedback Portal</CardTitle>
+              <CardDescription className="text-slate-300 text-lg">
+                Enter your details to access the feedback system
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-8">
               {error && (
-                <Alert variant="destructive">
+                <Alert className="mb-6 border-red-500/20 bg-red-500/10 text-red-200">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-
+              
               {success && (
-                <Alert>
-                  <AlertDescription className="text-green-600">{success}</AlertDescription>
+                <Alert className="mb-6 border-green-500/20 bg-green-500/10 text-green-200">
+                  <AlertDescription>{success}</AlertDescription>
                 </Alert>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="universityName" className="flex items-center space-x-2">
-                  <Building className="h-4 w-4" />
-                  <span>University Name *</span>
-                </Label>
-                <Select 
-                  value={formData.universityName} 
-                  onValueChange={(value) => handleInputChange('universityName', value)}
-                  required
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="universityName" className="text-white font-medium">
+                      <Building className="inline h-4 w-4 mr-2" />
+                      University Name
+                    </Label>
+                    <Select value={formData.universityName} onValueChange={(value) => handleInputChange('universityName', value)}>
+                      <SelectTrigger className="bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:ring-blue-500 focus:border-blue-500">
+                        <SelectValue placeholder="Select your university" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                        {UNIVERSITIES.map((university) => (
+                          <SelectItem key={university} value={university} className="hover:bg-slate-700">
+                            {university}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="rollNumber" className="text-white font-medium">
+                      <Hash className="inline h-4 w-4 mr-2" />
+                      Roll Number
+                    </Label>
+                    <Input
+                      id="rollNumber"
+                      type="text"
+                      value={formData.rollNumber}
+                      onChange={(e) => handleInputChange('rollNumber', e.target.value)}
+                      className="bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Enter your roll number"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="studentName" className="text-white font-medium">
+                      <User className="inline h-4 w-4 mr-2" />
+                      Student Name
+                    </Label>
+                    <Input
+                      id="studentName"
+                      type="text"
+                      value={formData.studentName}
+                      onChange={(e) => handleInputChange('studentName', e.target.value)}
+                      className="bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Enter your full name"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="mobile" className="text-white font-medium">
+                      <GraduationCap className="inline h-4 w-4 mr-2" />
+                      Mobile Number
+                    </Label>
+                    <Input
+                      id="mobile"
+                      type="tel"
+                      value={formData.mobile}
+                      onChange={(e) => handleMobileChange(e.target.value)}
+                      className="bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="10-digit mobile number"
+                      maxLength={10}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="batch" className="text-white font-medium">
+                    <BookOpen className="inline h-4 w-4 mr-2" />
+                    Session Batch
+                  </Label>
+                  <Select value={formData.batch} onValueChange={(value) => handleInputChange('batch', value)}>
+                    <SelectTrigger className="bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:ring-blue-500 focus:border-blue-500">
+                      <SelectValue placeholder="Select your session batch" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                      <SelectItem value="ET" className="hover:bg-slate-700">Emerging Technologies (ET)</SelectItem>
+                      <SelectItem value="PROMPT_ENGINEERING" className="hover:bg-slate-700">Prompt Engineering</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={!isFormValid() || loading}
+                  className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-bold text-lg py-6 shadow-2xl hover:shadow-3xl transition-all hover:scale-105 border-2 border-blue-400/20 hover:shadow-blue-500/25 hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your university" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {UNIVERSITIES.map((university) => (
-                      <SelectItem key={university} value={university}>
-                        {university}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                  {loading ? (
+                    <div className="flex items-center space-x-2">
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      <span>Accessing Portal...</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center space-x-2">
+                      <span>Access Feedback Portal</span>
+                      <ArrowRight className="h-5 w-5" />
+                    </div>
+                  )}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
 
-              <div className="space-y-2">
-                <Label htmlFor="rollNumber" className="flex items-center space-x-2">
-                  <Hash className="h-4 w-4" />
-                  <span>Roll Number *</span>
-                </Label>
-                <Input
-                  id="rollNumber"
-                  placeholder="Enter your roll number"
-                  value={formData.rollNumber}
-                  onChange={(e) => handleInputChange('rollNumber', e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="studentName" className="flex items-center space-x-2">
-                  <User className="h-4 w-4" />
-                  <span>Student Name *</span>
-                </Label>
-                <Input
-                  id="studentName"
-                  placeholder="Enter your full name"
-                  value={formData.studentName}
-                  onChange={(e) => handleInputChange('studentName', e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="batch" className="flex items-center space-x-2">
-                  <Hash className="h-4 w-4" />
-                  <span>Batch *</span>
-                </Label>
-                <Select
-                  value={formData.batch}
-                  onValueChange={(value) => handleInputChange('batch', value)}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your batch" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ET">ET (Emerging Technologies)</SelectItem>
-                    <SelectItem value="PROMPT_ENGINEERING">Prompt Engineering</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="mobile" className="flex items-center space-x-2">
-                  <span>Mobile Number *</span>
-                </Label>
-                <Input
-                  id="mobile"
-                  inputMode="numeric"
-                  pattern="\d*"
-                  maxLength={10}
-                  placeholder="Enter 10-digit mobile number"
-                  value={formData.mobile}
-                  onChange={(e) => handleMobileChange(e.target.value)}
-                />
-                {!isMobileValid() && formData.mobile.length > 0 && (
-                  <p className="text-xs text-red-600">Please enter a valid 10-digit mobile number.</p>
-                )}
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700"
-                disabled={loading || !isFormValid()}
-              >
-                {loading ? 'Logging in...' : 'Login & Access Feedback'}
-              </Button>
-            </form>
-
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-600">
-                This portal is for students to provide feedback on ET and Prompt Engineering sessions.
-                <br />
-                <span className="font-medium">You will be redirected to the feedback form after login.</span>
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+          {/* Footer Info */}
+        
+        </div>
       </div>
     </div>
   )

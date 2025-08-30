@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import NotificationBell from '@/components/NotificationBell'
+import ProfileDropdown from '@/components/ProfileDropdown'
 import Logo from '@/components/Logo'
 import { 
   User, 
@@ -24,8 +25,6 @@ import {
   DollarSign, 
   Star, 
   MessageSquare,
-  
-  LogOut,
   
   Clock,
   CheckCircle,
@@ -62,6 +61,9 @@ export default function ExpertDashboard() {
     resume_url?: string
     availability?: string[]
     phone?: string
+    photo_url?: string
+    profile_photo_thumbnail_url?: string
+    profile_photo_small_url?: string
   }
 
   type Application = {
@@ -85,6 +87,7 @@ export default function ExpertDashboard() {
     type?: string
   }
 
+  const [user, setUser] = useState<any>(null)
   const [expert, setExpert] = useState<ExpertProfile | null>(null)
   const [applications, setApplications] = useState<Application[]>([])
   const [applicationCounts, setApplicationCounts] = useState<any>({ total: 0, pending: 0, accepted: 0, rejected: 0 })
@@ -112,16 +115,7 @@ export default function ExpertDashboard() {
     proposedRate: ''
   })
 
-  const [profileForm, setProfileForm] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    bio: '',
-    qualifications: '',
-    domain_expertise: '',
-    hourly_rate: '',
-    resume_url: ''
-  })
+
   const router = useRouter()
 
   const getUser = async (): Promise<SessionUser | null> => {
@@ -130,6 +124,7 @@ export default function ExpertDashboard() {
       router.push('/auth/login')
       return null
     }
+    setUser(user)
     return user as unknown as SessionUser
   }
 
@@ -193,20 +188,15 @@ export default function ExpertDashboard() {
           qualifications: expertProfile.qualifications || [],
           domain_expertise: expertProfile.domain_expertise || [],
           resume_url: expertProfile.resume_url || '',
-          availability: expertProfile.availability || []
+          availability: expertProfile.availability || [],
+          photo_url: expertProfile.photo_url || '',
+          profile_photo_thumbnail_url: expertProfile.profile_photo_thumbnail_url || '',
+          phone: expertProfile.phone || '',
+          profile_photo_small_url: expertProfile.profile_photo_small_url || '',
         }
         setExpert(expertData)
         
-        setProfileForm({
-          name: expertData.name || '',
-          email: expertData.email ?? '',
-          phone: expertProfile.phone || '',
-          bio: expertData.bio || '',
-          qualifications: Array.isArray(expertData.qualifications) ? expertData.qualifications.join(', ') : '',
-          domain_expertise: Array.isArray(expertData.domain_expertise) ? expertData.domain_expertise.join(', ') : '',
-          hourly_rate: String(expertData.hourly_rate ?? 0),
-          resume_url: expertData.resume_url || ''
-        })
+
       } else {
         const defaultData: ExpertProfile = {
           name: currentUser.user_metadata?.name || 'Expert User',
@@ -219,16 +209,7 @@ export default function ExpertDashboard() {
         }
         setExpert(defaultData)
         
-        setProfileForm({
-          name: defaultData.name || '',
-          email: defaultData.email ?? '',
-          phone: '',
-          bio: '',
-          qualifications: '',
-          domain_expertise: '',
-          hourly_rate: '0',
-          resume_url: ''
-        })
+
       }
     } catch (error) {
       console.error('Error loading expert data:', error)
@@ -243,10 +224,7 @@ export default function ExpertDashboard() {
     }
   }
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/')
-  }
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -283,7 +261,7 @@ export default function ExpertDashboard() {
         expert_id: expert?.id // Pass expert_id to filter out projects they've already applied to
       });
     },
-    [searchTerm, filterType, expert?.id] // Add expert?.id to dependencies
+    [searchTerm, filterType, expert?.id,expert,applications] // Add expert?.id to dependencies
   );
 
   // Paginate expert's own applications
@@ -364,48 +342,7 @@ export default function ExpertDashboard() {
     }
   }
 
-  const handleProfileUpdate = async () => {
-    try {
-      setLoading(true)
-      const currentUser = await getUser()
-      if (!currentUser) return
 
-      const updateData = {
-        ...profileForm,
-        qualifications: profileForm.qualifications.split(',').map((q: string) => q.trim()).filter(q => q),
-        domain_expertise: profileForm.domain_expertise.split(',').map((d: string) => d.trim()).filter(d => d),
-        hourly_rate: parseFloat(profileForm.hourly_rate) || 0
-      }
-      
-      let updatedExpert
-      if (expert?.id) {
-        console.log('Updating existing expert profile with ID:', expert.id)
-        updatedExpert = await api.experts.update(expert.id, updateData)
-      } else {
-        console.log('Creating new expert profile for user:', currentUser.id)
-        const createData = {
-          ...updateData,
-          user_id: currentUser.id
-        }
-        updatedExpert = await api.experts.create(createData)
-      }
-      
-      if (updatedExpert && updatedExpert.id) {
-        setExpert(updatedExpert)
-        console.log('Expert profile updated/created successfully:', updatedExpert)
-      }
-      
-      setError('')
-      setSuccess('Profile updated successfully!')
-      setTimeout(() => setSuccess(''), 3000)
-      
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error'
-      setError(message)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   useEffect(() => {
     loadExpertData()
@@ -433,89 +370,97 @@ export default function ExpertDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading dashboard...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
+          <p className="text-slate-300">Loading dashboard...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b">
+    <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 relative">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
+      </div>
+      <header className="bg-slate-900/95 backdrop-blur-xl shadow-2xl border-b border-slate-700/50 relative z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center space-x-2">
+            <Link href="/" className="flex items-center space-x-2 group">
               <Logo size="md" />
-              <span className="text-xl font-bold text-gray-900">Expert Collaboration</span>
+              <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Calxmap</span>
             </Link>
             
             <div className="flex items-center space-x-4">
               <NotificationBell />
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white hover:bg-slate-800/50 border border-transparent hover:border-slate-600 transition-all duration-300">
                 <MessageSquare className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="sm" onClick={handleLogout}>
-                <LogOut className="h-4 w-4" />
-              </Button>
+              <ProfileDropdown user={user} expert={expert} userType="expert" />
             </div>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 relative z-10">
         {error && (
-          <Alert className="mb-6" variant="destructive">
+          <Alert className="mb-6 bg-red-50/90 backdrop-blur-md border-red-200" variant="destructive">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
         {success && (
-          <Alert className="mb-6" variant="default">
+          <Alert className="mb-6 bg-green-50/90 backdrop-blur-md border-green-200" variant="default">
             <AlertDescription className="text-green-600">{success}</AlertDescription>
           </Alert>
         )}
 
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Expert Dashboard</h1>
-          <p className="text-gray-600">Welcome back, {expert?.name}</p>
+        <div className="mb-8 text-center">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent mb-4 drop-shadow-2xl">Expert Dashboard</h1>
+          <p className="text-xl text-slate-300 drop-shadow-lg">Welcome back, {expert?.name}</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
+          <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105 hover:-translate-y-2" style={{boxShadow: '0 25px 50px -12px rgba(59, 130, 246, 0.25), 0 0 0 1px rgba(59, 130, 246, 0.15)'}}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Applications</p>
-                  <p className="text-2xl font-bold text-gray-900">{applicationCounts.total}</p>
-                  <p className="text-xs text-gray-500">{applicationCounts.pending} pending</p>
+                  <p className="text-sm font-medium text-slate-700">Applications</p>
+                  <p className="text-2xl font-bold text-slate-900">{applicationCounts.total}</p>
+                  <p className="text-xs text-slate-500">{applicationCounts.pending} pending</p>
                 </div>
-                <Briefcase className="h-8 w-8 text-blue-600" />
+                <div className="p-3 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full shadow-lg">
+                  <Briefcase className="h-8 w-8 text-white" />
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105 hover:-translate-y-2" style={{boxShadow: '0 25px 50px -12px rgba(34, 197, 94, 0.25), 0 0 0 1px rgba(34, 197, 94, 0.15)'}}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Hourly Rate</p>
-                  <p className="text-2xl font-bold text-gray-900">₹{expert?.hourly_rate}</p>
+                  <p className="text-sm font-medium text-slate-700">Hourly Rate</p>
+                  <p className="text-2xl font-bold text-slate-900">₹{expert?.hourly_rate}</p>
                 </div>
-                <DollarSign className="h-8 w-8 text-green-600" />
+                <div className="p-3 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full shadow-lg">
+                  <DollarSign className="h-8 w-8 text-white" />
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105 hover:-translate-y-2" style={{boxShadow: '0 25px 50px -12px rgba(251, 191, 36, 0.25), 0 0 0 1px rgba(251, 191, 36, 0.15)'}}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Rating</p>
-                  <p className="text-2xl font-bold text-gray-900">{expertAggregate.avg}/5</p>
-                  <p className="text-xs text-gray-500">{expertAggregate.count} reviews</p>
+                  <p className="text-sm font-medium text-slate-700">Rating</p>
+                  <p className="text-2xl font-bold text-slate-900">{expertAggregate.avg}/5</p>
+                  <p className="text-xs text-slate-500">{expertAggregate.count} reviews</p>
                 </div>
                 <div className="flex items-center">
                   {[1, 2, 3, 4, 5].map((star) => (
@@ -529,62 +474,61 @@ export default function ExpertDashboard() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105 hover:-translate-y-2" style={{boxShadow: '0 25px 50px -12px rgba(147, 51, 234, 0.25), 0 0 0 1px rgba(147, 51, 234, 0.15)'}}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">KYC Status</p>
+                  <p className="text-sm font-medium text-slate-700">KYC Status</p>
                   <Badge variant={expert?.is_verified ? 'default' : 'secondary'}>
                     {expert?.kyc_status || 'Pending'}
                   </Badge>
                 </div>
-                {expert?.is_verified ? (
-                  <Shield className="h-8 w-8 text-green-600" />
-                ) : (
-                  <AlertCircle className="h-8 w-8 text-yellow-600" />
-                )}
+                <div className="p-3 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full shadow-lg">
+                  {expert?.is_verified ? (
+                    <Shield className="h-8 w-8 text-white" />
+                  ) : (
+                    <AlertCircle className="h-8 w-8 text-white" />
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
         <Tabs defaultValue="applications" className="space-y-6">
-        <TabsList className="flex w-full gap-2 overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-6 sm:gap-0 sm:overflow-visible scrollbar-hide">
-        <TabsTrigger className=" px-3 py-2 snap-start ml-3 sm:ml-0" value="applications">
+        <TabsList className="flex w-full gap-2 overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-4 sm:gap-0 sm:overflow-visible scrollbar-hide bg-white/95 backdrop-blur-sm border-0 shadow-2xl">
+        <TabsTrigger className="px-3 py-2 snap-start ml-3 sm:ml-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white hover:bg-slate-100/80 transition-all rounded-lg" value="applications">
           My Applications
         </TabsTrigger>
-        <TabsTrigger className="px-3 py-2 snap-start" value="projects">
+        <TabsTrigger className="px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white hover:bg-slate-100/80 transition-all rounded-lg" value="projects">
           Browse Projects
         </TabsTrigger>
-        <TabsTrigger className="px-3 py-2 snap-start" value="bookings">
+        <TabsTrigger className="px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white hover:bg-slate-100/80 transition-all rounded-lg" value="bookings">
           Bookings
         </TabsTrigger>
-        <TabsTrigger className="px-3 py-2 snap-start" value="availability">
+        {/* <TabsTrigger className="px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white hover:bg-slate-100/80 transition-all rounded-lg" value="availability">
           Availability
-        </TabsTrigger>
-        <TabsTrigger className="px-3 py-2 snap-start" value="notifications">
+        </TabsTrigger> */}
+        <TabsTrigger className="px-3 py-2 snap-start mr-3 sm:mr-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white hover:bg-slate-100/80 transition-all rounded-lg" value="notifications">
           Notifications
-        </TabsTrigger>
-        <TabsTrigger className=" px-3 py-2 snap-start mr-3 sm:mr-0" value="profile">
-          Profile
         </TabsTrigger>
       </TabsList>
 
 
           <TabsContent value="applications" className="space-y-6">
-            <Card>
+            <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 hover:scale-[1.02] hover:-translate-y-1" style={{boxShadow: '0 25px 50px -12px rgba(59, 130, 246, 0.25), 0 0 0 1px rgba(59, 130, 246, 0.15)'}}>
               <CardHeader>
-                <CardTitle>My Applications</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-slate-900">My Applications</CardTitle>
+                <CardDescription className="text-slate-600">
                   Track the status of your project applications
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {applications.length === 0 ? (
                   <div className="text-center py-8">
-                    <Briefcase className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600">No applications yet</p>
-                    <p className="text-sm text-gray-500">Browse projects to start applying</p>
+                    <Briefcase className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                    <p className="text-slate-600">No applications yet</p>
+                    <p className="text-sm text-slate-500">Browse projects to start applying</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -600,10 +544,10 @@ export default function ExpertDashboard() {
                           </Badge>
                         </div>
                         <p className="text-sm text-gray-600 mb-2 break-words line-clamp-2">{application.projects?.description || 'Project description'}</p>
-                        <div className="flex items-center justify-between text-sm text-gray-500">
+                        {/* <div className="flex items-center justify-between text-sm text-gray-500">
                           <span>Applied: {new Date(application.applied_at || Date.now()).toLocaleDateString()}</span>
                           <span>Proposed Rate: ₹{application.proposed_rate}</span>
-                        </div>
+                        </div> */}
                       </div>
                     ))}
                     
@@ -825,7 +769,7 @@ export default function ExpertDashboard() {
                                   rows={4}
                                 />
                               </div>
-                              <div>
+                              {/* <div>
                                 <Label htmlFor="proposedRate">Proposed Hourly Rate (₹)</Label>
                                 <Input
                                   id="proposedRate"
@@ -834,11 +778,11 @@ export default function ExpertDashboard() {
                                   value={applicationForm.proposedRate}
                                   onChange={(e) => setApplicationForm({...applicationForm, proposedRate: e.target.value})}
                                 />
-                              </div>
+                              </div> */}
                               <Button 
                                 onClick={() => handleApplicationSubmit(project.id)}
                                 className="w-full"
-                                disabled={!applicationForm.coverLetter || !applicationForm.proposedRate}
+                                disabled={!applicationForm.coverLetter}
                               >
                                 Submit Application
                               </Button>
@@ -872,7 +816,7 @@ export default function ExpertDashboard() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="availability" className="space-y-6">
+          {/* <TabsContent value="availability" className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Availability Schedule</CardTitle>
@@ -924,7 +868,7 @@ export default function ExpertDashboard() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          </TabsContent> */}
 
           <TabsContent value="notifications" className="space-y-6">
             <Card>
@@ -944,154 +888,7 @@ export default function ExpertDashboard() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="profile" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Expert Profile</CardTitle>
-                <CardDescription>
-                  Manage your professional profile and credentials
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <div className="flex items-center space-x-4">
-                    <div className="h-20 w-20 bg-blue-100 rounded-full flex items-center justify-center">
-                      <User className="h-10 w-10 text-blue-600" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold">{expert?.name}</h3>
-                      <p className="text-gray-600">{expert?.email}</p>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <Badge variant={expert?.is_verified ? 'default' : 'secondary'}>
-                          {expert?.kyc_status || 'Pending'}
-                        </Badge>
-                        {expert?.is_verified ? (
-                          <Shield className="h-4 w-4 text-green-600" />
-                        ) : (
-                          <AlertCircle className="h-4 w-4 text-yellow-600" />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <Label htmlFor="name">Full Name</Label>
-                      <Input 
-                        id="name" 
-                        value={profileForm.name}
-                        onChange={(e) => setProfileForm({...profileForm, name: e.target.value})}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="email">Email</Label>
-                      <Input 
-                        id="email" 
-                        value={profileForm.email}
-                        onChange={(e) => setProfileForm({...profileForm, email: e.target.value})}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="phone">Phone</Label>
-                      <Input 
-                        id="phone" 
-                        value={profileForm.phone}
-                        onChange={(e) => setProfileForm({...profileForm, phone: e.target.value})}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="hourlyRate">Hourly Rate (₹)</Label>
-                      <Input 
-                        id="hourlyRate" 
-                        type="number" 
-                        value={profileForm.hourly_rate}
-                        onChange={(e) => setProfileForm({...profileForm, hourly_rate: e.target.value})}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="bio">Professional Bio</Label>
-                    <Textarea 
-                      id="bio" 
-                      placeholder="Tell institutions about your expertise and experience..."
-                      rows={4}
-                      value={profileForm.bio}
-                      onChange={(e) => setProfileForm({...profileForm, bio: e.target.value})}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="qualifications">Qualifications</Label>
-                    <Textarea 
-                      id="qualifications" 
-                      placeholder="List your degrees, certifications, and credentials..."
-                      rows={3}
-                      value={profileForm.qualifications}
-                      onChange={(e) => setProfileForm({...profileForm, qualifications: e.target.value})}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="expertise">Domain Expertise</Label>
-                    <Textarea 
-                      id="expertise" 
-                      placeholder="Specify your areas of expertise (e.g., Machine Learning, Data Science, Web Development)..."
-                      rows={3}
-                      value={profileForm.domain_expertise}
-                      onChange={(e) => setProfileForm({...profileForm, domain_expertise: e.target.value})}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="resume">Resume URL</Label>
-                    <Input 
-                      id="resume" 
-                      placeholder="https://example.com/resume.pdf"
-                      value={profileForm.resume_url}
-                      onChange={(e) => setProfileForm({...profileForm, resume_url: e.target.value})}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-semibold">Rating & Reviews</h4>
-                      <div className="flex items-center space-x-2">
-                        <div className="flex items-center">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <Star 
-                              key={star} 
-                              className={`h-4 w-4 ${star <= Math.round(expertAggregate.avg) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} 
-                            />
-                          ))}
-                        </div>
-                        <span className="text-sm text-gray-600">
-                          {expertAggregate.avg} ({expertAggregate.count} reviews)
-                        </span>
-                      </div>
-                    </div>
-                    <Button variant="outline">
-                      <Award className="h-4 w-4 mr-2" />
-                      View Reviews
-                    </Button>
-                  </div>
-
-                  <Button className="w-full" onClick={handleProfileUpdate} disabled={loading}>
-                    {loading ? 'Updating...' : 'Update Profile'}
-                  </Button>
-
-                  {!expert?.is_verified && (
-                    <Alert>
-                      <Shield className="h-4 w-4" />
-                      <AlertDescription>
-                        Complete your KYC verification to unlock more opportunities and build trust with institutions.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+          
         </Tabs>
       </main>
     </div>

@@ -13,17 +13,18 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Drawer } from '@/components/ui/drawer'
 import ProjectApplications from '@/components/ProjectApplications'
+import ProfileDropdown from '@/components/ProfileDropdown'
 import Logo from '@/components/Logo'
 import { 
   Building, 
   Plus, 
   Users, 
   Star, 
-  LogOut,
   Eye,
   Clock,
   CheckCircle,
@@ -79,18 +80,7 @@ export default function InstitutionDashboard() {
   const [showEditForm, setShowEditForm] = useState(false)
   const [applicationsDrawerOpen, setApplicationsDrawerOpen] = useState(false)
   const [selectedProject, setSelectedProject] = useState<{ id: string; title?: string } | null>(null)
-  const [profileForm, setProfileForm] = useState({
-    name: '',
-    type: '',
-    description: '',
-    email: '',
-    phone: '',
-    website_url: '',
-    city: '',
-    state: '',
-    country: '',
-    address: ''
-  })
+
   const router = useRouter()
   
 
@@ -141,18 +131,7 @@ export default function InstitutionDashboard() {
       
       setInstitution(institutionProfile)
       
-      setProfileForm({
-        name: institutionProfile.name || '',
-        type: institutionProfile.type || '',
-        description: institutionProfile.description || '',
-        email: institutionProfile.email || '',
-        phone: institutionProfile.phone || '',
-        website_url: institutionProfile.website_url || '',
-        city: institutionProfile.city || '',
-        state: institutionProfile.state || '',
-        country: institutionProfile.country || 'India',
-        address: institutionProfile.address || ''
-      })
+
       
       // Initial light calls (experts list is paginated below). Lists are fed by paginated hooks
       const [projectsResponse, applicationsResponse, expertsResponse, bookingsResponse, bookingCountsResponse] = await Promise.all([
@@ -202,10 +181,7 @@ export default function InstitutionDashboard() {
     }
   }
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/')
-  }
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -333,43 +309,7 @@ export default function InstitutionDashboard() {
     }
   }
 
-  const handleProfileUpdate = async () => {
-    try {
-      setSubmittingProject(true)
-      const currentUser = await supabase.auth.getUser()
-      if (!currentUser.data.user) return
 
-      const updateData = {
-        ...profileForm
-      }
-      
-      let updatedInstitution
-      if (institution?.id) {
-        console.log('Updating existing institution profile with ID:', institution.id)
-        updatedInstitution = await api.institutions.update(institution.id, updateData)
-      } else {
-        console.log('Creating new institution profile for user:', currentUser.data.user.id)
-        const createData = {
-          ...updateData,
-          user_id: currentUser.data.user.id
-        }
-        updatedInstitution = await api.institutions.create(createData)
-      }
-      
-      if (updatedInstitution && updatedInstitution.id) {
-        setInstitution(updatedInstitution)
-        console.log('Institution profile updated/created successfully:', updatedInstitution)
-      }
-      
-      setError('')
-      
-    } catch (error: any) {
-      console.error('Institution profile update error:', error)
-      setError(`Failed to update profile: ${error.message}`)
-    } finally {
-      setSubmittingProject(false)
-    }
-  }
 
   const handleProjectSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -660,57 +600,63 @@ export default function InstitutionDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-400 mx-auto mb-4"></div>
+          <p className="text-slate-300">Loading dashboard...</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 relative">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
+      </div>
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="bg-slate-900/95 backdrop-blur-xl shadow-2xl border-b border-slate-700/50 relative z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <Link href="/" className="flex items-center space-x-2">
+            <Link href="/" className="flex items-center space-x-2 group">
               <Logo size="md" />
-              <span className="text-xl sm:text-2xl font-bold text-gray-900">Expert Collaboration</span>
+              <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Calxmap</span>
             </Link>
             
             <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4">
               <div className="flex items-center space-x-2">
-                <Building className="h-5 w-5 text-gray-600" />
-                <span className="text-sm sm:text-base text-gray-700 truncate">{institution?.name}</span>
+                <Building className="h-5 w-5 text-slate-400" />
+                <span className="text-sm sm:text-base text-slate-300 truncate">{institution?.name}</span>
               </div>
               <NotificationBell />
-              <Button variant="outline" size="sm" onClick={handleLogout} className="w-full sm:w-auto">
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
-              </Button>
+              <ProfileDropdown user={user} institution={institution} userType="institution"  />
             </div>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 relative z-10">
         {error && (
-          <Alert variant="destructive" className="mb-6">
+          <Alert variant="destructive" className="mb-6 bg-red-50/90 backdrop-blur-md border-red-200">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
         {/* Welcome Section */}
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="min-w-0">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 truncate">
+          <div className="min-w-0 text-center sm:text-left">
+            <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent mb-4 truncate drop-shadow-2xl">
               Welcome back, {institution?.name}!
             </h1>
-            <p className="text-sm sm:text-base text-gray-600">
+            <p className="text-lg sm:text-xl text-slate-300 drop-shadow-lg">
               Manage your projects, review applications, and connect with qualified experts.
             </p>
           </div>
           <Dialog open={showProjectForm} onOpenChange={setShowProjectForm}>
-            <Button className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto" onClick={handleCreateProject}>
+            <Button className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-2xl hover:shadow-3xl hover:shadow-blue-500/25 transition-all duration-300 w-full sm:w-auto border-2 border-blue-400/20 hover:border-blue-400/40" onClick={handleCreateProject}>
               <Plus className="h-4 w-4 mr-2" />
               Post New Project
             </Button>
@@ -969,7 +915,7 @@ export default function InstitutionDashboard() {
 
         {/* Stats Cards */}
         <div className="grid md:grid-cols-4 gap-6 mb-8">
-          <Card>
+          <Card className="bg-white/90 backdrop-blur-md border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -979,12 +925,14 @@ export default function InstitutionDashboard() {
                     {projects.filter(p => p.status === 'open').length} open
                   </p>
                 </div>
-                <Briefcase className="h-8 w-8 text-blue-600" />
+                <div className="p-3 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full shadow-lg">
+                  <Briefcase className="h-8 w-8 text-white" />
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-white/90 backdrop-blur-md border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                                   <div>
@@ -996,12 +944,14 @@ export default function InstitutionDashboard() {
                       {projects.reduce((total, project) => total + (project.applicationCounts?.pending || 0), 0)} pending
                     </p>
                   </div>
-                <Users className="h-8 w-8 text-green-600" />
+                <div className="p-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full shadow-lg">
+                  <Users className="h-8 w-8 text-white" />
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-white/90 backdrop-blur-md border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -1011,12 +961,14 @@ export default function InstitutionDashboard() {
                   </p>
                   <p className="text-xs text-gray-500">in progress</p>
                 </div>
-                <BookOpen className="h-8 w-8 text-orange-600" />
+                <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full shadow-lg">
+                  <BookOpen className="h-8 w-8 text-white" />
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-white/90 backdrop-blur-md border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -1026,7 +978,9 @@ export default function InstitutionDashboard() {
                   </p>
                   <p className="text-xs text-gray-500">bookings</p>
                 </div>
-                <CheckCircle className="h-8 w-8 text-green-600" />
+                <div className="p-3 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full shadow-lg">
+                  <CheckCircle className="h-8 w-8 text-white" />
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -1054,12 +1008,10 @@ export default function InstitutionDashboard() {
 
         {/* Main Content */}
         <Tabs defaultValue="projects" className="space-y-6">
-          <TabsList className="flex w-full gap-2 overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-4 sm:gap-0 sm:overflow-visible scrollbar-hide">
-            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start ml-3 sm:ml-0" value="projects">My Projects</TabsTrigger>
-            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start" value="bookings">Bookings</TabsTrigger>
-            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start" value="experts">Browse Experts</TabsTrigger>
-            {/* <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start" value="notifications">Notifications</TabsTrigger> */}
-            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start mr-3 sm:mr-0" value="profile">Profile</TabsTrigger>
+          <TabsList className="flex w-full gap-2 overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-3 sm:gap-0 sm:overflow-visible scrollbar-hide bg-white/90 backdrop-blur-md border-0 shadow-lg">
+            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start ml-3 sm:ml-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" value="projects">My Projects</TabsTrigger>
+            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" value="bookings">Bookings</TabsTrigger>
+            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start mr-3 sm:mr-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" value="experts">Browse Experts</TabsTrigger>
           </TabsList>
 
           {/* Projects Tab */}
@@ -1354,11 +1306,19 @@ export default function InstitutionDashboard() {
                 ) : (
                   <div className="space-y-4">
                     {experts.map((expert: any) => (
-                      <div key={expert.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                      <div key={expert.id} className="border rounded-lg p-4 shadow-md transition-shadow">
                         <div className="flex items-center justify-between mb-3 min-w-0">
-                          <div className="min-w-0 flex-1">
-                            <h3 className="font-semibold text-lg truncate pr-2">{expert.name}</h3>
-                            <p className="text-sm text-gray-600 truncate pr-2">{expert.domain_expertise}</p>
+                          <div className="flex items-center space-x-3 min-w-0 flex-1">
+                            <Avatar className="w-12 h-12 border-2 border-blue-200">
+                              <AvatarImage src={expert.photo_url} />
+                              <AvatarFallback className="text-lg font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+                                {expert.name?.charAt(0) || 'E'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0 flex-1">
+                              <h3 className="font-semibold text-lg truncate pr-2">{expert.name}</h3>
+                              <p className="text-sm text-gray-600 truncate pr-2">{expert.domain_expertise}</p>
+                            </div>
                           </div>
                           <div className="flex items-center space-x-2">
                             <Badge variant={expert.is_verified ? "default" : "secondary"}>
@@ -1429,6 +1389,18 @@ export default function InstitutionDashboard() {
                                   <DialogDescription>Complete Expert Profile</DialogDescription>
                                 </DialogHeader>
                                 <div className="space-y-4">
+                                  <div className="flex items-center space-x-4 mb-4">
+                                    <Avatar className="w-16 h-16 border-2 border-blue-200">
+                                      <AvatarImage src={expert.photo_url} />
+                                      <AvatarFallback className="text-xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+                                        {expert.name?.charAt(0) || 'E'}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                      <h4 className="font-semibold text-lg">{expert.name}</h4>
+                                      <p className="text-sm text-gray-600">{expert.domain_expertise}</p>
+                                    </div>
+                                  </div>
                                   <div>
                                     <h4 className="font-medium mb-2">Professional Bio</h4>
                                     <p className="text-sm text-gray-600">{expert.bio}</p>
@@ -1457,7 +1429,7 @@ export default function InstitutionDashboard() {
                                       <p className="text-sm">{expert.qualifications}</p>
                                     </div>
                                   )}
-                                  {expert.availability && expert.availability.length > 0 && (
+                                  {/* {expert.availability && expert.availability.length > 0 && (
                                     <div>
                                       <h4 className="font-medium mb-2">Availability</h4>
                                       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -1468,7 +1440,7 @@ export default function InstitutionDashboard() {
                                         ))}
                                       </div>
                                     </div>
-                                  )}
+                                  )} */}
                                   {expert.resume_url && (
                                     <div>
                                       <h4 className="font-medium mb-1">Resume</h4>
@@ -1567,202 +1539,14 @@ export default function InstitutionDashboard() {
           </TabsContent> */}
 
           {/* Profile Tab */}
-          <TabsContent value="profile">
-            <div className="grid gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Institution Profile</CardTitle>
-                  <CardDescription>
-                    Manage your institution profile and information
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-6">
-                    <div className="flex items-center space-x-4">
-                      <div className="h-20 w-20 bg-blue-100 rounded-full flex items-center justify-center">
-                        <Building className="h-10 w-10 text-blue-600" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold">{institution?.name}</h3>
-                        <p className="text-gray-600">{institution?.email}</p>
-                        <div className="flex items-center space-x-2 mt-1">
-                          <Badge variant={institution?.is_verified ? 'default' : 'secondary'}>
-                            {institution?.is_verified ? 'Verified' : 'Pending'}
-                          </Badge>
-                          {institution?.is_verified ? (
-                            <Shield className="h-4 w-4 text-green-600" />
-                          ) : (
-                            <AlertCircle className="h-4 w-4 text-yellow-600" />
-                          )}
-                        </div>
-                      </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <Label htmlFor="name">Institution Name</Label>
-                        <Input 
-                          id="name" 
-                          value={profileForm.name}
-                          onChange={(e) => setProfileForm({...profileForm, name: e.target.value})}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="type">Institution Type</Label>
-                        <Select value={profileForm.type} onValueChange={(value) => setProfileForm({...profileForm, type: value})}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select institution type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="university">University</SelectItem>
-                            <SelectItem value="college">College</SelectItem>
-                            <SelectItem value="institute">Institute</SelectItem>
-                            <SelectItem value="school">School</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="email">Email</Label>
-                        <Input 
-                          id="email" 
-                          value={profileForm.email}
-                          onChange={(e) => setProfileForm({...profileForm, email: e.target.value})}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="website">Website URL</Label>
-                        <Input 
-                          id="website" 
-                          value={profileForm.website_url}
-                          onChange={(e) => setProfileForm({...profileForm, website_url: e.target.value})}
-                          placeholder="https://example.com"
-                        />
-                      </div>
-                    </div>
 
-                    <div>
-                      <Label htmlFor="description">Description</Label>
-                      <Textarea 
-                        id="description" 
-                        placeholder="Describe your institution..."
-                        rows={4}
-                        value={profileForm.description}
-                        onChange={(e) => setProfileForm({...profileForm, description: e.target.value})}
-                      />
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div>
-                        <Label htmlFor="city">City</Label>
-                        <Input 
-                          id="city" 
-                          value={profileForm.city}
-                          onChange={(e) => setProfileForm({...profileForm, city: e.target.value})}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="state">State</Label>
-                        <Input 
-                          id="state" 
-                          value={profileForm.state}
-                          onChange={(e) => setProfileForm({...profileForm, state: e.target.value})}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="country">Country</Label>
-                        <Input 
-                          id="country" 
-                          value={profileForm.country}
-                          onChange={(e) => setProfileForm({...profileForm, country: e.target.value})}
-                        />
-                      </div>
-                    </div>
 
-                    <div>
-                      <Label htmlFor="address">Address</Label>
-                      <Textarea 
-                        id="address" 
-                        placeholder="Full address..."
-                        rows={2}
-                        value={profileForm.address}
-                        onChange={(e) => setProfileForm({...profileForm, address: e.target.value})}
-                      />
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <Label htmlFor="phone">Phone</Label>
-                        <Input 
-                          id="phone" 
-                          value={profileForm.phone}
-                          onChange={(e) => setProfileForm({...profileForm, phone: e.target.value})}
-                        />
-                      </div>
-                    </div>
 
-                    <Button className="w-full" onClick={handleProfileUpdate} disabled={submittingProject}>
-                      {submittingProject ? 'Updating...' : 'Update Profile'}
-                    </Button>
 
-                    {!institution?.is_verified && (
-                      <Alert>
-                        <Shield className="h-4 w-4" />
-                        <AlertDescription>
-                          Complete your institution verification to build trust with experts and access premium features.
-                        </AlertDescription>
-                      </Alert>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Institution Statistics</CardTitle>
-                  <CardDescription>
-                    Your institution's performance and verification status
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="grid md:grid-cols-4 gap-4">
-                      <div className="text-center p-4 border rounded-lg">
-                        <Briefcase className="h-8 w-8 mx-auto mb-2 text-blue-600" />
-                        <p className="text-sm font-medium">Total Projects</p>
-                        <p className="text-lg font-bold">{projects.length}</p>
-                      </div>
-                      <div className="text-center p-4 border rounded-lg">
-                        <Users className="h-8 w-8 mx-auto mb-2 text-green-600" />
-                        <p className="text-sm font-medium">Applications</p>
-                        <p className="text-lg font-bold">{applications.length}</p>
-                      </div>
-                      <div className="text-center p-4 border rounded-lg">
-                        <Star className="h-8 w-8 mx-auto mb-2 text-yellow-600" />
-                        <p className="text-sm font-medium">Average Rating</p>
-                        <p className="text-lg font-bold">{institution?.rating || 0}/5</p>
-                      </div>
-                      <div className="text-center p-4 border rounded-lg">
-                        <Shield className="h-8 w-8 mx-auto mb-2 text-gray-600" />
-                        <p className="text-sm font-medium">Verification</p>
-                        <Badge variant={institution?.is_verified ? "default" : "secondary"} className="mt-1">
-                          {institution?.is_verified ? 'Verified' : 'Pending'}
-                        </Badge>
-                      </div>
-                    </div>
-                    
-                    {!institution?.is_verified && (
-                      <Alert>
-                        <Shield className="h-4 w-4" />
-                        <AlertDescription>
-                          Complete your institution verification to build trust with experts and access premium features.
-                        </AlertDescription>
-                      </Alert>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+              
         </Tabs>
       </div>
 
@@ -1787,6 +1571,7 @@ export default function InstitutionDashboard() {
             onClose={() => setApplicationsDrawerOpen(false)}
             pageSize={20}
             institutionId={institution?.id || ''}
+            onRefreshBookings={refreshBookings}
           />
         )}
       </Drawer>

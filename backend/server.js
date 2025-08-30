@@ -5,17 +5,23 @@ const morgan = require('morgan');
 const dotenv = require('dotenv');
 const { createClient } = require('@supabase/supabase-js');
 const http = require('http');
+const upload = require('./middleware/upload');
+const ImageUploadService = require('./services/imageUploadService');
 
 dotenv.config();
 
 // Import services after environment variables are loaded
 const notificationService = require('./services/notificationService');
 const socketService = require('./services/socketService');
+
 console.log('Environment variables loaded:');
 console.log('UPSTASH_REDIS_REST_URL:', process.env.UPSTASH_REDIS_REST_URL ? 'Set' : 'Not set');
 console.log('UPSTASH_REDIS_REST_TOKEN:', process.env.UPSTASH_REDIS_REST_TOKEN ? 'Set' : 'Not set');
 console.log('EMAIL_USER:', process.env.EMAIL_USER ? 'Set' : 'Not set');
 console.log('EMAIL_APP_PASSWORD:', process.env.EMAIL_APP_PASSWORD ? 'Set' : 'Not set');
+console.log('CLOUDINARY_CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME ? 'Set' : 'Not set');
+console.log('CLOUDINARY_API_KEY:', process.env.CLOUDINARY_API_KEY ? 'Set' : 'Not set');
+console.log('CLOUDINARY_API_SECRET:', process.env.CLOUDINARY_API_SECRET ? 'Set' : 'Not set');
 
 const app = express();
 const server = http.createServer(app);
@@ -134,10 +140,15 @@ app.get('/api/experts', async (req, res) => {
   }
 });
 
-app.post('/api/experts', async (req, res) => {
+app.post('/api/experts', upload.fields([
+  { name: 'profile_photo', maxCount: 1 },
+  { name: 'resume', maxCount: 1 },
+  { name: 'qualifications', maxCount: 1 }
+]), async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     let supabaseClient = supabase;
+
     
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
@@ -153,6 +164,61 @@ app.post('/api/experts', async (req, res) => {
         }
       );
     }
+
+    
+    // Validate required fields
+    if (!req.body.name || !req.body.phone || !req.files) {
+      return res.status(400).json({ 
+        error: 'Name, phone, and profile photo are required fields' 
+      });
+    }
+
+    // Upload files to Cloudinary
+    let photoData = null;
+    let resumeData = null;
+    let qualificationsData = null;
+
+    // Handle profile photo upload
+    if (req.files?.profile_photo?.[0]) {
+      photoData = await ImageUploadService.uploadImage(
+        req.files.profile_photo[0].buffer, 
+        'expert-profiles'
+      );
+      
+      if (!photoData.success) {
+        return res.status(500).json({ 
+          error: `Photo upload failed: ${photoData.error}` 
+        });
+      }
+    }
+
+    // Handle resume PDF upload
+    if (req.files?.resume?.[0]) {
+      resumeData = await ImageUploadService.uploadPDF(
+        req.files.resume[0].buffer, 
+        'expert-documents'
+      );
+      
+      if (!resumeData.success) {
+        return res.status(500).json({ 
+          error: `Resume upload failed: ${resumeData.error}` 
+        });
+      }
+    }
+
+    // Handle qualifications PDF upload
+    if (req.files?.qualifications?.[0]) {
+      qualificationsData = await ImageUploadService.uploadPDF(
+        req.files.qualifications[0].buffer, 
+        'expert-documents'
+      );
+      
+      if (!qualificationsData.success) {
+        return res.status(500).json({ 
+          error: `Qualifications upload failed: ${qualificationsData.error}` 
+        });
+      }
+    }
     
     const expertData = {
       user_id: req.body.user_id,
@@ -160,15 +226,23 @@ app.post('/api/experts', async (req, res) => {
       email: req.body.email,
       phone: req.body.phone,
       bio: req.body.bio,
-      photo_url: req.body.photo_url || null,
-      qualifications: req.body.qualifications ? [req.body.qualifications] : [],
+      photo_url: photoData?.url || null,
+      profile_photo_public_id: photoData?.publicId || null,
+      profile_photo_thumbnail_url: photoData?.thumbnailUrl || null,
+      profile_photo_small_url: photoData?.smallUrl || null,
+      qualifications: req.body.qualifications || '', // Text summary
+      qualifications_url: qualificationsData?.url || null,
+      qualifications_public_id: qualificationsData?.publicId || null,
       domain_expertise: req.body.domain_expertise ? [req.body.domain_expertise] : [],
       hourly_rate: req.body.hourly_rate,
-      resume_url: req.body.resume_url,
+      resume_url: resumeData?.url || null,
+      resume_public_id: resumeData?.publicId || null,
       availability: req.body.availability || [],
       is_verified: true, // Auto-verify since email verification is required for login
       rating: req.body.rating || 0.00,
-      total_ratings: req.body.total_projects || 0
+      total_ratings: req.body.total_projects || 0,
+      experience_years: req.body.experience_years || 0,
+      linkedin_url: req.body.linkedin_url || ''
     };
     
     const { data, error } = await supabaseClient
@@ -198,7 +272,11 @@ app.get('/api/experts/:id', async (req, res) => {
   }
 });
 
-app.put('/api/experts/:id', async (req, res) => {
+app.put('/api/experts/:id', upload.fields([
+  { name: 'profile_photo', maxCount: 1 },
+  { name: 'resume', maxCount: 1 },
+  { name: 'qualifications', maxCount: 1 }
+]), async (req, res) => {
   try {
     console.log('PUT /api/experts/:id - Request body:', req.body);
     console.log('PUT /api/experts/:id - Expert ID:', req.params.id);
@@ -223,10 +301,95 @@ app.put('/api/experts/:id', async (req, res) => {
     } else {
       console.log('PUT /api/experts/:id - No auth token, using basic client');
     }
+
+    // Get current expert data to check if files need updating
+    const { data: currentExpert, error: fetchError } = await supabaseClient
+      .from('experts')
+      .select('photo_url, profile_photo_public_id, resume_public_id, qualifications_public_id')
+      .eq('id', req.params.id)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    let updateData = { ...req.body, domain_expertise: [req.body.domain_expertise.trim()] };
+    
+    // Handle profile photo update if new photo is uploaded
+    if (req.files?.profile_photo?.[0]) {
+      // Delete old photo from Cloudinary if exists
+      if (currentExpert?.profile_photo_public_id) {
+        await ImageUploadService.deleteImage(currentExpert.profile_photo_public_id);
+      }
+
+      // Upload new photo
+      const photoData = await ImageUploadService.uploadImage(
+        req.files.profile_photo[0].buffer, 
+        'expert-profiles'
+      );
+      
+      if (!photoData.success) {
+        return res.status(500).json({ 
+          error: `Photo upload failed: ${photoData.error}` 
+        });
+      }
+
+      // Update photo fields
+      updateData.photo_url = photoData.url;
+      updateData.profile_photo_public_id = photoData.publicId;
+      updateData.profile_photo_thumbnail_url = photoData.thumbnailUrl;
+      updateData.profile_photo_small_url = photoData.smallUrl;
+    }
+
+    // Handle resume PDF update if new resume is uploaded
+    if (req.files?.resume?.[0]) {
+      // Delete old resume from Cloudinary if exists
+      if (currentExpert?.resume_public_id) {
+        await ImageUploadService.deleteImage(currentExpert.resume_public_id);
+      }
+
+      // Upload new resume
+      const resumeData = await ImageUploadService.uploadPDF(
+        req.files.resume[0].buffer, 
+        'expert-documents'
+      );
+      
+      if (!resumeData.success) {
+        return res.status(500).json({ 
+          error: `Resume upload failed: ${resumeData.error}` 
+        });
+      }
+
+      // Update resume fields
+      updateData.resume_url = resumeData.url;
+      updateData.resume_public_id = resumeData.publicId;
+    }
+
+    // Handle qualifications PDF update if new qualifications is uploaded
+    if (req.files?.qualifications?.[0]) {
+      // Delete old qualifications from Cloudinary if exists
+      if (currentExpert?.qualifications_public_id) {
+        await ImageUploadService.deleteImage(currentExpert.qualifications_public_id);
+      }
+
+      // Upload new qualifications
+      const qualificationsData = await ImageUploadService.uploadPDF(
+        req.files.qualifications[0].buffer, 
+        'expert-documents'
+      );
+      
+      if (!qualificationsData.success) {
+        return res.status(500).json({ 
+          error: `Qualifications upload failed: ${qualificationsData.error}` 
+        });
+      }
+
+      // Update qualifications fields
+      updateData.qualifications_url = qualificationsData.url;
+      updateData.qualifications_public_id = qualificationsData.publicId;
+    }
     
     const { data, error } = await supabaseClient
       .from('experts')
-      .update(req.body)
+      .update(updateData)
       .eq('id', req.params.id)
       .select();
     
@@ -324,8 +487,7 @@ app.post('/api/institutions', async (req, res) => {
     const institutionData = {
       user_id: authenticatedUserId,
       name: req.body.name,
-      email: req.body.email,
-      phone: req.body.phone,
+      email: req.body.contact_email || req.body.email,
       type: req.body.type,
       description: req.body.description,
       logo_url: req.body.logo_url || null,
@@ -336,7 +498,10 @@ app.post('/api/institutions', async (req, res) => {
       country: req.body.country || 'India',
       is_verified: true, // Auto-verify since email verification is required for login
       rating: req.body.rating || 0.00,
-      total_ratings: req.body.total_projects || 0
+      total_ratings: req.body.total_projects || 0,
+      phone: req.body.contact_phone,
+      contact_person: req.body.contact_person,
+      pincode: req.body.pincode || null,
     };
     
     console.log('Institution data to insert:', institutionData);
