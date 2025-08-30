@@ -261,7 +261,7 @@ export default function ExpertDashboard() {
         expert_id: expert?.id // Pass expert_id to filter out projects they've already applied to
       });
     },
-    [searchTerm, filterType, expert?.id] // Add expert?.id to dependencies
+    [searchTerm, filterType, expert?.id,expert,applications] // Add expert?.id to dependencies
   );
 
   // Paginate expert's own applications
@@ -496,7 +496,7 @@ export default function ExpertDashboard() {
         </div>
 
         <Tabs defaultValue="applications" className="space-y-6">
-        <TabsList className="flex w-full gap-2 overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-5 sm:gap-0 sm:overflow-visible scrollbar-hide bg-white/95 backdrop-blur-sm border-0 shadow-2xl">
+        <TabsList className="flex w-full gap-2 overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-4 sm:gap-0 sm:overflow-visible scrollbar-hide bg-white/95 backdrop-blur-sm border-0 shadow-2xl">
         <TabsTrigger className="px-3 py-2 snap-start ml-3 sm:ml-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white hover:bg-slate-100/80 transition-all rounded-lg" value="applications">
           My Applications
         </TabsTrigger>
@@ -506,9 +506,9 @@ export default function ExpertDashboard() {
         <TabsTrigger className="px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white hover:bg-slate-100/80 transition-all rounded-lg" value="bookings">
           Bookings
         </TabsTrigger>
-        <TabsTrigger className="px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white hover:bg-slate-100/80 transition-all rounded-lg" value="availability">
+        {/* <TabsTrigger className="px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white hover:bg-slate-100/80 transition-all rounded-lg" value="availability">
           Availability
-        </TabsTrigger>
+        </TabsTrigger> */}
         <TabsTrigger className="px-3 py-2 snap-start mr-3 sm:mr-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white hover:bg-slate-100/80 transition-all rounded-lg" value="notifications">
           Notifications
         </TabsTrigger>
@@ -544,10 +544,10 @@ export default function ExpertDashboard() {
                           </Badge>
                         </div>
                         <p className="text-sm text-gray-600 mb-2 break-words line-clamp-2">{application.projects?.description || 'Project description'}</p>
-                        <div className="flex items-center justify-between text-sm text-gray-500">
+                        {/* <div className="flex items-center justify-between text-sm text-gray-500">
                           <span>Applied: {new Date(application.applied_at || Date.now()).toLocaleDateString()}</span>
                           <span>Proposed Rate: ₹{application.proposed_rate}</span>
-                        </div>
+                        </div> */}
                       </div>
                     ))}
                     
@@ -816,7 +816,7 @@ export default function ExpertDashboard() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="availability" className="space-y-6">
+          {/* <TabsContent value="availability" className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Availability Schedule</CardTitle>
@@ -868,7 +868,7 @@ export default function ExpertDashboard() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          </TabsContent> */}
 
           <TabsContent value="notifications" className="space-y-6">
             <Card>
