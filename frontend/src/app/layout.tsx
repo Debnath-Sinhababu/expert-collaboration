@@ -17,7 +17,7 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: {
     default: "Calxmap",
-    template: "%s | Calxmap", // every page will have its own title with this template
+    template: "%s | Calxmap",
   },
   description:
     "Calxmap is a global knowledge ecosystem that transforms expertise into influence and connections into opportunities. It is the world’s first Knowledge Networking Platform where experts become brands, students unlock opportunities, universities bridge with industry, and industries find the right talent and ideas.",
@@ -28,14 +28,16 @@ export const metadata: Metadata = {
     "universities collaboration",
     "student opportunities",
     "industry connections",
-    'expert networking',
-    'expert networking platform',
-    'expert collaboration',
+    "expert networking",
+    "expert networking platform",
+    "expert collaboration",
   ],
   authors: [{ name: "Calxmap Team", url: "https://www.calxmap.in" }],
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://www.calxmap.in"),
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL || "https://www.calxmap.in"
+  ),
   alternates: {
-    canonical: "/",
+    canonical: "https://www.calxmap.in", // ✅ use absolute URL (not "/")
   },
   openGraph: {
     type: "website",
@@ -47,15 +49,17 @@ export const metadata: Metadata = {
       "Transforming expertise into influence and connections into opportunities. Join the world’s first Expert Networking Platform.",
     images: [
       {
-        url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.calxmap.in'}/images/logo.png`,
+        url: `${
+          process.env.NEXT_PUBLIC_SITE_URL || "https://www.calxmap.in"
+        }/images/logo.png`,
         width: 1200,
         height: 630,
         alt: "Calxmap - Expert Networking Platform",
       },
     ],
   },
-
 };
+
 
 
 export default function RootLayout({
