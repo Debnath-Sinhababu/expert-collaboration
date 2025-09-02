@@ -30,7 +30,10 @@ import {
   Users2,
   BarChart3,
   ArrowUpRight,
-  Play
+  Play,
+  MessageSquare,
+  DollarSign,
+  Network
 } from 'lucide-react'
 import Link from 'next/link'
 import Logo from '@/components/Logo'
@@ -126,7 +129,7 @@ export default function Home() {
                  Calxmap
                 </span>
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-lg opacity-0 group-hover:opacity-5 blur-xl transition-opacity duration-500"></div>
-                <p className="text-xs text-slate-400 font-medium group-hover:text-slate-300 transition-colors duration-300">Knowledge Networking Platform</p>
+                <p className="text-xs text-slate-400 font-medium group-hover:text-slate-300 transition-colors duration-300">knowledge sharing networking platform</p>
               </div>
             </div>
             
@@ -152,9 +155,258 @@ export default function Home() {
         {/* Additional subtle glow layers */}
         <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
       </header>
+      
+      <section className="py-8 relative overflow-hidden">
+            <div className="max-w-7xl mx-auto px-6">
+              <Carousel
+                opts={{
+                  align: "start",
+                  loop: true,
+                }}
+                plugins={[
+                  Autoplay({
+                    delay: 4000,
+                  }),
+                ]}
+                className="w-full"
+              >
+                <CarouselContent>
+                  {/* Expert Banner */}
+                  <CarouselItem className="basis-full">
+                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-600 via-red-600 to-pink-700 text-white">
+                      <div className="absolute inset-0 bg-black/20"></div>
+                      {/* Expert Background Image */}
+                      <div className="absolute inset-0">
+                        <img 
+                          src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=600&fit=crop&crop=center" 
+                          alt="Professional Expert" 
+                          className="w-full h-full object-cover opacity-30"
+                        />
+                      </div>
+                      <div className="relative px-12 py-16 lg:px-16 lg:py-20">
+                        <div className="grid lg:grid-cols-2 gap-12 items-center">
+                          <div>
+                            <div className="inline-flex items-center space-x-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium mb-6">
+                              <Users className="h-4 w-4" />
+                              <span>For Experts & Professionals</span>
+                            </div>
+                            <h2 className="text-4xl lg:text-5xl font-bold mb-6 leading-tight">
+                              Transform Your
+                              <span className="text-orange-200"> Expertise into Impact</span>
+                            </h2>
+                            <p className="text-xl text-orange-100 mb-8 leading-relaxed">
+                              Share your knowledge, build your personal brand, and connect with universities and corporations. Monetize your expertise while making a meaningful difference.
+                            </p>
+                            <div className="flex flex-col sm:flex-row gap-4">
+                              <Link href="/auth/signup?role=expert">
+                                <Button size="lg" className="bg-white text-orange-600 hover:bg-orange-50 font-semibold px-8 py-4 shadow-lg hover:shadow-xl transition-all">
+                                  Join as Expert
+                                  <ArrowRight className="ml-2 h-5 w-5" />
+                                </Button>
+                              </Link>
+                              <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10 font-semibold px-8 py-4">
+                                Learn More
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="hidden lg:block">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6">
+                                <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-4">
+                                  <TrendingUp className="h-6 w-6 text-white" />
+                                </div>
+                                <h3 className="font-semibold mb-2">Build Brand</h3>
+                                <p className="text-sm text-orange-100">Personal branding</p>
+                              </div>
+                              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 mt-8">
+                                <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-4">
+                                  <DollarSign className="h-6 w-6 text-white" />
+                                </div>
+                                <h3 className="font-semibold mb-2">Monetize Skills</h3>
+                                <p className="text-sm text-orange-100">Flexible income</p>
+                              </div>
+                              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6">
+                                <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-4">
+                                  <Network className="h-6 w-6 text-white" />
+                                </div>
+                                <h3 className="font-semibold mb-2">Expand Network</h3>
+                                <p className="text-sm text-orange-100">Global connections</p>
+                              </div>
+                              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 mt-8">
+                                <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-4">
+                                  <Award className="h-6 w-6 text-white" />
+                                </div>
+                                <h3 className="font-semibold mb-2">Get Verified</h3>
+                                <p className="text-sm text-orange-100">Credibility boost</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CarouselItem>
+
+                  {/* University Banner */}
+                  <CarouselItem className="basis-full">
+                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white">
+                      <div className="absolute inset-0 bg-black/20"></div>
+                      {/* University Background Image */}
+                      <div className="absolute inset-0">
+                        <img 
+                          src="https://images.unsplash.com/photo-1562774053-701939374585?w=1200&h=600&fit=crop&crop=center" 
+                          alt="University Campus" 
+                          className="w-full h-full object-cover opacity-30"
+                        />
+                      </div>
+                      <div className="relative px-12 py-16 lg:px-16 lg:py-20">
+                        <div className="grid lg:grid-cols-2 gap-12 items-center">
+                          <div>
+                            <div className="inline-flex items-center space-x-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium mb-6">
+                              <GraduationCap className="h-4 w-4" />
+                              <span>For Universities & Institutions</span>
+                            </div>
+                            <h2 className="text-4xl lg:text-5xl font-bold mb-6 leading-tight">
+                              Bridge Academia with
+                              <span className="text-blue-200"> Industry Excellence</span>
+                            </h2>
+                            <p className="text-xl text-blue-100 mb-8 leading-relaxed">
+                              Connect with verified industry experts for guest lectures, workshops, research collaborations, and faculty development programs.
+                            </p>
+                            <div className="flex flex-col sm:flex-row gap-4">
+                              <Link href="/auth/signup?role=institution">
+                                <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50 font-semibold px-8 py-4 shadow-lg hover:shadow-xl transition-all">
+                                  Join as University
+                                  <ArrowRight className="ml-2 h-5 w-5" />
+                                </Button>
+                              </Link>
+                              <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10 font-semibold px-8 py-4">
+                                Learn More
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="hidden lg:block">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6">
+                                <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-4">
+                                  <Users className="h-6 w-6 text-white" />
+                                </div>
+                                <h3 className="font-semibold mb-2">500+ Experts</h3>
+                                <p className="text-sm text-blue-100">Verified professionals</p>
+                              </div>
+                              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 mt-8">
+                                <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-4">
+                                  <Award className="h-6 w-6 text-white" />
+                                </div>
+                                <h3 className="font-semibold mb-2">Quality Assured</h3>
+                                <p className="text-sm text-blue-100">Rigorous verification</p>
+                              </div>
+                              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6">
+                                <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-4">
+                                  <TrendingUp className="h-6 w-6 text-white" />
+                                </div>
+                                <h3 className="font-semibold mb-2">Proven Results</h3>
+                                <p className="text-sm text-blue-100">4.9/5 rating</p>
+                              </div>
+                              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 mt-8">
+                                <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-4">
+                                  <Clock className="h-6 w-6 text-white" />
+                                </div>
+                                <h3 className="font-semibold mb-2">Quick Setup</h3>
+                                <p className="text-sm text-blue-100">24-hour matching</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CarouselItem>
+
+                  {/* Student Banner */}
+                  <CarouselItem className="basis-full">
+                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-600 via-purple-700 to-pink-800 text-white">
+                      <div className="absolute inset-0 bg-black/20"></div>
+                      {/* Student Background Image */}
+                      <div className="absolute inset-0">
+                        <img 
+                          src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1200&h=600&fit=crop&crop=center" 
+                          alt="Students with Degrees and Career Success" 
+                          className="w-full h-full object-cover opacity-30"
+                        />
+                      </div>
+                      <div className="relative px-12 py-16 lg:px-16 lg:py-20">
+                        <div className="grid lg:grid-cols-2 gap-12 items-center">
+                          <div>
+                            <div className="inline-flex items-center space-x-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium mb-6">
+                              <BookOpen className="h-4 w-4" />
+                              <span>For Students & Learners</span>
+                            </div>
+                            <h2 className="text-4xl lg:text-5xl font-bold mb-6 leading-tight">
+                              Learn from
+                              <span className="text-purple-200"> World-Class Experts</span>
+                            </h2>
+                            <p className="text-xl text-purple-100 mb-8 leading-relaxed">
+                              Access industry leaders, get personalized mentorship, and gain real-world insights through interactive sessions and workshops.
+                            </p>
+                            <div className="flex flex-col sm:flex-row gap-4">
+                              <Link href="/student-feedback">
+                                <Button size="lg" className="bg-white text-purple-600 hover:bg-purple-50 font-semibold px-8 py-4 shadow-lg hover:shadow-xl transition-all">
+                                  Access Learning Portal
+                                  <ArrowRight className="ml-2 h-5 w-5" />
+                                </Button>
+                              </Link>
+                              <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10 font-semibold px-8 py-4">
+                                View Programs
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="hidden lg:block">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6">
+                                <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-4">
+                                  <Lightbulb className="h-6 w-6 text-white" />
+                                </div>
+                                <h3 className="font-semibold mb-2">Expert Sessions</h3>
+                                <p className="text-sm text-purple-100">Live interactions</p>
+                              </div>
+                              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 mt-8">
+                                <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-4">
+                                  <MessageSquare className="h-6 w-6 text-white" />
+                                </div>
+                                <h3 className="font-semibold mb-2">Mentorship</h3>
+                                <p className="text-sm text-purple-100">1-on-1 guidance</p>
+                              </div>
+                              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6">
+                                <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-4">
+                                  <Target className="h-6 w-6 text-white" />
+                                </div>
+                                <h3 className="font-semibold mb-2">Career Growth</h3>
+                                <p className="text-sm text-purple-100">Industry insights</p>
+                              </div>
+                              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 mt-8">
+                                <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-4">
+                                  <Globe className="h-6 w-6 text-white" />
+                                </div>
+                                <h3 className="font-semibold mb-2">Global Network</h3>
+                                <p className="text-sm text-purple-100">Worldwide experts</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CarouselItem>
+
+                  {/* Corporate Banner */}
+                 
+                </CarouselContent>
+                <CarouselPrevious className="left-4 bg-white/90 hover:bg-white text-gray-900 border-gray-200 shadow-lg" />
+                <CarouselNext className="right-4 bg-white/90 hover:bg-white text-gray-900 border-gray-200 shadow-lg" />
+              </Carousel>
+            </div>
+          </section>
 
       {user && (
-        <div className="bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 relative overflow-hidden">
+        <div className="relative overflow-hidden">
           {/* Background Elements */}
           <div className="absolute inset-0">
             <div className="absolute top-10 left-10 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl"></div>
@@ -220,15 +472,9 @@ export default function Home() {
      
         <>
           {/* Hero Section */}
-          <section className="relative bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 py-20 lg:py-32 overflow-hidden">
+          <section className="relative py-20 lg:py-32 overflow-hidden">
             {/* Background Elements */}
-            <div className="absolute inset-0">
-              <div className="absolute top-20 left-20 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl"></div>
-              <div className="absolute bottom-20 right-20 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl"></div>
-              
-              {/* Background Banner Carousel */}
-              <BackgroundBannerCarousel />
-            </div>
+    
             
             <div className="container mx-auto px-4 relative z-10">
               <div className="max-w-6xl mx-auto text-center">
@@ -245,7 +491,7 @@ export default function Home() {
                 </h1>
                 
                 <p className="text-xl lg:text-2xl text-slate-300 mb-12 max-w-4xl mx-auto leading-relaxed">
-                  The world's first Knowledge Networking Platform connecting verified experts with universities and corporations for meaningful collaborations, research, and innovation.
+                  The world's first knowledge sharing networking platform connecting verified experts with universities and corporations for meaningful collaborations, research, and innovation.
                 </p>
 
                 {/* Problem Statement */}
@@ -279,7 +525,7 @@ export default function Home() {
           </section>
 
           {/* Value Proposition Section */}
-          <section className="py-20 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 relative overflow-hidden">
+          <section className="py-20 relative overflow-hidden">
             {/* Background Elements */}
             <div className="absolute inset-0">
               <div className="absolute top-10 right-10 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl"></div>
@@ -354,7 +600,7 @@ export default function Home() {
           </section>
 
           {/* Audience-Specific Sections */}
-          <section className="py-20 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 relative overflow-hidden">
+          <section className="py-20 relative overflow-hidden">
             {/* Background Elements */}
             <div className="absolute inset-0">
               <div className="absolute top-20 left-20 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl"></div>
@@ -447,7 +693,7 @@ export default function Home() {
           </section>
 
           {/* How It Works Section */}
-          <section id="how-it-works" className="py-20 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 relative overflow-hidden">
+          <section id="how-it-works" className="py-20 relative overflow-hidden">
             {/* Background Elements */}
             <div className="absolute inset-0">
               <div className="absolute top-10 left-10 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl"></div>
@@ -496,7 +742,7 @@ export default function Home() {
           </section>
 
           {/* Statistics Section */}
-          <section ref={statsRef} className="py-20 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 relative overflow-hidden">
+          <section ref={statsRef} className="py-20 relative overflow-hidden">
             {/* Background Elements */}
             <div className="absolute inset-0">
               <div className="absolute top-10 left-10 w-80 h-80 bg-blue-500/15 rounded-full blur-3xl"></div>
@@ -603,7 +849,7 @@ export default function Home() {
           </section>
 
           {/* Featured Universities */}
-          <section className="py-20 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 relative overflow-hidden">
+          <section className="py-20 relative overflow-hidden">
             {/* Background Elements */}
             <div className="absolute inset-0">
               <div className="absolute top-20 right-20 w-72 h-72 bg-indigo-500/10 rounded-full blur-3xl"></div>
@@ -629,23 +875,27 @@ export default function Home() {
                 className="w-full max-w-5xl mx-auto"
               >
                 <CarouselContent>
-                  {[
-                    { name: "IIT Delhi", desc: "Leading technical education with industry experts", icon: GraduationCap, color: "blue" },
-                    { name: "Delhi University", desc: "Bridging academia with professional expertise", icon: BookOpen, color: "purple" },
-                    { name: "JNU", desc: "Excellence in research and liberal education", icon: GraduationCap, color: "indigo" },
-                    { name: "IISc Bangalore", desc: "Premier institute for advanced scientific research", icon: BookOpen, color: "teal" },
-                  ].map((uni, index) => (
+                                     {[
+                     { name: "IIT Delhi", desc: "Leading technical education with industry experts", logo: 'https://images.unsplash.com/photo-1562774053-701939374585?w=200&h=200&fit=crop&crop=center', color: "blue" },
+                     { name: "Delhi University", desc: "Bridging academia with professional expertise", logo: '/images/universitylogo1.jpeg', color: "purple" },
+                     { name: "JNU", desc: "Excellence in research and liberal education", logo: '/images/universitylogo2.jpeg', color: "indigo" },
+                     { name: "IISc Bangalore", desc: "Premier institute for advanced scientific research", logo: '/images/universitylogo3.jpeg', color: "teal" },
+                   ].map((uni, index) => (
                     <CarouselItem key={index} className="basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4">
                       <Card className="h-full mx-2 transition-all duration-500 border-0 hover:scale-105 hover:-translate-y-2 bg-gradient-to-br from-slate-800/80 via-slate-700/80 to-slate-800/80 backdrop-blur-xl border border-slate-600/30 shadow-2xl hover:shadow-blue-500/25" style={{boxShadow: '0 25px 50px -12px rgba(59, 130, 246, 0.25), 0 0 0 1px rgba(59, 130, 246, 0.15)'}}>
                         <CardContent className="p-6 text-center relative overflow-hidden">
                           {/* Glowing background effect */}
                           <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-indigo-500/5 to-purple-500/5 rounded-lg"></div>
-                          
-                          {/* Icon with enhanced styling */}
-                          <div className={`w-16 h-16 bg-gradient-to-r from-${uni.color}-500 to-${uni.color === 'blue' ? 'indigo' : uni.color === 'purple' ? 'pink' : uni.color === 'indigo' ? 'blue' : 'teal'}-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg border-2 border-${uni.color}-400/30 relative z-10`}>
-                            <uni.icon className="h-8 w-8 text-white drop-shadow-lg" />
-                            {/* Subtle glow effect */}
-                            <div className={`absolute inset-0 bg-${uni.color}-500/20 rounded-full blur-xl`}></div>
+<div className="w-16 h-16 rounded-full overflow-hidden mx-auto mb-4 shadow-lg border-2 border-white/20 relative z-10">
+                            <img 
+                              src={uni.logo} 
+                              alt={`${uni.name} Logo`}
+                              className="w-full h-full object-cover"
+                             
+                            />
+                            <div className="w-full h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-xs" style={{display: 'none'}}>
+                              {uni.name.split(' ')[1] || uni.name.split(' ')[0].substring(0, 2)}
+                            </div>
                           </div>
                           
                           {/* Content with enhanced typography */}
@@ -666,7 +916,7 @@ export default function Home() {
           </section>
 
           {/* Featured Experts */}
-          <section className="py-20 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 relative overflow-hidden">
+          <section className="py-20 relative overflow-hidden">
             {/* Background Elements */}
             <div className="absolute inset-0">
               <div className="absolute top-10 left-10 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
@@ -740,7 +990,7 @@ export default function Home() {
           </section>
 
           {/* Student Feedback & Analytics Section */}
-          <section className="py-20 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 relative overflow-hidden">
+          <section className="py-20 relative overflow-hidden">
             <div className="absolute inset-0">
               <div className="absolute top-10 left-10 w-96 h-96 bg-purple-500/15 rounded-full blur-3xl"></div>
               <div className="absolute bottom-10 right-10 w-80 h-80 bg-pink-500/15 rounded-full blur-3xl"></div>
@@ -830,7 +1080,7 @@ export default function Home() {
           </section>
 
           {/* Call-to-Action Section */}
-          <section className="py-20 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 relative overflow-hidden">
+          <section className="py-20 relative overflow-hidden">
             <div className="absolute inset-0">
               <div className="absolute top-10 left-10 w-96 h-96 bg-blue-500/15 rounded-full blur-3xl"></div>
               <div className="absolute bottom-10 right-10 w-80 h-80 bg-indigo-500/15 rounded-full blur-3xl"></div>
@@ -859,8 +1109,7 @@ export default function Home() {
             </div>
           </section>
         </>
-   
-
+      
       {/* Professional Footer */}
       <footer className="bg-slate-900 text-white py-16">
         <div className="container mx-auto px-4">
@@ -872,7 +1121,7 @@ export default function Home() {
               </div>
               <p className="text-slate-400 leading-relaxed">
                 Transforming expertise into influence and connections into opportunities. 
-                The world's first Knowledge Networking Platform.
+                The world's first knowledge sharing networking platform.
               </p>
             </div>
             

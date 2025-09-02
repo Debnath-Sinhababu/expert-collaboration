@@ -107,7 +107,7 @@ export default function Signup() {
                 <span className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">
                  Calxmap
                 </span>
-                <p className="text-xs text-slate-400 font-medium group-hover:text-slate-300 transition-colors duration-300">Knowledge Networking Platform</p>
+                <p className="text-xs text-slate-400 font-medium group-hover:text-slate-300 transition-colors duration-300">knowledge sharing networking platform</p>
               </div>
             </Link>
             <Link href="/">
