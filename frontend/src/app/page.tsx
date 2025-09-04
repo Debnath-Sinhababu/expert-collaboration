@@ -135,6 +135,11 @@ export default function Home() {
             
             {/* Navigation & CTA */}
             <div className="flex items-center flex-wrap gap-2">
+              <Link href="/contact-us">
+                <Button variant="ghost" className="font-medium text-slate-300 hover:text-white hover:bg-slate-800/50 border border-transparent hover:border-slate-600 transition-all duration-300 px-4 py-2">
+                  Contact Us
+                </Button>
+              </Link>
               <Link href="/auth/login">
                 <Button variant="ghost" className="font-medium text-slate-300 hover:text-white hover:bg-slate-800/50 border border-transparent hover:border-slate-600 transition-all duration-300 px-4 py-2">
                   Sign In
@@ -483,40 +488,64 @@ export default function Home() {
                 </div>
                 
                 <h1 className="text-5xl lg:text-7xl font-bold text-white mb-6 leading-tight">
-                  Where
-                  <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent"> Expertise</span>
+                  Hire
+                  <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent"> Experts.</span>
                   <br />
-                  Meets
-                  <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent"> Opportunity</span>
+                  <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">Anytime.</span>
+                  <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent"> Anywhere.</span>
                 </h1>
                 
                 <p className="text-xl lg:text-2xl text-slate-300 mb-12 max-w-4xl mx-auto leading-relaxed">
-                  The world's first knowledge sharing networking platform connecting verified experts with universities and corporations for meaningful collaborations, research, and innovation.
+                  Calxmap is India's leading <strong className="text-blue-400">Expert Marketplace</strong>, connecting corporates and universities with verified professionals — from <strong className="text-blue-400">Chartered Accountants and Corporate Lawyers</strong> to <strong className="text-blue-400">Industry Trainers and Technologists</strong>.
                 </p>
 
                 {/* Problem Statement */}
                 <div className="bg-slate-800/80 backdrop-blur-sm rounded-2xl p-8 mb-12 shadow-2xl border border-slate-600">
                   <div className="flex items-center justify-center mb-4">
                     <Target className="h-8 w-8 text-red-400 mr-3" />
-                    <h3 className="text-xl font-semibold text-white">About Us</h3>
+                    <h3 className="text-xl font-semibold text-white">Why Calxmap?</h3>
                   </div>
-                  <p className="text-lg text-slate-300 max-w-3xl mx-auto">
-                    Universities struggle to find qualified industry experts. Corporations need specialized knowledge. 
-                    Experts want to share their expertise but lack the right platform. <strong className="text-blue-400">Calxmap bridges this gap.</strong>
-                  </p>
+                  <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
+                    <div className="flex flex-col items-center">
+                      <CheckCircle className="h-6 w-6 text-green-400 mb-2" />
+                      <span className="text-slate-300 font-medium">For Education</span>
+                      <span className="text-sm text-slate-400">Industry guest lectures, training & certification programs</span>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <CheckCircle className="h-6 w-6 text-green-400 mb-2" />
+                      <span className="text-slate-300 font-medium">For Corporates</span>
+                      <span className="text-sm text-slate-400">Hire CAs, Lawyers & Consultants on-demand</span>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <CheckCircle className="h-6 w-6 text-green-400 mb-2" />
+                      <span className="text-slate-300 font-medium">For Experts</span>
+                      <span className="text-sm text-slate-400">Monetize your skills with hourly & project-based work</span>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <CheckCircle className="h-6 w-6 text-green-400 mb-2" />
+                      <span className="text-slate-300 font-medium">For CSR</span>
+                      <span className="text-sm text-slate-400">Partner with us to boost employability & skill development</span>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Link href="/auth/signup">
+                  <Link href="/auth/signup?role=expert">
                     <Button size="lg" className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-bold text-xl px-8 py-6 shadow-2xl hover:shadow-3xl transition-all hover:scale-105 border-2 border-blue-400/20 hover:shadow-blue-500/25 hover:-translate-y-1">
-                      Start Your Journey
+                      Hire an Expert
                       <ArrowRight className="ml-2 h-6 w-6" />
                     </Button>
                   </Link>
-                  <Link href="#how-it-works">
-                    <Button size="lg" className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-bold text-xl px-8 py-6 shadow-2xl hover:shadow-3xl hover:shadow-blue-500/25 transition-all duration-300 hover:scale-105 hover:-translate-y-1 border-2 border-blue-400/20 hover:border-blue-400/40">
-                      <Play className="mr-2 h-5 w-5" />
-                      See How It Works
+                  <Link href="/auth/signup?role=expert">
+                    <Button size="lg" className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold text-xl px-8 py-6 shadow-2xl hover:shadow-3xl transition-all hover:scale-105 border-2 border-green-400/20 hover:shadow-green-500/25 hover:-translate-y-1">
+                      Join as Expert
+                      <ArrowRight className="ml-2 h-6 w-6" />
+                    </Button>
+                  </Link>
+                  <Link href="/auth/signup?role=institution">
+                    <Button size="lg" className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-bold text-xl px-8 py-6 shadow-2xl hover:shadow-3xl transition-all hover:scale-105 border-2 border-purple-400/20 hover:shadow-purple-500/25 hover:-translate-y-1">
+                      Partner with Us
+                      <ArrowRight className="ml-2 h-6 w-6" />
                     </Button>
                   </Link>
                 </div>
@@ -547,10 +576,24 @@ export default function Home() {
             </div>
             <div className="container mx-auto px-4 relative z-10">
               <div className="text-center mb-16">
-                <h2 className="text-4xl font-bold text-white mb-4">Why Choose Calxmap?</h2>
-                <p className="text-xl text-slate-300 max-w-3xl mx-auto">
-                  We're not just another platform. We're revolutionizing how knowledge flows between academia, industry, and expertise.
+                <h2 className="text-4xl font-bold text-white mb-4">About Calxmap</h2>
+                <p className="text-xl text-slate-300 max-w-4xl mx-auto mb-8">
+                  At Calxmap, we believe knowledge creates opportunity. We are an <strong className="text-blue-400">Expert Marketplace</strong> that enables corporates and academic institutions to access verified professionals on-demand.
                 </p>
+                <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto text-left">
+                  <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-600">
+                    <h3 className="text-lg font-semibold text-white mb-3">For Businesses</h3>
+                    <p className="text-slate-300 text-sm">We provide <strong className="text-blue-400">CAs, Corporate Lawyers, Trainers & Consultants</strong> for flexible hourly or project-based needs.</p>
+                  </div>
+                  <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-600">
+                    <h3 className="text-lg font-semibold text-white mb-3">For Education</h3>
+                    <p className="text-slate-300 text-sm">We bring <strong className="text-blue-400">guest lectures, workshops, and industry-driven training programs</strong> to colleges & universities.</p>
+                  </div>
+                </div>
+                <div className="mt-8 text-center">
+                  <p className="text-lg text-slate-300 mb-2"><strong className="text-blue-400">Our Mission:</strong> To bridge the gap between academia and industry by delivering expert-driven insights everywhere.</p>
+                  <p className="text-lg text-slate-300"><strong className="text-blue-400">Our Vision:</strong> To become the largest on-demand expert marketplace in India, shaping the future of learning and work.</p>
+                </div>
               </div>
 
               <div className="grid md:grid-cols-3 gap-8">
@@ -559,11 +602,11 @@ export default function Home() {
                     <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shadow-lg">
                       <Shield className="h-8 w-8 text-white" />
                     </div>
-                    <CardTitle className="text-2xl font-bold text-slate-900">Verified Excellence</CardTitle>
+                    <CardTitle className="text-2xl font-bold text-slate-900">Verified Professionals</CardTitle>
                   </CardHeader>
                   <CardContent className="text-center">
                     <p className="text-slate-700 leading-relaxed">
-                      Every expert undergoes rigorous KYC verification. Universities and corporations can trust the quality and authenticity of our network.
+                      Access <strong className="text-blue-600">Chartered Accountants, Corporate Lawyers, Trainers & Consultants</strong> with verified credentials and proven expertise.
                     </p>
                   </CardContent>
                 </Card>
@@ -571,13 +614,13 @@ export default function Home() {
                 <Card className="border-0 bg-white/95 backdrop-blur-sm shadow-2xl hover:shadow-3xl transition-all duration-500 group hover:scale-105 hover:-translate-y-2" style={{boxShadow: '0 25px 50px -12px rgba(99, 102, 241, 0.25), 0 0 0 1px rgba(99, 102, 241, 0.15)'}}>
                   <CardHeader className="text-center pb-4">
                     <div className="w-16 h-16 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shadow-lg">
-                      <Zap className="h-8 w-8 text-white" />
+                      <Clock className="h-8 w-8 text-white" />
                     </div>
-                    <CardTitle className="text-2xl font-bold text-slate-900">Instant Connection</CardTitle>
+                    <CardTitle className="text-2xl font-bold text-slate-900">Flexible Engagement</CardTitle>
                   </CardHeader>
                   <CardContent className="text-center">
                     <p className="text-slate-700 leading-relaxed">
-                      Post requirements and get matched with qualified experts within hours. No more endless searching or cold outreach.
+                      Choose from <strong className="text-indigo-600">hourly basis, project basis, or advisory sessions</strong> to match your specific business needs and budget.
                     </p>
                   </CardContent>
                 </Card>
@@ -587,11 +630,11 @@ export default function Home() {
                     <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shadow-lg">
                       <TrendingUp className="h-8 w-8 text-white" />
                     </div>
-                    <CardTitle className="text-2xl font-bold text-slate-900">Measurable Impact</CardTitle>
+                    <CardTitle className="text-2xl font-bold text-slate-900">Industry Impact</CardTitle>
                   </CardHeader>
                   <CardContent className="text-center">
                     <p className="text-lg text-slate-700 leading-relaxed">
-                      Track collaboration success, ratings, and outcomes. Build long-term relationships based on proven results.
+                      Bridge the gap between <strong className="text-purple-600">academia and industry</strong> with real-world expertise and practical knowledge sharing.
                     </p>
                   </CardContent>
                 </Card>
@@ -614,7 +657,7 @@ export default function Home() {
                 </p>
               </div>
 
-              <div className="grid lg:grid-cols-2 gap-10">
+              <div className="grid lg:grid-cols-3 gap-8">
                 {/* For Experts */}
                 <Card className="border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 group overflow-hidden hover:scale-105 hover:-translate-y-2" style={{boxShadow: '0 25px 50px -12px rgba(59, 130, 246, 0.3), 0 0 0 1px rgba(59, 130, 246, 0.2)'}}>
                   <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-8 text-white">
@@ -623,24 +666,24 @@ export default function Home() {
                     </div>
                     <h3 className="text-3xl font-bold mb-4">For Experts</h3>
                     <p className="text-blue-100 text-lg mb-6">
-                      Transform your expertise into influence and income. Build your personal brand and unlock flexible opportunities.
+                      Turn your expertise into impact. Flexible work: hourly or project-based. Earn while sharing your knowledge with top corporates & universities.
                     </p>
                     <div className="grid grid-cols-2 gap-4 mb-8">
                       <div className="flex items-center text-blue-100">
                         <CheckCircle className="h-5 w-5 text-blue-200 mr-2" />
-                        <span className="text-sm">Profile Building</span>
+                        <span className="text-sm">Chartered Accountants</span>
                       </div>
                       <div className="flex items-center text-blue-100">
                         <CheckCircle className="h-5 w-5 text-blue-200 mr-2" />
-                        <span className="text-sm">Flexible Rates</span>
+                        <span className="text-sm">Corporate Lawyers</span>
                       </div>
                       <div className="flex items-center text-blue-100">
                         <CheckCircle className="h-5 w-5 text-blue-200 mr-2" />
-                        <span className="text-sm">Project Matching</span>
+                        <span className="text-sm">Industry Trainers</span>
                       </div>
                       <div className="flex items-center text-blue-100">
                         <CheckCircle className="h-5 w-5 text-blue-200 mr-2" />
-                        <span className="text-sm">Verification</span>
+                        <span className="text-sm">Business Consultants</span>
                       </div>
                     </div>
                     <Link href="/auth/signup?role=expert">
@@ -658,9 +701,9 @@ export default function Home() {
                     <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
                       <GraduationCap className="h-8 w-8 text-white" />
                     </div>
-                    <h3 className="text-3xl font-bold mb-4">For Universities</h3>
+                    <h3 className="text-3xl font-bold mb-4">For Education</h3>
                     <p className="text-indigo-100 text-lg mb-6">
-                      Bridge the gap between academia and industry. Connect with verified experts for enhanced learning experiences.
+                      Bring real-world knowledge into your classrooms. Connect with verified industry professionals for enhanced learning experiences.
                     </p>
                     <div className="grid grid-cols-2 gap-4 mb-8">
                       <div className="flex items-center text-indigo-100">
@@ -669,7 +712,7 @@ export default function Home() {
                       </div>
                       <div className="flex items-center text-indigo-100">
                         <CheckCircle className="h-5 w-5 text-indigo-200 mr-2" />
-                        <span className="text-sm">FDP Programs</span>
+                        <span className="text-sm">Certification Programs</span>
                       </div>
                       <div className="flex items-center text-indigo-100">
                         <CheckCircle className="h-5 w-5 text-indigo-200 mr-2" />
@@ -677,12 +720,49 @@ export default function Home() {
                       </div>
                       <div className="flex items-center text-indigo-100">
                         <CheckCircle className="h-5 w-5 text-indigo-200 mr-2" />
-                        <span className="text-sm">Research Collab</span>
+                        <span className="text-sm">Corporate Mentorship</span>
                       </div>
                     </div>
                     <Link href="/auth/signup?role=institution">
                       <Button className="w-full bg-white text-indigo-600 hover:bg-indigo-50 font-bold py-3 shadow-lg hover:shadow-xl transition-all">
-                        Join as University
+                        Hire a Trainer
+                        <ArrowUpRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </div>
+                </Card>
+
+                {/* For Corporates */}
+                <Card className="border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 group overflow-hidden hover:scale-105 hover:-translate-y-2" style={{boxShadow: '0 25px 50px -12px rgba(16, 185, 129, 0.3), 0 0 0 1px rgba(16, 185, 129, 0.2)'}}>
+                  <div className="bg-gradient-to-br from-emerald-600 to-teal-700 p-8 text-white">
+                    <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                      <Building className="h-8 w-8 text-white" />
+                    </div>
+                    <h3 className="text-3xl font-bold mb-4">For Corporates</h3>
+                    <p className="text-emerald-100 text-lg mb-6">
+                      Empower your organization with expert support, when you need it. Access verified professionals for your business needs.
+                    </p>
+                    <div className="grid grid-cols-2 gap-4 mb-8">
+                      <div className="flex items-center text-emerald-100">
+                        <CheckCircle className="h-5 w-5 text-emerald-200 mr-2" />
+                        <span className="text-sm">Chartered Accountants</span>
+                      </div>
+                      <div className="flex items-center text-emerald-100">
+                        <CheckCircle className="h-5 w-5 text-emerald-200 mr-2" />
+                        <span className="text-sm">Corporate Lawyers</span>
+                      </div>
+                      <div className="flex items-center text-emerald-100">
+                        <CheckCircle className="h-5 w-5 text-emerald-200 mr-2" />
+                        <span className="text-sm">Business Consultants</span>
+                      </div>
+                      <div className="flex items-center text-emerald-100">
+                        <CheckCircle className="h-5 w-5 text-emerald-200 mr-2" />
+                        <span className="text-sm">Industry Trainers</span>
+                      </div>
+                    </div>
+                    <Link href="/auth/signup?role=expert">
+                      <Button className="w-full bg-white text-emerald-600 hover:bg-emerald-50 font-bold py-3 shadow-lg hover:shadow-xl transition-all">
+                        Post Your Requirement
                         <ArrowUpRight className="ml-2 h-4 w-4" />
                       </Button>
                     </Link>
@@ -844,6 +924,80 @@ export default function Home() {
                   <div className="text-slate-200 font-medium">Average Rating</div>
                   <div className="w-2 h-2 bg-pink-400 rounded-full mx-auto mt-3 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 </div>
+              </div>
+            </div>
+          </section>
+
+          {/* CSR & Initiatives Section */}
+          <section className="py-20 relative overflow-hidden">
+            {/* Background Elements */}
+            <div className="absolute inset-0">
+              <div className="absolute top-10 right-10 w-80 h-80 bg-green-500/10 rounded-full blur-3xl"></div>
+              <div className="absolute bottom-10 left-10 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl"></div>
+            </div>
+            <div className="container mx-auto px-4 relative z-10">
+              <div className="text-center mb-16">
+                <div className="inline-flex items-center space-x-2 bg-green-500/20 backdrop-blur-sm px-6 py-3 rounded-full text-sm font-medium mb-6">
+                  <Globe className="h-5 w-5 text-green-400" />
+                  <span className="text-green-300">CSR & Social Impact</span>
+                </div>
+                <h2 className="text-4xl font-bold text-white mb-4">Sikshit – Parshiksit – Viksit Bharat</h2>
+                <p className="text-xl text-slate-300 max-w-4xl mx-auto mb-8">
+                  In collaboration with <strong className="text-green-400">STPI</strong>, Calxmap is running a <strong className="text-green-400">₹1000 Cr CSR initiative</strong> to provide free access to training and expert-driven education for government institutions.
+                </p>
+              </div>
+
+              <div className="grid md:grid-cols-3 gap-8 mb-12">
+                <Card className="border-0 bg-white/95 backdrop-blur-sm shadow-2xl hover:shadow-3xl transition-all duration-500 group hover:scale-105 hover:-translate-y-2" style={{boxShadow: '0 25px 50px -12px rgba(34, 197, 94, 0.25), 0 0 0 1px rgba(34, 197, 94, 0.15)'}}>
+                  <CardHeader className="text-center pb-4">
+                    <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shadow-lg">
+                      <Users className="h-8 w-8 text-white" />
+                    </div>
+                    <CardTitle className="text-2xl font-bold text-slate-900">Empowering Students</CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-center">
+                    <p className="text-slate-700 leading-relaxed">
+                      Empowering students with future-ready skills through free access to industry experts and training programs.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-0 bg-white/95 backdrop-blur-sm shadow-2xl hover:shadow-3xl transition-all duration-500 group hover:scale-105 hover:-translate-y-2" style={{boxShadow: '0 25px 50px -12px rgba(16, 185, 129, 0.25), 0 0 0 1px rgba(16, 185, 129, 0.15)'}}>
+                  <CardHeader className="text-center pb-4">
+                    <div className="w-16 h-16 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shadow-lg">
+                      <Building className="h-8 w-8 text-white" />
+                    </div>
+                    <CardTitle className="text-2xl font-bold text-slate-900">Corporate Partnership</CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-center">
+                    <p className="text-slate-700 leading-relaxed">
+                      Partnering with corporates for impactful CSR initiatives that bridge rural and urban skill gaps.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-0 bg-white/95 backdrop-blur-sm shadow-2xl hover:shadow-3xl transition-all duration-500 group hover:scale-105 hover:-translate-y-2" style={{boxShadow: '0 25px 50px -12px rgba(6, 182, 212, 0.25), 0 0 0 1px rgba(6, 182, 212, 0.15)'}}>
+                  <CardHeader className="text-center pb-4">
+                    <div className="w-16 h-16 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shadow-lg">
+                      <Target className="h-8 w-8 text-white" />
+                    </div>
+                    <CardTitle className="text-2xl font-bold text-slate-900">National Impact</CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-center">
+                    <p className="text-slate-700 leading-relaxed">
+                      Building a skilled India by connecting government institutions with industry expertise for sustainable development.
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="text-center">
+                <Link href="/auth/signup?role=institution">
+                  <Button size="lg" className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold text-xl px-8 py-6 shadow-2xl hover:shadow-3xl transition-all hover:scale-105 border-2 border-green-400/20 hover:shadow-green-500/25 hover:-translate-y-1">
+                    Partner in CSR
+                    <ArrowRight className="ml-2 h-6 w-6" />
+                  </Button>
+                </Link>
               </div>
             </div>
           </section>
@@ -1088,21 +1242,28 @@ export default function Home() {
             </div>
             
             <div className="container mx-auto px-4 text-center relative z-10">
-              <h2 className="text-5xl font-bold text-white mb-6">Ready to Transform Your Future?</h2>
-              <p className="text-xl text-slate-200 mb-12 max-w-3xl mx-auto">
-                Join the revolution where expertise meets opportunity. Whether you're an expert, university, or corporate organization, 
-                your journey to meaningful collaboration starts here.
+              <h2 className="text-5xl font-bold text-white mb-6">Ready to hire your next expert?</h2>
+              <p className="text-xl text-slate-200 mb-12 max-w-4xl mx-auto">
+                Whether you're a corporate seeking on-demand professionals or a university bridging industry knowledge, 
+                <strong className="text-blue-400"> Calxmap is your partner for expert-driven success.</strong>
               </p>
               <div className="flex flex-col sm:flex-row gap-6 justify-center">
-                <Link href="/auth/signup">
+                <Link href="/auth/signup?role=expert">
                   <Button size="lg" className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-bold text-xl px-12 py-6 shadow-2xl hover:shadow-3xl transition-all hover:scale-105 border-2 border-blue-400/20 hover:shadow-blue-500/30 hover:-translate-y-1">
-                    Get Started Today
+                    Hire an Expert
                     <ArrowRight className="ml-3 h-6 w-6" />
                   </Button>
                 </Link>
-                <Link href="#how-it-works">
-                  <Button size="lg" className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-bold text-xl px-12 py-6 shadow-2xl hover:shadow-3xl hover:shadow-blue-500/25 transition-all duration-300 hover:scale-105 hover:-translate-y-1 border-2 border-blue-400/20 hover:border-blue-400/40">
-                    Learn More
+                <Link href="/auth/signup?role=expert">
+                  <Button size="lg" className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold text-xl px-12 py-6 shadow-2xl hover:shadow-3xl transition-all hover:scale-105 border-2 border-green-400/20 hover:shadow-green-500/30 hover:-translate-y-1">
+                    Register as Expert
+                    <ArrowRight className="ml-3 h-6 w-6" />
+                  </Button>
+                </Link>
+                <Link href="/contact-us">
+                  <Button size="lg" className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-bold text-xl px-12 py-6 shadow-2xl hover:shadow-3xl transition-all hover:scale-105 border-2 border-purple-400/20 hover:shadow-purple-500/30 hover:-translate-y-1">
+                    Contact Us
+                    <ArrowRight className="ml-3 h-6 w-6" />
                   </Button>
                 </Link>
               </div>
