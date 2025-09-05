@@ -234,6 +234,7 @@ app.post('/api/experts', upload.fields([
       qualifications_url: qualificationsData?.url || null,
       qualifications_public_id: qualificationsData?.publicId || null,
       domain_expertise: req.body.domain_expertise ? [req.body.domain_expertise] : [],
+      subskills: req.body.subskills ? JSON.parse(req.body.subskills) : [],
       hourly_rate: req.body.hourly_rate,
       resume_url: resumeData?.url || null,
       resume_public_id: resumeData?.publicId || null,

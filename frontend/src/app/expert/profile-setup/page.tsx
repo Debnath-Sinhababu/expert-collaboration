@@ -11,26 +11,13 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Upload, Calendar, DollarSign, X, Camera, FileText, Download } from 'lucide-react'
+import { MultiSelect } from '@/components/ui/multi-select'
+import { Upload, Calendar, DollarSign, X, Camera, FileText, Download, Check } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import Logo from '@/components/Logo'
-
-const EXPERTISE_DOMAINS = [
-  'Computer Science & IT',
-  'Engineering',
-  'Business & Management',
-  'Finance & Economics',
-  'Healthcare & Medicine',
-  'Education & Training',
-  'Research & Development',
-  'Marketing & Sales',
-  'Data Science & Analytics',
-  'Design & Creative',
-  'Law & Legal',
-  'Other'
-]
+import { EXPERTISE_DOMAINS } from '@/lib/constants'
 
 const AVAILABILITY_SLOTS = [
   'Monday Morning',
@@ -69,6 +56,7 @@ export default function ExpertProfileSetup() {
     bio: '',
     qualifications: '',
     domain_expertise: '',
+    subskills: [] as string[],
     resume_url: '',
     hourly_rate: '',
     photo_url: '',
@@ -81,6 +69,8 @@ export default function ExpertProfileSetup() {
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string>('')
   const [photoError, setPhotoError] = useState('')
+  const [selectedSubskills, setSelectedSubskills] = useState<string[]>([])
+  const [availableSubskills, setAvailableSubskills] = useState<string[]>([])
   
   const [selectedResume, setSelectedResume] = useState<File | null>(null)
   const [resumeError, setResumeError] = useState('')
@@ -104,6 +94,33 @@ export default function ExpertProfileSetup() {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handleDomainChange = (domain: string) => {
+    setFormData(prev => ({
+      ...prev,
+      domain_expertise: domain,
+      subskills: [] // Reset subskills when domain changes
+    }))
+    
+    // Find the selected domain and update available subskills
+    const selectedDomain = EXPERTISE_DOMAINS.find(d => d.name === domain)
+    if (selectedDomain) {
+      setAvailableSubskills([...selectedDomain.subskills])
+    } else {
+      setAvailableSubskills([])
+    }
+    
+    // Reset selected subskills
+    setSelectedSubskills([])
+  }
+
+  const handleSubskillChange = (newSubskills: string[]) => {
+    setSelectedSubskills(newSubskills)
+    setFormData(prev => ({
+      ...prev,
+      subskills: newSubskills
+    }))
   }
 
   const handleAvailabilityChange = (slot: string, checked: boolean) => {
@@ -233,6 +250,12 @@ export default function ExpertProfileSetup() {
         return
       }
 
+      if (formData.subskills.length === 0) {
+        toast.error('Please select at least one specialization/skill')
+        setSaving(false)
+        return
+      }
+
       if (!formData.hourly_rate) {
         toast.error('Please enter your hourly rate')
         setSaving(false)
@@ -245,6 +268,9 @@ export default function ExpertProfileSetup() {
         return
       }
 
+      console.log(formData,'formData')
+      
+
       // Create FormData for file upload
       const formDataToSend = new FormData()
       formDataToSend.append('user_id', user.id)
@@ -254,6 +280,7 @@ export default function ExpertProfileSetup() {
       formDataToSend.append('phone', formData.phone)
       formDataToSend.append('qualifications', formData.qualifications)
       formDataToSend.append('domain_expertise', formData.domain_expertise)
+      formDataToSend.append('subskills', JSON.stringify(formData.subskills))
       formDataToSend.append('hourly_rate', formData.hourly_rate.toString())
       formDataToSend.append('resume_url', formData.resume_url)
       formDataToSend.append('experience_years', formData.experience_years)
@@ -542,19 +569,34 @@ export default function ExpertProfileSetup() {
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="domain_expertise" className="text-slate-700">Domain Expertise *</Label>
-                    <Select value={formData.domain_expertise} onValueChange={(value) => handleInputChange('domain_expertise', value)}>
+                    <Select value={formData.domain_expertise} onValueChange={handleDomainChange}>
                       <SelectTrigger className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300">
                         <SelectValue placeholder="Select your primary domain" />
                       </SelectTrigger>
                       <SelectContent>
                         {EXPERTISE_DOMAINS.map((domain) => (
-                          <SelectItem key={domain} value={domain}>
-                            {domain}
+                          <SelectItem key={domain.name} value={domain.name}>
+                            {domain.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* Subskills Multi-Select */}
+                  {formData.domain_expertise && availableSubskills.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-slate-700">Specializations & Skills *</Label>
+      
+                      <MultiSelect
+                        options={availableSubskills}
+                        selected={selectedSubskills}
+                        onSelectionChange={handleSubskillChange}
+                        placeholder="Select your specializations..."
+                        className="w-full"
+                      />
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <Label htmlFor="experience_years" className="text-slate-700">Years of Experience</Label>

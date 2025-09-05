@@ -14,21 +14,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { GraduationCap, DollarSign, ArrowLeft, Save, Edit, User, Shield, Star, Briefcase, Calendar, Globe, Upload, Camera, X, FileText } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-
-const EXPERTISE_DOMAINS = [
-  'Computer Science & IT',
-  'Engineering',
-  'Business & Management',
-  'Finance & Economics',
-  'Healthcare & Medicine',
-  'Education & Training',
-  'Research & Development',
-  'Marketing & Sales',
-  'Data Science & Analytics',
-  'Design & Creative',
-  'Law & Legal',
-  'Other'
-]
+import { MultiSelect } from '@/components/ui/multi-select'
+import { EXPERTISE_DOMAINS } from '@/lib/constants'
 
 export default function ExpertProfile() {
   const [user, setUser] = useState<any>(null)
@@ -45,6 +32,7 @@ export default function ExpertProfile() {
     bio: '',
     qualifications: '',
     domain_expertise: '',
+    subskills: [] as string[],
     resume_url: '',
     hourly_rate: '',
     photo_url: '',
@@ -62,6 +50,9 @@ export default function ExpertProfile() {
   
   const [selectedQualifications, setSelectedQualifications] = useState<File | null>(null)
   const [qualificationsError, setQualificationsError] = useState('')
+  
+  const [selectedSubskills, setSelectedSubskills] = useState<string[]>([])
+  const [availableSubskills, setAvailableSubskills] = useState<string[]>([])
 
   useEffect(() => {
     const getUser = async () => {
@@ -91,6 +82,7 @@ export default function ExpertProfile() {
             bio: expertProfile.bio || '',
             qualifications: expertProfile.qualifications || '',
             domain_expertise: expertProfile.domain_expertise[0] || '',
+            subskills: expertProfile.subskills || [],
             resume_url: expertProfile.resume_url || '',
             hourly_rate: expertProfile.hourly_rate?.toString() || '',
             photo_url: expertProfile.photo_url || '',
@@ -98,6 +90,17 @@ export default function ExpertProfile() {
             phone: expertProfile.phone || '',
             linkedin_url: expertProfile.linkedin_url || ''
           })
+          
+          // Set subskills state
+          setSelectedSubskills(expertProfile.subskills || [])
+          
+          // Set available subskills based on domain
+          if (expertProfile.domain_expertise && expertProfile.domain_expertise[0]) {
+            const selectedDomain = EXPERTISE_DOMAINS.find(d => d.name === expertProfile.domain_expertise[0])
+            if (selectedDomain) {
+              setAvailableSubskills([...selectedDomain.subskills])
+            }
+          }
         }
       }
     } catch (error) {
@@ -109,6 +112,33 @@ export default function ExpertProfile() {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handleDomainChange = (domain: string) => {
+    setFormData(prev => ({
+      ...prev,
+      domain_expertise: domain,
+      subskills: [] // Reset subskills when domain changes
+    }))
+    
+    // Find the selected domain and update available subskills
+    const selectedDomain = EXPERTISE_DOMAINS.find(d => d.name === domain)
+    if (selectedDomain) {
+      setAvailableSubskills([...selectedDomain.subskills])
+    } else {
+      setAvailableSubskills([])
+    }
+    
+    // Reset selected subskills
+    setSelectedSubskills([])
+  }
+
+  const handleSubskillChange = (newSubskills: string[]) => {
+    setSelectedSubskills(newSubskills)
+    setFormData(prev => ({
+      ...prev,
+      subskills: newSubskills
+    }))
   }
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -222,6 +252,7 @@ export default function ExpertProfile() {
           formDataToSend.append('experience_years', formData.experience_years)
           formDataToSend.append('linkedin_url', formData.linkedin_url)
           formDataToSend.append('domain_expertise', formData.domain_expertise)
+          formDataToSend.append('subskills', JSON.stringify(formData.subskills))
 
           // Add the photo file if selected
           if (selectedPhoto) {
@@ -256,6 +287,7 @@ export default function ExpertProfile() {
           const expertData = {
             ...formData,
             domain_expertise: formData.domain_expertise,
+            subskills: formData.subskills,
             hourly_rate: parseFloat(formData.hourly_rate),
             experience_years: parseInt(formData.experience_years) || 0,
             updated_at: new Date().toISOString(),
@@ -279,6 +311,7 @@ export default function ExpertProfile() {
         formDataToSend.append('phone', formData.phone)
         formDataToSend.append('qualifications', formData.qualifications)
         formDataToSend.append('domain_expertise', formData.domain_expertise)
+        formDataToSend.append('subskills', JSON.stringify(formData.subskills))
         formDataToSend.append('hourly_rate', formData.hourly_rate.toString())
         formDataToSend.append('experience_years', formData.experience_years)
         formDataToSend.append('linkedin_url', formData.linkedin_url)
@@ -395,7 +428,29 @@ export default function ExpertProfile() {
                     )}
                   </div>
                   <h2 className="text-2xl font-bold text-slate-900 mb-2">{expert?.name || 'Expert User'}</h2>
-                  <p className="text-slate-600 mb-4">{expert?.domain_expertise || 'Domain Expert'}</p>
+                  <p className="text-slate-600 mb-2">{expert?.domain_expertise || 'Domain Expert'}</p>
+                  
+                  {/* Subskills Display */}
+                  {expert?.subskills && expert.subskills.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-sm text-slate-500 mb-2">Specializations:</p>
+                      <div className="flex flex-wrap gap-1 justify-center">
+                        {expert.subskills.slice(0, 3).map((skill: string) => (
+                          <span
+                            key={skill}
+                            className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                        {expert.subskills.length > 3 && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+                            +{expert.subskills.length - 3} more
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   
                   {/* Status Badges */}
                   <div className="flex justify-center space-x-2 mb-4">
@@ -442,7 +497,12 @@ export default function ExpertProfile() {
                 </div>
 
                 <Button
-                  onClick={() => setEditing(!editing)}
+                  onClick={() => {
+                    setEditing(!editing)
+                    if(editing){
+                      loadExpertData(user.id)
+                    }
+                  }}
                   className="w-full mt-6 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-lg hover:shadow-xl hover:shadow-blue-500/25 transition-all duration-300 border-2 border-blue-400/20 hover:border-blue-400/40"
                 >
                   <Edit className="h-4 w-4 mr-2" />
@@ -698,19 +758,34 @@ export default function ExpertProfile() {
                     <div className="grid md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="domain_expertise" className="text-slate-700">Domain Expertise *</Label>
-                        <Select value={formData.domain_expertise} onValueChange={(value) => handleInputChange('domain_expertise', value)} disabled={!editing}>
+                        <Select value={formData.domain_expertise} onValueChange={handleDomainChange} disabled={!editing}>
                           <SelectTrigger className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300">
                             <SelectValue placeholder="Select your primary domain" />
                           </SelectTrigger>
                           <SelectContent>
                             {EXPERTISE_DOMAINS.map((domain) => (
-                              <SelectItem key={domain} value={domain}>
-                                {domain}
+                              <SelectItem key={domain.name} value={domain.name}>
+                                {domain.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
+
+                      {/* Subskills Multi-Select */}
+                      {formData.domain_expertise && availableSubskills.length > 0 && (
+                        <div className="space-y-2">
+                          <Label className="text-slate-700">Specializations & Skills *</Label>
+                          <MultiSelect
+                            options={availableSubskills}
+                            selected={selectedSubskills}
+                            onSelectionChange={handleSubskillChange}
+                            placeholder="Select your specializations..."
+                            className="w-full"
+                            disabled={!editing}
+                          />
+                        </div>
+                      )}
 
                       <div className="space-y-2">
                         <Label htmlFor="experience_years" className="text-slate-700">Years of Experience</Label>

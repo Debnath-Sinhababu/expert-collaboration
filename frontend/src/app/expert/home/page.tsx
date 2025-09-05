@@ -13,6 +13,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel'
+import Autoplay from "embla-carousel-autoplay"
 import NotificationBell from '@/components/NotificationBell'
 import ProfileDropdown from '@/components/ProfileDropdown'
 import Logo from '@/components/Logo'
@@ -26,7 +28,8 @@ import {
   Star,
   Eye,
   BookOpen,
-  Send
+  Send,
+  CheckCircle
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -86,6 +89,10 @@ export default function ExpertHome() {
   })
   const [showApplicationModal, setShowApplicationModal] = useState(false)
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+  const [universities, setUniversities] = useState<any[]>([])
+  const [universitiesLoading, setUniversitiesLoading] = useState(true)
+  const [partneredExperts, setPartneredExperts] = useState<any[]>([])
+  const [expertsLoading, setExpertsLoading] = useState(true)
 
   const router = useRouter()
 
@@ -152,6 +159,9 @@ export default function ExpertHome() {
       
       setExpert(expertProfile)
       
+      // Reload partnered experts to filter out current user
+     
+      
     } catch (error: any) {
       setError('Failed to load expert data')
       console.error('Expert home error:', error)
@@ -162,7 +172,46 @@ export default function ExpertHome() {
 
   useEffect(() => {
     loadExpertData()
+    loadUniversities()
+    
   }, [router])
+
+  useEffect(()=>{
+    if(expert){
+      loadPartneredExperts()
+    }
+  },[expert])
+
+  const loadUniversities = async () => {
+    try {
+      setUniversitiesLoading(true)
+      const data = await api.institutions.getAll({ limit: 5 })
+      setUniversities(Array.isArray(data) ? data : (data?.data || []))
+    } catch (error) {
+      console.error('Error fetching universities:', error)
+    } finally {
+      setUniversitiesLoading(false)
+    }
+  }
+
+  const loadPartneredExperts = async () => {
+    try {
+      setExpertsLoading(true)
+      const data = await api.experts.getAll({ limit: 8, is_verified: true })
+      const experts = Array.isArray(data) ? data : (data?.data || [])
+      
+      // Filter out current user if expert is loaded
+      const filteredExperts = expert?.id 
+        ? experts.filter((ex: any) => ex.id !== expert.id)
+        : experts
+      
+      setPartneredExperts(filteredExperts.slice(0, 6)) // Show max 6 experts
+    } catch (error) {
+      console.error('Error fetching partnered experts:', error)
+    } finally {
+      setExpertsLoading(false)
+    }
+  }
 
   const handleApplicationSubmit = async (projectId: string) => {
     try {
@@ -289,6 +338,200 @@ export default function ExpertHome() {
           </p>
         </div>
 
+        {/* Quick Stats Cards */}
+      
+
+        {/* University Banners Carousel */}
+
+        {
+            universities.length > 0 && (
+                <div className="mb-8">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                  <div className="text-center mb-6">
+                    <h2 className="text-2xl font-bold text-slate-900 mb-2">
+                      Partner Universities
+                    </h2>
+                    <p className="text-slate-600">
+                      Trusted by leading educational institutions across India
+                    </p>
+                  </div>
+      
+                  {universitiesLoading ? (
+                    <div className="flex justify-center py-12">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    </div>
+                  ) : (
+                                         <Carousel
+                       opts={{
+                         align: "start",
+                         containScroll: "trimSnaps"
+                       }}
+                       plugins={[
+                         Autoplay({
+                           delay: 3000,
+                         }),
+                       ]}
+                       className="w-full max-w-7xl mx-auto"
+                     >
+                       <CarouselContent className="-ml-2">
+                         {universities.map((university, index) => {
+                           // Use real university images from public folder
+                           const universityImages = [
+                             '/images/universitylogo1.jpeg',
+                             '/images/universitylogo2.jpeg', 
+                             '/images/universitylogo3.jpeg',
+                             '/images/universitylogo1.jpeg', // Reuse for more than 3
+                             '/images/universitylogo2.jpeg'
+                           ]
+                           
+                           return (
+                             <CarouselItem key={university.id || index} className="pl-2 basis-full sm:basis-1/2 lg:basis-1/2">
+                              <div className="relative h-64 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
+                                {/* Background Image */}
+                                <div 
+                                  className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+                                  style={{
+                                    backgroundImage: `url('${universityImages[index % universityImages.length]}')`
+                                  }}
+                                >
+                                  {/* Overlay */}
+                                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
+                                </div>
+                                
+                                {/* University Name */}
+                                <div className="absolute bottom-0 left-0 right-0 p-6">
+                                  <h3 className="text-white font-bold text-xl mb-2 group-hover:text-blue-200 transition-colors duration-300">
+                                    {university.name}
+                                  </h3>
+                                  <p className="text-white/90 text-base">
+                                    {university.type || 'Educational Institution'}
+                                  </p>
+                                </div>
+      
+                                {/* Hover Effect */}
+                                <div className="absolute inset-0 bg-blue-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                              </div>
+                            </CarouselItem>
+                          )
+                        })}
+                      </CarouselContent>
+                      <CarouselPrevious className="text-slate-600 hover:text-slate-900" />
+                      <CarouselNext className="text-slate-600 hover:text-slate-900" />
+                    </Carousel>
+                  )}
+                </div>
+              </div>
+                
+            )
+        }
+      
+
+        {/* Partnered Experts Carousel */}
+        {
+            partneredExperts.length > 0 && (
+                <div className="mb-8">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                  <div className="text-center mb-6">
+                    <h2 className="text-2xl font-bold text-slate-900 mb-2">
+                      Partnered Experts
+                    </h2>
+                    <p className="text-slate-600">
+                      Connect with verified professionals in your field
+                    </p>
+                  </div>
+      
+                  {expertsLoading ? (
+                    <div className="flex justify-center py-12">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    </div>
+                  ) : (
+                                         <Carousel
+                       opts={{
+                         align: "start",
+                         containScroll: "trimSnaps"
+                       }}
+                       plugins={[
+                         Autoplay({
+                           delay: 4000,
+                         }),
+                       ]}
+                       className="w-full max-w-7xl mx-auto"
+                     >
+                       <CarouselContent className="-ml-2">
+                        {partneredExperts.map((expert, index) => {
+                          // Color variations for expert cards
+                          const colors = ['blue', 'purple', 'green', 'orange', 'cyan', 'indigo']
+                          const expertColor = colors[index % colors.length]
+                          
+                                                     return (
+                             <CarouselItem key={expert.id} className="pl-2 basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4">
+                              <Card className="h-full mx-2 transition-all duration-500 hover:scale-105 hover:-translate-y-2 bg-gradient-to-br from-slate-800/80 via-slate-700/80 to-slate-800/80 backdrop-blur-xl border border-slate-600/30 shadow-2xl hover:shadow-purple-500/25" style={{boxShadow: '0 25px 50px -12px rgba(147, 51, 234, 0.25), 0 0 0 1px rgba(147, 51, 234, 0.15)'}}>
+                                <CardContent className="p-6 text-center relative overflow-hidden">
+                                  {/* Glowing background effect */}
+                                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-pink-500/5 to-rose-500/5 rounded-lg"></div>
+                                  
+                                  {/* Expert Avatar */}
+                                  <div className="relative mb-4">
+                                    {expert.photo_url ? (
+                                      <div className="w-16 h-16 rounded-full overflow-hidden mx-auto shadow-lg border-2 border-white/20 relative z-10">
+                                        <img 
+                                          src={expert.photo_url} 
+                                          alt={expert.name}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      </div>
+                                    ) : (
+                                      <div className={`w-16 h-16 bg-gradient-to-r from-${expertColor}-500 to-${expertColor === 'blue' ? 'indigo' : expertColor === 'purple' ? 'pink' : expertColor === 'green' ? 'emerald' : expertColor === 'orange' ? 'amber' : 'cyan'}-500 rounded-full flex items-center justify-center mx-auto shadow-lg border-2 border-${expertColor}-400/30 relative z-10 overflow-hidden`}>
+                                        <Users className="h-8 w-8 text-white drop-shadow-lg" />
+                                        <div className={`absolute inset-0 bg-${expertColor}-500/20 rounded-full blur-xl`}></div>
+                                      </div>
+                                    )}
+                                  </div>
+                                  
+                                  {/* Expert Name */}
+                                  <h3 className="font-bold text-white mb-1 text-lg relative z-10 drop-shadow-sm">
+                                    {expert.name}
+                                  </h3>
+                                  
+                                  {/* Rating Display */}
+                                  <div className="flex justify-center items-center mb-2 relative z-10">
+                                    {[...Array(5)].map((_, i) => (
+                                      <Star key={i} className={`h-4 w-4 ${i < Math.floor(expert.rating || 4.5) ? "text-yellow-400 fill-current drop-shadow-sm" : "text-slate-500"}`} />
+                                    ))}
+                                    <span className="text-sm text-slate-200 ml-2 font-medium">
+                                      {expert.rating || '4.5'}
+                                    </span>
+                                  </div>
+                                  
+                                  {/* Expertise */}
+                                  <p className="text-sm text-slate-200 font-medium relative z-10 mb-1">
+                                    {expert.domain_expertise || 'Professional Expert'}
+                                  </p>
+                                  
+                                  {/* Experience & Rate */}
+                                  <p className="text-xs text-slate-400 relative z-10 mb-2">
+                                    {expert.experience_years ? `${expert.experience_years}+ years` : 'Experienced'} • ₹{expert.hourly_rate || '1500'}/hr
+                                  </p>
+                                  
+                                  {/* Bottom accent line */}
+                                  <div className={`absolute bottom-0 left-1/2 transform -translate-x-1/2 w-16 h-0.5 bg-gradient-to-r from-${expertColor}-400 to-${expertColor === 'blue' ? 'indigo' : expertColor === 'purple' ? 'pink' : expertColor === 'green' ? 'emerald' : expertColor === 'orange' ? 'amber' : 'cyan'}-400 rounded-full mt-4`}></div>
+                                </CardContent>
+                              </Card>
+                            </CarouselItem>
+                          )
+                        })}
+                      </CarouselContent>
+                      <CarouselPrevious className="text-slate-600 hover:text-slate-900" />
+                      <CarouselNext className="text-slate-600 hover:text-slate-900" />
+                    </Carousel>
+                  )}
+                </div>
+              </div>
+                
+            )
+        }
+       
+
         {/* Success/Error Messages */}
         {success && (
           <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
@@ -300,6 +543,68 @@ export default function ExpertHome() {
             <p className="text-red-800">{error}</p>
           </div>
         )}
+
+        {/* Recommended for You */}
+        <div className="mb-6">
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
+            <div className="flex items-center mb-2">
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                <Star className="h-4 w-4 text-blue-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900">
+                🎯 Recommended for You
+              </h3>
+            </div>
+            <p className="text-slate-600 text-sm">
+              Based on your expertise in <strong>{expert?.domain_expertise || 'your field'}</strong>, 
+              we found <strong>{projects.length} matching projects</strong> below
+            </p>
+          </div>
+        </div>
+
+        {/* Quick Actions Bar */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setMinRate('2000')}
+            className="hover:bg-blue-50"
+          >
+            <Star className="h-4 w-4 mr-2" />
+            High Paying (₹2000+)
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setSelectedType('consulting')}
+            className="hover:bg-green-50"
+          >
+            <Clock className="h-4 w-4 mr-2" />
+            Consulting
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setSelectedType('training')}
+            className="hover:bg-purple-50"
+          >
+            <Users className="h-4 w-4 mr-2" />
+            Training
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => {
+              setSearchTerm('')
+              setSelectedType('all')
+              setMinRate('')
+              setMaxRate('')
+            }}
+            className="hover:bg-slate-50"
+          >
+            Clear Filters
+          </Button>
+        </div>
 
         {/* Search and Filters */}
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-8">
@@ -361,11 +666,33 @@ export default function ExpertHome() {
 
         {/* Projects List */}
         <div className="mb-8">
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex justify-between items-center mb-4">
             <h2 className="text-2xl font-bold text-slate-900">
               Available Projects ({projects.length})
             </h2>
           </div>
+
+          {/* Project Type Breakdown */}
+          {projects.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-6">
+              {(() => {
+                const typeCounts = (projects as Project[]).reduce((acc: any, project) => {
+                  const type = project.type || 'other'
+                  acc[type] = (acc[type] || 0) + 1
+                  return acc
+                }, {})
+                
+                return Object.entries(typeCounts).map(([type, count]) => (
+                  <span 
+                    key={type}
+                    className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
+                  >
+                    {getProjectTypeLabel(type)}: {String(count)}
+                  </span>
+                ))
+              })()}
+            </div>
+          )}
 
           {projects.length === 0 && !projectsLoading ? (
             <div className="text-center py-12">
