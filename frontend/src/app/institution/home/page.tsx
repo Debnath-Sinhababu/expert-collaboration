@@ -13,7 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { MultiSelect } from '@/components/ui/multi-select'
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel'
+import Autoplay from 'embla-carousel-autoplay'
 import NotificationBell from '@/components/NotificationBell'
 import ProfileDropdown from '@/components/ProfileDropdown'
 import Logo from '@/components/Logo'
@@ -40,6 +42,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 type UserMeta = { role?: string; name?: string }
 type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }
@@ -68,9 +71,11 @@ export default function InstitutionHome() {
     total_ratings?: number
     is_verified?: boolean
     domain_expertise?: string[]
+    subskills?: string[]
     experience_years?: number
     photo_url?: string
     qualifications?: string
+    resume_url?: string
   }
 
   const [user, setUser] = useState<any>(null)
@@ -92,9 +97,15 @@ export default function InstitutionHome() {
     start_date: '',
     end_date: '',
     duration_hours: '',
-    required_expertise: ''
+    required_expertise: '',
+    domain_expertise: '',
+    subskills: [] as string[]
   })
   const [submittingProject, setSubmittingProject] = useState(false)
+  const [selectedSubskills, setSelectedSubskills] = useState<string[]>([])
+  const [availableSubskills, setAvailableSubskills] = useState<string[]>([])
+  const [partneredInstitutions, setPartneredInstitutions] = useState<any[]>([])
+  const [institutionsLoading, setInstitutionsLoading] = useState(true)
 
   const router = useRouter()
 
@@ -179,10 +190,117 @@ export default function InstitutionHome() {
   useEffect(() => {
     if (institution) {
       loadExperts()
+      loadPartneredInstitutions()
     }
   }, [institution, searchTerm, selectedDomain, minRate, maxRate])
 
+  const handleDomainChange = (domain: string) => {
+    setProjectForm(prev => ({
+      ...prev,
+      domain_expertise: domain,
+      subskills: [] // Reset subskills when domain changes
+    }))
+    
+    // Find the selected domain and update available subskills
+    const selectedDomain = EXPERTISE_DOMAINS.find(d => d.name === domain)
+    if (selectedDomain) {
+      setAvailableSubskills([...selectedDomain.subskills])
+    } else {
+      setAvailableSubskills([])
+    }
+    
+    // Reset selected subskills
+    setSelectedSubskills([])
+  }
+
+  const handleSubskillChange = (newSubskills: string[]) => {
+    setSelectedSubskills(newSubskills)
+    setProjectForm(prev => ({
+      ...prev,
+      subskills: newSubskills
+    }))
+  }
+
+  const loadPartneredInstitutions = async () => {
+    try {
+      setInstitutionsLoading(true)
+      const data = await api.institutions.getAll({ limit: 8 })
+      const institutions = Array.isArray(data) ? data : (data?.data || [])
+      
+      // Filter out current institution if institution is loaded
+      const filteredInstitutions = institution?.id 
+        ? institutions.filter((inst: any) => inst.id !== institution.id)
+        : institutions
+      
+      setPartneredInstitutions(filteredInstitutions.slice(0, 6)) // Show max 6 institutions
+    } catch (error) {
+      console.error('Error fetching partnered institutions:', error)
+    } finally {
+      setInstitutionsLoading(false)
+    }
+  }
+
   const handleCreateProject = async () => {
+    // Frontend validation
+    if (!projectForm.title.trim()) {
+      toast.error('Project title is required.')
+      return
+    }
+    
+    if (!projectForm.type) {
+      toast.error('Project type is required.')
+      return
+    }
+    
+    if (!projectForm.hourly_rate || parseFloat(projectForm.hourly_rate) <= 0) {
+      toast.error('Valid hourly rate is required.')
+      return
+    }
+    
+    if (!projectForm.total_budget || parseFloat(projectForm.total_budget) <= 0) {
+      toast.error('Valid total budget is required.')
+      return
+    }
+    
+    if (!projectForm.start_date) {
+      toast.error('Start date is required.')
+      return
+    }
+    
+    if (!projectForm.end_date) {
+      toast.error('End date is required.')
+      return
+    }
+    
+    if (!projectForm.duration_hours || parseInt(projectForm.duration_hours) <= 0) {
+      toast.error('Valid duration in hours is required.')
+      return
+    }
+    
+    if (!projectForm.domain_expertise) {
+      toast.error('Domain expertise is required.')
+      return
+    }
+    
+    if (!projectForm.subskills || projectForm.subskills.length === 0) {
+      toast.error('At least one specialization is required.')
+      return
+    }
+    
+    if (!projectForm.description.trim()) {
+      toast.error('Project description is required.')
+      return
+    }
+    
+    // Validate date logic
+    const startDate = new Date(projectForm.start_date)
+    const endDate = new Date(projectForm.end_date)
+    
+    if (endDate <= startDate) {
+      toast.error('End date must be after start date.')
+      return
+    }
+
     try {
       setSubmittingProject(true)
       
@@ -192,7 +310,9 @@ export default function InstitutionHome() {
         hourly_rate: parseFloat(projectForm.hourly_rate),
         total_budget: parseFloat(projectForm.total_budget),
         duration_hours: parseInt(projectForm.duration_hours),
-        required_expertise: projectForm.required_expertise.split(',').map(s => s.trim()).filter(s => s)
+        required_expertise: projectForm.required_expertise.split(',').map(s => s.trim()).filter(s => s),
+        domain_expertise: projectForm.domain_expertise,
+        subskills: projectForm.subskills
       }
 
       await api.projects.create(projectData)
@@ -207,19 +327,31 @@ export default function InstitutionHome() {
         start_date: '',
         end_date: '',
         duration_hours: '',
-        required_expertise: ''
+        required_expertise: '',
+        domain_expertise: '',
+        subskills: []
       })
+      
+      setSelectedSubskills([])
+      setAvailableSubskills([])
       
       setShowProjectForm(false)
       
-      // Show success message (you can add toast notification here)
-      alert('Project created successfully!')
+      // Show success toast with dashboard navigation
+      toast.success('Requirement posted successfully!', {
+        description: 'Navigate to your dashboard to view the latest requirement and manage applications.',
+        action: {
+          label: 'Go to Dashboard',
+          onClick: () => router.push('/institution/dashboard')
+        },
+        duration: 5000
+      })
       
       // TODO: Open modal with top 5 matching experts
       
     } catch (error) {
       console.error('Error creating project:', error)
-      alert('Failed to create project')
+      toast.error('Failed to create project. Please try again or contact support if the issue persists.')
     } finally {
       setSubmittingProject(false)
     }
@@ -265,7 +397,7 @@ export default function InstitutionHome() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30">
+    <div className="bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30">
       {/* Header */}
       <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -303,6 +435,89 @@ export default function InstitutionHome() {
         </div>
       </header>
 
+      {/* Partnered Institutions Banner */}
+      {partneredInstitutions.length > 0 && (
+        <div className="bg-gradient-to-r from-slate-50 via-blue-50/30 to-indigo-50/30 py-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-slate-900 mb-2">
+                Partnered Institutions
+              </h2>
+              <p className="text-slate-600">
+                Join our network of leading educational institutions
+              </p>
+            </div>
+
+            {institutionsLoading ? (
+              <div className="flex justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              </div>
+            ) : (
+              <Carousel
+                opts={{
+                  align: "start",
+                  containScroll: "trimSnaps"
+                }}
+                plugins={[
+                  Autoplay({
+                    delay: 4000,
+                  }),
+                ]}
+                className="w-full max-w-7xl mx-auto"
+              >
+                <CarouselContent className="-ml-2">
+                  {partneredInstitutions.map((institution, index) => {
+                    // Use real institution banner images from public folder
+                    const institutionImages = [
+                      '/images/universitylogo1.jpeg',
+                      '/images/universitylogo2.jpeg', 
+                      '/images/universitylogo3.jpeg',
+                      '/images/universitylogo1.jpeg', // Reuse for more than 3
+                      '/images/universitylogo2.jpeg'
+                    ]
+                    
+                    return (
+                      <CarouselItem key={institution.id} className="pl-2 basis-full sm:basis-1/2 lg:basis-1/2">
+                        <div className="relative h-64 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
+                          {/* Background Image */}
+                          <div 
+                            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+                            style={{
+                              backgroundImage: `url('${institutionImages[index % institutionImages.length]}')`
+                            }}
+                          >
+                            {/* Overlay */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
+                          </div>
+                          
+                          {/* Institution Name */}
+                          <div className="absolute bottom-0 left-0 right-0 p-6">
+                            <h3 className="text-white font-bold text-xl mb-2 group-hover:text-blue-200 transition-colors duration-300">
+                              {institution.name}
+                            </h3>
+                            <p className="text-white/90 text-base mb-1">
+                              {institution.institution_type || 'Educational Institution'}
+                            </p>
+                            <p className="text-white/80 text-sm">
+                              {[institution.city, institution.state, institution.country].filter(Boolean).join(', ') || 'India'}
+                            </p>
+                          </div>
+
+                          {/* Hover Effect */}
+                          <div className="absolute inset-0 bg-blue-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                        </div>
+                      </CarouselItem>
+                    )
+                  })}
+                </CarouselContent>
+                <CarouselPrevious className="text-slate-600 hover:text-slate-900" />
+                <CarouselNext className="text-slate-600 hover:text-slate-900" />
+              </Carousel>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome Section */}
@@ -326,25 +541,27 @@ export default function InstitutionHome() {
                   Post Requirement
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+                <DialogHeader className="flex-shrink-0">
                   <DialogTitle>Create New Project</DialogTitle>
                   <DialogDescription>
                     Fill in the details to post a new requirement for experts
                   </DialogDescription>
                 </DialogHeader>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="overflow-y-auto flex-1 pr-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="title">Project Title</Label>
+                    <Label htmlFor="title">Project Title *</Label>
                     <Input
                       id="title"
                       value={projectForm.title}
                       onChange={(e) => setProjectForm({...projectForm, title: e.target.value})}
                       placeholder="e.g., Guest Lecture on AI"
+                      required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="type">Project Type</Label>
+                    <Label htmlFor="type">Project Type *</Label>
                     <Select value={projectForm.type} onValueChange={(value) => setProjectForm({...projectForm, type: value})}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select type" />
@@ -362,55 +579,78 @@ export default function InstitutionHome() {
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="hourly_rate">Hourly Rate (₹)</Label>
+                    <Label htmlFor="hourly_rate">Hourly Rate (₹) *</Label>
                     <Input
                       id="hourly_rate"
                       type="number"
+                      min="1"
                       value={projectForm.hourly_rate}
                       onChange={(e) => setProjectForm({...projectForm, hourly_rate: e.target.value})}
                       placeholder="1000"
+                      required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="total_budget">Total Budget (₹)</Label>
+                    <Label htmlFor="total_budget">Total Budget (₹) *</Label>
                     <Input
                       id="total_budget"
                       type="number"
+                      min="1"
                       value={projectForm.total_budget}
                       onChange={(e) => setProjectForm({...projectForm, total_budget: e.target.value})}
                       placeholder="50000"
+                      required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="start_date">Start Date</Label>
+                    <Label htmlFor="start_date">Start Date *</Label>
                     <Input
                       id="start_date"
                       type="date"
                       value={projectForm.start_date}
                       onChange={(e) => setProjectForm({...projectForm, start_date: e.target.value})}
+                      required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="end_date">End Date</Label>
+                    <Label htmlFor="end_date">End Date *</Label>
                     <Input
                       id="end_date"
                       type="date"
                       value={projectForm.end_date}
                       onChange={(e) => setProjectForm({...projectForm, end_date: e.target.value})}
+                      required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="duration_hours">Duration (Hours)</Label>
+                    <Label htmlFor="duration_hours">Duration (Hours) *</Label>
                     <Input
                       id="duration_hours"
                       type="number"
+                      min="1"
                       value={projectForm.duration_hours}
                       onChange={(e) => setProjectForm({...projectForm, duration_hours: e.target.value})}
                       placeholder="40"
+                      required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="required_expertise">Required Skills (comma-separated)</Label>
+                    <Label htmlFor="domain_expertise">Domain Expertise *</Label>
+                    <Select value={projectForm.domain_expertise} onValueChange={handleDomainChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select required domain" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {EXPERTISE_DOMAINS.map((domain) => (
+                          <SelectItem key={domain.name} value={domain.name}>
+                            {domain.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="required_expertise">Additional Skills (comma-separated)</Label>
                     <Input
                       id="required_expertise"
                       value={projectForm.required_expertise}
@@ -419,17 +659,34 @@ export default function InstitutionHome() {
                     />
                   </div>
                 </div>
+                
+                {/* Subskills Multi-Select */}
+                {projectForm.domain_expertise && availableSubskills.length > 0 && (
+                  <div className='my-3' onClick={(e) => e.stopPropagation()}>
+                    <Label className="text-slate-700" htmlFor="required_specialization">Required Specializations *</Label>
+                    <MultiSelect
+                      options={availableSubskills}
+                      selected={selectedSubskills}
+                      onSelectionChange={handleSubskillChange}
+                      placeholder="Select required specializations..."
+                      className="w-full"
+                    />
+                  </div>
+                )}
+                
                 <div>
-                  <Label htmlFor="description">Description</Label>
+                  <Label htmlFor="description">Description *</Label>
                   <Textarea
                     id="description"
                     value={projectForm.description}
                     onChange={(e) => setProjectForm({...projectForm, description: e.target.value})}
                     placeholder="Describe the project requirements..."
                     rows={4}
+                    required
                   />
                 </div>
-                <div className="flex justify-end space-x-2">
+                </div>
+                <div className="flex-shrink-0 flex justify-end space-x-2 pt-4 border-t border-slate-200">
                   <Button variant="outline" onClick={() => setShowProjectForm(false)}>
                     Cancel
                   </Button>
@@ -475,8 +732,8 @@ export default function InstitutionHome() {
                 <SelectContent>
                   <SelectItem value="all">All domains</SelectItem>
                   {EXPERTISE_DOMAINS.map((domain) => (
-                    <SelectItem key={domain} value={domain}>
-                      {domain}
+                    <SelectItem key={domain.name} value={domain.name}>
+                      {domain.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -587,9 +844,90 @@ export default function InstitutionHome() {
                             <UserCheck className="h-4 w-4 mr-2" />
                             Select Expert
                           </Button>
-                          <Button variant="outline" size="icon" className="border-slate-300">
-                            <Eye className="h-4 w-4" />
-                          </Button>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="outline" size="icon" className="border-slate-300">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
+                              <DialogHeader className="flex-shrink-0">
+                                <DialogTitle>{expert.name}</DialogTitle>
+                                <DialogDescription>Complete Expert Profile</DialogDescription>
+                              </DialogHeader>
+                              <div className="space-y-4 overflow-y-auto flex-1 pr-2">
+                                <div className="flex items-center space-x-4 mb-4">
+                                  <Avatar className="w-16 h-16 border-2 border-blue-200 flex-shrink-0">
+                                    <AvatarImage src={expert.photo_url} />
+                                    <AvatarFallback className="text-xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+                                      {expert.name?.charAt(0) || 'E'}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div className="min-w-0 flex-1">
+                                    <h4 className="font-semibold text-lg truncate">{expert.name}</h4>
+                                    <p className="text-sm text-gray-600 truncate">{expert.domain_expertise}</p>
+                                  </div>
+                                </div>
+                                <div className="max-h-32 overflow-y-auto">
+                                  <h4 className="font-medium mb-2">Professional Bio</h4>
+                                  <p className="text-sm text-gray-600 leading-relaxed">{expert.bio}</p>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                  <div>
+                                    <h4 className="font-medium mb-1">Domain Expertise</h4>
+                                    <p className="text-sm">{expert.domain_expertise}</p>
+                                  </div>
+                                  <div>
+                                    <h4 className="font-medium mb-1">Hourly Rate</h4>
+                                    <p className="text-sm">₹{expert.hourly_rate}</p>
+                                  </div>
+                                  <div>
+                                    <h4 className="font-medium mb-1">Experience</h4>
+                                    <p className="text-sm">{expert.experience_years || 0} years</p>
+                                  </div>
+                                  <div>
+                                    <h4 className="font-medium mb-1">Contact</h4>
+                                    <p className="text-sm">{expert.email}</p>
+                                  </div>
+                                </div>
+                                {expert.subskills && expert.subskills.length > 0 && (
+                                  <div>
+                                    <h4 className="font-medium mb-2">Specializations</h4>
+                                    <div className="max-h-24 overflow-y-auto">
+                                      <div className="flex flex-wrap gap-2">
+                                        {expert.subskills.map((skill: string, index: number) => (
+                                          <Badge key={index} variant="secondary" className="text-xs">
+                                            {skill}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                                {expert.qualifications && (
+                                  <div>
+                                    <h4 className="font-medium mb-1">Qualifications</h4>
+                                    <div className="max-h-20 overflow-y-auto">
+                                      <p className="text-sm leading-relaxed">{expert.qualifications}</p>
+                                    </div>
+                                  </div>
+                                )}
+                                {expert.resume_url && (
+                                  <div>
+                                    <h4 className="font-medium mb-1">Resume</h4>
+                                    <a 
+                                      href={expert.resume_url} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 hover:underline text-sm"
+                                    >
+                                      View Resume
+                                    </a>
+                                  </div>
+                                )}
+                              </div>
+                            </DialogContent>
+                          </Dialog>
                         </div>
                       </CardContent>
                     </Card>

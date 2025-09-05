@@ -24,7 +24,7 @@ interface ProfileDropdownProps {
 export default function ProfileDropdown({ user, expert,institution, userType }: ProfileDropdownProps) {
   const router = useRouter()
 
- console.log(expert,'expert')
+
 
   const handleLogout = async () => {
     try {

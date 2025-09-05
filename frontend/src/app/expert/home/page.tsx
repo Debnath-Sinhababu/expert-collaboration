@@ -403,8 +403,11 @@ export default function ExpertHome() {
                                   <h3 className="text-white font-bold text-xl mb-2 group-hover:text-blue-200 transition-colors duration-300">
                                     {university.name}
                                   </h3>
-                                  <p className="text-white/90 text-base">
+                                  <p className="text-white/90 text-base mb-1">
                                     {university.type || 'Educational Institution'}
+                                  </p>
+                                  <p className="text-white/80 text-sm">
+                                    {[university.city, university.state, university.country].filter(Boolean).join(', ') || 'India'}
                                   </p>
                                 </div>
       

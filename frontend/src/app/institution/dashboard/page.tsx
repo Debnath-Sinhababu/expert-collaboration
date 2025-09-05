@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { MultiSelect } from '@/components/ui/multi-select'
 import { Drawer } from '@/components/ui/drawer'
 import ProjectApplications from '@/components/ProjectApplications'
 import ProfileDropdown from '@/components/ProfileDropdown'
@@ -73,16 +74,46 @@ export default function InstitutionDashboard() {
     start_date: '',
     end_date: '',
     duration_hours: '',
-    required_expertise: ''
+    required_expertise: '',
+    domain_expertise: '',
+    subskills: [] as string[]
   })
   const [submittingProject, setSubmittingProject] = useState(false)
   const [editingProject, setEditingProject] = useState<any>(null)
   const [showEditForm, setShowEditForm] = useState(false)
   const [applicationsDrawerOpen, setApplicationsDrawerOpen] = useState(false)
   const [selectedProject, setSelectedProject] = useState<{ id: string; title?: string } | null>(null)
+  const [selectedSubskills, setSelectedSubskills] = useState<string[]>([])
+  const [availableSubskills, setAvailableSubskills] = useState<string[]>([])
 
   const router = useRouter()
   
+  const handleDomainChange = (domain: string) => {
+    setProjectForm(prev => ({
+      ...prev,
+      domain_expertise: domain,
+      subskills: [] // Reset subskills when domain changes
+    }))
+    
+    // Find the selected domain and update available subskills
+    const selectedDomain = EXPERTISE_DOMAINS.find(d => d.name === domain)
+    if (selectedDomain) {
+      setAvailableSubskills([...selectedDomain.subskills])
+    } else {
+      setAvailableSubskills([])
+    }
+    
+    // Reset selected subskills
+    setSelectedSubskills([])
+  }
+
+  const handleSubskillChange = (newSubskills: string[]) => {
+    setSelectedSubskills(newSubskills)
+    setProjectForm(prev => ({
+      ...prev,
+      subskills: newSubskills
+    }))
+  }
 
   useEffect(() => {
     const getUser = async () => {
@@ -344,8 +375,12 @@ export default function InstitutionDashboard() {
         start_date: '',
         end_date: '',
         duration_hours: '',
-        required_expertise: ''
+        required_expertise: '',
+        domain_expertise: '',
+        subskills: []
       })
+      setSelectedSubskills([])
+      setAvailableSubskills([])
       setShowProjectForm(false)
       
       // Refresh data to show new project
@@ -404,8 +439,22 @@ export default function InstitutionDashboard() {
       start_date: project.start_date,
       end_date: project.end_date,
       duration_hours: project.duration_hours.toString(),
-      required_expertise: project.required_expertise.join(', ')
+      required_expertise: project.required_expertise.join(', '),
+      domain_expertise: project.domain_expertise || '',
+      subskills: project.subskills || []
     })
+    
+    // Set subskills state
+    setSelectedSubskills(project.subskills || [])
+    
+    // Set available subskills based on domain
+    if (project.domain_expertise) {
+      const selectedDomain = EXPERTISE_DOMAINS.find(d => d.name === project.domain_expertise)
+      if (selectedDomain) {
+        setAvailableSubskills([...selectedDomain.subskills])
+      }
+    }
+    
     setShowEditForm(true)
   }
 
@@ -432,7 +481,9 @@ export default function InstitutionDashboard() {
         start_date: projectForm.start_date,
         end_date: projectForm.end_date,
         duration_hours: parseInt(projectForm.duration_hours) || 1,
-        required_expertise: projectForm.required_expertise.split(',').map(s => s.trim()).filter(s => s)
+        required_expertise: projectForm.required_expertise.split(',').map(s => s.trim()).filter(s => s),
+        domain_expertise: projectForm.domain_expertise,
+        subskills: projectForm.subskills
       })
       
       console.log('Project updated successfully:', result)
@@ -446,8 +497,12 @@ export default function InstitutionDashboard() {
         start_date: '',
         end_date: '',
         duration_hours: '',
-        required_expertise: ''
+        required_expertise: '',
+        domain_expertise: '',
+        subskills: []
       })
+      setSelectedSubskills([])
+      setAvailableSubskills([])
       setShowEditForm(false)
       setEditingProject(null)
       await loadInstitutionData(user.id)
@@ -470,8 +525,12 @@ export default function InstitutionDashboard() {
       start_date: '',
       end_date: '',
       duration_hours: '',
-      required_expertise: ''
+      required_expertise: '',
+      domain_expertise: '',
+      subskills: []
     })
+    setSelectedSubskills([])
+    setAvailableSubskills([])
     setShowProjectForm(true)
   }
 
@@ -890,7 +949,37 @@ export default function InstitutionDashboard() {
                 </div>
 
                 <div>
-                  <Label htmlFor="edit-required_expertise">Required Expertise</Label>
+                  <Label htmlFor="edit-domain_expertise">Domain Expertise *</Label>
+                  <Select value={projectForm.domain_expertise} onValueChange={handleDomainChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select required domain" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {EXPERTISE_DOMAINS.map((domain) => (
+                        <SelectItem key={domain.name} value={domain.name}>
+                          {domain.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {/* Subskills Multi-Select */}
+                {projectForm.domain_expertise && availableSubskills.length > 0 && (
+                  <div className='my-3' onClick={(e) => e.stopPropagation()}>
+                    <Label className="text-slate-700" htmlFor="required_specialization">Required Specializations *</Label>
+                    <MultiSelect
+                      options={availableSubskills}
+                      selected={selectedSubskills}
+                      onSelectionChange={handleSubskillChange}
+                      placeholder="Select required specializations..."
+                      className="w-full"
+                    />
+                  </div>
+                )}
+                
+                <div>
+                  <Label htmlFor="edit-required_expertise">Additional Skills (comma-separated)</Label>
                   <Input
                     id="edit-required_expertise"
                     placeholder="Enter skills separated by commas (e.g., Machine Learning, Data Science)"
