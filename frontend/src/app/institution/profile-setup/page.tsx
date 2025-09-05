@@ -131,7 +131,7 @@ export default function InstitutionProfileSetup() {
       await api.institutions.create(institutionData)
       toast.success('Institution profile created successfully! Redirecting to dashboard...')
       
-        router.push('/institution/dashboard')
+        router.push('/institution/home')
       
     } catch (error: any) {
       setError(error.message)

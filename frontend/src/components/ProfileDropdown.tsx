@@ -124,7 +124,7 @@ export default function ProfileDropdown({ user, expert,institution, userType }: 
             <Link href={getDashboardUrl()} className="w-full">
               <div className="w-full justify-start px-3 sm:px-4 py-2.5 sm:py-3 text-slate-300 flex items-center">
                 <Settings className="h-4 w-4 mr-2 sm:mr-3 text-indigo-400" />
-                <span className="text-sm sm:text-base">Dashboard</span>
+                <span className="text-sm sm:text-base">Go to Dashboard</span>
               </div>
             </Link>
           </DropdownMenuItem>

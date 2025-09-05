@@ -290,7 +290,7 @@ export default function ExpertProfileSetup() {
       }
       setSuccess('Profile created successfully! Redirecting to dashboard...')
       
-        router.push('/expert/dashboard')
+        router.push('/expert/home')
       
     } catch (error: any) {
       setError(error.message)

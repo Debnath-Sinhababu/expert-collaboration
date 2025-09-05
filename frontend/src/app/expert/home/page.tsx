@@ -1,0 +1,538 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+import { api } from '@/lib/api'
+import { usePagination } from '@/hooks/usePagination'
+import { PROJECT_TYPES } from '@/lib/constants'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import NotificationBell from '@/components/NotificationBell'
+import ProfileDropdown from '@/components/ProfileDropdown'
+import Logo from '@/components/Logo'
+import { 
+  Search, 
+  Clock, 
+  DollarSign, 
+  Users, 
+  Calendar,
+  Building2,
+  Star,
+  Eye,
+  BookOpen,
+  Send
+} from 'lucide-react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+
+type UserMeta = { role?: string; name?: string }
+type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }
+
+export default function ExpertHome() {
+  type ExpertProfile = {
+    id?: string
+    user_id?: string
+    name?: string
+    email?: string
+    hourly_rate?: number
+    rating?: number
+    total_ratings?: number
+    is_verified?: boolean
+    bio?: string
+    qualifications?: string[]
+    domain_expertise?: string[]
+    photo_url?: string
+  }
+
+  type Project = {
+    id: string
+    title?: string
+    description?: string
+    start_date?: string
+    end_date?: string
+    hourly_rate?: number
+    duration_hours?: number
+    type?: string
+    required_expertise?: string[]
+    institutions?: {
+      id: string
+      name: string
+      logo_url?: string
+    }
+    applicationCounts?: {
+      total: number
+      pending: number
+    }
+  }
+
+  const [user, setUser] = useState<any>(null)
+  const [expert, setExpert] = useState<ExpertProfile | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedType, setSelectedType] = useState('all')
+  const [minRate, setMinRate] = useState('')
+  const [maxRate, setMaxRate] = useState('')
+  const [applicationForm, setApplicationForm] = useState({
+    coverLetter: '',
+    proposedRate: ''
+  })
+  const [showApplicationModal, setShowApplicationModal] = useState(false)
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+
+  const router = useRouter()
+
+  // Use pagination hook for projects (same pattern as dashboard)
+  const {
+    data: projects,
+    loading: projectsLoading,
+    hasMore: hasMoreProjects,
+    loadMore: loadMoreProjects,
+  } = usePagination(
+    async (page: number) => {
+      if (!expert?.id) return []
+      
+      // Filter out undefined values to avoid sending "undefined" in URL
+      const params: any = {
+        page,
+        limit: 10,
+        expert_id: expert.id // Filter out projects already applied to
+      }
+      
+      if (searchTerm) params.search = searchTerm
+      if (selectedType !== 'all') params.type = selectedType
+      if (minRate) params.min_hourly_rate = parseFloat(minRate)
+      if (maxRate) params.max_hourly_rate = parseFloat(maxRate)
+
+      return await api.projects.getAll(params)
+    },
+    [expert?.id, searchTerm, selectedType, minRate, maxRate]
+  )
+
+  // Reuse existing getUser pattern from dashboard
+  const getUser = async (): Promise<SessionUser | null> => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      router.push('/auth/login')
+      return null
+    }
+    setUser(user)
+    return user as unknown as SessionUser
+  }
+
+  // Reuse existing loadExpertData pattern
+  const loadExpertData = async () => {
+    try {
+      setLoading(true)
+      const currentUser = await getUser()
+      if (!currentUser) return
+
+      const userRole = currentUser.user_metadata?.role
+      if (userRole !== 'expert') {
+        router.push('/')
+        return
+      }
+
+      // Get expert profile
+      const expertsResponse = await api.experts.getAll()
+      const experts = Array.isArray(expertsResponse) ? expertsResponse : (expertsResponse?.data || [])
+      const expertProfile = experts.find((exp: any) => exp.user_id === currentUser.id) || null
+      
+      if (!expertProfile) {
+        router.push('/expert/profile-setup')
+        return
+      }
+      
+      setExpert(expertProfile)
+      
+    } catch (error: any) {
+      setError('Failed to load expert data')
+      console.error('Expert home error:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadExpertData()
+  }, [router])
+
+  const handleApplicationSubmit = async (projectId: string) => {
+    try {
+      const response = await api.applications.create({
+        project_id: projectId,
+        cover_letter: applicationForm.coverLetter,
+        proposed_rate: parseFloat(applicationForm.proposedRate) || expert?.hourly_rate || 0
+      })
+
+      if (response && response.id) {
+        setSuccess('Application submitted successfully!')
+        setApplicationForm({ coverLetter: '', proposedRate: '' })
+        setShowApplicationModal(false)
+        setSelectedProjectId(null)
+        // Clear success message after 3 seconds
+        setTimeout(() => setSuccess(''), 3000)
+        // Note: Projects will automatically refresh due to usePagination dependencies
+      } else {
+        setError(response?.error || 'Failed to submit application')
+        // Clear error message after 5 seconds
+        setTimeout(() => setError(''), 5000)
+      }
+    } catch (error: any) {
+      console.error('Error applying to project:', error)
+      setError('Failed to submit application')
+      // Clear error message after 5 seconds
+      setTimeout(() => setError(''), 5000)
+    }
+  }
+
+  const handleOpenApplicationModal = (projectId: string) => {
+    setSelectedProjectId(projectId)
+    setShowApplicationModal(true)
+    setApplicationForm({ coverLetter: '', proposedRate: '' })
+  }
+
+  const getProjectTypeLabel = (type: string) => {
+    return type?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Other'
+  }
+
+  const getProjectTypeColor = (type: string) => {
+    const colors: { [key: string]: string } = {
+      'guest_lecture': 'bg-blue-100 text-blue-800',
+      'fdp': 'bg-green-100 text-green-800',
+      'workshop': 'bg-purple-100 text-purple-800',
+      'curriculum_dev': 'bg-orange-100 text-orange-800',
+      'research_collaboration': 'bg-pink-100 text-pink-800',
+      'training_program': 'bg-indigo-100 text-indigo-800',
+      'consultation': 'bg-yellow-100 text-yellow-800'
+    }
+    return colors[type] || 'bg-gray-100 text-gray-800'
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <Button onClick={() => window.location.reload()}>Retry</Button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30">
+      {/* Header */}
+      <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            {/* Logo */}
+            <Link href="/" className="flex items-center space-x-2 group">
+              <Logo size="md" />
+              <span className="text-xl font-bold bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent group-hover:from-blue-200 group-hover:to-white transition-all duration-300">Calxmap</span>
+            </Link>
+
+            {/* Navigation */}
+            <nav className="hidden md:flex items-center space-x-8">
+              <Link href="/expert/home" className="text-white/90 hover:text-blue-200 font-medium transition-colors duration-200 relative group">
+                Home
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-blue-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
+              </Link>
+              <Link href="/expert/dashboard" className="text-white/70 hover:text-blue-200 font-medium transition-colors duration-200 relative group">
+                Dashboard
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-blue-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
+              </Link>
+            </nav>
+
+            {/* Right side */}
+            <div className="flex items-center space-x-4">
+              <div className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors duration-200">
+                <NotificationBell />
+              </div>
+              <ProfileDropdown 
+                user={user} 
+                expert={expert} 
+                userType="expert" 
+              />
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Welcome Section */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">
+            Welcome back, {expert?.name}!
+          </h1>
+          <p className="text-slate-600">
+            Discover new opportunities and grow your expertise
+          </p>
+        </div>
+
+        {/* Success/Error Messages */}
+        {success && (
+          <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <p className="text-green-800">{success}</p>
+          </div>
+        )}
+        {error && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-800">{error}</p>
+          </div>
+        )}
+
+        {/* Search and Filters */}
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <Label htmlFor="search">Search</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
+                <Input
+                  id="search"
+                  placeholder="Search projects..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            
+            <div>
+              <Label htmlFor="type">Project Type</Label>
+              <Select value={selectedType} onValueChange={setSelectedType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All types</SelectItem>
+                  {PROJECT_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {getProjectTypeLabel(type)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="minRate">Min Rate (₹/hr)</Label>
+              <Input
+                id="minRate"
+                type="number"
+                placeholder="0"
+                value={minRate}
+                onChange={(e) => setMinRate(e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="maxRate">Max Rate (₹/hr)</Label>
+              <Input
+                id="maxRate"
+                type="number"
+                placeholder="10000"
+                value={maxRate}
+                onChange={(e) => setMaxRate(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Projects List */}
+        <div className="mb-8">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-slate-900">
+              Available Projects ({projects.length})
+            </h2>
+          </div>
+
+          {projects.length === 0 && !projectsLoading ? (
+            <div className="text-center py-12">
+              <BookOpen className="mx-auto h-12 w-12 text-slate-400 mb-4" />
+              <h3 className="text-lg font-medium text-slate-900 mb-2">No projects found</h3>
+              <p className="text-slate-500">Try adjusting your search criteria</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {(projects as Project[]).map((project) => (
+                <Card key={project.id} className="hover:shadow-md transition-shadow duration-300 border border-slate-200">
+                  <CardContent className="p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="text-xl font-semibold text-slate-900 hover:text-blue-600 cursor-pointer">
+                            {project.title}
+                          </h3>
+                          <Badge className={`${getProjectTypeColor(project.type || '')} text-xs`}>
+                            {getProjectTypeLabel(project.type || '')}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center text-slate-600 text-sm mb-3">
+                          <Building2 className="h-4 w-4 mr-2" />
+                          <span className="font-medium">{project.institutions?.name}</span>
+                        </div>
+                        <p className="text-slate-600 text-sm line-clamp-2 mb-4">
+                          {project.description}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end space-y-2">
+                        <div className="text-right">
+                          <div className="text-2xl font-bold text-blue-600">
+                            ₹{project.hourly_rate}
+                          </div>
+                          <div className="text-sm text-slate-500">per hour</div>
+                        </div>
+                        <div className="flex items-center text-slate-500 text-sm">
+                          <Users className="h-4 w-4 mr-1" />
+                          {project.applicationCounts?.total || 0} applications
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-6 text-sm text-slate-600">
+                        <div className="flex items-center">
+                          <Clock className="h-4 w-4 mr-2" />
+                          {project.duration_hours} hours
+                        </div>
+                        <div className="flex items-center">
+                          <Calendar className="h-4 w-4 mr-2" />
+                          {project.start_date} - {project.end_date}
+                        </div>
+                        {project.required_expertise && project.required_expertise.length > 0 && (
+                          <div className="flex items-center">
+                            <span className="mr-2">Skills:</span>
+                            <div className="flex flex-wrap gap-1">
+                              {project.required_expertise.slice(0, 3).map((skill, index) => (
+                                <Badge key={index} variant="secondary" className="text-xs">
+                                  {skill}
+                                </Badge>
+                              ))}
+                              {project.required_expertise.length > 3 && (
+                                <Badge variant="secondary" className="text-xs">
+                                  +{project.required_expertise.length - 3}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button 
+                          onClick={() => handleOpenApplicationModal(project.id)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          <Send className="h-4 w-4 mr-2" />
+                          Apply Now
+                        </Button>
+                        <Button variant="outline" size="icon" className="border-slate-300">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+
+              {/* Infinite Scroll Trigger */}
+              {hasMoreProjects && (
+                <div 
+                  ref={(el) => {
+                    if (el) {
+                      const observer = new IntersectionObserver(([entry]) => {
+                        if (entry.isIntersecting) {
+                          loadMoreProjects();
+                        }
+                      }, { threshold: 0.1 });
+                      observer.observe(el);
+                      return () => observer.disconnect();
+                    }
+                  }}
+                  className="flex justify-center py-8"
+                >
+                  {projectsLoading ? (
+                    <div className="flex items-center space-x-2">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                      <span className="text-slate-600">Loading more projects...</span>
+                    </div>
+                  ) : (
+                    <Button 
+                      onClick={loadMoreProjects}
+                      variant="outline"
+                      className="border-slate-300"
+                    >
+                      Load More Projects
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Application Modal */}
+        <Dialog open={showApplicationModal} onOpenChange={setShowApplicationModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Apply to Project</DialogTitle>
+              <DialogDescription>
+                Submit your application for "{(projects as Project[]).find(p => p.id === selectedProjectId)?.title || 'this project'}"
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="coverLetter">Cover Letter</Label>
+                <Textarea
+                  id="coverLetter"
+                  placeholder="Explain why you're the perfect fit for this project..."
+                  value={applicationForm.coverLetter}
+                  onChange={(e) => setApplicationForm({...applicationForm, coverLetter: e.target.value})}
+                  rows={4}
+                />
+              </div>
+              <div>
+                <Label htmlFor="proposedRate">Proposed Hourly Rate (₹)</Label>
+                <Input
+                  id="proposedRate"
+                  type="number"
+                  placeholder={expert?.hourly_rate?.toString() || "1500"}
+                  value={applicationForm.proposedRate}
+                  onChange={(e) => setApplicationForm({...applicationForm, proposedRate: e.target.value})}
+                />
+              </div>
+              <Button 
+                onClick={() => selectedProjectId && handleApplicationSubmit(selectedProjectId)}
+                className="w-full"
+                disabled={!applicationForm.coverLetter || !selectedProjectId}
+              >
+                Submit Application
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+      </main>
+    </div>
+  )
+}
