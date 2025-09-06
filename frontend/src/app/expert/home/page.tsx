@@ -236,6 +236,7 @@ export default function ExpertHome() {
 
   const handleApplicationSubmit = async (projectId: string) => {
     try {
+       
       const response = await api.applications.create({
         project_id: projectId,
         cover_letter: applicationForm.coverLetter,
@@ -247,6 +248,7 @@ export default function ExpertHome() {
         setApplicationForm({ coverLetter: '', proposedRate: '' })
         setShowApplicationModal(false)
         setSelectedProjectId(null)
+        api.projects.getAll()
         // Clear success message after 3 seconds
         setTimeout(() => setSuccess(''), 3000)
         // Note: Projects will automatically refresh due to usePagination dependencies

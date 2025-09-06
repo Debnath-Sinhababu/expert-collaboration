@@ -37,6 +37,7 @@ import {
   Plus,
   UserCheck,
   GraduationCap,
+  CheckCircle,
   Award,
   Briefcase
 } from 'lucide-react'
@@ -106,6 +107,13 @@ export default function InstitutionHome() {
   const [availableSubskills, setAvailableSubskills] = useState<string[]>([])
   const [partneredInstitutions, setPartneredInstitutions] = useState<any[]>([])
   const [institutionsLoading, setInstitutionsLoading] = useState(true)
+  
+  // Expert selection modal state
+  const [showExpertSelectionModal, setShowExpertSelectionModal] = useState(false)
+  const [recommendedExperts, setRecommendedExperts] = useState<any[]>([])
+  const [expertsLoading, setExpertsLoading] = useState(false)
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+  const [selectedExperts, setSelectedExperts] = useState<string[]>([])
 
   const router = useRouter()
 
@@ -194,6 +202,10 @@ export default function InstitutionHome() {
     }
   }, [institution, searchTerm, selectedDomain, minRate, maxRate])
 
+  // useEffect(()=>{
+  //    loadRecommendedExperts('cb2b9213-077c-4115-845d-8699d489d2d6')
+  // },[showExpertSelectionModal])
+
   const handleDomainChange = (domain: string) => {
     setProjectForm(prev => ({
       ...prev,
@@ -237,6 +249,142 @@ export default function InstitutionHome() {
       console.error('Error fetching partnered institutions:', error)
     } finally {
       setInstitutionsLoading(false)
+    }
+  }
+
+  const loadRecommendedExperts = async (projectId: string) => {
+    try {
+      setExpertsLoading(true)
+      setSelectedProjectId(projectId)
+      const data = await api.experts.getRecommended(projectId)
+      setRecommendedExperts(Array.isArray(data) ? data : [])
+      setShowExpertSelectionModal(true)
+    } catch (error) {
+      console.error('Error fetching recommended experts:', error)
+      toast.error('Failed to load expert recommendations')
+    } finally {
+      setExpertsLoading(false)
+    }
+  }
+
+  const handleExpertSelection = (expertId: string) => {
+    setSelectedExperts(prev => 
+      prev.includes(expertId) 
+        ? prev.filter(id => id !== expertId)
+        : [...prev, expertId]
+    )
+  }
+
+  const handleSelectExperts = async () => {
+    if (selectedExperts.length === 0) {
+      toast.error('Please select at least one expert')
+      return
+    }
+
+    if (!selectedProjectId) {
+      toast.error('No project selected')
+      return
+    }
+
+    try {
+      // Check application status for all selected experts
+      const applicationStatuses = await api.applications.checkStatus(selectedProjectId, selectedExperts)
+      
+      // Get project and institution details for notifications
+      const projectDetails = await api.projects.getById(selectedProjectId)
+      const institutionDetails = await api.institutions.getById(institution?.id || '')
+      
+      if (!projectDetails || !institutionDetails) {
+        toast.error('Failed to get project or institution details')
+        return
+      }
+
+      // Separate experts into two groups
+      const expertsWithApplications = []
+      const expertsWithoutApplications = []
+
+      for (const status of applicationStatuses) {
+        const expert = recommendedExperts.find(e => e.id === status.expertId)
+        if (!expert) continue
+
+        if (status.hasApplied) {
+          expertsWithApplications.push(expert)
+        } else {
+          expertsWithoutApplications.push(expert)
+        }
+      }
+
+      // Create bookings for experts who have already applied
+      for (const expert of expertsWithApplications) {
+        try {
+          // Create booking using existing API
+          const bookingData = {
+            expert_id: expert.id,
+            project_id: selectedProjectId,
+            institution_id: institution?.id,
+            amount: projectDetails.hourly_rate * projectDetails.duration_hours,
+            start_date: new Date().toISOString().split('T')[0],
+            end_date: projectDetails.end_date,
+            status: 'confirmed'
+          }
+
+          await api.bookings.create(bookingData)
+          
+          // Send custom notification for selected expert with booking
+          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/send-expert-selected`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+            },
+            body: JSON.stringify({
+              expertId: expert.id,
+              projectTitle: projectDetails.title,
+              institutionName: institutionDetails.name,
+              type: 'expert_selected_with_booking'
+            })
+          })
+        } catch (error) {
+          console.error(`Error creating booking for expert ${expert.id}:`, error)
+        }
+      }
+
+      // Send interest notifications for experts who haven't applied
+      for (const expert of expertsWithoutApplications) {
+        try {
+          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/send-expert-interest`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+            },
+            body: JSON.stringify({
+              expertId: expert.id,
+              projectTitle: projectDetails.title,
+              institutionName: institutionDetails.name,
+              type: 'expert_interest_shown'
+            })
+          })
+        } catch (error) {
+          console.error(`Error sending interest notification to expert ${expert.id}:`, error)
+        }
+      }
+
+      // Show success message
+      const bookingCount = expertsWithApplications.length
+      const interestCount = expertsWithoutApplications.length
+      
+      let message = `Successfully processed ${selectedExperts.length} experts: `
+      if (bookingCount > 0) message += `${bookingCount} bookings created, `
+      if (interestCount > 0) message += `${interestCount} interest notifications sent`
+      
+      toast.success(message)
+      setShowExpertSelectionModal(false)
+      setSelectedExperts([])
+      setSelectedProjectId(null)
+    } catch (error) {
+      console.error('Error selecting experts:', error)
+      toast.error('Failed to select experts')
     }
   }
 
@@ -315,7 +463,7 @@ export default function InstitutionHome() {
         subskills: projectForm.subskills
       }
 
-      await api.projects.create(projectData)
+      const response = await api.projects.create(projectData)
       
       // Reset form
       setProjectForm({
@@ -347,7 +495,10 @@ export default function InstitutionHome() {
         duration: 5000
       })
       
-      // TODO: Open modal with top 5 matching experts
+      // Load recommended experts for the new project
+      if (response && response.id) {
+        await loadRecommendedExperts(response.id)
+      }
       
     } catch (error) {
       console.error('Error creating project:', error)
@@ -939,6 +1090,156 @@ export default function InstitutionHome() {
             </Carousel>
           )}
         </div>
+
+        {/* Expert Selection Modal */}
+        <Dialog open={showExpertSelectionModal} onOpenChange={setShowExpertSelectionModal}>
+          <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogHeader className="flex-shrink-0">
+              <DialogTitle>Select Recommended Experts</DialogTitle>
+              <DialogDescription>
+                Choose experts who match your project requirements. They will be notified about your project.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="flex-1 overflow-y-auto pr-2">
+              {expertsLoading ? (
+                <div className="flex justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : recommendedExperts.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-slate-500">No matching experts found for this project.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {recommendedExperts.map((expert) => (
+                    <Card key={expert.id} className={`transition-all duration-200 hover:shadow-md ${
+                      selectedExperts.includes(expert.id) 
+                        ? 'bg-blue-50/50' 
+                        : 'hover:border-blue-300'
+                    }`}>
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          {/* Expert Info */}
+                          <div className="flex items-center space-x-4 flex-1 min-w-0">
+                            {/* Expert Photo */}
+                            <div className="flex-shrink-0">
+                              {expert.photo_url ? (
+                                <img
+                                  src={expert.photo_url}
+                                  alt={expert.name}
+                                  className="w-16 h-16 rounded-full object-cover border-2 border-slate-200"
+                                />
+                              ) : (
+                                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl">
+                                  {expert.name?.charAt(0) || 'E'}
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Expert Details */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="text-lg font-semibold text-slate-900 truncate">
+                                  {expert.name}
+                                </h3>
+                                {expert.is_verified && (
+                                  <Badge className="bg-green-100 text-green-800 text-xs">
+                                    Verified
+                                  </Badge>
+                                )}
+                                <Badge className="bg-blue-100 text-blue-800 text-xs">
+                                  {expert.matchScore}% Match
+                                </Badge>
+                              </div>
+                              
+                              <div className="flex items-center text-slate-600 text-sm mb-2">
+                                <span className="font-medium">₹{expert.hourly_rate}/hour</span>
+                                <span className="mx-2">•</span>
+                                <span>{expert.experience_years || 0} years experience</span>
+                                <span className="mx-2">•</span>
+                                <div className="flex items-center">
+                                  <Star className="h-4 w-4 text-yellow-500 mr-1" />
+                                  <span>{expert.rating || 0}</span>
+                                </div>
+                              </div>
+                              
+                              <p className="text-slate-600 text-sm line-clamp-2 mb-2">
+                                {expert.bio}
+                              </p>
+                              
+                              {/* Skills */}
+                              {expert.subskills && expert.subskills.length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                  {expert.subskills.slice(0, 3).map((skill: string, index: number) => (
+                                    <Badge key={index} variant="secondary" className="text-xs">
+                                      {skill}
+                                    </Badge>
+                                  ))}
+                                  {expert.subskills.length > 3 && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      +{expert.subskills.length - 3} more
+                                    </Badge>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* Select Button */}
+                          <div className="flex-shrink-0 ml-4">
+                            <Button
+                              variant={selectedExperts.includes(expert.id) ? "default" : "outline"}
+                              onClick={() => handleExpertSelection(expert.id)}
+                              className={selectedExperts.includes(expert.id) 
+                                ? "bg-blue-600 hover:bg-blue-700 text-white" 
+                                : "border-blue-300 text-blue-600 hover:bg-blue-50"
+                              }
+                            >
+                              {selectedExperts.includes(expert.id) ? (
+                                <>
+                                  <CheckCircle className="h-4 w-4 mr-2" />
+                                  Selected
+                                </>
+                              ) : (
+                                <>
+                                  <UserCheck className="h-4 w-4 mr-2" />
+                                  Select
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="flex-shrink-0 flex justify-between items-center pt-4 border-t border-slate-200">
+              <div className="text-sm text-slate-600">
+                {selectedExperts.length} expert{selectedExperts.length !== 1 ? 's' : ''} selected
+              </div>
+              <div className="flex space-x-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowExpertSelectionModal(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleSelectExperts}
+                  disabled={selectedExperts.length === 0}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  Select Experts ({selectedExperts.length})
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
       </main>
     </div>

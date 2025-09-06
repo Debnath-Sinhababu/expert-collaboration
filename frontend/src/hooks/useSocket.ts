@@ -123,6 +123,28 @@ export const useSocket = (): UseSocketReturn => {
         });
       });
 
+      newSocket.on('expert_selected_with_booking', (data: any) => {
+        console.log('Expert selected with booking notification:', data);
+        addNotification({
+          type: 'expert_selected_with_booking',
+          message: data.message,
+          projectTitle: data.projectTitle,
+          institutionName: data.institutionName,
+          timestamp: new Date(),
+        });
+      });
+
+      newSocket.on('expert_interest_shown', (data: any) => {
+        console.log('Expert interest shown notification:', data);
+        addNotification({
+          type: 'expert_interest_shown',
+          message: data.message,
+          projectTitle: data.projectTitle,
+          institutionName: data.institutionName,
+          timestamp: new Date(),
+        });
+      });
+
       socketRef.current = newSocket;
       setSocket(newSocket);
       

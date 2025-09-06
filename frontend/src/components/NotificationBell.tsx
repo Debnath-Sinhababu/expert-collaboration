@@ -70,6 +70,10 @@ export default function NotificationBell() {
         return <Clock className="h-4 w-4 text-purple-500" />
       case 'new_project_available':
         return <Info className="h-4 w-4 text-orange-500" />
+      case 'expert_selected_with_booking':
+        return <CheckCircle className="h-4 w-4 text-green-600" />
+      case 'expert_interest_shown':
+        return <Info className="h-4 w-4 text-blue-600" />
       default:
         return <AlertCircle className="h-4 w-4 text-gray-500" />
     }
@@ -86,6 +90,10 @@ export default function NotificationBell() {
         return 'bg-purple-50 border-purple-200'
       case 'new_project_available':
         return 'bg-orange-50 border-orange-200'
+      case 'expert_selected_with_booking':
+        return 'bg-green-100 border-green-300'
+      case 'expert_interest_shown':
+        return 'bg-blue-100 border-blue-300'
       default:
         return 'bg-gray-50 border-gray-200'
     }

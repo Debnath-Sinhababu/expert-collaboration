@@ -35,6 +35,10 @@ export const api = {
       const headers = await getAuthHeaders()
       return fetch(`${API_BASE_URL}/api/experts/${id}`, { headers }).then(res => res.json())
     },
+    getRecommended: async (projectId: string) => {
+      const headers = await getAuthHeaders()
+      return fetch(`${API_BASE_URL}/api/experts/recommended/${projectId}`, { headers }).then(res => res.json())
+    },
     create: async (data: any) => {
       const headers = await getAuthHeaders()
       return fetch(`${API_BASE_URL}/api/experts`, {
@@ -100,6 +104,7 @@ export const api = {
       }).then(res => res.json())
     }
   },
+
 
   projects: {
     getAll: async (params?: { 
@@ -194,6 +199,17 @@ export const api = {
         method: 'PUT',
         headers,
         body: JSON.stringify(data)
+      }).then(res => res.json())
+    },
+    checkStatus: async (projectId: string, expertIds: string[]) => {
+      const headers = await getAuthHeaders()
+      return fetch(`${API_BASE_URL}/api/applications/check-status`, {
+        method: 'POST',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ projectId, expertIds })
       }).then(res => res.json())
     }
   },
