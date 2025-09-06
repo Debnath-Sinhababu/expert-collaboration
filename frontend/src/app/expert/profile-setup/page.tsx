@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { MultiSelect } from '@/components/ui/multi-select'
-import { Upload, Calendar, DollarSign, X, Camera, FileText, Download, Check } from 'lucide-react'
+import { Upload, Calendar, DollarSign, X, Camera, FileText, Download, Check, IndianRupee } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -615,7 +615,7 @@ export default function ExpertProfileSetup() {
                   <div className="space-y-2">
                     <Label htmlFor="hourly_rate" className="text-slate-700">Hourly Rate (₹) *</Label>
                     <div className="relative">
-                      <DollarSign className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                    <IndianRupee className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                       <Input
                         id="hourly_rate"
                         type="number"

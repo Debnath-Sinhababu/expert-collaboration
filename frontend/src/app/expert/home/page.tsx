@@ -63,6 +63,7 @@ export default function ExpertHome() {
     duration_hours?: number
     type?: string
     required_expertise?: string[]
+    subskills?: string[]
     institutions?: {
       id: string
       name: string
@@ -72,6 +73,7 @@ export default function ExpertHome() {
       total: number
       pending: number
     }
+    matchScore?: number
   }
 
   const [user, setUser] = useState<any>(null)
@@ -93,6 +95,10 @@ export default function ExpertHome() {
   const [universitiesLoading, setUniversitiesLoading] = useState(true)
   const [partneredExperts, setPartneredExperts] = useState<any[]>([])
   const [expertsLoading, setExpertsLoading] = useState(true)
+  
+  // Recommended projects state
+  const [recommendedProjects, setRecommendedProjects] = useState<Project[]>([])
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false)
 
   const router = useRouter()
 
@@ -179,6 +185,7 @@ export default function ExpertHome() {
   useEffect(()=>{
     if(expert){
       loadPartneredExperts()
+      loadRecommendedProjects()
     }
   },[expert])
 
@@ -210,6 +217,20 @@ export default function ExpertHome() {
       console.error('Error fetching partnered experts:', error)
     } finally {
       setExpertsLoading(false)
+    }
+  }
+
+  const loadRecommendedProjects = async () => {
+    try {
+      setLoadingRecommendations(true)
+      if (!expert?.id) return
+      
+      const data = await api.projects.getRecommended(expert.id)
+      setRecommendedProjects(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error('Error fetching recommended projects:', error)
+    } finally {
+      setLoadingRecommendations(false)
     }
   }
 
@@ -337,6 +358,169 @@ export default function ExpertHome() {
             Discover new opportunities and grow your expertise
           </p>
         </div>
+
+        {/* Recommended for You Section */}
+        {recommendedProjects.length > 0 && (
+          <div className="mb-8">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="text-center mb-6">
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">
+                  Recommended for You
+                </h2>
+                <p className="text-slate-600">
+                  Projects matched to your skills and expertise
+                </p>
+              </div>
+
+              {loadingRecommendations ? (
+                <div className="flex justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : (
+                <Carousel
+                  opts={{
+                    align: "start",
+                    containScroll: "trimSnaps"
+                  }}
+                  plugins={[
+                    Autoplay({
+                      delay: 6000,
+                    }),
+                  ]}
+                  className="w-full max-w-7xl mx-auto"
+                >
+                  <CarouselContent className="-ml-2">
+                    {recommendedProjects.map((project) => (
+                      <CarouselItem key={project.id} className="pl-2 basis-full sm:basis-1/2 lg:basis-1/3">
+                        <Card className="h-full mx-2 transition-all duration-300 hover:shadow-lg border border-slate-200 hover:border-blue-300">
+                          <CardContent className="p-4 sm:p-6">
+                            {/* Header Section */}
+                            <div className="flex flex-col mb-4 gap-4">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between">
+                                  <h3 className="text-lg sm:text-xl font-semibold text-slate-900 hover:text-blue-600 cursor-pointer truncate">
+                                    {project.title}
+                                  </h3>
+                                  <div className="flex items-center gap-2">
+                                   
+                                    <Badge className="bg-green-100 text-green-800 border-green-200 flex-shrink-0">
+                                      {project.matchScore}% Match
+                                    </Badge>
+                                   
+                                  </div>
+                                </div>
+                             
+                              
+                              </div>
+                              <Badge className={`${getProjectTypeColor(project.type || '')} text-xs w-fit`}>
+                                      {getProjectTypeLabel(project.type || '')}
+                                    </Badge>
+
+                              <div className='flex flex-col'>
+                              <div className="flex items-center text-slate-600 text-sm mb-3">
+                                  <Building2 className="h-4 w-4 mr-2 flex-shrink-0" />
+                                  <span className="font-medium truncate">{project.institutions?.name}</span>
+                                </div>
+                                <p className="text-slate-600 text-sm line-clamp-2 mb-4">
+                                  {project.description}
+                                </p>
+                              </div>
+                              
+                              {/* Price Section - Only show on larger screens */}
+                              <div className="hidden lg:flex justify-between items-start space-y-2 flex-shrink-0">
+                                <div className="text-right">
+                                  <div className="text-2xl font-bold text-blue-600">
+                                    ₹{project.hourly_rate}
+                                  </div>
+                                  <div className="text-sm text-slate-500">per hour</div>
+                                </div>
+                                <div className="flex items-center text-slate-500 text-sm">
+                                  <Users className="h-4 w-4 mr-1" />
+                                  {project.applicationCounts?.total || 0} applications
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Skills and Specializations Section */}
+                            <div className="mb-4 space-y-3">
+                              {/* Skills */}
+                              {project.required_expertise && project.required_expertise.length > 0 && (
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                                  <span className="text-sm font-medium text-slate-700 min-w-fit">Skills:</span>
+                                  <div className="flex flex-wrap gap-1">
+                                    {project.required_expertise.slice(0, 3).map((skill, index) => (
+                                      <Badge key={index} variant="secondary" className="text-xs">
+                                        {skill}
+                                      </Badge>
+                                    ))}
+                                    {project.required_expertise.length > 3 && (
+                                      <Badge variant="secondary" className="text-xs">
+                                        +{project.required_expertise.length - 3}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Specializations */}
+                              {project.subskills && project.subskills.length > 0 && (
+                                <div className="flex flex-col sm:flex-row sm:items-start gap-2">
+                                  <span className="text-sm font-medium text-slate-700 min-w-fit">Specializations:</span>
+                                  <span className="text-slate-600 text-sm break-words">
+                                    {project.subskills.join(', ')}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Bottom Section - Project Details and Actions */}
+                            <div className="flex flex-col gap-4">
+                              {/* Project Details */}
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-slate-600">
+                                <div className="flex items-center">
+                                  <Clock className="h-4 w-4 mr-2 flex-shrink-0" />
+                                  <span>{project.duration_hours} hours</span>
+                                </div>
+                                <div className="flex items-center">
+                                  <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />
+                                  <span className="truncate">{project.start_date} - {project.end_date}</span>
+                                </div>
+                                
+                                {/* Price for mobile */}
+                                <div className="lg:hidden flex items-center">
+                                  <span className="text-lg font-bold text-blue-600">
+                                    ₹{project.hourly_rate}/hour
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              {/* Action Buttons - Full width on mobile, auto on desktop */}
+                              <div className="flex space-x-2 w-full sm:w-auto">
+                                <Button 
+                                  onClick={() => handleOpenApplicationModal(project.id)}
+                                  className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-2"
+                                >
+                                  <Send className="h-4 w-4 mr-1 sm:mr-2" />
+                                  <span className="hidden sm:inline">Apply Now</span>
+                                  <span className="sm:hidden">Apply</span>
+                                </Button>
+                                <Button variant="outline" size="icon" className="border-slate-300 flex-shrink-0">
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                  <CarouselPrevious className="text-slate-600 hover:text-slate-900" />
+                  <CarouselNext className="text-slate-600 hover:text-slate-900" />
+                </Carousel>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Quick Stats Cards */}
       
@@ -707,26 +891,29 @@ export default function ExpertHome() {
             <div className="space-y-4">
               {(projects as Project[]).map((project) => (
                 <Card key={project.id} className="hover:shadow-md transition-shadow duration-300 border border-slate-200">
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-xl font-semibold text-slate-900 hover:text-blue-600 cursor-pointer">
+                  <CardContent className="p-4 sm:p-6">
+                    {/* Header Section */}
+                    <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start mb-4 gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+                          <h3 className="text-lg sm:text-xl font-semibold text-slate-900 hover:text-blue-600 cursor-pointer truncate">
                             {project.title}
                           </h3>
-                          <Badge className={`${getProjectTypeColor(project.type || '')} text-xs`}>
+                          <Badge className={`${getProjectTypeColor(project.type || '')} text-xs w-fit`}>
                             {getProjectTypeLabel(project.type || '')}
                           </Badge>
                         </div>
                         <div className="flex items-center text-slate-600 text-sm mb-3">
-                          <Building2 className="h-4 w-4 mr-2" />
-                          <span className="font-medium">{project.institutions?.name}</span>
+                          <Building2 className="h-4 w-4 mr-2 flex-shrink-0" />
+                          <span className="font-medium truncate">{project.institutions?.name}</span>
                         </div>
                         <p className="text-slate-600 text-sm line-clamp-2 mb-4">
                           {project.description}
                         </p>
                       </div>
-                      <div className="flex flex-col items-end space-y-2">
+                      
+                      {/* Price Section - Only show on larger screens */}
+                      <div className="hidden lg:flex flex-col items-end space-y-2 flex-shrink-0">
                         <div className="text-right">
                           <div className="text-2xl font-bold text-blue-600">
                             ₹{project.hourly_rate}
@@ -740,43 +927,70 @@ export default function ExpertHome() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-6 text-sm text-slate-600">
-                        <div className="flex items-center">
-                          <Clock className="h-4 w-4 mr-2" />
-                          {project.duration_hours} hours
-                        </div>
-                        <div className="flex items-center">
-                          <Calendar className="h-4 w-4 mr-2" />
-                          {project.start_date} - {project.end_date}
-                        </div>
-                        {project.required_expertise && project.required_expertise.length > 0 && (
-                          <div className="flex items-center">
-                            <span className="mr-2">Skills:</span>
-                            <div className="flex flex-wrap gap-1">
-                              {project.required_expertise.slice(0, 3).map((skill, index) => (
-                                <Badge key={index} variant="secondary" className="text-xs">
-                                  {skill}
-                                </Badge>
-                              ))}
-                              {project.required_expertise.length > 3 && (
-                                <Badge variant="secondary" className="text-xs">
-                                  +{project.required_expertise.length - 3}
-                                </Badge>
-                              )}
-                            </div>
+                    {/* Skills and Specializations Section */}
+                    <div className="mb-4 space-y-3">
+                      {/* Skills */}
+                      {project.required_expertise && project.required_expertise.length > 0 && (
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                          <span className="text-sm font-medium text-slate-700 min-w-fit">Skills:</span>
+                          <div className="flex flex-wrap gap-1">
+                            {project.required_expertise.slice(0, 3).map((skill, index) => (
+                              <Badge key={index} variant="secondary" className="text-xs">
+                                {skill}
+                              </Badge>
+                            ))}
+                            {project.required_expertise.length > 3 && (
+                              <Badge variant="secondary" className="text-xs">
+                                +{project.required_expertise.length - 3}
+                              </Badge>
+                            )}
                           </div>
-                        )}
+                        </div>
+                      )}
+                      
+                      {/* Specializations */}
+                      {project.subskills && project.subskills.length > 0 && (
+                        <div className="flex flex-col sm:flex-row sm:items-start gap-2">
+                          <span className="text-sm font-medium text-slate-700 min-w-fit">Specializations:</span>
+                          <span className="text-slate-600 text-sm break-words">
+                            {project.subskills.join(', ')}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Bottom Section - Project Details and Actions */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      {/* Project Details */}
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-4 text-sm text-slate-600">
+                        <div className="flex items-center">
+                          <Clock className="h-4 w-4 mr-2 flex-shrink-0" />
+                          <span>{project.duration_hours} hours</span>
+                        </div>
+                        <div className="flex items-center">
+                          <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />
+                          <span className="truncate">{project.start_date} - {project.end_date}</span>
+                        </div>
+                        
+                        {/* Price for mobile */}
+                        <div className="lg:hidden flex items-center">
+                          <span className="text-lg font-bold text-blue-600">
+                            ₹{project.hourly_rate}/hour
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex space-x-2">
+                      
+                      {/* Action Buttons */}
+                      <div className="flex space-x-2 flex-shrink-0">
                         <Button 
                           onClick={() => handleOpenApplicationModal(project.id)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                          className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-2"
                         >
-                          <Send className="h-4 w-4 mr-2" />
-                          Apply Now
+                          <Send className="h-4 w-4 mr-1 sm:mr-2" />
+                          <span className="hidden sm:inline">Apply Now</span>
+                          <span className="sm:hidden">Apply</span>
                         </Button>
-                        <Button variant="outline" size="icon" className="border-slate-300">
+                        <Button variant="outline" size="icon" className="border-slate-300 flex-shrink-0">
                           <Eye className="h-4 w-4" />
                         </Button>
                       </div>

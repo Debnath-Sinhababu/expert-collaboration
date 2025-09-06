@@ -799,7 +799,7 @@ export default function InstitutionHome() {
                               {expert.rating?.toFixed(1) || '0.0'} ({expert.total_ratings || 0})
                             </div>
                             <div className="flex items-center text-slate-600 text-sm">
-                              <DollarSign className="h-4 w-4 mr-1" />
+                           
                               ₹{expert.hourly_rate}/hour
                             </div>
                           </div>

@@ -120,6 +120,10 @@ export const api = {
       }).toString()
       return fetch(`${API_BASE_URL}/api/projects${query ? `?${query}` : ''}`, { headers }).then(res => res.json())
     },
+    getRecommended: async (expertId: string) => {
+      const headers = await getAuthHeaders()
+      return fetch(`${API_BASE_URL}/api/projects/recommended/${expertId}`, { headers }).then(res => res.json())
+    },
     getById: async (id: string) => {
       const headers = await getAuthHeaders()
       const query = new URLSearchParams({ _t: Date.now().toString() }).toString()

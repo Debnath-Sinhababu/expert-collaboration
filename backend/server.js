@@ -862,6 +862,135 @@ app.put('/api/projects/:id', async (req, res) => {
   }
 });
 
+// Get recommended projects for an expert based on their skills
+app.get('/api/projects/recommended/:expertId', async (req, res) => {
+  try {
+    console.log('GET /api/projects/recommended - Expert ID:', req.params.expertId);
+
+    // Get expert profile
+    const { data: expertData, error: expertError } = await supabase
+      .from('experts')
+      .select('*')
+      .eq('id', req.params.expertId)
+      .single();
+
+    if (expertError) throw expertError;
+    if (!expertData) {
+      return res.status(404).json({ error: 'Expert not found' });
+    }
+
+    // Get all open projects with institution data
+    const { data: projectsData, error: projectsError } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        institutions (
+          id,
+          name,
+          logo_url
+        )
+      `)
+      .eq('status', 'open')
+      .order('created_at', { ascending: false });
+
+    if (projectsError) throw projectsError;
+
+    // Calculate match scores for each project
+    const recommendations = projectsData.map(project => {
+      const matchScore = calculateProjectMatchScore(expertData, project);
+      return {
+        ...project,
+        matchScore: Math.round(matchScore)
+      };
+    })
+    .filter(rec => rec.matchScore >= 60) // Only show projects with 60%+ match
+    .sort((a, b) => b.matchScore - a.matchScore)
+    .slice(0, 10); // Top 10 recommendations
+
+    // Get application counts for recommended projects
+    if (recommendations.length > 0) {
+      const projectIds = recommendations.map(project => project.id);
+      
+      const { data: applicationCounts, error: countsError } = await supabase
+        .from('applications')
+        .select('project_id, status')
+        .in('project_id', projectIds);
+
+      if (!countsError && applicationCounts) {
+        const projectCounts = {};
+        applicationCounts.forEach(app => {
+          if (!projectCounts[app.project_id]) {
+            projectCounts[app.project_id] = { total: 0, pending: 0 };
+          }
+          projectCounts[app.project_id].total++;
+          if (app.status === 'pending') {
+            projectCounts[app.project_id].pending++;
+          }
+        });
+
+        recommendations.forEach(project => {
+          project.applicationCounts = projectCounts[project.id] || { total: 0, pending: 0 };
+        });
+      }
+    }
+
+    console.log(`Recommendations generated: ${recommendations.length} projects for expert ${req.params.expertId}`);
+    res.json(recommendations);
+
+  } catch (error) {
+    console.error('GET /api/projects/recommended error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Helper function to calculate project match score
+function calculateProjectMatchScore(expert, project) {
+  let score = 0;
+  
+  // Domain Match (40% weight)
+  if (expert.domain_expertise && project.domain_expertise) {
+    const expertDomains = Array.isArray(expert.domain_expertise) ? expert.domain_expertise : [expert.domain_expertise];
+    if (expertDomains.includes(project.domain_expertise)) {
+      score += 40;
+    }
+  }
+  
+  // Subskills Match (30% weight)
+  if (expert.subskills && project.subskills && 
+      Array.isArray(expert.subskills) && Array.isArray(project.subskills)) {
+    const subskillMatches = expert.subskills.filter(skill => 
+      project.subskills.includes(skill)
+    ).length;
+    if (project.subskills.length > 0) {
+      score += (subskillMatches / project.subskills.length) * 30;
+    }
+  }
+  
+  // General Skills Match (20% weight)
+  if (expert.required_expertise && project.required_expertise &&
+      Array.isArray(expert.required_expertise) && Array.isArray(project.required_expertise)) {
+    const skillMatches = expert.required_expertise.filter(skill => 
+      project.required_expertise.includes(skill)
+    ).length;
+    if (project.required_expertise.length > 0) {
+      score += (skillMatches / project.required_expertise.length) * 20;
+    }
+  }
+  
+  // Rate Compatibility (10% weight)
+  if (expert.hourly_rate && project.hourly_rate) {
+    // Expert rate should be within 20% of project rate (flexible matching)
+    const rateDifference = Math.abs(expert.hourly_rate - project.hourly_rate) / project.hourly_rate;
+    if (rateDifference <= 0.2) {
+      score += 10;
+    } else if (rateDifference <= 0.5) {
+      score += 5; // Partial points for reasonable rate difference
+    }
+  }
+  
+  return Math.min(score, 100); // Cap at 100%
+}
+
 app.get('/api/applications', async (req, res) => {
   try {
     console.log('=== GET APPLICATIONS DEBUG ===');
