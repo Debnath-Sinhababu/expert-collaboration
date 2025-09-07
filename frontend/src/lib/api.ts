@@ -35,6 +35,11 @@ export const api = {
       const headers = await getAuthHeaders()
       return fetch(`${API_BASE_URL}/api/experts/${id}`, { headers }).then(res => res.json())
     },
+    getByUserId: async (userId: string) => {
+      const headers = await getAuthHeaders()
+      const query = new URLSearchParams({ _t: Date.now().toString() }).toString()
+      return fetch(`${API_BASE_URL}/api/experts/user/${userId}?${query}`, { headers }).then(res => res.json())
+    },
     getRecommended: async (projectId: string) => {
       const headers = await getAuthHeaders()
       return fetch(`${API_BASE_URL}/api/experts/recommended/${projectId}`, { headers }).then(res => res.json())

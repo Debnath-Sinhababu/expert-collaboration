@@ -40,11 +40,11 @@ export default function LoginPage() {
         
         if (role === 'expert') {
           try {
-            const experts = await api.experts.getAll()
-            const userExpert = experts.find((expert: any) => expert.user_id === data.user.id)
+            const userExpert = await api.experts.getByUserId(data.user.id)
+           
             
             if (userExpert) {
-              router.push('/expert/dashboard')
+              router.push('/expert/home')
             } else {
               router.push('/expert/profile-setup')
             }
@@ -54,11 +54,11 @@ export default function LoginPage() {
           }
         } else if (role === 'institution') {
           try {
-            const institutions = await api.institutions.getAll()
-            const userInstitution = institutions.find((institution: any) => institution.user_id === data.user.id)
+            const userInstitution = await api.institutions.getByUserId(data.user.id)
             
+            console.log('userInstitution', userInstitution)
             if (userInstitution) {
-              router.push('/institution/dashboard')
+              router.push('/institution/home')
             } else {
               router.push('/institution/profile-setup')
             }

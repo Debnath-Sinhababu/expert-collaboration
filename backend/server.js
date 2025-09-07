@@ -266,7 +266,45 @@ app.get('/api/experts/:id', async (req, res) => {
       .eq('id', req.params.id)
       .single();
     
-    if (error) throw error;
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows returned
+        return res.status(404).json({ error: 'Expert not found' });
+      }
+      throw error;
+    }
+    
+    if (!data) {
+      return res.status(404).json({ error: 'Expert not found' });
+    }
+    
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get expert by user_id
+app.get('/api/experts/user/:userId', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('experts')
+      .select('*')
+      .eq('user_id', req.params.userId)
+      .single();
+    
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows returned
+        return res.status(404).json({ error: 'Expert not found' });
+      }
+      throw error;
+    }
+    
+    if (!data) {
+      return res.status(404).json({ error: 'Expert not found' });
+    }
+    
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });

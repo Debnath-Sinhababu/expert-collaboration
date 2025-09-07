@@ -154,9 +154,8 @@ export default function ExpertHome() {
       }
 
       // Get expert profile
-      const expertsResponse = await api.experts.getAll()
-      const experts = Array.isArray(expertsResponse) ? expertsResponse : (expertsResponse?.data || [])
-      const expertProfile = experts.find((exp: any) => exp.user_id === currentUser.id) || null
+      const expertProfile = await api.experts.getByUserId(currentUser.id)
+     
       
       if (!expertProfile) {
         router.push('/expert/profile-setup')
