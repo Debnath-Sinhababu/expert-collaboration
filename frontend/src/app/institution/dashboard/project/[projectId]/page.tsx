@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
@@ -52,6 +52,12 @@ export default function ProjectDetailsPage() {
   const [ratings, setRatings] = useState<any[]>([])
   const [ratingModalOpen, setRatingModalOpen] = useState(false)
   const [selectedBooking, setSelectedBooking] = useState<any>(null)
+  const [activeTab, setActiveTab] = useState('pending')
+
+  // Refs for infinite scroll detection
+  const pendingScrollRef = useRef<HTMLDivElement>(null)
+  const interviewScrollRef = useRef<HTMLDivElement>(null)
+  const selectedScrollRef = useRef<HTMLDivElement>(null)
   const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null)
   const [interviewDate, setInterviewDate] = useState<Date | undefined>(undefined)
   const [interviewTime, setInterviewTime] = useState<string>('')
@@ -97,6 +103,7 @@ export default function ProjectDetailsPage() {
       fetchRatings()
     }
   }, [institution?.id])
+
 
   const loadInstitutionData = async (userId: string) => {
     try {
@@ -190,6 +197,73 @@ export default function ProjectDetailsPage() {
     },
     [projectId]
   )
+
+  // Infinite scroll logic using Intersection Observer
+  useEffect(() => {
+    const observerOptions = {
+      root: null,
+      rootMargin: '100px',
+      threshold: 0.1
+    }
+
+    const observerCallback = (entries: IntersectionObserverEntry[]) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          console.log('Intersection detected:', {
+            target: entry.target,
+            pendingRef: pendingScrollRef.current,
+            interviewRef: interviewScrollRef.current,
+            selectedRef: selectedScrollRef.current,
+            hasMorePending,
+            hasMoreInterview,
+            hasMoreSelected,
+            pendingLoading,
+            interviewLoading,
+            selectedLoading,
+            activeTab
+          })
+          
+          if (entry.target === pendingScrollRef.current && hasMorePending && !pendingLoading) {
+            console.log('Loading more pending applications')
+            loadMorePending()
+          } else if (entry.target === interviewScrollRef.current && hasMoreInterview && !interviewLoading) {
+            console.log('Loading more interview applications')
+            loadMoreInterview()
+          } else if (entry.target === selectedScrollRef.current && hasMoreSelected && !selectedLoading) {
+            console.log('Loading more selected bookings')
+            loadMoreSelected()
+          }
+        }
+      })
+    }
+
+    const observer = new IntersectionObserver(observerCallback, observerOptions)
+
+    // Add a small delay to ensure DOM is updated after tab change
+    const timeoutId = setTimeout(() => {
+      // Observe all scroll refs
+      if (pendingScrollRef.current) {
+        console.log('Observing pending scroll ref')
+        observer.observe(pendingScrollRef.current)
+      }
+      if (interviewScrollRef.current) {
+        console.log('Observing interview scroll ref')
+        observer.observe(interviewScrollRef.current)
+      }
+      if (selectedScrollRef.current) {
+        console.log('Observing selected scroll ref')
+        observer.observe(selectedScrollRef.current)
+      }
+    }, 100)
+
+    return () => {
+      clearTimeout(timeoutId)
+      observer.disconnect()
+    }
+  }, [hasMorePending, hasMoreInterview, hasMoreSelected, pendingLoading, interviewLoading, selectedLoading, loadMorePending, loadMoreInterview, loadMoreSelected, activeTab])
+
+
+  
 
   const handleProceedToInterview = (applicationId: string) => {
     setSelectedApplicationId(applicationId)
@@ -522,7 +596,7 @@ export default function ProjectDetailsPage() {
         </Card>
 
         {/* 3-Tab System */}
-        <Tabs defaultValue="pending" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="flex w-full gap-2 overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-3 sm:gap-0 sm:overflow-visible scrollbar-hide bg-white/90 backdrop-blur-md border-0 shadow-lg">
             <TabsTrigger 
               className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" 
@@ -678,6 +752,18 @@ export default function ProjectDetailsPage() {
                         </CardContent>
                       </Card>
                     ))}
+                    
+                    {/* Infinite scroll trigger for Pending Applications */}
+                    {hasMorePending && (
+                      <div ref={pendingScrollRef} className="flex justify-center py-4">
+                        {pendingLoading && (
+                          <div className="flex items-center space-x-2 text-gray-500">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+                            <span>Loading more applications...</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -817,6 +903,18 @@ export default function ProjectDetailsPage() {
                         </CardContent>
                       </Card>
                     ))}
+                    
+                    {/* Infinite scroll trigger for Interview Applications */}
+                    {hasMoreInterview && (
+                      <div ref={interviewScrollRef} className="flex justify-center py-4">
+                        {interviewLoading && (
+                          <div className="flex items-center space-x-2 text-gray-500">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+                            <span>Loading more applications...</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -1072,6 +1170,18 @@ export default function ProjectDetailsPage() {
                       </div>
                       )
                     })}
+                    
+                    {/* Infinite scroll trigger for Selected Bookings */}
+                    {hasMoreSelected && (
+                      <div ref={selectedScrollRef} className="flex justify-center py-4">
+                        {selectedLoading && (
+                          <div className="flex items-center space-x-2 text-gray-500">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+                            <span>Loading more bookings...</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
