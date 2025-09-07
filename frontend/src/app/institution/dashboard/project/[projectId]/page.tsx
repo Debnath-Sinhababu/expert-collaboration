@@ -53,6 +53,11 @@ export default function ProjectDetailsPage() {
   const [ratingModalOpen, setRatingModalOpen] = useState(false)
   const [selectedBooking, setSelectedBooking] = useState<any>(null)
   const [activeTab, setActiveTab] = useState('pending')
+  
+  // Tab counts
+  const [pendingCount, setPendingCount] = useState(0)
+  const [interviewCount, setInterviewCount] = useState(0)
+  const [selectedCount, setSelectedCount] = useState(0)
 
   // Refs for infinite scroll detection
   const pendingScrollRef = useRef<HTMLDivElement>(null)
@@ -139,6 +144,18 @@ export default function ProjectDetailsPage() {
     }
   }
 
+  // Extract counts from API responses
+  const extractCounts = (response: any, type: 'applications' | 'bookings') => {
+    if (response && typeof response === 'object' && 'counts' in response) {
+      if (type === 'applications') {
+        setPendingCount(response.counts.pending || 0)
+        setInterviewCount(response.counts.interview || 0)
+      } else if (type === 'bookings') {
+        setSelectedCount(response.counts.total || 0)
+      }
+    }
+  }
+
   // Paginated applications for pending status
   const {
     data: pendingApplications,
@@ -149,12 +166,22 @@ export default function ProjectDetailsPage() {
   } = usePagination(
     async (page: number) => {
       if (!projectId) return []
-      return await api.applications.getAll({ 
+      const response = await api.applications.getAll({ 
         project_id: projectId, 
         status: 'pending',
         page,
         limit: 10
       })
+      
+      // Handle new data structure with counts
+      if (response && typeof response === 'object' && 'data' in response) {
+        // Extract counts on first page load
+      
+          extractCounts(response, 'applications')
+        
+        return response.data
+      }
+      return response
     },
     [projectId]
   )
@@ -169,12 +196,18 @@ export default function ProjectDetailsPage() {
   } = usePagination(
     async (page: number) => {
       if (!projectId) return []
-      return await api.applications.getAll({ 
+      const response = await api.applications.getAll({ 
         project_id: projectId, 
         status: 'interview',
         page,
         limit: 10
       })
+      
+      // Handle new data structure with counts
+      if (response && typeof response === 'object' && 'data' in response) {
+        return response.data
+      }
+      return response
     },
     [projectId]
   )
@@ -189,11 +222,21 @@ export default function ProjectDetailsPage() {
   } = usePagination(
     async (page: number) => {
       if (!projectId) return []
-      return await api.bookings.getAll({ 
+      const response = await api.bookings.getAll({ 
         project_id: projectId,
         page,
         limit: 10
       })
+      
+      // Handle new data structure with counts
+      if (response && typeof response === 'object' && 'data' in response) {
+        // Extract counts on first page load
+        if (page === 1) {
+          extractCounts(response, 'bookings')
+        }
+        return response.data
+      }
+      return response
     },
     [projectId]
   )
@@ -602,19 +645,19 @@ export default function ProjectDetailsPage() {
               className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" 
               value="pending"
             >
-              Pending ({pendingApplications?.length || 0})
+              Pending ({pendingCount || 0})
             </TabsTrigger>
             <TabsTrigger 
               className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" 
               value="interview"
             >
-              Interview ({interviewApplications?.length || 0})
+              Interview ({interviewCount || 0})
             </TabsTrigger>
             <TabsTrigger 
               className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" 
               value="selected"
             >
-              Selected ({selectedBookings?.length || 0})
+              Selected ({selectedCount || 0})
             </TabsTrigger>
           </TabsList>
 

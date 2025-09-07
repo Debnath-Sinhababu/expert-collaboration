@@ -530,7 +530,45 @@ app.get('/api/institutions/:id', async (req, res) => {
       .eq('id', req.params.id)
       .single();
     
-    if (error) throw error;
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows returned
+        return res.status(404).json({ error: 'Institution not found' });
+      }
+      throw error;
+    }
+    
+    if (!data) {
+      return res.status(404).json({ error: 'Institution not found' });
+    }
+    
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get institution by user_id
+app.get('/api/institutions/user/:userId', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('institutions')
+      .select('*')
+      .eq('user_id', req.params.userId)
+      .single();
+    
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows returned
+        return res.status(404).json({ error: 'Institution not found' });
+      }
+      throw error;
+    }
+    
+    if (!data) {
+      return res.status(404).json({ error: 'Institution not found' });
+    }
+    
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1342,7 +1380,36 @@ app.get('/api/applications', async (req, res) => {
     });
     
     if (error) throw error;
-    res.json(data);
+
+    // Get counts for all statuses for the same filters
+    let countQuery = supabaseClient
+      .from('applications')
+      .select('status');
+    
+    if (expert_id) countQuery = countQuery.eq('expert_id', expert_id);
+    if (project_id) countQuery = countQuery.eq('project_id', project_id);
+    if (institution_id) countQuery = countQuery.eq('institution_id', institution_id);
+    
+    const { data: allApplications, error: countError } = await countQuery;
+    
+    if (countError) {
+      console.log('Count query error:', countError);
+      res.json(data);
+    } else {
+      // Calculate counts by status
+      const counts = {
+        total: allApplications?.length || 0,
+        pending: allApplications?.filter(a => a.status === 'pending').length || 0,
+        interview: allApplications?.filter(a => a.status === 'interview').length || 0,
+        accepted: allApplications?.filter(a => a.status === 'accepted').length || 0,
+        rejected: allApplications?.filter(a => a.status === 'rejected').length || 0
+      };
+      
+      res.json({
+        data: data,
+        counts: counts
+      });
+    }
   } catch (error) {
     console.log('GET applications error:', error);
     res.status(500).json({ error: error.message });
@@ -1373,7 +1440,7 @@ app.get('/api/applications/counts', async (req, res) => {
     const { data: userData, error: userError } = await supabaseClient.auth.getUser();
     if (userError) throw userError;
 
-    const { expert_id, project_id, institution_id, status = 'pending' } = req.query;
+    const { expert_id, project_id, institution_id, status } = req.query;
     
     let query = supabaseClient
       .from('applications')
@@ -1382,6 +1449,7 @@ app.get('/api/applications/counts', async (req, res) => {
     if (expert_id) query = query.eq('expert_id', expert_id);
     if (project_id) query = query.eq('project_id', project_id);
     if (institution_id) query = query.eq('institution_id', institution_id);
+    // Only filter by status if specifically requested
     if (status) query = query.eq('status', status);
     
     const { data, error } = await query;
@@ -1392,6 +1460,7 @@ app.get('/api/applications/counts', async (req, res) => {
     const applicationCounts = {
       total: data?.length || 0,
       pending: data?.filter(a => a.status === 'pending').length || 0,
+      interview: data?.filter(a => a.status === 'interview').length || 0,
       accepted: data?.filter(a => a.status === 'accepted').length || 0,
       rejected: data?.filter(a => a.status === 'rejected').length || 0
     };
@@ -1823,7 +1892,36 @@ app.get('/api/bookings', async (req, res) => {
     }
 
     console.log('Bookings fetched:', data?.length || 0);
-    res.json(data);
+    
+    // Get counts for all bookings for the same filters
+    let countQuery = supabaseClient
+      .from('bookings')
+      .select('status');
+    
+    if (expert_id) countQuery = countQuery.eq('expert_id', expert_id);
+    if (institution_id) countQuery = countQuery.eq('institution_id', institution_id);
+    if (project_id) countQuery = countQuery.eq('project_id', project_id);
+    
+    const { data: allBookings, error: countError } = await countQuery;
+    
+    if (countError) {
+      console.log('Booking count query error:', countError);
+      res.json(data);
+    } else {
+      // Calculate counts by status
+      const counts = {
+        total: allBookings?.length || 0,
+        in_progress: allBookings?.filter(b => b.status === 'in_progress').length || 0,
+        completed: allBookings?.filter(b => b.status === 'completed').length || 0,
+        cancelled: allBookings?.filter(b => b.status === 'cancelled').length || 0,
+        pending: allBookings?.filter(b => b.status === 'pending').length || 0
+      };
+      
+      res.json({
+        data: data,
+        counts: counts
+      });
+    }
   } catch (error) {
     console.error('Booking fetch error:', error);
     res.status(500).json({ error: error.message });

@@ -930,7 +930,17 @@ export default function InstitutionHome() {
               <p className="text-slate-500">Try adjusting your search criteria</p>
             </div>
           ) : (
-            <Carousel className="w-full">
+            <Carousel className="w-full"
+            opts={{
+              align: "start",
+              containScroll: "trimSnaps"
+            }}
+            plugins={[
+              Autoplay({
+                delay: 3000,
+              }),
+            ]}
+            >
               <CarouselContent className="-ml-2 md:-ml-4">
                 {experts.map((expert) => (
                   <CarouselItem key={expert.id} className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3">

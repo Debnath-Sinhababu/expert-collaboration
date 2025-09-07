@@ -87,6 +87,11 @@ export const api = {
       const query = new URLSearchParams({ _t: Date.now().toString() }).toString()
       return fetch(`${API_BASE_URL}/api/institutions/${id}?${query}`, { headers }).then(res => res.json())
     },
+    getByUserId: async (userId: string) => {
+      const headers = await getAuthHeaders()
+      const query = new URLSearchParams({ _t: Date.now().toString() }).toString()
+      return fetch(`${API_BASE_URL}/api/institutions/user/${userId}?${query}`, { headers }).then(res => res.json())
+    },
     create: async (data: any) => {
       const headers = await getAuthHeaders()
       return fetch(`${API_BASE_URL}/api/institutions`, {

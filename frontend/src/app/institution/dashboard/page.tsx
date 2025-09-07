@@ -58,8 +58,6 @@ export default function InstitutionDashboard() {
   const [bookingCounts, setBookingCounts] = useState<any>({ total: 0, in_progress: 0, completed: 0, cancelled: 0, pending: 0 })
   const [ratings, setRatings] = useState<any[]>([])
   const [allRatings, setAllRatings] = useState<any[]>([])
-  const [ratingModalOpen, setRatingModalOpen] = useState(false)
-  const [selectedBooking, setSelectedBooking] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
@@ -81,8 +79,6 @@ export default function InstitutionDashboard() {
   const [submittingProject, setSubmittingProject] = useState(false)
   const [editingProject, setEditingProject] = useState<any>(null)
   const [showEditForm, setShowEditForm] = useState(false)
-  const [applicationsDrawerOpen, setApplicationsDrawerOpen] = useState(false)
-  const [selectedProject, setSelectedProject] = useState<{ id: string; title?: string } | null>(null)
   const [selectedSubskills, setSelectedSubskills] = useState<string[]>([])
   const [availableSubskills, setAvailableSubskills] = useState<string[]>([])
 
@@ -150,59 +146,36 @@ export default function InstitutionDashboard() {
 
   const loadInstitutionData = async (userId: string) => {
     try {
-      const institutionsResponse = await api.institutions.getAll()
-      // Handle case where API might return { data: [...] } or direct array
-      const institutions = Array.isArray(institutionsResponse) ? institutionsResponse : (institutionsResponse?.data || [])
-      const institutionProfile = institutions.find((i: any) => i.user_id === userId)
+      const institutionsResponse = await api.institutions.getByUserId(userId)
       
-      if (!institutionProfile) {
+      if (!institutionsResponse) {
         router.push('/institution/profile-setup')
         return
       }
       
-      setInstitution(institutionProfile)
-      
-
+      setInstitution(institutionsResponse)
       
       // Initial light calls (experts list is paginated below). Lists are fed by paginated hooks
-      const [projectsResponse, applicationsResponse, expertsResponse, bookingsResponse, bookingCountsResponse] = await Promise.all([
-        api.projects.getAll(),
-        api.applications.getAll({ status: 'pending' }),
-        api.experts.getAll(),
-        api.bookings.getAll({ institution_id: institutionProfile.id }),
-        api.bookings.getCounts({ institution_id: institutionProfile.id })
+      const [bookingCountsResponse] = await Promise.all([
+        api.bookings.getCounts({ institution_id: institutionsResponse.id })
       ])
+    
+      
+      // Refresh projects after institution is set
+      // The usePagination hook will automatically refresh when institution.id changes
 
-      // Handle API responses that might have data property
-      const projects = Array.isArray(projectsResponse) ? projectsResponse : (projectsResponse?.data || [])
-      const applications = Array.isArray(applicationsResponse) ? applicationsResponse : (applicationsResponse?.data || [])
-      const experts = Array.isArray(expertsResponse) ? expertsResponse : (expertsResponse?.data || [])
-      const bookings = Array.isArray(bookingsResponse) ? bookingsResponse : (bookingsResponse?.data || [])
+     
+   
       const counts = bookingCountsResponse || { total: 0, in_progress: 0, completed: 0, cancelled: 0, pending: 0 }
 
-      setBookings(bookings)
       setBookingCounts(counts)
       
-      const institutionProjects = projects.filter((project: any) => project.institution_id === institutionProfile.id)
-      setProjects(institutionProjects)
 
-      console.log('institutionProjects', institutionProjects)
-      console.log('applications', applications)
-      const projectApplications = applications.filter((app: any) => 
-        institutionProjects.some((project: any) => project.id === app.project_id)
-      )
+    
+     
 
-      console.log('projectApplications', projectApplications)
-      setApplications(projectApplications)
 
-      // Fetch all ratings (to compute expert aggregates globally)
-      try {
-        const ratingsAll = await api.ratings.getAll({institution_id: institutionProfile.id})
-        const ratings = Array.isArray(ratingsAll) ? ratingsAll : (ratingsAll?.data || [])
-        setAllRatings(ratings)
-      } catch (e) {
-        console.log('Failed to fetch global ratings:', e)
-      }
+  
       
     } catch (error: any) {
       setError('Failed to load dashboard data')
@@ -212,52 +185,6 @@ export default function InstitutionDashboard() {
     }
   }
 
-
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'open': return 'bg-green-100 text-green-800'
-      case 'in_progress': return 'bg-blue-100 text-blue-800'
-      case 'completed': return 'bg-gray-100 text-gray-800'
-      case 'cancelled': return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
-
-  const getApplicationStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-800'
-      case 'accepted': return 'bg-green-100 text-green-800'
-      case 'rejected': return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'pending': return <Clock className="h-4 w-4" />
-      case 'accepted': return <CheckCircle className="h-4 w-4" />
-      case 'rejected': return <XCircle className="h-4 w-4" />
-      default: return <Clock className="h-4 w-4" />
-    }
-  }
-
-  const {
-    data: experts,
-    loading: expertsLoading,
-    hasMore: hasMoreExperts,
-    loadMore: loadMoreExperts,
-    refresh: refreshExperts
-  } = usePagination(
-    async (page: number) => {
-      return await api.experts.getAll({
-        page,
-        limit: 10,
-        search: searchTerm
-      });
-    },
-    [searchTerm]
-  );
 
   // Paginated projects owned by the institution
   const {
@@ -278,27 +205,7 @@ export default function InstitutionDashboard() {
     setProjects(pagedProjects)
   }, [pagedProjects])
 
-
-
-
-  // Paginated bookings for the institution
-  const {
-    data: pagedBookings,
-    loading: bookingsLoading,
-    hasMore: hasMoreBookings,
-    loadMore: loadMoreBookings,
-    refresh: refreshBookings
-  } = usePagination(
-    async (page: number) => {
-      if (!institution?.id) return []
-      return await api.bookings.getAll({ page, limit: 10, institution_id: institution?.id })
-    },
-    [institution?.id]
-  )
-
-  useEffect(() => {
-    setBookings(pagedBookings)
-  }, [pagedBookings])
+ 
 
   // Refresh booking counts when institution changes (for stats display)
   useEffect(() => {
@@ -308,10 +215,6 @@ export default function InstitutionDashboard() {
   }, [institution?.id])
 
 
-
-  const handleSearchExperts = (term: string) => {
-    setSearchTerm(term)
-  }
 
   const fetchBookingCounts = async () => {
     try {
@@ -368,7 +271,8 @@ export default function InstitutionDashboard() {
       setShowProjectForm(false)
       
       // Refresh data to show new project
-      await loadInstitutionData(user.id)
+      refreshProjects()
+    
       setError('')
     } catch (error: any) {
       console.error('Project creation error:', error)
@@ -411,7 +315,7 @@ export default function InstitutionDashboard() {
 
   const handleViewApplications = (project: any) => {
     // Check if there are any applications for this project
-  
+    
     
     // Navigate to the project details page
     router.push(`/institution/dashboard/project/${project.id}`)
@@ -459,7 +363,8 @@ export default function InstitutionDashboard() {
       setAvailableSubskills([])
       setShowEditForm(false)
       setEditingProject(null)
-      await loadInstitutionData(user.id)
+     
+      refreshProjects()
       setError('')
     } catch (error: any) {
       console.error('Project update error:', error)
@@ -492,7 +397,8 @@ export default function InstitutionDashboard() {
     try {
       const result = await api.projects.update(projectId, { status: 'closed' })
       console.log('Project closed successfully:', result)
-      await loadInstitutionData(user.id)
+     
+      refreshProjects()
       setError('')
     } catch (error: any) {
       console.error('Project close error:', error)
@@ -500,116 +406,8 @@ export default function InstitutionDashboard() {
     }
   }
 
-
-
-  // Get status variant for badges
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case 'in_progress':
-        return 'default'
-      case 'completed':
-        return 'secondary'
-      case 'cancelled':
-        return 'destructive'
-      default:
-        return 'outline'
-    }
-  }
-
-  // Handle booking status update
-  const handleUpdateBookingStatus = async (bookingId: string, newStatus: string) => {
-    try {
-      if (newStatus === 'cancelled') {
-        // For cancelled bookings, delete them immediately
-        await handleBookingDelete(bookingId)
-      } else if (newStatus === 'completed') {
-        // For completed bookings, update status and open rating modal
-        await api.bookings.update(bookingId, { status: newStatus })
-        await loadInstitutionData(user.id)
-        
-        // Find the updated booking and open rating modal
-        const updatedBooking = bookings.find(b => b.id === bookingId)
-        if (updatedBooking) {
-          setSelectedBooking({ ...updatedBooking, status: 'completed' })
-          setRatingModalOpen(true)
-        }
-      } else {
-        // For other status updates
-        await api.bookings.update(bookingId, { status: newStatus })
-        await loadInstitutionData(user.id)
-      }
-    } catch (error) {
-      console.error('Error updating booking status:', error)
-      alert('Failed to update booking status')
-    }
-  }
-
-  // Handle booking deletion
-  const handleBookingDelete = async (bookingId: string) => {
-    if (confirm('Are you sure you want to delete this booking? This action cannot be undone.')) {
-      try {
-        await api.bookings.delete(bookingId)
-        await loadInstitutionData(user.id)
-      } catch (error) {
-        console.error('Error deleting booking:', error)
-        alert('Failed to delete booking')
-      }
-    }
-  }
-
-  const getBookingStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmed': return 'bg-green-100 text-green-800'
-      case 'in_progress': return 'bg-blue-100 text-blue-800'
-      case 'completed': return 'bg-gray-100 text-gray-800'
-      case 'cancelled': return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
-
-  // Fetch ratings for completed bookings
-  const fetchRatings = async () => {
-    try {
-      const ratingsData = await api.ratings.getAll({ institution_id: institution.id })
-      setRatings(ratingsData)
-    } catch (error) {
-      console.error('Error fetching ratings:', error)
-    }
-  }
-
-  // Handle rating modal
-  const handleRateExpert = (booking: any) => {
-    setSelectedBooking(booking)
-    setRatingModalOpen(true)
-  }
-
-  const handleRatingSubmitted = () => {
-    loadInstitutionData(user.id)
-    fetchRatings()
-  }
-
-  // Check if a booking has been rated
-  const getBookingRating = (bookingId: string) => {
-    return ratings.find(r => r.booking_id === bookingId)
-  }
-
-  // Aggregate rating for an expert from allRatings
-  const getExpertAggregate = (expertId: string | undefined) => {
-    if (!expertId) return { avg: 0, count: 0 }
-    const list = allRatings.filter(r => r.expert_id === expertId)
-    const count = list.length
-    if (count === 0) return { avg: 0, count: 0 }
-    const sum = list.reduce((acc, r) => acc + (Number(r.rating) || 0), 0)
-    const avg = Math.round((sum / count) * 10) / 10
-    return { avg, count }
-  }
-
   // Load ratings when institution is available
-  useEffect(() => {
-    if (institution) {
-      fetchRatings()
-    }
-  }, [institution?.id]) // Only depend on institution ID
+// Only depend on institution ID
 
   if (loading) {
     return (
@@ -1050,11 +848,7 @@ export default function InstitutionDashboard() {
 
         {/* Main Content */}
         <Tabs defaultValue="projects" className="space-y-6">
-          <TabsList className="flex w-full gap-2 overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-3 sm:gap-0 sm:overflow-visible scrollbar-hide bg-white/90 backdrop-blur-md border-0 shadow-lg">
-            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start ml-3 sm:ml-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" value="projects">My Projects</TabsTrigger>
-            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" value="bookings">Bookings</TabsTrigger>
-            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start mr-3 sm:mr-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" value="experts">Browse Experts</TabsTrigger>
-          </TabsList>
+      
 
           {/* Projects Tab */}
           <TabsContent value="projects">
@@ -1107,7 +901,7 @@ export default function InstitutionDashboard() {
                           <div>
                             <span className="text-gray-500">Applications:</span>
                             <p className="font-medium">
-                              {applications.filter(app => app.project_id === project.id).length}
+                              {project.applicationCounts?.total}
                             </p>
                           </div>
                         </div>
@@ -1136,7 +930,7 @@ export default function InstitutionDashboard() {
                               disabled={!project.applicationCounts?.total}
                             >
                               <Eye className="h-4 w-4 mr-2" />
-                              View Applications ({project.applicationCounts?.total || 0})
+                              View Applications ({project.applicationCounts?.pending || 0})
                             </Button>
                             <Button size="sm" variant="outline" onClick={() => handleEditProject(project)} className="flex-1 sm:flex-none">
                               <Edit className="h-4 w-4 mr-2" />
@@ -1180,359 +974,7 @@ export default function InstitutionDashboard() {
           {/* Applications Tab */}
         
 
-          {/* Bookings Tab */}
-          <TabsContent value="bookings">
-            <Card>
-              <CardHeader>
-                <CardTitle>My Bookings</CardTitle>
-                <CardDescription>
-                  Manage your booked projects and track their progress
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {bookings.length === 0 ? (
-                  <div className="text-center py-8">
-                    <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600">No bookings yet</p>
-                    <p className="text-sm text-gray-500">Bookings will appear here when you accept expert applications</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {bookings.map((booking: any) => {
-                      const rating = getBookingRating(booking.id)
-                      return (
-                        <div 
-                          key={booking.id} 
-                          className="border rounded-lg p-4 hover:shadow-md transition-shadow"
-                        >
-                          <div className="flex justify-between items-start min-w-0">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-3 mb-2 min-w-0">
-                                <h4 className="font-semibold truncate pr-2">{booking.project?.title}</h4>
-                                <Badge variant={getStatusVariant(booking.status)}>
-                                  {booking.status.replace('_', ' ')}
-                                </Badge>
-                              </div>
-                              
-                              <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-3">
-                                <div>
-                                  <span className="font-medium">Expert:</span> {booking.experts?.name}
-                                </div>
-                                <div>
-                                  <span className="font-medium">Amount:</span> ${booking.amount}
-                                </div>
-                                <div>
-                                  <span className="font-medium">Start Date:</span> {new Date(booking.start_date).toLocaleDateString()}
-                                </div>
-                                <div>
-                                  <span className="font-medium">End Date:</span> {new Date(booking.end_date).toLocaleDateString()}
-                                </div>
-                              </div>
-
-                              {/* Show rating if completed and rated */}
-                              {booking.status === 'completed' && rating && (
-                                <div className="flex items-center gap-2 mb-3">
-                                  <div className="flex">
-                                    {[1, 2, 3, 4, 5].map((star) => (
-                                      <Star
-                                        key={star}
-                                        className={`h-4 w-4 ${
-                                          star <= rating.rating
-                                            ? 'fill-yellow-400 text-yellow-400'
-                                            : 'text-gray-300'
-                                        }`}
-                                      />
-                                    ))}
-                                  </div>
-                                  <span className="text-sm text-gray-600">
-                                    {rating.rating}/5 - {rating.feedback && `"${rating.feedback}"`}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                            
-                            <div className="flex flex-col gap-2">
-                              {booking.status === 'in_progress' && (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleUpdateBookingStatus(booking.id, 'completed')}
-                                  >
-                                    <CheckCircle className="h-4 w-4 mr-1" />
-                                    Mark Complete & Rate
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleUpdateBookingStatus(booking.id, 'cancelled')}
-                                  >
-                                    <XCircle className="h-4 w-4 mr-1" />
-                                    Cancel & Delete
-                                  </Button>
-                                </>
-                              )}
-                              
-                              {booking.status === 'completed' && !rating && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleRateExpert(booking)}
-                                >
-                                  <Star className="h-4 w-4 mr-1" />
-                                  Rate Expert
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                    {/* Infinite loader sentinel for bookings */}
-                    {(hasMoreBookings && !bookingsLoading) && (
-                      <div 
-                        ref={(el) => {
-                          if (el) {
-                            const observer = new IntersectionObserver(([entry]) => {
-                              if (entry.isIntersecting) {
-                                loadMoreBookings();
-                              }
-                            }, { threshold: 0.1 });
-                            observer.observe(el);
-                            return () => observer.disconnect();
-                          }
-                        }}
-                        className="text-center py-4 text-sm text-gray-500"
-                      >
-                        Loading more bookings...
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Experts Tab */}
-          <TabsContent value="experts">
-            <Card>
-              <CardHeader>
-                <CardTitle>Browse Experts</CardTitle>
-                <CardDescription>
-                  Find and connect with qualified experts for your projects
-                </CardDescription>
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-4">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      placeholder="Search experts by name, domain, or skills..."
-                      value={searchTerm}
-                      onChange={(e) => handleSearchExperts(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                  <Button variant="outline" size="sm" className="w-full sm:w-auto">
-                    <Filter className="h-4 w-4 mr-2" />
-                    Filter
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {experts.length === 0 && !expertsLoading ? (
-                  <div className="text-center py-8">
-                    <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600">
-                      {searchTerm ? 'No experts match your search' : 'No experts available'}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {searchTerm ? 'Try different keywords' : 'Check back later for new expert profiles'}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {experts.map((expert: any) => (
-                      <div key={expert.id} className="border rounded-lg p-4 shadow-md transition-shadow">
-                        <div className="flex items-center justify-between mb-3 min-w-0">
-                          <div className="flex items-center space-x-3 min-w-0 flex-1">
-                            <Avatar className="w-12 h-12 border-2 border-blue-200">
-                              <AvatarImage src={expert.photo_url} />
-                              <AvatarFallback className="text-lg font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
-                                {expert.name?.charAt(0) || 'E'}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="min-w-0 flex-1">
-                              <h3 className="font-semibold text-lg truncate pr-2">{expert.name}</h3>
-                              <p className="text-sm text-gray-600 truncate pr-2">{expert.domain_expertise}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Badge variant={expert.is_verified ? "default" : "secondary"}>
-                              {expert.is_verified ? 'Verified' : 'Pending'}
-                            </Badge>
-                          {(() => {
-                            const agg = getExpertAggregate(expert?.id)
-                            return (
-                              <div className="flex items-center space-x-1">
-                                <div className="flex items-center">
-                                  {[1, 2, 3, 4, 5].map((star) => (
-                                    <Star 
-                                      key={star} 
-                                      className={`h-3 w-3 ${star <= Math.round(agg.avg) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} 
-                                    />
-                                  ))}
-                                </div>
-                                <span className="text-sm">{agg.avg || 0}</span>
-                              </div>
-                            )
-                          })()}
-                          </div>
-                        </div>
-                        
-                        <p className="text-sm text-gray-600 mb-4 line-clamp-2">{expert.bio}</p>
-                        
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-sm">
-                          <div>
-                            <span className="text-gray-500">Hourly Rate:</span>
-                            <p className="font-medium">₹{expert.hourly_rate}</p>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Experience:</span>
-                            <p className="font-medium">{expert.experience_years || 0} years</p>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Rating:</span>
-                            {(() => {
-                              const agg = getExpertAggregate(expert?.id)
-                              return (
-                                <p className="font-medium">{agg.avg || 0}/5 ({agg.count || 0})</p>
-                              )
-                            })()}
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Availability:</span>
-                            <p className="font-medium">
-                              {expert.availability?.length || 0} slots
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                          <div className="text-sm text-gray-500">
-                            Joined: {new Date(expert.created_at).toLocaleDateString()}
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button size="sm" variant="outline" className="flex-1 sm:flex-none">
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  View Full Profile
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="max-w-2xl">
-                                <DialogHeader>
-                                  <DialogTitle>{expert.name}</DialogTitle>
-                                  <DialogDescription>Complete Expert Profile</DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-4">
-                                  <div className="flex items-center space-x-4 mb-4">
-                                    <Avatar className="w-16 h-16 border-2 border-blue-200">
-                                      <AvatarImage src={expert.photo_url} />
-                                      <AvatarFallback className="text-xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
-                                        {expert.name?.charAt(0) || 'E'}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <div>
-                                      <h4 className="font-semibold text-lg">{expert.name}</h4>
-                                      <p className="text-sm text-gray-600">{expert.domain_expertise}</p>
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <h4 className="font-medium mb-2">Professional Bio</h4>
-                                    <p className="text-sm text-gray-600">{expert.bio}</p>
-                                  </div>
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                      <h4 className="font-medium mb-1">Domain Expertise</h4>
-                                      <p className="text-sm">{expert.domain_expertise}</p>
-                                    </div>
-                                    <div>
-                                      <h4 className="font-medium mb-1">Hourly Rate</h4>
-                                      <p className="text-sm">₹{expert.hourly_rate}</p>
-                                    </div>
-                                    <div>
-                                      <h4 className="font-medium mb-1">Experience</h4>
-                                      <p className="text-sm">{expert.experience_years || 0} years</p>
-                                    </div>
-                                    <div>
-                                      <h4 className="font-medium mb-1">Contact</h4>
-                                      <p className="text-sm">{expert.email}</p>
-                                    </div>
-                                  </div>
-                                  {expert.qualifications && (
-                                    <div>
-                                      <h4 className="font-medium mb-1">Qualifications</h4>
-                                      <p className="text-sm">{expert.qualifications}</p>
-                                    </div>
-                                  )}
-                                  {/* {expert.availability && expert.availability.length > 0 && (
-                                    <div>
-                                      <h4 className="font-medium mb-2">Availability</h4>
-                                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                        {expert.availability.map((slot: string, index: number) => (
-                                          <Badge key={index} variant="secondary" className="text-xs">
-                                            {slot}
-                                          </Badge>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )} */}
-                                  {expert.resume_url && (
-                                    <div>
-                                      <h4 className="font-medium mb-1">Resume</h4>
-                                      <a 
-                                        href={expert.resume_url} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="text-blue-600 hover:underline text-sm"
-                                      >
-                                        View Resume
-                                      </a>
-                                    </div>
-                                  )}
-                                </div>
-                              </DialogContent>
-                            </Dialog>
-                            <Button size="sm" className="bg-blue-600 hover:bg-blue-700 flex-1 sm:flex-none">
-                              <MessageSquare className="h-4 w-4 mr-2" />
-                              Contact Expert
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-
-                    {/* Infinite loader sentinel for experts */}
-                    {(hasMoreExperts && !expertsLoading) && (
-                      <div 
-                        ref={(el) => {
-                          if (el) {
-                            const observer = new IntersectionObserver(([entry]) => {
-                              if (entry.isIntersecting) {
-                                loadMoreExperts();
-                              }
-                            }, { threshold: 0.1 });
-                            observer.observe(el);
-                            return () => observer.disconnect();
-                          }
-                        }}
-                        className="text-center py-4 text-sm text-gray-500"
-                      >
-                        Loading more experts...
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+        
 
           {/* Notifications Tab */}
           {/* <TabsContent value="notifications">
@@ -1593,31 +1035,6 @@ export default function InstitutionDashboard() {
         </Tabs>
       </div>
 
-      {/* Rating Modal */}
-      <RatingModal
-        isOpen={ratingModalOpen}
-        onClose={() => setRatingModalOpen(false)}
-        booking={selectedBooking}
-        onRatingSubmitted={handleRatingSubmitted}
-      />
-
-      {/* Applications Drawer */}
-      <Drawer
-        open={applicationsDrawerOpen}
-        onOpenChange={setApplicationsDrawerOpen}
-        title={`Applications for: ${selectedProject?.title || 'Project'}`}
-      >
-        {selectedProject && (
-          <ProjectApplications
-            projectId={selectedProject.id}
-            projectTitle={selectedProject.title || ''}
-            onClose={() => setApplicationsDrawerOpen(false)}
-            pageSize={20}
-            institutionId={institution?.id || ''}
-            onRefreshBookings={refreshBookings}
-          />
-        )}
-      </Drawer>
     </div>
   )
 }
