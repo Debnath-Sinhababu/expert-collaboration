@@ -215,12 +215,12 @@ export const api = {
   },
 
   bookings: {
-    getAll: async (params?: { expert_id?: string; institution_id?: string; page?: number; limit?: number }) => {
+    getAll: async (params?: { expert_id?: string; institution_id?: string; project_id?: string; page?: number; limit?: number }) => {
       const headers = await getAuthHeaders()
       const query = new URLSearchParams(params as any).toString()
       return fetch(`${API_BASE_URL}/api/bookings${query ? `?${query}` : ''}`, { headers }).then(res => res.json())
     },
-    getCounts: async (params?: { expert_id?: string; institution_id?: string }) => {
+    getCounts: async (params?: { expert_id?: string; institution_id?: string; project_id?: string }) => {
       const headers = await getAuthHeaders()
       const query = new URLSearchParams(params as any).toString()
       return fetch(`${API_BASE_URL}/api/bookings/counts${query ? `?${query}` : ''}`, { headers }).then(res => res.json())

@@ -325,7 +325,7 @@ export default function InstitutionHome() {
             amount: projectDetails.hourly_rate * projectDetails.duration_hours,
             start_date: new Date().toISOString().split('T')[0],
             end_date: projectDetails.end_date,
-            status: 'confirmed'
+            status: 'in_progress'
           }
 
           await api.bookings.create(bookingData)

@@ -273,6 +273,24 @@ class SocketService {
       message,
     });
   }
+
+  async sendExpertSelectedWithBookingNotification(expertId, projectTitle, institutionName) {
+    return this.sendToUser(expertId, 'expert_selected_with_booking', {
+      type: 'expert_selected_with_booking',
+      projectTitle,
+      institutionName,
+      message: `Congratulations! You've been selected for project: ${projectTitle}`,
+    });
+  }
+
+  async sendExpertInterestShownNotification(expertId, projectTitle, institutionName) {
+    return this.sendToUser(expertId, 'expert_interest_shown', {
+      type: 'expert_interest_shown',
+      projectTitle,
+      institutionName,
+      message: `Someone is interested in your profile for project: ${projectTitle}`,
+    });
+  }
 }
 
 module.exports = new SocketService();

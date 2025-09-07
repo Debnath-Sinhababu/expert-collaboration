@@ -133,6 +133,20 @@ class NotificationService {
             <p>Institution: ${data.institution_name}</p>
             <p>Amount: ₹${data.amount}</p>`;
           break;
+        case 'expert_selected_with_booking':
+          emailContent = `<h2>Congratulations! You've Been Selected</h2>
+            <p>Great news! You have been selected for the project: ${data.project_title}</p>
+            <p>Institution: ${data.institution_name}</p>
+            <p>Your booking has been confirmed and you can now start working on this project.</p>
+            <p>Please check your dashboard for more details.</p>`;
+          break;
+        case 'expert_interest_shown':
+          emailContent = `<h2>Someone is Interested in Your Profile</h2>
+            <p>An institution has shown interest in your profile for their project: ${data.project_title}</p>
+            <p>Institution: ${data.institution_name}</p>
+            <p>Please apply to this project to confirm your interest and start the collaboration process.</p>
+            <p>Visit your dashboard to apply now!</p>`;
+          break;
         default:
           emailContent = `<h2>Notification</h2>
             <p>You have a new notification of type: ${type}</p>`;
@@ -189,6 +203,28 @@ class NotificationService {
         amount: bookingData.amount,
         start_date: new Date(bookingData.start_date).toLocaleDateString(),
         end_date: new Date(bookingData.end_date).toLocaleDateString()
+      }
+    });
+  }
+
+  async sendExpertSelectedWithBookingNotification(expertEmail, projectTitle, institutionName) {
+    await this.addToQueue({
+      type: 'expert_selected_with_booking',
+      data: {
+        email: expertEmail,
+        project_title: projectTitle,
+        institution_name: institutionName
+      }
+    });
+  }
+
+  async sendExpertInterestShownNotification(expertEmail, projectTitle, institutionName) {
+    await this.addToQueue({
+      type: 'expert_interest_shown',
+      data: {
+        email: expertEmail,
+        project_title: projectTitle,
+        institution_name: institutionName
       }
     });
   }

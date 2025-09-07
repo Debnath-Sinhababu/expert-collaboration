@@ -278,24 +278,8 @@ export default function InstitutionDashboard() {
     setProjects(pagedProjects)
   }, [pagedProjects])
 
-  // Paginated applications targeting institution projects
-  const {
-    data: pagedApplications,
-    loading: applicationsLoading,
-    hasMore: hasMoreApplications,
-    loadMore: loadMoreApplications,
-    refresh: refreshApplications
-  } = usePagination(
-    async (page: number) => {
-      if (!institution?.id) return []
-      return await api.applications.getAll({ page, limit: 10, institution_id: institution?.id, status: 'pending' })
-    },
-    [institution?.id]
-  )
 
-  useEffect(() => {
-    setApplications(pagedApplications)
-  }, [pagedApplications])
+
 
   // Paginated bookings for the institution
   const {
@@ -394,39 +378,6 @@ export default function InstitutionDashboard() {
     }
   }
 
-  const handleApplicationAction = async (applicationId: string, action: 'accept' | 'reject') => {
-    try {
-      await api.applications.update(applicationId, { status: action === 'accept' ? 'accepted' : 'rejected',reviewed_at: new Date() })
-      
-      // If accepting, create a booking
-      if (action === 'accept') {
-        const application = applications.find(app => app.id === applicationId)
-        if (application) {
-          const bookingData = {
-            expert_id: application.expert_id,
-            institution_id: institution.id,
-            project_id: application.project_id,
-            application_id: applicationId,
-            amount: application.proposed_rate || 1000,
-            start_date: new Date().toISOString().split('T')[0],
-            end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 days from now
-            hours_booked: 1,
-            status: 'in_progress',
-            payment_status: 'pending'
-          }
-          
-          await api.bookings.create(bookingData)
-        }
-      }
-      
-      // Refresh all data to show updated applications and new bookings
-      await loadInstitutionData(user.id)
-      setError('')
-    } catch (error: any) {
-      console.error('Application action error:', error)
-      setError(`Failed to ${action} application`)
-    }
-  }
 
   const handleEditProject = (project: any) => {
     setEditingProject(project)
@@ -459,8 +410,11 @@ export default function InstitutionDashboard() {
   }
 
   const handleViewApplications = (project: any) => {
-    setSelectedProject({ id: project.id, title: project.title })
-    setApplicationsDrawerOpen(true)
+    // Check if there are any applications for this project
+  
+    
+    // Navigate to the project details page
+    router.push(`/institution/dashboard/project/${project.id}`)
   }
 
   const handleUpdateProject = async (e: React.FormEvent) => {
@@ -1179,9 +1133,10 @@ export default function InstitutionDashboard() {
                               variant="outline" 
                               className="flex-1 sm:flex-none"
                               onClick={() => handleViewApplications(project)}
+                              disabled={!project.applicationCounts?.total}
                             >
                               <Eye className="h-4 w-4 mr-2" />
-                              View Applications ({project.applicationCounts?.pending || 0})
+                              View Applications ({project.applicationCounts?.total || 0})
                             </Button>
                             <Button size="sm" variant="outline" onClick={() => handleEditProject(project)} className="flex-1 sm:flex-none">
                               <Edit className="h-4 w-4 mr-2" />
