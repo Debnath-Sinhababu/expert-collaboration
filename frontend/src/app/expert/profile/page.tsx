@@ -71,10 +71,10 @@ export default function ExpertProfile() {
 
   const loadExpertData = async (userId: string) => {
     try {
-      const expertsResponse = await api.experts.getAll()
-      if (expertsResponse && Array.isArray(expertsResponse)) {
-        const expertProfile = expertsResponse.find((exp: any) => exp.user_id === userId)
-        console.log(expertProfile,'expertProfile')
+      const expertProfile = await api.experts.getByUserId(userId)
+      
+      
+     
         if (expertProfile) {
           setExpert(expertProfile)
           setFormData({
@@ -102,7 +102,7 @@ export default function ExpertProfile() {
             }
           }
         }
-      }
+      
     } catch (error) {
       console.error('Error loading expert data:', error)
     }

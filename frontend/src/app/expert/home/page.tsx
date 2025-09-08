@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel'
 import Autoplay from "embla-carousel-autoplay"
 import NotificationBell from '@/components/NotificationBell'
@@ -28,8 +29,9 @@ import {
   Star,
   Eye,
   BookOpen,
-  Send,
-  CheckCircle
+  AlertCircle,
+  CheckCircle,
+  Send
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -81,6 +83,7 @@ export default function ExpertHome() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [isApplying, setIsApplying] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedType, setSelectedType] = useState('all')
   const [minRate, setMinRate] = useState('')
@@ -108,6 +111,7 @@ export default function ExpertHome() {
     loading: projectsLoading,
     hasMore: hasMoreProjects,
     loadMore: loadMoreProjects,
+    refresh: refreshProjects
   } = usePagination(
     async (page: number) => {
       if (!expert?.id) return []
@@ -234,7 +238,14 @@ export default function ExpertHome() {
   }
 
   const handleApplicationSubmit = async (projectId: string) => {
+    if (!applicationForm.coverLetter.trim()) {
+      setError('Please write a cover letter')
+      return
+    }
+
     try {
+      setIsApplying(true)
+      setError('')
        
       const response = await api.applications.create({
         project_id: projectId,
@@ -247,7 +258,7 @@ export default function ExpertHome() {
         setApplicationForm({ coverLetter: '', proposedRate: '' })
         setShowApplicationModal(false)
         setSelectedProjectId(null)
-        api.projects.getAll()
+        refreshProjects()
         // Clear success message after 3 seconds
         setTimeout(() => setSuccess(''), 3000)
         // Note: Projects will automatically refresh due to usePagination dependencies
@@ -261,6 +272,8 @@ export default function ExpertHome() {
       setError('Failed to submit application')
       // Clear error message after 5 seconds
       setTimeout(() => setError(''), 5000)
+    } finally {
+      setIsApplying(false)
     }
   }
 
@@ -989,40 +1002,54 @@ export default function ExpertHome() {
 
         {/* Application Modal */}
         <Dialog open={showApplicationModal} onOpenChange={setShowApplicationModal}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Apply to Project</DialogTitle>
-              <DialogDescription>
+          <DialogContent className="sm:max-w-md bg-white border-2 border-slate-200 shadow-xl">
+            <DialogHeader className="space-y-3">
+              <DialogTitle className="text-xl font-bold text-slate-900">Apply to Project</DialogTitle>
+              <DialogDescription className="text-slate-600">
                 Submit your application for "{(projects as Project[]).find(p => p.id === selectedProjectId)?.title || 'this project'}"
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="coverLetter">Cover Letter</Label>
+            <div className="space-y-6 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="coverLetter" className="text-sm font-medium text-slate-700">Cover Letter</Label>
                 <Textarea
                   id="coverLetter"
                   placeholder="Explain why you're the perfect fit for this project..."
                   value={applicationForm.coverLetter}
                   onChange={(e) => setApplicationForm({...applicationForm, coverLetter: e.target.value})}
                   rows={4}
+                  className="border-2 border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
                 />
               </div>
-              <div>
-                <Label htmlFor="proposedRate">Proposed Hourly Rate (₹)</Label>
+              <div className="space-y-2">
+                <Label htmlFor="proposedRate" className="text-sm font-medium text-slate-700">Proposed Hourly Rate (₹)</Label>
                 <Input
                   id="proposedRate"
                   type="number"
                   placeholder={expert?.hourly_rate?.toString() || "1500"}
                   value={applicationForm.proposedRate}
                   onChange={(e) => setApplicationForm({...applicationForm, proposedRate: e.target.value})}
+                  className="border-2 border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
                 />
               </div>
+              {error && (
+                <Alert variant="destructive" className="border-2 border-red-200 bg-red-50">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription className="text-red-700">{error}</AlertDescription>
+                </Alert>
+              )}
+              {success && (
+                <Alert className="border-2 border-green-200 bg-green-50">
+                  <CheckCircle className="h-4 w-4" />
+                  <AlertDescription className="text-green-700">{success}</AlertDescription>
+                </Alert>
+              )}
               <Button 
                 onClick={() => selectedProjectId && handleApplicationSubmit(selectedProjectId)}
-                className="w-full"
-                disabled={!applicationForm.coverLetter || !selectedProjectId}
+                className="w-full bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-medium shadow-sm hover:shadow-md transition-all duration-200 py-2.5"
+                disabled={!applicationForm.coverLetter || !selectedProjectId || isApplying}
               >
-                Submit Application
+                {isApplying ? 'Submitting...' : 'Submit Application'}
               </Button>
             </div>
           </DialogContent>

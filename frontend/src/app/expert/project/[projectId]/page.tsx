@@ -430,50 +430,51 @@ export default function ExpertProjectPage() {
                       Apply Now
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>Apply to Project</DialogTitle>
-                      <DialogDescription>
+                  <DialogContent className="sm:max-w-md bg-white border-2 border-slate-200 shadow-xl">
+                    <DialogHeader className="space-y-3">
+                      <DialogTitle className="text-xl font-bold text-slate-900">Apply to Project</DialogTitle>
+                      <DialogDescription className="text-slate-600">
                         Submit your application for "{project.title}"
                       </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="coverLetter">Cover Letter</Label>
+                    <div className="space-y-6 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="coverLetter" className="text-sm font-medium text-slate-700">Cover Letter</Label>
                         <Textarea
                           id="coverLetter"
                           placeholder="Explain why you're the perfect fit for this project..."
                           value={applicationForm.coverLetter}
                           onChange={(e) => setApplicationForm({...applicationForm, coverLetter: e.target.value})}
                           rows={4}
+                          className="border-2 border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
                         />
                       </div>
-                      <div>
-                        <Label htmlFor="proposedRate">Proposed Hourly Rate (₹)</Label>
+                      <div className="space-y-2">
+                        <Label htmlFor="proposedRate" className="text-sm font-medium text-slate-700">Proposed Hourly Rate (₹)</Label>
                         <input
                           id="proposedRate"
                           type="number"
                           placeholder={project.hourly_rate.toString()}
                           value={applicationForm.proposedRate}
                           onChange={(e) => setApplicationForm({...applicationForm, proposedRate: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-2 border-2 border-slate-200 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
                         />
                       </div>
                       {error && (
-                        <Alert variant="destructive">
+                        <Alert variant="destructive" className="border-2 border-red-200 bg-red-50">
                           <AlertCircle className="h-4 w-4" />
-                          <AlertDescription>{error}</AlertDescription>
+                          <AlertDescription className="text-red-700">{error}</AlertDescription>
                         </Alert>
                       )}
                       {success && (
-                        <Alert>
+                        <Alert className="border-2 border-green-200 bg-green-50">
                           <CheckCircle className="h-4 w-4" />
-                          <AlertDescription>{success}</AlertDescription>
+                          <AlertDescription className="text-green-700">{success}</AlertDescription>
                         </Alert>
                       )}
                       <Button 
                         onClick={handleApplicationSubmit}
-                        className="w-full bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-medium shadow-sm hover:shadow-md transition-all duration-200"
+                        className="w-full bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-medium shadow-sm hover:shadow-md transition-all duration-200 py-2.5"
                         disabled={!applicationForm.coverLetter || isApplying}
                       >
                         {isApplying ? 'Submitting...' : 'Submit Application'}
