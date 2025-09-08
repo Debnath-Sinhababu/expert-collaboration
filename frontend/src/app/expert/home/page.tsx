@@ -407,9 +407,11 @@ export default function ExpertHome() {
                             <div className="flex flex-col mb-4 gap-4">
                               <div className="flex-1 min-w-0">
                                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between">
-                                  <h3 className="text-lg sm:text-xl font-semibold text-slate-900 hover:text-blue-600 cursor-pointer truncate">
-                                    {project.title}
-                                  </h3>
+                                  <Link href={`/expert/project/${project.id}`}>
+                                    <h3 className="text-lg sm:text-xl font-semibold text-slate-900 hover:text-blue-600 cursor-pointer truncate">
+                                      {project.title}
+                                    </h3>
+                                  </Link>
                                   <div className="flex items-center gap-2">
                                    
                                     <Badge className="bg-green-100 text-green-800 border-green-200 flex-shrink-0">
@@ -513,9 +515,11 @@ export default function ExpertHome() {
                                   <span className="hidden sm:inline">Apply Now</span>
                                   <span className="sm:hidden">Apply</span>
                                 </Button>
-                                <Button variant="outline" size="icon" className="border-slate-300 flex-shrink-0">
-                                  <Eye className="h-4 w-4" />
-                                </Button>
+                                <Link href={`/expert/project/${project.id}`}>
+                                  <Button variant="outline" size="icon" className="border-slate-300 flex-shrink-0">
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </Link>
                               </div>
                             </div>
                           </CardContent>
@@ -890,9 +894,11 @@ export default function ExpertHome() {
                     <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start mb-4 gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
-                          <h3 className="text-lg sm:text-xl font-semibold text-slate-900 hover:text-blue-600 cursor-pointer truncate">
-                            {project.title}
-                          </h3>
+                          <Link href={`/expert/project/${project.id}`}>
+                            <h3 className="text-lg sm:text-xl font-semibold text-slate-900 hover:text-blue-600 cursor-pointer truncate">
+                              {project.title}
+                            </h3>
+                          </Link>
                           <Badge className={`${getProjectTypeColor(project.type || '')} text-xs w-fit`}>
                             {getProjectTypeLabel(project.type || '')}
                           </Badge>
@@ -984,9 +990,11 @@ export default function ExpertHome() {
                           <span className="hidden sm:inline">Apply Now</span>
                           <span className="sm:hidden">Apply</span>
                         </Button>
-                        <Button variant="outline" size="icon" className="border-slate-300 flex-shrink-0">
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                        <Link href={`/expert/project/${project.id}`}>
+                          <Button variant="outline" size="icon" className="border-slate-300 flex-shrink-0">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </Link>
                       </div>
                     </div>
                   </CardContent>

@@ -127,6 +127,8 @@ export const api = {
       status?: string;
       institution_id?: string;
       expert_id?: string; // Add expert_id to filter out projects they've already applied to
+      domain_expertise?: string; // For similar projects
+      required_expertise?: string; // For similar projects (comma-separated)
     }) => {
       const headers = await getAuthHeaders()
       const query = new URLSearchParams({

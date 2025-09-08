@@ -673,7 +673,9 @@ app.get('/api/projects', async (req, res) => {
       max_hourly_rate = '',
       status = '',
       institution_id = '',
-      expert_id = '' // used for filtering out applied projects
+      expert_id = '', // used for filtering out applied projects
+      domain_expertise = '', // new parameter for similar projects
+      required_expertise = '' // new parameter for similar projects
     } = req.query;
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
@@ -704,6 +706,15 @@ app.get('/api/projects', async (req, res) => {
     if (max_hourly_rate) query = query.lte('hourly_rate', parseFloat(max_hourly_rate));
     if (status) query = query.eq('status', status);
     if (institution_id) query = query.eq('institution_id', institution_id);
+    
+    // Similar projects filters
+    if (domain_expertise) {
+      query = query.eq('domain_expertise', domain_expertise);
+    }
+    if (required_expertise) {
+      const skills = required_expertise.split(',').map(s => s.trim());
+      query = query.overlaps('required_expertise', skills);
+    }
 
     // Expert filtering: remove projects they already applied to
     if (expert_id && expert_id.trim() !== '') {
@@ -885,13 +896,24 @@ app.get('/api/projects/:id', async (req, res) => {
         institutions (
           id,
           name,
-          logo_url
+          logo_url,
+          description
         )
       `)
       .eq('id', req.params.id)
       .single();
     
-    if (error) throw error;
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+      throw error;
+    }
+    
+    if (!data) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
