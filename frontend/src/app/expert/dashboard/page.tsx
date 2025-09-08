@@ -462,24 +462,18 @@ export default function ExpertDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
-          <p className="text-slate-300">Loading dashboard...</p>
+          <p className="text-slate-600">Loading dashboard...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 relative">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
-      </div>
-      <header className="bg-slate-900/95 backdrop-blur-xl shadow-2xl border-b border-slate-700/50 relative z-10">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center space-x-2 group">
@@ -512,12 +506,12 @@ export default function ExpertDashboard() {
         )}
 
         <div className="mb-8 text-center">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent mb-4 drop-shadow-2xl">Expert Dashboard</h1>
-          <p className="text-xl text-slate-300 drop-shadow-lg">Welcome back, {expert?.name}</p>
+          <h1 className="text-4xl font-bold text-slate-900 mb-3 tracking-tight">Expert Dashboard</h1>
+          <p className="text-xl text-slate-600 font-medium">Welcome back, {expert?.name}</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105 hover:-translate-y-2" style={{boxShadow: '0 25px 50px -12px rgba(59, 130, 246, 0.25), 0 0 0 1px rgba(59, 130, 246, 0.15)'}}>
+          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -531,14 +525,14 @@ export default function ExpertDashboard() {
                     <span>{analytics.completedBookings} completed</span>
                   </div>
                 </div>
-                <div className="p-3 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full shadow-lg">
-                  <Briefcase className="h-8 w-8 text-white" />
+                <div className="p-3 bg-slate-100 rounded-full">
+                  <Briefcase className="h-8 w-8 text-slate-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105 hover:-translate-y-2" style={{boxShadow: '0 25px 50px -12px rgba(34, 197, 94, 0.25), 0 0 0 1px rgba(34, 197, 94, 0.15)'}}>
+          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -550,14 +544,14 @@ export default function ExpertDashboard() {
                     <span>{analytics.totalHoursWorked}h worked</span>
                   </div> */}
                 </div>
-                <div className="p-3 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full shadow-lg">
-                  <DollarSign className="h-8 w-8 text-white" />
+                <div className="p-3 bg-slate-100 rounded-full">
+                  <DollarSign className="h-8 w-8 text-slate-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105 hover:-translate-y-2" style={{boxShadow: '0 25px 50px -12px rgba(251, 191, 36, 0.25), 0 0 0 1px rgba(251, 191, 36, 0.15)'}}>
+          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -581,7 +575,7 @@ export default function ExpertDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105 hover:-translate-y-2" style={{boxShadow: '0 25px 50px -12px rgba(147, 51, 234, 0.25), 0 0 0 1px rgba(147, 51, 234, 0.15)'}}>
+          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -593,8 +587,8 @@ export default function ExpertDashboard() {
                     <span>₹{analytics.averageProjectValue.toFixed(0)} avg project</span>
                   </div>
                 </div>
-                <div className="p-3 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full shadow-lg">
-                  <Calendar className="h-8 w-8 text-white" />
+                <div className="p-3 bg-slate-100 rounded-full">
+                  <Calendar className="h-8 w-8 text-slate-600" />
                 </div>
               </div>
             </CardContent>
@@ -603,7 +597,7 @@ export default function ExpertDashboard() {
 
         {/* Additional Analytics Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105 hover:-translate-y-2" style={{boxShadow: '0 25px 50px -12px rgba(239, 68, 68, 0.25), 0 0 0 1px rgba(239, 68, 68, 0.15)'}}>
+          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -611,14 +605,14 @@ export default function ExpertDashboard() {
                   <p className="text-2xl font-bold text-slate-900">₹{expert?.hourly_rate}</p>
                   <p className="text-xs text-slate-500">Current rate</p>
                 </div>
-                <div className="p-3 bg-gradient-to-r from-red-500 to-pink-500 rounded-full shadow-lg">
-                  <Clock className="h-8 w-8 text-white" />
+                <div className="p-3 bg-slate-100 rounded-full">
+                  <Clock className="h-8 w-8 text-slate-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105 hover:-translate-y-2" style={{boxShadow: '0 25px 50px -12px rgba(16, 185, 129, 0.25), 0 0 0 1px rgba(16, 185, 129, 0.15)'}}>
+          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -626,14 +620,14 @@ export default function ExpertDashboard() {
                   <p className="text-2xl font-bold text-slate-900">{analytics.completedBookings}</p>
                   {/* <p className="text-xs text-slate-500">{analytics.totalHoursWorked}h total work</p> */}
                 </div>
-                <div className="p-3 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full shadow-lg">
-                  <CheckCircle className="h-8 w-8 text-white" />
+                <div className="p-3 bg-slate-100 rounded-full">
+                  <CheckCircle className="h-8 w-8 text-slate-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105 hover:-translate-y-2" style={{boxShadow: '0 25px 50px -12px rgba(99, 102, 241, 0.25), 0 0 0 1px rgba(99, 102, 241, 0.15)'}}>
+          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -645,18 +639,18 @@ export default function ExpertDashboard() {
                     {expert?.is_verified ? 'Verified Expert' : 'Verification Pending'}
                   </p>
                 </div>
-                <div className="p-3 bg-gradient-to-r from-indigo-500 to-blue-500 rounded-full shadow-lg">
+                <div className="p-3 bg-slate-100 rounded-full">
                   {expert?.is_verified ? (
-                    <Shield className="h-8 w-8 text-white" />
+                    <Shield className="h-8 w-8 text-slate-600" />
                   ) : (
-                    <AlertCircle className="h-8 w-8 text-white" />
+                    <AlertCircle className="h-8 w-8 text-slate-600" />
                   )}
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105 hover:-translate-y-2" style={{boxShadow: '0 25px 50px -12px rgba(168, 85, 247, 0.25), 0 0 0 1px rgba(168, 85, 247, 0.15)'}}>
+          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -666,8 +660,8 @@ export default function ExpertDashboard() {
                     {bookingCounts.completed || 0} completed 
                   </p>
                 </div>
-                <div className="p-3 bg-gradient-to-r from-violet-500 to-purple-500 rounded-full shadow-lg">
-                  <BookOpen className="h-8 w-8 text-white" />
+                <div className="p-3 bg-slate-100 rounded-full">
+                  <BookOpen className="h-8 w-8 text-slate-600" />
                 </div>
               </div>
             </CardContent>
@@ -677,29 +671,41 @@ export default function ExpertDashboard() {
         {/* Applications Section */}
         <div className="space-y-6">
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-slate-900 mb-6">Applications</h2>
+            <h2 className="text-3xl font-bold text-slate-900 mb-6 tracking-tight">Applications</h2>
           </div>
           
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="flex w-full gap-2 overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-4 sm:gap-0 sm:overflow-visible scrollbar-hide bg-white/95 backdrop-blur-sm border-0 shadow-2xl">
-              <TabsTrigger className="px-3 py-2 snap-start ml-3 sm:ml-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white hover:bg-slate-100/80 transition-all rounded-lg" value="pending">
+            <TabsList className="grid w-full grid-cols-4 bg-white border-b border-slate-200 h-12">
+              <TabsTrigger 
+                value="pending" 
+                className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none"
+              >
                 Pending ({applicationCounts.pending || 0})
-        </TabsTrigger>
-              <TabsTrigger className="px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white hover:bg-slate-100/80 transition-all rounded-lg" value="interview">
+              </TabsTrigger>
+              <TabsTrigger 
+                value="interview" 
+                className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none"
+              >
                 Interview ({applicationCounts.interview || 0})
               </TabsTrigger>
-        <TabsTrigger className="px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white hover:bg-slate-100/80 transition-all rounded-lg" value="bookings">
+              <TabsTrigger 
+                value="bookings" 
+                className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none"
+              >
                 Bookings ({bookingCounts.total || 0})
-        </TabsTrigger>
-              <TabsTrigger className="px-3 py-2 snap-start mr-3 sm:mr-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white hover:bg-slate-100/80 transition-all rounded-lg" value="rejected">
+              </TabsTrigger>
+              <TabsTrigger 
+                value="rejected" 
+                className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none"
+              >
                 Rejected ({applicationCounts.rejected || 0})
-        </TabsTrigger>
-      </TabsList>
+              </TabsTrigger>
+            </TabsList>
 
 
             {/* Pending Applications Tab */}
             <TabsContent value="pending" className="space-y-6">
-            <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 hover:scale-[1.02] hover:-translate-y-1" style={{boxShadow: '0 25px 50px -12px rgba(59, 130, 246, 0.25), 0 0 0 1px rgba(59, 130, 246, 0.15)'}}>
+            <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
               <CardHeader>
                   <CardTitle className="text-slate-900">Pending Applications</CardTitle>
                 <CardDescription className="text-slate-600">
@@ -716,9 +722,9 @@ export default function ExpertDashboard() {
                 ) : (
                   <div className="space-y-4">
                       {pagedPendingApplications?.map((application: any) => (
-                      <div key={application.id} className="border rounded-lg p-4">
+                      <div key={application.id} className="bg-white border-2 border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all duration-300 group">
                         <div className="flex items-center justify-between mb-2 min-w-0">
-                          <h3 className="font-semibold truncate pr-2">{application.projects?.title || 'Project Title'}</h3>
+                          <h3 className="font-semibold text-slate-900 group-hover:text-blue-700 truncate pr-2 transition-colors duration-300">{application.projects?.title || 'Project Title'}</h3>
                           <Badge className={getStatusColor(application.status)}>
                             <div className="flex items-center space-x-1">
                               {getStatusIcon(application.status)}
@@ -726,10 +732,10 @@ export default function ExpertDashboard() {
                             </div>
                           </Badge>
                         </div>
-                        <p className="text-sm text-gray-600 mb-2 break-words line-clamp-2">{application.projects?.description || 'Project description'}</p>
-                          <div className="flex items-center justify-between text-sm text-gray-500">
+                        <p className="text-sm text-slate-600 mb-2 break-words line-clamp-2">{application.projects?.description || 'Project description'}</p>
+                          <div className="flex items-center justify-between text-sm text-slate-500">
                           <span>Applied: {new Date(application.applied_at || Date.now()).toLocaleDateString()}</span>
-                          <span>Proposed Rate: ₹{application.proposed_rate}</span>
+                          <span className="font-medium text-slate-700">Proposed Rate: ₹{application.proposed_rate}</span>
                           </div>
                       </div>
                     ))}
@@ -753,7 +759,7 @@ export default function ExpertDashboard() {
 
             {/* Interview Applications Tab */}
             <TabsContent value="interview" className="space-y-6">
-              <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 hover:scale-[1.02] hover:-translate-y-1" style={{boxShadow: '0 25px 50px -12px rgba(34, 197, 94, 0.25), 0 0 0 1px rgba(34, 197, 94, 0.15)'}}>
+              <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
               <CardHeader>
                   <CardTitle className="text-slate-900">Interview Applications</CardTitle>
                   <CardDescription className="text-slate-600">
@@ -770,9 +776,9 @@ export default function ExpertDashboard() {
                 ) : (
                   <div className="space-y-4">
                       {pagedInterviewApplications?.map((application: any) => (
-                        <div key={application.id} className="border rounded-lg p-4">
+                        <div key={application.id} className="bg-white border-2 border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all duration-300 group">
                           <div className="flex items-center justify-between mb-2 min-w-0">
-                            <h3 className="font-semibold truncate pr-2">{application.projects?.title || 'Project Title'}</h3>
+                            <h3 className="font-semibold text-slate-900 group-hover:text-blue-700 truncate pr-2 transition-colors duration-300">{application.projects?.title || 'Project Title'}</h3>
                             <Badge className={getStatusColor(application.status)}>
                               <div className="flex items-center space-x-1">
                                 {getStatusIcon(application.status)}
@@ -780,10 +786,10 @@ export default function ExpertDashboard() {
                               </div>
                             </Badge>
                           </div>
-                          <p className="text-sm text-gray-600 mb-2 break-words line-clamp-2">{application.projects?.description || 'Project description'}</p>
-                          <div className="flex items-center justify-between text-sm text-gray-500">
+                          <p className="text-sm text-slate-600 mb-2 break-words line-clamp-2">{application.projects?.description || 'Project description'}</p>
+                          <div className="flex items-center justify-between text-sm text-slate-500">
                             <span>Applied: {new Date(application.applied_at || Date.now()).toLocaleDateString()}</span>
-                            <span>Proposed Rate: ₹{application.proposed_rate}</span>
+                            <span className="font-medium text-slate-700">Proposed Rate: ₹{application.proposed_rate}</span>
                           </div>
                         </div>
                       ))}
@@ -807,7 +813,7 @@ export default function ExpertDashboard() {
 
             {/* Rejected Applications Tab */}
             <TabsContent value="rejected" className="space-y-6">
-              <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 hover:scale-[1.02] hover:-translate-y-1" style={{boxShadow: '0 25px 50px -12px rgba(239, 68, 68, 0.25), 0 0 0 1px rgba(239, 68, 68, 0.15)'}}>
+              <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
                 <CardHeader>
                   <CardTitle className="text-slate-900">Rejected Applications</CardTitle>
                   <CardDescription className="text-slate-600">
@@ -824,9 +830,9 @@ export default function ExpertDashboard() {
                   ) : (
                     <div className="space-y-4">
                       {pagedRejectedApplications?.map((application: any) => (
-                        <div key={application.id} className="border rounded-lg p-4">
+                        <div key={application.id} className="bg-white border-2 border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all duration-300 group">
                           <div className="flex items-center justify-between mb-2 min-w-0">
-                            <h3 className="font-semibold truncate pr-2">{application.projects?.title || 'Project Title'}</h3>
+                            <h3 className="font-semibold text-slate-900 group-hover:text-blue-700 truncate pr-2 transition-colors duration-300">{application.projects?.title || 'Project Title'}</h3>
                             <Badge className={getStatusColor(application.status)}>
                               <div className="flex items-center space-x-1">
                                 {getStatusIcon(application.status)}
@@ -834,10 +840,10 @@ export default function ExpertDashboard() {
                               </div>
                             </Badge>
                           </div>
-                          <p className="text-sm text-gray-600 mb-2 break-words line-clamp-2">{application.projects?.description || 'Project description'}</p>
-                          <div className="flex items-center justify-between text-sm text-gray-500">
+                          <p className="text-sm text-slate-600 mb-2 break-words line-clamp-2">{application.projects?.description || 'Project description'}</p>
+                          <div className="flex items-center justify-between text-sm text-slate-500">
                             <span>Applied: {new Date(application.applied_at || Date.now()).toLocaleDateString()}</span>
-                            <span>Proposed Rate: ₹{application.proposed_rate}</span>
+                            <span className="font-medium text-slate-700">Proposed Rate: ₹{application.proposed_rate}</span>
                           </div>
                         </div>
                       ))}
@@ -861,7 +867,7 @@ export default function ExpertDashboard() {
 
             {/* Bookings Tab */}
             <TabsContent value="bookings" className="space-y-6">
-              <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 hover:scale-[1.02] hover:-translate-y-1" style={{boxShadow: '0 25px 50px -12px rgba(147, 51, 234, 0.25), 0 0 0 1px rgba(147, 51, 234, 0.15)'}}>
+              <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
                 <CardHeader>
                   <CardTitle className="text-slate-900">My Bookings</CardTitle>
                   <CardDescription className="text-slate-600">
@@ -878,26 +884,26 @@ export default function ExpertDashboard() {
                   ) : (
                     <div className="space-y-4">
                       {pagedBookings?.map((booking: any) => (
-                      <div key={booking.id} className="border rounded-lg p-4">
+                      <div key={booking.id} className="bg-white border-2 border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all duration-300 group">
                         <div className="flex items-start justify-between mb-2 min-w-0">
                           <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold truncate pr-2">{booking.project?.title || 'Project'}</h3>
-                              <p className="text-sm text-gray-600 truncate">{booking.expert?.name || 'You'} with {booking.institution?.name || 'Institution'}</p>
+                              <h3 className="font-semibold text-slate-900 group-hover:text-blue-700 truncate pr-2 transition-colors duration-300">{booking.project?.title || 'Project'}</h3>
+                              <p className="text-sm text-slate-600 truncate">{booking.expert?.name || 'You'} with {booking.institution?.name || 'Institution'}</p>
                           </div>
                           <Badge className="capitalize" variant="outline">{booking.status?.replace('_', ' ')}</Badge>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-slate-600">
                           <div>
-                            <span className="font-medium">Amount:</span> ₹{booking.amount}
+                            <span className="font-medium text-slate-700">Amount:</span> ₹{booking.amount}
                           </div>
                           <div>
-                            <span className="font-medium">Hours:</span> {booking.hours_booked}
+                            <span className="font-medium text-slate-700">Hours:</span> {booking.hours_booked}
                           </div>
                           <div>
-                            <span className="font-medium">Start:</span> {new Date(booking.start_date).toLocaleDateString()}
+                            <span className="font-medium text-slate-700">Start:</span> {new Date(booking.start_date).toLocaleDateString()}
                           </div>
                           <div>
-                            <span className="font-medium">End:</span> {new Date(booking.end_date).toLocaleDateString()}
+                            <span className="font-medium text-slate-700">End:</span> {new Date(booking.end_date).toLocaleDateString()}
                           </div>
                         </div>
                         <div className="mt-3 flex justify-end">
