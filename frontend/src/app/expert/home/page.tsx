@@ -310,7 +310,7 @@ export default function ExpertHome() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       {/* Header */}
       <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -349,16 +349,16 @@ export default function ExpertHome() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">
-            Welcome back, {expert?.name}!
-          </h1>
-          <p className="text-slate-600">
-            Discover new opportunities and grow your expertise
-          </p>
-        </div>
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Welcome Section */}
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold text-slate-900 mb-3 tracking-tight">
+              Welcome back, {expert?.name}! 👋
+            </h1>
+            <p className="text-xl text-slate-600 font-medium">
+              Discover new opportunities and grow your expertise
+            </p>
+          </div>
 
         {/* Recommended for You Section */}
         {recommendedProjects.length > 0 && (
@@ -401,14 +401,15 @@ export default function ExpertHome() {
                   <CarouselContent className="-ml-2">
                     {recommendedProjects.map((project) => (
                       <CarouselItem key={project.id} className="pl-2 basis-full sm:basis-1/2 lg:basis-1/3">
-                        <Card className="h-full mx-2 transition-all duration-300 hover:shadow-lg border border-slate-200 hover:border-blue-300">
+                        <Card className="h-full mx-2 transition-all duration-300 hover:shadow-lg border border-slate-200/50 hover:border-blue-300/50 bg-gradient-to-br from-white to-slate-50/30 shadow-sm hover:shadow-blue-100/20 relative group">
+                          <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 opacity-0 group-hover:opacity-10 transition-opacity duration-300 -z-10"></div>
                           <CardContent className="p-4 sm:p-6">
                             {/* Header Section */}
                             <div className="flex flex-col mb-4 gap-4">
                               <div className="flex-1 min-w-0">
                                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between">
                                   <Link href={`/expert/project/${project.id}`}>
-                                    <h3 className="text-lg sm:text-xl font-semibold text-slate-900 hover:text-blue-600 cursor-pointer truncate">
+                                    <h3 className="text-lg sm:text-xl font-bold text-slate-900 hover:text-blue-600 cursor-pointer truncate transition-colors duration-200">
                                       {project.title}
                                     </h3>
                                   </Link>
@@ -432,91 +433,42 @@ export default function ExpertHome() {
                                   <Building2 className="h-4 w-4 mr-2 flex-shrink-0" />
                                   <span className="font-medium truncate">{project.institutions?.name}</span>
                                 </div>
-                                <p className="text-slate-600 text-sm line-clamp-2 mb-4">
+                                <p className="text-slate-600 text-sm truncate mb-4">
                                   {project.description}
                                 </p>
                               </div>
                               
                               {/* Price Section - Only show on larger screens */}
                               <div className="hidden lg:flex justify-between items-start space-y-2 flex-shrink-0">
-                                <div className="text-right">
+                                <div className="text-right flex items-center gap-x-2">
                                   <div className="text-2xl font-bold text-blue-600">
                                     ₹{project.hourly_rate}
                                   </div>
                                   <div className="text-sm text-slate-500">per hour</div>
                                 </div>
-                                <div className="flex items-center text-slate-500 text-sm">
-                                  <Users className="h-4 w-4 mr-1" />
-                                  {project.applicationCounts?.total || 0} applications
-                                </div>
+                             
                               </div>
                             </div>
 
-                            {/* Skills and Specializations Section */}
-                            <div className="mb-4 space-y-3">
-                              {/* Skills */}
-                              {project.required_expertise && project.required_expertise.length > 0 && (
-                                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                                  <span className="text-sm font-medium text-slate-700 min-w-fit">Skills:</span>
-                                  <div className="flex flex-wrap gap-1">
-                                    {project.required_expertise.slice(0, 3).map((skill, index) => (
-                                      <Badge key={index} variant="secondary" className="text-xs">
-                                        {skill}
-                                      </Badge>
-                                    ))}
-                                    {project.required_expertise.length > 3 && (
-                                      <Badge variant="secondary" className="text-xs">
-                                        +{project.required_expertise.length - 3}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                              
-                              {/* Specializations */}
-                              {project.subskills && project.subskills.length > 0 && (
-                                <div className="flex flex-col sm:flex-row sm:items-start gap-2">
-                                  <span className="text-sm font-medium text-slate-700 min-w-fit">Specializations:</span>
-                                  <span className="text-slate-600 text-sm break-words">
-                                    {project.subskills.join(', ')}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
+                         
 
                             {/* Bottom Section - Project Details and Actions */}
                             <div className="flex flex-col gap-4">
                               {/* Project Details */}
-                              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-slate-600">
-                                <div className="flex items-center">
-                                  <Clock className="h-4 w-4 mr-2 flex-shrink-0" />
-                                  <span>{project.duration_hours} hours</span>
-                                </div>
-                                <div className="flex items-center">
-                                  <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />
-                                  <span className="truncate">{project.start_date} - {project.end_date}</span>
-                                </div>
-                                
-                                {/* Price for mobile */}
-                                <div className="lg:hidden flex items-center">
-                                  <span className="text-lg font-bold text-blue-600">
-                                    ₹{project.hourly_rate}/hour
-                                  </span>
-                                </div>
-                              </div>
+                             
                               
                               {/* Action Buttons - Full width on mobile, auto on desktop */}
                               <div className="flex space-x-2 w-full sm:w-auto">
                                 <Button 
                                   onClick={() => handleOpenApplicationModal(project.id)}
-                                  className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-2"
+                                  className="flex-1 sm:flex-none bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white text-sm px-4 py-2 font-medium shadow-sm hover:shadow-md transition-all duration-200"
                                 >
                                   <Send className="h-4 w-4 mr-1 sm:mr-2" />
                                   <span className="hidden sm:inline">Apply Now</span>
                                   <span className="sm:hidden">Apply</span>
                                 </Button>
                                 <Link href={`/expert/project/${project.id}`}>
-                                  <Button variant="outline" size="icon" className="border-slate-300 flex-shrink-0">
+                                  <Button variant="outline" size="icon" className="border-slate-300/50 hover:border-blue-300/50 hover:bg-blue-50/50 flex-shrink-0 transition-all duration-200">
                                     <Eye className="h-4 w-4" />
                                   </Button>
                                 </Link>
@@ -545,7 +497,7 @@ export default function ExpertHome() {
                 <div className="mb-8">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                   <div className="text-center mb-6">
-                    <h2 className="text-2xl font-bold text-slate-900 mb-2">
+                    <h2 className="text-3xl font-bold text-slate-900 mb-3 tracking-tight">
                       Partner Universities
                     </h2>
                     <p className="text-slate-600">
@@ -632,7 +584,7 @@ export default function ExpertHome() {
                 <div className="mb-8">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                   <div className="text-center mb-6">
-                    <h2 className="text-2xl font-bold text-slate-900 mb-2">
+                    <h2 className="text-3xl font-bold text-slate-900 mb-3 tracking-tight">
                       Partnered Experts
                     </h2>
                     <p className="text-slate-600">
@@ -665,15 +617,16 @@ export default function ExpertHome() {
                           
                                                      return (
                              <CarouselItem key={expert.id} className="pl-2 basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4">
-                              <Card className="h-full mx-2 transition-all duration-500 hover:scale-105 hover:-translate-y-2 bg-gradient-to-br from-slate-800/80 via-slate-700/80 to-slate-800/80 backdrop-blur-xl border border-slate-600/30 shadow-2xl hover:shadow-purple-500/25" style={{boxShadow: '0 25px 50px -12px rgba(147, 51, 234, 0.25), 0 0 0 1px rgba(147, 51, 234, 0.15)'}}>
-                                <CardContent className="p-6 text-center relative overflow-hidden">
-                                  {/* Glowing background effect */}
-                                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-pink-500/5 to-rose-500/5 rounded-lg"></div>
+                              <Card className="h-full mx-2 transition-all duration-300 hover:shadow-lg hover:border-blue-300/50 bg-gradient-to-br from-white to-slate-50/30 shadow-sm hover:shadow-blue-100/20 relative group">
+                                <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 opacity-0 group-hover:opacity-10 transition-opacity duration-300 -z-10"></div>
+                                <CardContent className="p-6 text-center relative overflow-hidden group">
+                                  {/* Subtle blue glow effect on hover */}
+                                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-indigo-500/5 to-slate-500/5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                                   
                                   {/* Expert Avatar */}
                                   <div className="relative mb-4">
                                     {expert.photo_url ? (
-                                      <div className="w-16 h-16 rounded-full overflow-hidden mx-auto shadow-lg border-2 border-white/20 relative z-10">
+                                      <div className="w-20 h-20 rounded-full overflow-hidden mx-auto shadow-lg border-2 border-slate-200 relative z-10 group-hover:border-blue-300/50 transition-colors duration-300">
                                         <img 
                                           src={expert.photo_url} 
                                           alt={expert.name}
@@ -681,40 +634,39 @@ export default function ExpertHome() {
                                         />
                                       </div>
                                     ) : (
-                                      <div className={`w-16 h-16 bg-gradient-to-r from-${expertColor}-500 to-${expertColor === 'blue' ? 'indigo' : expertColor === 'purple' ? 'pink' : expertColor === 'green' ? 'emerald' : expertColor === 'orange' ? 'amber' : 'cyan'}-500 rounded-full flex items-center justify-center mx-auto shadow-lg border-2 border-${expertColor}-400/30 relative z-10 overflow-hidden`}>
-                                        <Users className="h-8 w-8 text-white drop-shadow-lg" />
-                                        <div className={`absolute inset-0 bg-${expertColor}-500/20 rounded-full blur-xl`}></div>
+                                      <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mx-auto shadow-lg border-2 border-slate-200 group-hover:border-blue-300/50 relative z-10 overflow-hidden transition-colors duration-300">
+                                        <Users className="h-8 w-8 text-white" />
                                       </div>
                                     )}
                                   </div>
                                   
                                   {/* Expert Name */}
-                                  <h3 className="font-bold text-white mb-1 text-lg relative z-10 drop-shadow-sm">
+                                  <h3 className="font-bold text-slate-900 mb-1 text-lg relative z-10 group-hover:text-blue-600 transition-colors duration-300">
                                     {expert.name}
                                   </h3>
                                   
                                   {/* Rating Display */}
                                   <div className="flex justify-center items-center mb-2 relative z-10">
                                     {[...Array(5)].map((_, i) => (
-                                      <Star key={i} className={`h-4 w-4 ${i < Math.floor(expert.rating || 4.5) ? "text-yellow-400 fill-current drop-shadow-sm" : "text-slate-500"}`} />
+                                      <Star key={i} className={`h-4 w-4 ${i < Math.floor(expert.rating || 4.5) ? "text-yellow-400 fill-current" : "text-slate-300"}`} />
                                     ))}
-                                    <span className="text-sm text-slate-200 ml-2 font-medium">
+                                    <span className="text-sm text-slate-600 ml-2 font-medium">
                                       {expert.rating || '4.5'}
                                     </span>
                                   </div>
                                   
                                   {/* Expertise */}
-                                  <p className="text-sm text-slate-200 font-medium relative z-10 mb-1">
-                                    {expert.domain_expertise || 'Professional Expert'}
+                                  <p className="text-sm text-slate-600 font-medium relative z-10 mb-1">
+                                    {expert.domain_expertise?.join(', ') || 'Professional Expert'}
                                   </p>
                                   
                                   {/* Experience & Rate */}
-                                  <p className="text-xs text-slate-400 relative z-10 mb-2">
+                                  <p className="text-xs text-slate-500 relative z-10 mb-2">
                                     {expert.experience_years ? `${expert.experience_years}+ years` : 'Experienced'} • ₹{expert.hourly_rate || '1500'}/hr
                                   </p>
                                   
-                                  {/* Bottom accent line */}
-                                  <div className={`absolute bottom-0 left-1/2 transform -translate-x-1/2 w-16 h-0.5 bg-gradient-to-r from-${expertColor}-400 to-${expertColor === 'blue' ? 'indigo' : expertColor === 'purple' ? 'pink' : expertColor === 'green' ? 'emerald' : expertColor === 'orange' ? 'amber' : 'cyan'}-400 rounded-full mt-4`}></div>
+                                  {/* Bottom accent line with blue glow */}
+                                  <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-16 h-0.5 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-full mt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                                 </CardContent>
                               </Card>
                             </CarouselItem>
@@ -852,7 +804,7 @@ export default function ExpertHome() {
         {/* Projects List */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold text-slate-900">
+            <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
               Available Projects ({projects.length})
             </h2>
           </div>
@@ -888,7 +840,8 @@ export default function ExpertHome() {
           ) : (
             <div className="space-y-4">
               {(projects as Project[]).map((project) => (
-                <Card key={project.id} className="hover:shadow-md transition-shadow duration-300 border border-slate-200">
+                <Card key={project.id} className="hover:shadow-lg transition-all duration-300 border border-slate-200/50 hover:border-blue-300/50 bg-gradient-to-br from-white to-slate-50/30 shadow-sm hover:shadow-blue-100/20 relative group">
+                  <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 opacity-0 group-hover:opacity-10 transition-opacity duration-300 -z-10"></div>
                   <CardContent className="p-4 sm:p-6">
                     {/* Header Section */}
                     <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start mb-4 gap-4">
@@ -920,10 +873,7 @@ export default function ExpertHome() {
                           </div>
                           <div className="text-sm text-slate-500">per hour</div>
                         </div>
-                        <div className="flex items-center text-slate-500 text-sm">
-                          <Users className="h-4 w-4 mr-1" />
-                          {project.applicationCounts?.total || 0} applications
-                        </div>
+                       
                       </div>
                     </div>
 
@@ -984,14 +934,14 @@ export default function ExpertHome() {
                       <div className="flex space-x-2 flex-shrink-0">
                         <Button 
                           onClick={() => handleOpenApplicationModal(project.id)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-2"
+                          className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white text-sm px-4 py-2 font-medium shadow-sm hover:shadow-md transition-all duration-200"
                         >
                           <Send className="h-4 w-4 mr-1 sm:mr-2" />
                           <span className="hidden sm:inline">Apply Now</span>
                           <span className="sm:hidden">Apply</span>
                         </Button>
                         <Link href={`/expert/project/${project.id}`}>
-                          <Button variant="outline" size="icon" className="border-slate-300 flex-shrink-0">
+                          <Button variant="outline" size="icon" className="border-slate-300/50 hover:border-blue-300/50 hover:bg-blue-50/50 flex-shrink-0 transition-all duration-200">
                             <Eye className="h-4 w-4" />
                           </Button>
                         </Link>

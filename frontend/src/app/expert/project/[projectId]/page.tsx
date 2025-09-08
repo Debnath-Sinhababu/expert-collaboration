@@ -302,11 +302,12 @@ export default function ExpertProjectPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Project Details */}
-        <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 mb-8">
+        <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-lg transition-all duration-300 mb-8 relative group">
+          <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 opacity-0 group-hover:opacity-5 transition-opacity duration-300 -z-10"></div>
           <CardHeader className="pb-4">
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <CardTitle className="text-3xl font-bold text-slate-900 mb-2">{project.title}</CardTitle>
+                <CardTitle className="text-4xl font-bold text-slate-900 mb-3 tracking-tight">{project.title}</CardTitle>
                 <div className="flex items-center space-x-4 text-slate-600 mb-4">
                   <div className="flex items-center space-x-1">
                     <Building className="h-4 w-4" />
@@ -424,7 +425,7 @@ export default function ExpertProjectPage() {
               ) : (
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button size="lg" className="w-full sm:w-auto">
+                    <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-medium shadow-sm hover:shadow-md transition-all duration-200">
                       <Send className="h-4 w-4 mr-2" />
                       Apply Now
                     </Button>
@@ -472,7 +473,7 @@ export default function ExpertProjectPage() {
                       )}
                       <Button 
                         onClick={handleApplicationSubmit}
-                        className="w-full"
+                        className="w-full bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-medium shadow-sm hover:shadow-md transition-all duration-200"
                         disabled={!applicationForm.coverLetter || isApplying}
                       >
                         {isApplying ? 'Submitting...' : 'Submit Application'}
@@ -488,7 +489,7 @@ export default function ExpertProjectPage() {
         {/* Similar Projects Carousel */}
         {similarProjects.length > 0 && (
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-slate-900 mb-6">Similar Projects</h2>
+            <h2 className="text-3xl font-bold text-slate-900 mb-6 tracking-tight">Similar Projects</h2>
             <Carousel
               opts={{
                 align: "start",
@@ -504,15 +505,16 @@ export default function ExpertProjectPage() {
               <CarouselContent className="-ml-2">
                 {similarProjects.map((project) => (
                   <CarouselItem key={project.id} className="pl-2 basis-full sm:basis-1/2 lg:basis-1/3">
-                    <Card className="h-full mx-2 transition-all duration-300 hover:shadow-lg border border-slate-200 hover:border-blue-300">
+                    <Card className="h-full mx-2 transition-all duration-300 hover:shadow-lg border border-slate-200/50 hover:border-blue-300/50 bg-gradient-to-br from-white to-slate-50/30 shadow-sm hover:shadow-blue-100/20 relative group">
+                      <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 opacity-0 group-hover:opacity-10 transition-opacity duration-300 -z-10"></div>
                       <CardContent className="p-6">
-                        <div className="flex items-start justify-between mb-4">
-                          <h3 className="font-semibold text-lg text-slate-900 line-clamp-2">{project.title}</h3>
+                        <div className="flex items-start justify-between mb-4 flex-wrap gap-3">
+                          <h3 className="font-bold text-lg text-slate-900 line-clamp-2 group-hover:text-blue-600 transition-colors duration-200">{project.title}</h3>
                           <Badge variant="outline" className="ml-2 capitalize text-xs">
                             {project.type?.replace('_', ' ')}
                           </Badge>
                         </div>
-                        <p className="text-slate-600 text-sm mb-4 line-clamp-3">{project.description}</p>
+                        <p className="text-slate-600 text-sm mb-4 truncate">{project.description}</p>
                         <div className="flex items-center justify-between text-sm text-slate-500 mb-4">
                           <span className="flex items-center">
                             <Building className="h-4 w-4 mr-1" />
@@ -526,7 +528,7 @@ export default function ExpertProjectPage() {
                         <div className="flex items-center justify-between">
                           <div className="text-2xl font-bold text-green-600">₹{project.hourly_rate}/hr</div>
                           <Link href={`/expert/project/${project.id}`}>
-                            <Button size="sm">View Details</Button>
+                            <Button size="sm" className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-medium shadow-sm hover:shadow-md transition-all duration-200">View Details</Button>
                           </Link>
                         </div>
                       </CardContent>
@@ -543,7 +545,7 @@ export default function ExpertProjectPage() {
         {/* Recommended Projects Carousel */}
         {recommendedProjects.length > 0 && (
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-slate-900 mb-6">Recommended Projects</h2>
+            <h2 className="text-3xl font-bold text-slate-900 mb-6 tracking-tight">Recommended Projects</h2>
             <Carousel
               opts={{
                 align: "start",
@@ -559,15 +561,16 @@ export default function ExpertProjectPage() {
               <CarouselContent className="-ml-2">
                 {recommendedProjects.map((project) => (
                   <CarouselItem key={project.id} className="pl-2 basis-full sm:basis-1/2 lg:basis-1/3">
-                    <Card className="h-full mx-2 transition-all duration-300 hover:shadow-lg border border-slate-200 hover:border-blue-300">
+                    <Card className="h-full mx-2 transition-all duration-300 hover:shadow-lg border border-slate-200/50 hover:border-blue-300/50 bg-gradient-to-br from-white to-slate-50/30 shadow-sm hover:shadow-blue-100/20 relative group">
+                      <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 opacity-0 group-hover:opacity-10 transition-opacity duration-300 -z-10"></div>
                       <CardContent className="p-6">
                         <div className="flex items-start justify-between mb-4">
-                          <h3 className="font-semibold text-lg text-slate-900 line-clamp-2">{project.title}</h3>
+                          <h3 className="font-bold text-lg text-slate-900 line-clamp-2 group-hover:text-blue-600 transition-colors duration-200">{project.title}</h3>
                           <Badge variant="outline" className="ml-2 capitalize text-xs">
                             {project.type?.replace('_', ' ')}
                           </Badge>
                         </div>
-                        <p className="text-slate-600 text-sm mb-4 line-clamp-3">{project.description}</p>
+                        <p className="text-slate-600 text-sm mb-4 truncate">{project.description}</p>
                         <div className="flex items-center justify-between text-sm text-slate-500 mb-4">
                           <span className="flex items-center">
                             <Building className="h-4 w-4 mr-1" />
@@ -581,7 +584,7 @@ export default function ExpertProjectPage() {
                         <div className="flex items-center justify-between">
                           <div className="text-2xl font-bold text-green-600">₹{project.hourly_rate}/hr</div>
                           <Link href={`/expert/project/${project.id}`}>
-                            <Button size="sm">View Details</Button>
+                            <Button size="sm" className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-medium shadow-sm hover:shadow-md transition-all duration-200">View Details</Button>
                           </Link>
                         </div>
                       </CardContent>
