@@ -1299,7 +1299,7 @@ app.get('/api/applications', async (req, res) => {
     
     // Default to 'pending' status to show only in-progress applications
     // This ensures dashboards only show applications that need attention
-    const { expert_id, project_id, institution_id, page = 1, limit = 10, status = 'pending' } = req.query;
+    const { expert_id, project_id, institution_id, page = 1, limit = 10,status } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
     
     console.log('Applications filtering:', { 

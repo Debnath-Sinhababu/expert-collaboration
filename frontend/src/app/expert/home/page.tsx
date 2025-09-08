@@ -364,14 +364,22 @@ export default function ExpertHome() {
         {recommendedProjects.length > 0 && (
           <div className="mb-8">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold text-slate-900 mb-2">
-                  Recommended for You
-                </h2>
-                <p className="text-slate-600">
-                  Projects matched to your skills and expertise
-                </p>
+            <div className="mb-6">
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
+            <div className="flex items-center mb-2">
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                <Star className="h-4 w-4 text-blue-600" />
               </div>
+              <h3 className="text-lg font-semibold text-slate-900">
+                🎯 Recommended for You
+              </h3>
+            </div>
+            <p className="text-slate-600 text-sm">
+              Based on your expertise in <strong>{expert?.domain_expertise || 'your field'}</strong>, 
+              we found <strong>{recommendedProjects.length} matching projects</strong> below
+            </p>
+          </div>
+        </div>
 
               {loadingRecommendations ? (
                 <div className="flex justify-center py-12">
@@ -571,7 +579,7 @@ export default function ExpertHome() {
                            
                            return (
                              <CarouselItem key={university.id || index} className="pl-2 basis-full sm:basis-1/2 lg:basis-1/2">
-                              <div className="relative h-64 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
+                              <div className="relative h-64 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 group">
                                 {/* Background Image */}
                                 <div 
                                   className="absolute inset-0 bg-cover bg-center bg-no-repeat"
@@ -733,25 +741,10 @@ export default function ExpertHome() {
         )}
 
         {/* Recommended for You */}
-        <div className="mb-6">
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
-            <div className="flex items-center mb-2">
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                <Star className="h-4 w-4 text-blue-600" />
-              </div>
-              <h3 className="text-lg font-semibold text-slate-900">
-                🎯 Recommended for You
-              </h3>
-            </div>
-            <p className="text-slate-600 text-sm">
-              Based on your expertise in <strong>{expert?.domain_expertise || 'your field'}</strong>, 
-              we found <strong>{projects.length} matching projects</strong> below
-            </p>
-          </div>
-        </div>
+      
 
         {/* Quick Actions Bar */}
-        <div className="flex flex-wrap gap-2 mb-6">
+        <div className="flex flex-wrap gap-2 mb-6 mt-3">
           <Button 
             variant="outline" 
             size="sm"

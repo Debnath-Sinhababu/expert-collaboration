@@ -112,9 +112,8 @@ export default function ProjectDetailsPage() {
 
   const loadInstitutionData = async (userId: string) => {
     try {
-      const institutionsResponse = await api.institutions.getAll()
-      const institutions = Array.isArray(institutionsResponse) ? institutionsResponse : (institutionsResponse?.data || [])
-      const institutionProfile = institutions.find((i: any) => i.user_id === userId)
+      const institutionProfile = await api.institutions.getByUserId(userId)
+    
       
       if (!institutionProfile) {
         router.push('/institution/profile-setup')
