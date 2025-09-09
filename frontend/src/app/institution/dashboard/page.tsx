@@ -421,20 +421,14 @@ export default function InstitutionDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 relative">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       {/* Header */}
-      <header className="bg-slate-900/95 backdrop-blur-xl shadow-2xl border-b border-slate-700/50 relative z-10">
-        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
+      <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
+        <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <Link href="/" className="flex items-center space-x-2 group">
               <Logo size="md" />
-              <span className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Calxmap</span>
+              <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Calxmap</span>
             </Link>
             
             <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 lg:gap-4">
@@ -448,7 +442,7 @@ export default function InstitutionDashboard() {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8 relative z-10">
+      <div className='container mx-auto px-4 py-8 relative z-10'>
         {error && (
           <Alert variant="destructive" className="mb-6 bg-red-50/90 backdrop-blur-md border-red-200">
             <AlertDescription>{error}</AlertDescription>
@@ -458,15 +452,15 @@ export default function InstitutionDashboard() {
         {/* Welcome Section */}
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="min-w-0 text-center sm:text-left">
-            <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent mb-4 drop-shadow-2xl">
-              Welcome back, {institution?.name}!
-            </h1>
-            <p className="text-lg sm:text-xl text-slate-300 drop-shadow-lg">
-              Manage your projects, review applications, and connect with qualified experts.
-            </p>
+             <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">
+               Welcome back, {institution?.name}!
+             </h1>
+             <p className="text-lg sm:text-xl text-slate-600">
+               Manage your projects, review applications, and connect with qualified experts.
+             </p>
           </div>
           <Dialog open={showProjectForm} onOpenChange={setShowProjectForm}>
-            <Button className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-2xl hover:shadow-3xl hover:shadow-blue-500/25 transition-all duration-300 w-full sm:w-auto border-2 border-blue-400/20 hover:border-blue-400/40" onClick={handleCreateProject}>
+            <Button className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300 w-full sm:w-auto" onClick={handleCreateProject}>
               <Plus className="h-4 w-4 mr-2" />
               Post New Project
             </Button>
@@ -755,70 +749,70 @@ export default function InstitutionDashboard() {
 
         {/* Stats Cards */}
         <div className="grid md:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-white/90 backdrop-blur-md border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Projects</p>
-                  <p className="text-2xl font-bold text-gray-900">{projects.length}</p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-sm font-medium text-slate-600">Total Projects</p>
+                  <p className="text-2xl font-bold text-slate-900">{projects.length}</p>
+                  <p className="text-xs text-slate-500">
                     {projects.filter(p => p.status === 'open').length} open
                   </p>
                 </div>
-                <div className="p-3 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full shadow-lg">
+                <div className="p-3 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-full">
                   <Briefcase className="h-8 w-8 text-white" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/90 backdrop-blur-md border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
-                                  <div>
-                    <p className="text-sm font-medium text-gray-600">Applications</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {projects.reduce((total, project) => total + (project.applicationCounts?.total || 0), 0)}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {projects.reduce((total, project) => total + (project.applicationCounts?.pending || 0), 0)} pending
-                    </p>
-                  </div>
-                <div className="p-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full shadow-lg">
+                <div>
+                  <p className="text-sm font-medium text-slate-600">Applications</p>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {projects.reduce((total, project) => total + (project.applicationCounts?.total || 0), 0)}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {projects.reduce((total, project) => total + (project.applicationCounts?.pending || 0), 0)} pending
+                  </p>
+                </div>
+                <div className="p-3 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-full">
                   <Users className="h-8 w-8 text-white" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/90 backdrop-blur-md border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Active Bookings</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-sm font-medium text-slate-600">Active Bookings</p>
+                  <p className="text-2xl font-bold text-slate-900">
                     {bookingCounts.in_progress}
                   </p>
-                  <p className="text-xs text-gray-500">in progress</p>
+                  <p className="text-xs text-slate-500">in progress</p>
                 </div>
-                <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full shadow-lg">
+                <div className="p-3 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-full">
                   <BookOpen className="h-8 w-8 text-white" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/90 backdrop-blur-md border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Completed</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-sm font-medium text-slate-600">Completed</p>
+                  <p className="text-2xl font-bold text-slate-900">
                     {bookingCounts.completed}
                   </p>
-                  <p className="text-xs text-gray-500">bookings</p>
+                  <p className="text-xs text-slate-500">bookings</p>
                 </div>
-                <div className="p-3 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full shadow-lg">
+                <div className="p-3 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-full">
                   <CheckCircle className="h-8 w-8 text-white" />
                 </div>
               </div>
@@ -847,70 +841,66 @@ export default function InstitutionDashboard() {
         </div>
 
         {/* Main Content */}
-        <Tabs defaultValue="projects" className="space-y-6">
-      
-
-          {/* Projects Tab */}
-          <TabsContent value="projects">
-            <Card>
-              <CardHeader>
-                <CardTitle>My Projects</CardTitle>
-                <CardDescription>
-                  Manage your posted projects and track their progress
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {projects.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Briefcase className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600">No projects posted yet</p>
-                    <p className="text-sm text-gray-500">Create your first project to find experts</p>
-                    <Button className="mt-4" onClick={handleCreateProject}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Post Your First Project
-                    </Button>
-                  </div>
+        <div className="space-y-6">
+          <Card className="bg-white border-2 border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
+            <CardHeader>
+              <CardTitle className="text-2xl font-bold text-slate-900">My Projects</CardTitle>
+              <CardDescription className="text-slate-600">
+                Manage your posted projects and track their progress
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {projects.length === 0 ? (
+                <div className="text-center py-8">
+                  <Briefcase className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                  <p className="text-slate-600">No projects posted yet</p>
+                  <p className="text-sm text-slate-500">Create your first project to find experts</p>
+                  <Button className="mt-4 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300" onClick={handleCreateProject}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Post Your First Project
+                  </Button>
+                </div>
                 ) : (
                   <div className="space-y-4">
                     {projects.map((project: any) => (
                       <div 
                         key={project.id} 
-                        className="border rounded-lg p-4 hover:shadow-md transition-shadow"
+                        className="bg-white border-2 border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all duration-300 group"
                       >
                         <div className="flex items-center justify-between mb-2 min-w-0">
-                          <h3 className="font-semibold text-lg truncate pr-2">{project.title}</h3>
+                          <h3 className="font-semibold text-lg text-slate-900 truncate pr-2">{project.title}</h3>
                           <div className="flex items-center space-x-2 flex-shrink-0">
-                            <Badge variant="outline" className="capitalize">{project.status}</Badge>
-                            <Badge variant="secondary" className="capitalize">{project.type}</Badge>
+                            <Badge variant="outline" className="capitalize border-slate-300 text-slate-700">{project.status}</Badge>
+                            <Badge variant="secondary" className="capitalize bg-slate-100 text-slate-700">{project.type}</Badge>
                           </div>
                         </div>
-                        <p className="text-sm text-gray-600 mb-3 line-clamp-2">{project.description}</p>
+                        <p className="text-sm text-slate-600 mb-3 line-clamp-2">{project.description}</p>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-sm">
                           <div>
-                            <span className="text-gray-500">Rate:</span>
-                            <p className="font-medium">₹{project.hourly_rate}/hour</p>
+                            <span className="text-slate-500">Rate:</span>
+                            <p className="font-medium text-slate-900">₹{project.hourly_rate}/hour</p>
                           </div>
                           <div>
-                            <span className="text-gray-500">Duration:</span>
-                            <p className="font-medium">{project.duration_hours} hours</p>
+                            <span className="text-slate-500">Duration:</span>
+                            <p className="font-medium text-slate-900">{project.duration_hours} hours</p>
                           </div>
                           <div>
-                            <span className="text-gray-500">Budget:</span>
-                            <p className="font-medium">₹{project.total_budget}</p>
+                            <span className="text-slate-500">Budget:</span>
+                            <p className="font-medium text-slate-900">₹{project.total_budget}</p>
                           </div>
                           <div>
-                            <span className="text-gray-500">Applications:</span>
-                            <p className="font-medium">
+                            <span className="text-slate-500">Applications:</span>
+                            <p className="font-medium text-slate-900">
                               {project.applicationCounts?.total}
                             </p>
                           </div>
                         </div>
                         {project.required_expertise && project.required_expertise.length > 0 && (
                           <div className="mb-4">
-                            <span className="text-sm text-gray-500">Required Expertise:</span>
+                            <span className="text-sm text-slate-500">Required Expertise:</span>
                             <div className="flex flex-wrap gap-2 mt-1">
                               {project.required_expertise.map((skill: string, index: number) => (
-                                <Badge key={index} variant="secondary" className="text-xs">
+                                <Badge key={index} variant="secondary" className="text-xs bg-slate-100 text-slate-700">
                                   {skill}
                                 </Badge>
                               ))}
@@ -918,26 +908,26 @@ export default function InstitutionDashboard() {
                           </div>
                         )}
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm text-slate-500">
                             Posted: {new Date(project.created_at).toLocaleDateString()}
                           </div>
                           <div className="flex flex-wrap gap-2">
                             <Button 
                               size="sm" 
                               variant="outline" 
-                              className="flex-1 sm:flex-none"
+                              className="flex-1 sm:flex-none border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50 text-slate-700 hover:text-blue-700"
                               onClick={() => handleViewApplications(project)}
                               disabled={!project.applicationCounts?.total}
                             >
                               <Eye className="h-4 w-4 mr-2" />
                               View Applications ({project.applicationCounts?.pending || 0})
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => handleEditProject(project)} className="flex-1 sm:flex-none">
+                            <Button size="sm" variant="outline" onClick={() => handleEditProject(project)} className="flex-1 sm:flex-none border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50 text-slate-700 hover:text-blue-700">
                               <Edit className="h-4 w-4 mr-2" />
                               Edit
                             </Button>
                             {project.status === 'open' && (
-                              <Button size="sm" variant="outline" onClick={() => handleCloseProject(project.id)} className="flex-1 sm:flex-none">
+                              <Button size="sm" variant="outline" onClick={() => handleCloseProject(project.id)} className="flex-1 sm:flex-none border-2 border-slate-300 hover:border-red-400 hover:bg-red-50 text-slate-700 hover:text-red-700">
                                 <XCircle className="h-4 w-4 mr-2" />
                                 Close
                               </Button>
@@ -960,81 +950,18 @@ export default function InstitutionDashboard() {
                             return () => observer.disconnect();
                           }
                         }}
-                        className="text-center py-4 text-sm text-gray-500"
+                        className="text-center py-4 text-sm text-slate-500"
                       >
                         Loading more projects...
                       </div>
                     )}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Applications Tab */}
-        
-
-        
-
-          {/* Notifications Tab */}
-          {/* <TabsContent value="notifications">
-            <Card>
-              <CardHeader>
-                <CardTitle>Notifications</CardTitle>
-                <CardDescription>
-                  Stay updated on project applications and expert activities
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {applications.length > 0 ? (
-                    applications.map((application) => {
-                      const project = projects.find(p => p.id === application.project_id)
-                      const expert: any = experts.find((e: any) => e.id === application.expert_id)
-                      return (
-                        <div key={application.id} className="flex items-start space-x-3 p-4 border rounded-lg">
-                          <Bell className="h-5 w-5 text-blue-600 mt-0.5" />
-                          <div className="flex-1">
-                            <p className="text-sm font-medium">
-                              New Application Received
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              {expert?.name} applied to "{project?.title}"
-                            </p>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {new Date(application.applied_at).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <Badge className={getApplicationStatusColor(application.status)}>
-                            {application.status}
-                          </Badge>
-                        </div>
-                      )
-                    })
-                  ) : (
-                    <div className="text-center py-8">
-                      <Bell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600">No notifications yet</p>
-                      <p className="text-sm text-gray-500">You'll receive updates when experts apply to your projects</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent> */}
-
-          {/* Profile Tab */}
-
-
-
-
-
-
-
-              
-        </Tabs>
+            </CardContent>
+          </Card>
+        </div>
+        </div>
       </div>
-
-    </div>
+    
   )
 }
