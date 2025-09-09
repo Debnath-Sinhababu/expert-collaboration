@@ -259,6 +259,7 @@ export default function ExpertHome() {
         setShowApplicationModal(false)
         setSelectedProjectId(null)
         refreshProjects()
+        loadRecommendedProjects()
         // Clear success message after 3 seconds
         setTimeout(() => setSuccess(''), 3000)
         // Note: Projects will automatically refresh due to usePagination dependencies

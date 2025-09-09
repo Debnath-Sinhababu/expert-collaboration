@@ -168,8 +168,13 @@ export default function ExpertProjectPage() {
   // Check if user has already applied
   const checkApplicationStatus = async () => {
     try {
-      const applications = await api.applications.getAll({ project_id: projectId })
-      setHasApplied(applications.length > 0)
+      if (!expert?.id) return
+      
+      const applications = await api.applications.getAll({ 
+        project_id: projectId,
+        expert_id: expert.id 
+      })
+      setHasApplied(applications?.data?.length > 0)
     } catch (err) {
       console.error('Error checking application status:', err)
     }
@@ -221,9 +226,15 @@ export default function ExpertProjectPage() {
   useEffect(() => {
     if (projectId) {
       loadProjectDetails()
-      checkApplicationStatus()
     }
   }, [projectId])
+
+  // Check application status when both project and expert are available
+  useEffect(() => {
+    if (projectId && expert?.id) {
+      checkApplicationStatus()
+    }
+  }, [projectId, expert])
 
   // Load similar projects when both project and expert data are available
   useEffect(() => {
@@ -433,10 +444,10 @@ export default function ExpertProjectPage() {
             {/* Apply Button */}
             <div className="border-t pt-6">
               {hasApplied ? (
-                <div className="flex items-center space-x-2 text-green-600">
-                  <CheckCircle className="h-5 w-5" />
-                  <span className="font-medium">You have already applied to this project</span>
-                </div>
+                 <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-medium shadow-sm hover:shadow-md transition-all duration-200">
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                 Applied
+               </Button>
               ) : (
                 <Dialog>
                   <DialogTrigger asChild>
