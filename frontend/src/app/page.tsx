@@ -116,34 +116,34 @@ export default function Home() {
       {/* Clean Modern Header */}
       <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex justify-between items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             {/* Logo & Brand */}
             <div className="flex items-center space-x-4 group">
               <div className="relative">
                 <Logo size="md" />
               </div>
               <div className="relative">
-                <span className="text-2xl font-bold text-white group-hover:text-blue-100 transition-all duration-300">
+                <span className="text-xl sm:text-2xl font-bold text-white group-hover:text-blue-100 transition-all duration-300">
                  Calxmap
                 </span>
-                <p className="text-xs text-blue-100 font-medium group-hover:text-white transition-colors duration-300">knowledge sharing networking platform</p>
+                <p className="text-xs text-blue-100 font-medium group-hover:text-white transition-colors duration-300 hidden sm:block">knowledge sharing networking platform</p>
               </div>
             </div>
             
             {/* Navigation & CTA */}
-            <div className="flex items-center flex-wrap gap-2">
+            <div className="flex items-center justify-center sm:justify-end gap-2 flex-wrap">
               <Link href="/contact-us">
-                <Button variant="ghost" className="font-medium text-white hover:text-blue-100 hover:bg-white/10 border border-transparent hover:border-white/20 transition-all duration-300 px-4 py-2">
+                <Button variant="ghost" className="font-medium text-white hover:text-blue-100 hover:bg-white/10 border border-transparent hover:border-white/20 transition-all duration-300 px-3 py-2 text-sm sm:text-base">
                   Contact Us
                 </Button>
               </Link>
               <Link href="/auth/login">
-                <Button variant="ghost" className="font-medium text-white hover:text-blue-100 hover:bg-white/10 border border-transparent hover:border-white/20 transition-all duration-300 px-4 py-2">
+                <Button variant="ghost" className="font-medium text-white hover:text-blue-100 hover:bg-white/10 border border-transparent hover:border-white/20 transition-all duration-300 px-3 py-2 text-sm sm:text-base">
                   Sign In
                 </Button>
               </Link>
               <Link href="/auth/signup">
-                <Button className="bg-white hover:bg-blue-50 text-slate-900 hover:text-blue-900 font-medium shadow-sm hover:shadow-md transition-all duration-300 px-4 py-2">
+                <Button className="bg-white hover:bg-blue-50 text-slate-900 hover:text-blue-900 font-medium shadow-sm hover:shadow-md transition-all duration-300 px-3 py-2 text-sm sm:text-base">
                  Sign Up
                 </Button>
               </Link>
@@ -214,14 +214,14 @@ export default function Home() {
      
         <>
           {/* Hero Section */}
-          <section className="mt-16">
-            <div className="container mx-auto px-4">
+          <section className="py-12 lg:py-16">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className="max-w-6xl mx-auto text-center">
                 <div className="flex justify-center mb-8">
                   <Logo size="lg" />
                 </div>
                 
-                <h1 className="text-5xl lg:text-7xl font-bold text-slate-900 mb-6 leading-tight">
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-900 mb-6 leading-tight">
                   Hire
                   <span className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent"> Experts.</span>
                   <br />
@@ -229,7 +229,7 @@ export default function Home() {
                   <span className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent"> Anywhere.</span>
                 </h1>
                 
-                <p className="text-xl lg:text-2xl text-slate-600 mb-12 max-w-4xl mx-auto leading-relaxed">
+                <p className="text-lg sm:text-xl lg:text-2xl text-slate-600 mb-12 max-w-4xl mx-auto leading-relaxed">
                   Calxmap is India's leading <strong className="text-blue-700">Expert Marketplace</strong>, connecting corporates and universities with verified professionals — from <strong className="text-blue-700">Chartered Accountants and Corporate Lawyers</strong> to <strong className="text-blue-700">Industry Trainers and Technologists</strong>.
                 </p>
 
@@ -291,12 +291,12 @@ export default function Home() {
           </section>
 
           {/* About Calxmap Section */}
-          <section className="mt-20">
-            <div className="container mx-auto px-4">
+          <section className="py-12 lg:py-16">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className="bg-white border-2 border-slate-200 rounded-2xl p-8 shadow-sm">
               <div className="text-center mb-16">
-                  <h2 className="text-4xl font-bold text-slate-900 mb-4">About Calxmap</h2>
-                  <p className="text-xl text-slate-600 max-w-4xl mx-auto mb-8">
+                  <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-bold text-slate-900 mb-4">About Calxmap</h2>
+                  <p className="text-lg sm:text-xl text-slate-600 max-w-4xl mx-auto mb-8">
                     At Calxmap, we believe knowledge creates opportunity. We are an <strong className="text-blue-700">Expert Marketplace</strong> that enables corporates and academic institutions to access verified professionals on-demand.
                 </p>
                 <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto text-left">
@@ -363,12 +363,12 @@ export default function Home() {
           </section>
 
           {/* Audience-Specific Sections */}
-          <section className="mt-20">
-            <div className="container mx-auto px-4">
+          <section className="py-12 lg:py-16">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className="p-8">
               <div className="text-center mb-16">
-                  <h2 className="text-4xl font-bold text-slate-900 mb-4">Built for Every Stakeholder</h2>
-                  <p className="text-xl text-slate-600 max-w-3xl mx-auto">
+                  <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-bold text-slate-900 mb-4">Built for Every Stakeholder</h2>
+                  <p className="text-lg sm:text-xl text-slate-600 max-w-3xl mx-auto">
                   Whether you're an expert, university, or corporation, we have tailored solutions for your needs.
                 </p>
               </div>
@@ -491,11 +491,11 @@ export default function Home() {
 
           {/* How It Works Section */}
           <section id="how-it-works" className="mt-20">
-            <div className="container mx-auto px-4">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className=" p-8">
               <div className="text-center mb-16">
-                  <h2 className="text-4xl font-bold text-slate-900 mb-4">How It Works</h2>
-                  <p className="text-xl text-slate-600 max-w-3xl mx-auto">
+                  <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-bold text-slate-900 mb-4">How It Works</h2>
+                  <p className="text-lg sm:text-xl text-slate-600 max-w-3xl mx-auto">
                   Simple, secure, and streamlined process for connecting expertise with opportunities
                 </p>
               </div>
@@ -537,18 +537,18 @@ export default function Home() {
 
           {/* Statistics Section */}
           <section ref={statsRef} className="mt-20">
-            <div className="container mx-auto px-4">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className="p-8">
               <div className="text-center mb-16">
-                  <h2 className="text-4xl font-bold text-slate-900 mb-4">Trusted by Leading Institutions</h2>
-                  <p className="text-xl text-slate-600 max-w-3xl mx-auto">
+                  <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-bold text-slate-900 mb-4">Trusted by Leading Institutions</h2>
+                  <p className="text-lg sm:text-xl text-slate-600 max-w-3xl mx-auto">
                   Join thousands of experts and institutions already transforming collaboration
                 </p>
               </div>
 
               <div className="grid md:grid-cols-4 gap-8">
                 <div className="text-center group">
-                    <div className="text-5xl font-bold mb-2 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent group-hover:scale-110 transition-transform">
+                    <div className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-2 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent group-hover:scale-110 transition-transform">
                     {inView ? (
                       <CountUp 
                         start={0} 
@@ -566,7 +566,7 @@ export default function Home() {
                     <div className="w-2 h-2 bg-blue-500 rounded-full mx-auto mt-3 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 </div>
                 <div className="text-center group">
-                    <div className="text-5xl font-bold mb-2 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent group-hover:scale-110 transition-transform">
+                    <div className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-2 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent group-hover:scale-110 transition-transform">
                     {inView ? (
                       <CountUp 
                         start={0} 
@@ -584,7 +584,7 @@ export default function Home() {
                     <div className="w-2 h-2 bg-blue-500 rounded-full mx-auto mt-3 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 </div>
                 <div className="text-center group">
-                    <div className="text-5xl font-bold mb-2 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent group-hover:scale-110 transition-transform">
+                    <div className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-2 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent group-hover:scale-110 transition-transform">
                     {inView ? (
                       <CountUp 
                         start={0} 
@@ -602,7 +602,7 @@ export default function Home() {
                     <div className="w-2 h-2 bg-blue-500 rounded-full mx-auto mt-3 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 </div>
                 <div className="text-center group">
-                    <div className="text-5xl font-bold mb-2 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent group-hover:scale-110 transition-transform">
+                    <div className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-2 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent group-hover:scale-110 transition-transform">
                     {inView ? (
                       <CountUp 
                         start={0} 
@@ -626,16 +626,16 @@ export default function Home() {
           </section>
 
           {/* CSR & Initiatives Section */}
-          <section className="mt-20">
-            <div className="container mx-auto px-4">
+          <section className="py-12 lg:py-16">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className="p-8">
               <div className="text-center mb-16">
                   <div className="inline-flex items-center space-x-2 bg-blue-50 border-2 border-blue-200 px-6 py-3 rounded-full text-sm font-medium mb-6">
                     <Globe className="h-5 w-5 text-blue-600" />
                     <span className="text-blue-700">CSR & Social Impact</span>
                 </div>
-                  <h2 className="text-4xl font-bold text-slate-900 mb-4">Sikshit – Parshiksit – Viksit Bharat</h2>
-                  <p className="text-xl text-slate-600 max-w-4xl mx-auto mb-8">
+                  <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-bold text-slate-900 mb-4">Sikshit – Parshiksit – Viksit Bharat</h2>
+                  <p className="text-lg sm:text-xl text-slate-600 max-w-4xl mx-auto mb-8">
                     In collaboration with <strong className="text-blue-700">STPI</strong>, Calxmap is running a <strong className="text-blue-700">₹1000 Cr CSR initiative</strong> to provide free access to training and expert-driven education for government institutions.
                 </p>
               </div>
@@ -697,12 +697,12 @@ export default function Home() {
           </section>
 
           {/* Featured Universities */}
-          <section className="mt-20">
-            <div className="container mx-auto px-4">
+          <section className="py-12 lg:py-16">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className="p-8">
               <div className="text-center mb-16">
-                  <h2 className="text-4xl font-bold text-slate-900 mb-4">Featured Universities</h2>
-                  <p className="text-xl text-slate-600">
+                  <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-bold text-slate-900 mb-4">Featured Universities</h2>
+                  <p className="text-lg sm:text-xl text-slate-600">
                   Leading educational institutions already transforming collaboration
                 </p>
               </div>
@@ -753,12 +753,12 @@ export default function Home() {
           </section>
 
           {/* Featured Experts */}
-          <section className="mt-20">
-            <div className="container mx-auto px-4">
+          <section className="py-12 lg:py-16">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className="p-8">
               <div className="text-center mb-16">
-                  <h2 className="text-4xl font-bold text-slate-900 mb-4">Featured Experts</h2>
-                  <p className="text-xl text-slate-600">
+                  <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-bold text-slate-900 mb-4">Featured Experts</h2>
+                  <p className="text-lg sm:text-xl text-slate-600">
                   Meet our top-rated professionals ready to share their expertise
                 </p>
               </div>
@@ -817,25 +817,25 @@ export default function Home() {
           </section>
 
           {/* Student Feedback & Analytics Section */}
-          <section className="mt-20">
-            <div className="container mx-auto px-4">
-              <div className="p-8">
-              <div className="text-center mb-16">
-                  <h2 className="text-4xl font-bold text-slate-900 mb-4">Student Feedback & Analytics</h2>
-                  <p className="text-xl text-slate-600 max-w-3xl mx-auto">
+          <section className="py-12 lg:py-16">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="p-4 sm:p-6 lg:p-8">
+              <div className="text-center mb-12 sm:mb-16">
+                  <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-bold text-slate-900 mb-4">Student Feedback & Analytics</h2>
+                  <p className="text-lg sm:text-xl text-slate-600 max-w-3xl mx-auto">
                   Empowering students to share their voice and administrators to make data-driven decisions
                 </p>
               </div>
 
-              <div className="grid lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 max-w-6xl mx-auto">
                 {/* Student Feedback Portal */}
                   <Card className="bg-white border-2 border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 group hover:border-blue-300">
                   <CardHeader className="text-center pb-6">
                       <div className="w-20 h-20 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
                       <BookOpen className="h-10 w-10 text-white" />
                     </div>
-                      <CardTitle className="text-3xl font-bold text-slate-900 mb-4">Student Feedback Portal</CardTitle>
-                      <CardDescription className="text-slate-600 text-lg">
+                      <CardTitle className="text-2xl sm:text-3xl font-bold text-slate-900 mb-4">Student Feedback Portal</CardTitle>
+                      <CardDescription className="text-slate-600 text-base sm:text-lg">
                       Share your valuable feedback on expert sessions and help improve learning experiences
                     </CardDescription>
                   </CardHeader>
@@ -855,7 +855,7 @@ export default function Home() {
                       </div>
                     </div>
                     <Link href="/student-feedback">
-                        <Button size="lg" className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-bold text-lg px-8 py-6 shadow-sm hover:shadow-md transition-all duration-300">
+                        <Button size="lg" className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-bold text-base sm:text-lg px-6 sm:px-8 py-4 sm:py-6 shadow-sm hover:shadow-md transition-all duration-300 w-full sm:w-auto">
                         Access Feedback Portal
                         <ArrowRight className="ml-2 h-5 w-5" />
                       </Button>
@@ -869,8 +869,8 @@ export default function Home() {
                       <div className="w-20 h-20 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
                       <BarChart3 className="h-10 w-10 text-white" />
                     </div>
-                      <CardTitle className="text-3xl font-bold text-slate-900 mb-4">Analytics Dashboard</CardTitle>
-                      <CardDescription className="text-slate-600 text-lg">
+                      <CardTitle className="text-2xl sm:text-3xl font-bold text-slate-900 mb-4">Analytics Dashboard</CardTitle>
+                      <CardDescription className="text-slate-600 text-base sm:text-lg">
                       Comprehensive insights and analytics for administrators and educators
                     </CardDescription>
                   </CardHeader>
@@ -890,7 +890,7 @@ export default function Home() {
                       </div>
                     </div>
                     <Link href="/admin/feedback-analytics">
-                        <Button size="lg" className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-bold text-lg px-8 py-6 shadow-sm hover:shadow-md transition-all duration-300">
+                        <Button size="lg" className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-bold text-base sm:text-lg px-6 sm:px-8 py-4 sm:py-6 shadow-sm hover:shadow-md transition-all duration-300 w-full sm:w-auto">
                         View Analytics
                         <ArrowRight className="ml-2 h-5 w-5" />
                       </Button>
@@ -904,10 +904,10 @@ export default function Home() {
 
           {/* Call-to-Action Section */}
           <section className="py-20">
-            <div className="container mx-auto px-4">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className="bg-white border-2 border-slate-200 rounded-2xl p-8 shadow-sm text-center">
-                <h2 className="text-5xl font-bold text-slate-900 mb-6">Ready to hire your next expert?</h2>
-                <p className="text-xl text-slate-600 mb-12 max-w-4xl mx-auto">
+                <h2 className="text-3xl sm:text-4xl lg:text-[40px]  font-bold text-slate-900 mb-6">Ready to hire your next expert?</h2>
+                <p className="text-lg sm:text-xl text-slate-600 mb-12 max-w-4xl mx-auto">
                 Whether you're a corporate seeking on-demand professionals or a university bridging industry knowledge, 
                   <strong className="text-blue-700"> Calxmap is your partner for expert-driven success.</strong>
               </p>
