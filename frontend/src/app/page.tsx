@@ -114,7 +114,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 overflow-x-hidden">
       {/* Clean Modern Header */}
-      <header className={`${scrolled ? 'bg-white/95 shadow-lg border-slate-200' : 'bg-white/90 shadow-sm border-slate-100'} backdrop-blur-xl border-b sticky top-0 left-0 z-50 w-full transition-all duration-500`}>
+      <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center gap-2">
             {/* Logo & Brand */}
@@ -123,27 +123,27 @@ export default function Home() {
                 <Logo size="md" />
               </div>
               <div className="relative">
-                <span className="text-2xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent group-hover:from-slate-800 group-hover:via-blue-800 group-hover:to-indigo-800 transition-all duration-300">
+                <span className="text-2xl font-bold text-white group-hover:text-blue-100 transition-all duration-300">
                  Calxmap
                 </span>
-                <p className="text-xs text-slate-600 font-medium group-hover:text-slate-700 transition-colors duration-300">knowledge sharing networking platform</p>
+                <p className="text-xs text-blue-100 font-medium group-hover:text-white transition-colors duration-300">knowledge sharing networking platform</p>
               </div>
             </div>
             
             {/* Navigation & CTA */}
             <div className="flex items-center flex-wrap gap-2">
               <Link href="/contact-us">
-                <Button variant="ghost" className="font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-200 transition-all duration-300 px-4 py-2">
+                <Button variant="ghost" className="font-medium text-white hover:text-blue-100 hover:bg-white/10 border border-transparent hover:border-white/20 transition-all duration-300 px-4 py-2">
                   Contact Us
                 </Button>
               </Link>
               <Link href="/auth/login">
-                <Button variant="ghost" className="font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-200 transition-all duration-300 px-4 py-2">
+                <Button variant="ghost" className="font-medium text-white hover:text-blue-100 hover:bg-white/10 border border-transparent hover:border-white/20 transition-all duration-300 px-4 py-2">
                   Sign In
                 </Button>
               </Link>
               <Link href="/auth/signup">
-                <Button className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-medium shadow-sm hover:shadow-md transition-all duration-300 px-4 py-2">
+                <Button className="bg-white hover:bg-blue-50 text-slate-900 hover:text-blue-900 font-medium shadow-sm hover:shadow-md transition-all duration-300 px-4 py-2">
                  Sign Up
                 </Button>
               </Link>
