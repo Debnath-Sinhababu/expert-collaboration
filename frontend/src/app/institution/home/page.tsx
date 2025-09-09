@@ -547,7 +547,7 @@ export default function InstitutionHome() {
   }
 
   return (
-    <div className="bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30">
+    <div className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       {/* Header */}
       <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -555,7 +555,7 @@ export default function InstitutionHome() {
             {/* Logo */}
             <Link href="/" className="flex items-center space-x-2 group">
               <Logo size="md" />
-              <span className="text-xl font-bold bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent group-hover:from-blue-200 group-hover:to-white transition-all duration-300">Calxmap</span>
+              <span className="text-xl font-bold text-white group-hover:text-blue-100 transition-all duration-300">Calxmap</span>
             </Link>
 
             {/* Navigation */}
@@ -587,10 +587,10 @@ export default function InstitutionHome() {
 
       {/* Partnered Institutions Banner */}
       {partneredInstitutions.length > 0 && (
-        <div className="bg-gradient-to-r from-slate-50 via-blue-50/30 to-indigo-50/30 py-8">
+        <div className="bg-gradient-to-r from-slate-50 via-blue-50 to-indigo-100 py-8">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold text-slate-900 mb-2">
+              <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">
                 Partnered Institutions
               </h2>
               <p className="text-slate-600">
@@ -628,7 +628,7 @@ export default function InstitutionHome() {
                     
                     return (
                       <CarouselItem key={institution.id} className="pl-2 basis-full sm:basis-1/2 lg:basis-1/2">
-                        <div className="relative h-64 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
+                        <div className="relative h-64 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 group">
                           {/* Background Image */}
                           <div 
                             className="absolute inset-0 bg-cover bg-center bg-no-repeat"
@@ -672,21 +672,26 @@ export default function InstitutionHome() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">
+          <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4 leading-tight">
             Welcome back, {institution?.name}!
           </h1>
-          <p className="text-slate-600">
+          <p className="text-lg sm:text-xl text-slate-600 leading-relaxed">
             Connect with top experts and create impactful learning experiences
           </p>
         </div>
 
         {/* Post Requirement Section */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl shadow-sm border border-blue-200 p-6 mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-slate-900">Post a New Requirement</h2>
+        <div className="bg-white rounded-2xl shadow-sm border-2 border-slate-200 p-8 mb-8">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">Post a New Requirement</h2>
+              <p className="text-slate-600 text-lg">
+                Create opportunities for experts to collaborate with your institution
+              </p>
+            </div>
             <Dialog open={showProjectForm} onOpenChange={setShowProjectForm}>
               <DialogTrigger asChild>
-                <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg">
+                <Button className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300">
                   <Plus className="h-4 w-4 mr-2" />
                   Post Requirement
                 </Button>
@@ -843,7 +848,7 @@ export default function InstitutionHome() {
                   <Button 
                     onClick={handleCreateProject}
                     disabled={submittingProject}
-                    className="bg-blue-600 hover:bg-blue-700"
+                    className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
                   >
                     {submittingProject ? 'Creating...' : 'Create Project'}
                   </Button>
@@ -851,13 +856,10 @@ export default function InstitutionHome() {
               </DialogContent>
             </Dialog>
           </div>
-          <p className="text-slate-600 text-sm">
-            Post your requirements and we'll help you find the perfect experts for your needs
-          </p>
         </div>
 
         {/* Search and Filters */}
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-8">
+        <div className="bg-white rounded-2xl shadow-sm border-2 border-slate-200 p-8 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <Label htmlFor="search">Search Experts</Label>
@@ -916,10 +918,15 @@ export default function InstitutionHome() {
 
         {/* Experts Carousel */}
         <div className="mb-8">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-slate-900">
-              Featured Experts ({experts.length})
-            </h2>
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">
+                Featured Experts
+              </h2>
+              <p className="text-slate-600 text-lg">
+                Discover top-rated professionals ready to collaborate ({experts.length} available)
+              </p>
+            </div>
           </div>
 
           {experts.length === 0 ? (
@@ -943,12 +950,12 @@ export default function InstitutionHome() {
               <CarouselContent className="-ml-2 md:-ml-4">
                 {experts.map((expert) => (
                   <CarouselItem key={expert.id} className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3">
-                    <Card className="hover:shadow-lg transition-shadow duration-300">
+                    <Card className="bg-white border-2 border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 group hover:border-blue-300">
                       <CardHeader>
                         <div className="flex items-start space-x-3">
                           <Avatar className="w-12 h-12">
                             <AvatarImage src={expert.photo_url} alt={expert.name} />
-                            <AvatarFallback className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+                            <AvatarFallback className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">
                               {expert.name?.charAt(0) || 'E'}
                             </AvatarFallback>
                           </Avatar>
@@ -967,7 +974,7 @@ export default function InstitutionHome() {
                       </CardHeader>
                       
                       <CardContent>
-                        <CardDescription className="line-clamp-2 mb-4">
+                        <CardDescription className="truncate mb-4">
                           {expert.bio}
                         </CardDescription>
                         
@@ -1000,13 +1007,13 @@ export default function InstitutionHome() {
                         )}
 
                         <div className="flex space-x-2">
-                          <Button className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white">
+                          <Button className="flex-1 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300">
                             <UserCheck className="h-4 w-4 mr-2" />
                             Select Expert
                           </Button>
                           <Dialog>
                             <DialogTrigger asChild>
-                              <Button variant="outline" size="icon" className="border-slate-300">
+                              <Button variant="outline" size="icon" className="border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50 transition-all duration-300">
                                 <Eye className="h-4 w-4" />
                               </Button>
                             </DialogTrigger>
@@ -1019,13 +1026,13 @@ export default function InstitutionHome() {
                                 <div className="flex items-center space-x-4 mb-4">
                                   <Avatar className="w-16 h-16 border-2 border-blue-200 flex-shrink-0">
                                     <AvatarImage src={expert.photo_url} />
-                                    <AvatarFallback className="text-xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+                                    <AvatarFallback className="text-xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">
                                       {expert.name?.charAt(0) || 'E'}
                                     </AvatarFallback>
                                   </Avatar>
                                   <div className="min-w-0 flex-1">
                                     <h4 className="font-semibold text-lg truncate">{expert.name}</h4>
-                                    <p className="text-sm text-gray-600 truncate">{expert.domain_expertise}</p>
+                                    <p className="text-sm text-gray-600 truncate">{expert.domain_expertise?.join(', ')}</p>
                                   </div>
                                 </div>
                                 <div className="max-h-32 overflow-y-auto">
@@ -1035,7 +1042,7 @@ export default function InstitutionHome() {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                   <div>
                                     <h4 className="font-medium mb-1">Domain Expertise</h4>
-                                    <p className="text-sm">{expert.domain_expertise}</p>
+                                    <p className="text-sm">{expert.domain_expertise?.join(', ')}</p>
                                   </div>
                                   <div>
                                     <h4 className="font-medium mb-1">Hourly Rate</h4>
@@ -1241,7 +1248,7 @@ export default function InstitutionHome() {
                 <Button 
                   onClick={handleSelectExperts}
                   disabled={selectedExperts.length === 0}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
                 >
                   Select Experts ({selectedExperts.length})
                 </Button>
