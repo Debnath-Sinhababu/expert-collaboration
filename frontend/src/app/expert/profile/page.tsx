@@ -365,36 +365,29 @@ export default function ExpertProfile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-400 mx-auto mb-4"></div>
-          <p className="text-slate-300">Loading profile...</p>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading profile...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 relative py-8">
-      {/* Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-20 w-64 h-64 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
-      </div>
-      
-      <div className="container mx-auto px-4 max-w-6xl relative z-10">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      <div className="container mx-auto px-4 max-w-6xl py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <Link href="/expert/dashboard" className="inline-flex items-center space-x-2 text-slate-300 hover:text-white transition-colors duration-300">
-            <ArrowLeft className="h-5 w-5" />
-            <span>Back to Dashboard</span>
+          <Link href="/expert/dashboard" className="inline-flex items-center space-x-2 hover:opacity-80 transition-opacity duration-300">
+            <ArrowLeft className="h-5 w-5 text-blue-500" />
+            <span className="bg-gradient-to-r from-blue-500 to-indigo-500 bg-clip-text text-transparent font-medium">Back to Dashboard</span>
           </Link>
           
           <div className="text-center">
             <Link href="/" className="inline-flex items-center space-x-2 mb-4 group">
-              <GraduationCap className="h-8 w-8 text-blue-400 group-hover:text-blue-300 transition-colors duration-300" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Calxmap</span>
+              <GraduationCap className="h-8 w-8 text-slate-700 group-hover:text-slate-800 transition-colors duration-300" />
+              <span className="text-2xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent group-hover:from-slate-800 group-hover:via-blue-800 group-hover:to-indigo-800 transition-all duration-300">Calxmap</span>
             </Link>
           </div>
           
@@ -402,8 +395,8 @@ export default function ExpertProfile() {
         </div>
 
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent mb-2">Expert Profile</h1>
-          <p className="text-xl text-slate-300">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent mb-2">Expert Profile</h1>
+          <p className="text-xl text-slate-600">
             Manage your professional profile and showcase your expertise
           </p>
         </div>
@@ -411,18 +404,18 @@ export default function ExpertProfile() {
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Profile Summary Card */}
           <div className="lg:col-span-1">
-            <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 hover:scale-[1.02] hover:-translate-y-1" style={{boxShadow: '0 25px 50px -12px rgba(59, 130, 246, 0.25), 0 0 0 1px rgba(59, 130, 246, 0.15)'}}>
+            <Card className="bg-white border-2 border-slate-200 rounded-lg shadow-sm hover:shadow-md hover:border-blue-300 transition-all duration-300">
               <CardContent className="p-6 text-center">
                 <div className="mb-6">
                   <div className="relative">
-                    <Avatar className="w-24 h-24 mx-auto mb-4 border-4 border-blue-200">
+                    <Avatar className="w-24 h-24 mx-auto mb-4 border-2 border-slate-200">
                       <AvatarImage src={expert?.photo_url} />
                       <AvatarFallback className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
                         {expert?.name?.charAt(0) || user?.email?.charAt(0) || 'E'}
                       </AvatarFallback>
                     </Avatar>
                     {editing && (
-                      <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center border-2 border-white shadow-lg">
+                      <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center border-2 border-white shadow-md">
                         <Camera className="h-4 w-4 text-white" />
                       </div>
                     )}
@@ -438,13 +431,13 @@ export default function ExpertProfile() {
                         {expert.subskills.slice(0, 3).map((skill: string) => (
                           <span
                             key={skill}
-                            className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                            className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200"
                           >
                             {skill}
                           </span>
                         ))}
                         {expert.subskills.length > 3 && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-50 text-slate-600 border border-slate-200">
                             +{expert.subskills.length - 3} more
                           </span>
                         )}
@@ -454,13 +447,13 @@ export default function ExpertProfile() {
                   
                   {/* Status Badges */}
                   <div className="flex justify-center space-x-2 mb-4">
-                    <div className="flex items-center space-x-1 px-3 py-1 bg-green-100 rounded-full">
+                    <div className="flex items-center space-x-1 px-3 py-1 bg-green-50 rounded-full border border-green-200">
                       <Shield className="h-4 w-4 text-green-600" />
                       <span className="text-sm text-green-700 font-medium">
                         {expert?.is_verified ? 'Verified' : 'Pending'}
                       </span>
                     </div>
-                    <div className="flex items-center space-x-1 px-3 py-1 bg-blue-100 rounded-full">
+                    <div className="flex items-center space-x-1 px-3 py-1 bg-blue-50 rounded-full border border-blue-200">
                       <Star className="h-4 w-4 text-blue-600" />
                       <span className="text-sm text-blue-700 font-medium">
                         {expert?.rating || 0}/5
@@ -470,8 +463,8 @@ export default function ExpertProfile() {
                 </div>
 
                 {/* Quick Stats */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
                     <div className="flex items-center space-x-2">
                       <DollarSign className="h-5 w-5 text-green-600" />
                       <span className="text-slate-600">Hourly Rate</span>
@@ -479,7 +472,7 @@ export default function ExpertProfile() {
                     <span className="font-bold text-slate-900">₹{expert?.hourly_rate || 0}</span>
                   </div>
                   
-                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
                     <div className="flex items-center space-x-2">
                       <Calendar className="h-5 w-5 text-blue-600" />
                       <span className="text-slate-600">Experience</span>
@@ -487,7 +480,7 @@ export default function ExpertProfile() {
                     <span className="font-bold text-slate-900">{expert?.experience_years || 0} years</span>
                   </div>
                   
-                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
                     <div className="flex items-center space-x-2">
                       <Briefcase className="h-5 w-5 text-purple-600" />
                       <span className="text-slate-600">Projects</span>
@@ -503,7 +496,7 @@ export default function ExpertProfile() {
                       loadExpertData(user.id)
                     }
                   }}
-                  className="w-full mt-6 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-lg hover:shadow-xl hover:shadow-blue-500/25 transition-all duration-300 border-2 border-blue-400/20 hover:border-blue-400/40"
+                  className="w-full mt-6 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
                 >
                   <Edit className="h-4 w-4 mr-2" />
                   {editing ? 'Cancel Editing' : 'Edit Profile'}
@@ -514,7 +507,7 @@ export default function ExpertProfile() {
 
           {/* Profile Form Card */}
           <div className="lg:col-span-2">
-            <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 hover:scale-[1.02] hover:-translate-y-1" style={{boxShadow: '0 25px 50px -12px rgba(59, 130, 246, 0.25), 0 0 0 1px rgba(59, 130, 246, 0.15)'}}>
+            <Card className="bg-white border-2 border-slate-200 rounded-lg shadow-sm hover:shadow-md hover:border-blue-300 transition-all duration-300">
               <CardHeader>
                 <CardTitle className="text-slate-900">Profile Information</CardTitle>
                 <CardDescription className="text-slate-600">
@@ -550,7 +543,7 @@ export default function ExpertProfile() {
                           placeholder="Enter your full name"
                           value={formData.name}
                           onChange={(e) => handleInputChange('name', e.target.value)}
-                          className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
+                          className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
                           required
                           disabled={!editing}
                         />
@@ -563,7 +556,7 @@ export default function ExpertProfile() {
                           placeholder="Enter your phone number"
                           value={formData.phone}
                           onChange={(e) => handleInputChange('phone', e.target.value)}
-                          className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
+                          className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
                           disabled={!editing}
                           required
                         />
@@ -602,7 +595,7 @@ export default function ExpertProfile() {
                       <Label htmlFor="qualifications_pdf" className="text-slate-700">Qualifications Documents (PDF)</Label>
                       {editing ? (
                         <>
-                          <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+                          <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 hover:bg-blue-50 transition-all duration-300">
                             <input
                               type="file"
                               id="qualifications_pdf"
@@ -684,7 +677,7 @@ export default function ExpertProfile() {
                         {/* Photo Upload Area */}
                         <div className="space-y-4">
                           {!photoPreview ? (
-                            <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors duration-300">
+                            <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 hover:bg-blue-50 transition-all duration-300">
                               <input
                                 type="file"
                                 id="profile_photo"
@@ -795,7 +788,7 @@ export default function ExpertProfile() {
                           placeholder="Enter years of experience"
                           value={formData.experience_years}
                           onChange={(e) => handleInputChange('experience_years', e.target.value)}
-                          className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
+                          className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
                           disabled={!editing}
                         />
                       </div>
@@ -826,7 +819,7 @@ export default function ExpertProfile() {
                           placeholder="https://linkedin.com/in/yourprofile"
                           value={formData.linkedin_url}
                           onChange={(e) => handleInputChange('linkedin_url', e.target.value)}
-                          className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
+                          className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
                           disabled={!editing}
                         />
                       </div>
@@ -836,7 +829,7 @@ export default function ExpertProfile() {
                       <Label htmlFor="resume" className="text-slate-700">Resume/CV (PDF)</Label>
                       {editing ? (
                         <>
-                          <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+                          <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 hover:bg-blue-50 transition-all duration-300">
                             <input
                               type="file"
                               id="resume"
@@ -909,7 +902,7 @@ export default function ExpertProfile() {
                     <div className="flex justify-end pt-6">
                       <Button
                         type="submit"
-                        className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-lg hover:shadow-xl hover:shadow-blue-500/25 transition-all duration-300 border-2 border-blue-400/20 hover:border-blue-400/40"
+                        className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
                         disabled={saving}
                       >
                         <Save className="h-4 w-4 mr-2" />

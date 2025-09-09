@@ -378,7 +378,7 @@ export default function ExpertHome() {
           <div className="mb-8">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="mb-6">
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
+          <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-100 rounded-lg p-4 shadow-lg shadow-blue-200/30 border border-blue-200/50">
             <div className="flex items-center mb-2">
               <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
                 <Star className="h-4 w-4 text-blue-600" />

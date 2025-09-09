@@ -977,8 +977,18 @@ app.get('/api/projects/recommended/:expertId', async (req, res) => {
       return res.status(404).json({ error: 'Expert not found' });
     }
 
-    // Get all open projects with institution data
-    const { data: projectsData, error: projectsError } = await supabase
+    // Get projects that the expert has already applied to
+    const { data: appliedProjects, error: appliedError } = await supabase
+      .from('applications')
+      .select('project_id')
+      .eq('expert_id', req.params.expertId);
+
+    if (appliedError) throw appliedError;
+
+    const appliedProjectIds = appliedProjects?.map(app => app.project_id) || [];
+
+    // Get all open projects with institution data, excluding already applied projects
+    let query = supabase
       .from('projects')
       .select(`
         *,
@@ -990,6 +1000,13 @@ app.get('/api/projects/recommended/:expertId', async (req, res) => {
       `)
       .eq('status', 'open')
       .order('created_at', { ascending: false });
+
+    // Exclude projects that the expert has already applied to
+    if (appliedProjectIds.length > 0) {
+      query = query.not('id', 'in', `(${appliedProjectIds.join(',')})`);
+    }
+
+    const { data: projectsData, error: projectsError } = await query;
 
     if (projectsError) throw projectsError;
 

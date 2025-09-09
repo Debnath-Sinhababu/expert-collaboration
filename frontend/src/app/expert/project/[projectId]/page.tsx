@@ -158,15 +158,6 @@ export default function ExpertProjectPage() {
       setLoading(true)
       const projectData = await api.projects.getById(projectId)
       setProject(projectData)
-      
-      // Load similar projects (same expertise domain or skills)
-      const similarData = await api.projects.getAll({
-        domain_expertise: projectData.domain_expertise,
-        limit: 10
-      })
-      setSimilarProjects(similarData.filter((p: Project) => p.id !== projectId))
-      
-      
     } catch (err: any) {
       setError(err.message || 'Failed to load project details')
     } finally {
@@ -206,7 +197,8 @@ export default function ExpertProjectPage() {
       setHasApplied(true)
       
       // Refresh similar and recommended projects
-      loadProjectDetails()
+      loadSimilarProjects()
+      loadRecommendedProjects()
       
     } catch (err: any) {
       setError(err.message || 'Failed to submit application')
@@ -232,6 +224,29 @@ export default function ExpertProjectPage() {
       checkApplicationStatus()
     }
   }, [projectId])
+
+  // Load similar projects when both project and expert data are available
+  useEffect(() => {
+    if (project && expert?.id) {
+      loadSimilarProjects()
+    }
+  }, [project, expert])
+
+  // Separate function to load similar projects
+  const loadSimilarProjects = async () => {
+    try {
+      if (!project?.domain_expertise || !expert?.id) return
+      
+      const similarData = await api.projects.getAll({
+        domain_expertise: project.domain_expertise,
+        expert_id: expert.id, // Filter out projects expert has already applied to
+        limit: 10
+      })
+      setSimilarProjects(similarData.filter((p: Project) => p.id !== projectId))
+    } catch (error) {
+      console.error('Error fetching similar projects:', error)
+    }
+  }
 
   if (loading) {
     return (
