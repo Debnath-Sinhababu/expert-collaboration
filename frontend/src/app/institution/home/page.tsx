@@ -15,6 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { MultiSelect } from '@/components/ui/multi-select'
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel'
+import { Checkbox } from '@/components/ui/checkbox'
 import Autoplay from 'embla-carousel-autoplay'
 import NotificationBell from '@/components/NotificationBell'
 import ProfileDropdown from '@/components/ProfileDropdown'
@@ -114,6 +115,12 @@ export default function InstitutionHome() {
   const [expertsLoading, setExpertsLoading] = useState(false)
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [selectedExperts, setSelectedExperts] = useState<string[]>([])
+  // Per-expert quick select modal
+  const [showQuickSelectModal, setShowQuickSelectModal] = useState(false)
+  const [quickSelectExpert, setQuickSelectExpert] = useState<Expert | null>(null)
+  const [institutionProjects, setInstitutionProjects] = useState<any[]>([])
+  const [quickSelectedProjectId, setQuickSelectedProjectId] = useState<string | null>(null)
+  const [sendingQuickMessage, setSendingQuickMessage] = useState(false)
 
   const router = useRouter()
 
@@ -173,6 +180,22 @@ export default function InstitutionHome() {
     }
   }
 
+  const loadInstitutionProjects = async () => {
+    if (!institution?.id) return
+    try {
+      // Fetch all open projects for this institution
+      const projects = await api.projects.getAll({ institution_id: institution.id, status: 'open', limit: 100 })
+      const list = Array.isArray(projects) ? projects : (projects?.data || [])
+      setInstitutionProjects(list)
+      // Preselect first if exists
+      if (!quickSelectedProjectId && list.length > 0) {
+        setQuickSelectedProjectId(list[0].id)
+      }
+    } catch (e) {
+      console.error('Error loading institution projects:', e)
+    }
+  }
+
   useEffect(() => {
     const initializeUser = async () => {
       try {
@@ -198,6 +221,7 @@ export default function InstitutionHome() {
     if (institution) {
       loadExperts()
       loadPartneredInstitutions()
+      loadInstitutionProjects()
     }
   }, [institution, searchTerm, selectedDomain, minRate, maxRate])
 
@@ -1007,7 +1031,13 @@ export default function InstitutionHome() {
                         )}
 
                         <div className="flex space-x-2">
-                          <Button className="flex-1 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300">
+                          <Button 
+                            className="flex-1 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
+                            onClick={() => {
+                              setQuickSelectExpert(expert)
+                              setShowQuickSelectModal(true)
+                            }}
+                          >
                             <UserCheck className="h-4 w-4 mr-2" />
                             Select Expert
                           </Button>
@@ -1253,6 +1283,138 @@ export default function InstitutionHome() {
                   Select Experts ({selectedExperts.length})
                 </Button>
               </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Quick Select Expert Modal */}
+        <Dialog open={showQuickSelectModal} onOpenChange={(open) => {
+          setShowQuickSelectModal(open)
+          if (!open) {
+            setQuickSelectedProjectId(null)
+            setQuickSelectExpert(null)
+          }
+        }}>
+          <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogHeader className="flex-shrink-0">
+              <DialogTitle>Notify Expert</DialogTitle>
+              <DialogDescription>
+                Select one of your projects to notify {quickSelectExpert?.name}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="flex-1 overflow-y-auto pr-2 space-y-3">
+              {institutionProjects.length === 0 ? (
+                <div className="text-center py-8 text-slate-600">
+                  No projects found. Create a project first.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {institutionProjects.map((proj) => {
+                    const isSelected = quickSelectedProjectId === proj.id
+                    return (
+                      <label key={proj.id} className={`block rounded-xl ${isSelected ? 'bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-600 p-[1.5px]' : ''}`}>
+                        <div
+                          className={`flex items-start gap-3 p-4 rounded-xl border bg-white transition-all duration-200 ${isSelected ? 'border-transparent shadow-md' : 'border-slate-200 hover:border-blue-300 hover:shadow-sm'}`}
+                          onClick={() => setQuickSelectedProjectId(isSelected ? null : proj.id)}
+                        >
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={(checked) => setQuickSelectedProjectId(checked ? proj.id : null)}
+                            className="mt-1 border-2 rounded-md border-slate-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <h4 className="font-medium text-slate-900 truncate">{proj.title}</h4>
+                              <Badge variant="secondary" className="capitalize text-xs">{proj.type}</Badge>
+                            </div>
+                            <p className="text-sm text-slate-600 line-clamp-2">{proj.description}</p>
+                          </div>
+                        </div>
+                      </label>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="flex-shrink-0 flex justify-end gap-2 pt-4 border-t border-slate-200">
+              <Button variant="outline" onClick={() => setShowQuickSelectModal(false)}>Cancel</Button>
+              <Button
+                disabled={!quickSelectedProjectId || sendingQuickMessage}
+                className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
+                onClick={async () => {
+                  if (!quickSelectExpert || !quickSelectedProjectId || !institution?.id) return
+                  try {
+                    setSendingQuickMessage(true)
+                    const projectDetails = await api.projects.getById(quickSelectedProjectId)
+                    const institutionDetails = await api.institutions.getById(institution.id)
+
+                    if (!projectDetails || !institutionDetails) {
+                      toast.error('Failed to get project or institution details')
+                      return
+                    }
+
+                    // Check if expert already applied to this project
+                    const status = await api.applications.checkStatus(quickSelectedProjectId, [quickSelectExpert.id])
+                    const hasApplied = Array.isArray(status) && status[0]?.hasApplied
+
+                    if (hasApplied) {
+                      // Create booking directly
+                      const bookingData = {
+                        expert_id: quickSelectExpert.id,
+                        project_id: quickSelectedProjectId,
+                        institution_id: institution.id,
+                        amount: projectDetails.hourly_rate * projectDetails.duration_hours,
+                        start_date: new Date().toISOString().split('T')[0],
+                        end_date: projectDetails.end_date,
+                        status: 'in_progress'
+                      }
+                      await api.bookings.create(bookingData)
+                      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/send-expert-selected`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+                        },
+                        body: JSON.stringify({
+                          expertId: quickSelectExpert.id,
+                          projectTitle: projectDetails.title,
+                          institutionName: institutionDetails.name,
+                          type: 'expert_selected_with_booking'
+                        })
+                      })
+                    } else {
+                      // Send interest notification only
+                      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/send-expert-interest`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+                        },
+                        body: JSON.stringify({
+                          expertId: quickSelectExpert.id,
+                          projectTitle: projectDetails.title,
+                          institutionName: institutionDetails.name,
+                          type: 'expert_interest_shown'
+                        })
+                      })
+                    }
+
+                    toast.success('Message sent successfully')
+                    setShowQuickSelectModal(false)
+                    setQuickSelectedProjectId(null)
+                    setQuickSelectExpert(null)
+                  } catch (e) {
+                    console.error('Quick select send error:', e)
+                    toast.error('Failed to send message')
+                  } finally {
+                    setSendingQuickMessage(false)
+                  }
+                }}
+              >
+                {sendingQuickMessage ? 'Sending...' : 'Send Message'}
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
