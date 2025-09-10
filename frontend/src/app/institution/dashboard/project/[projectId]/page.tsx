@@ -58,11 +58,13 @@ export default function ProjectDetailsPage() {
   const [pendingCount, setPendingCount] = useState(0)
   const [interviewCount, setInterviewCount] = useState(0)
   const [selectedCount, setSelectedCount] = useState(0)
+  const [rejectedCount, setRejectedCount] = useState(0)
 
   // Refs for infinite scroll detection
   const pendingScrollRef = useRef<HTMLDivElement>(null)
   const interviewScrollRef = useRef<HTMLDivElement>(null)
   const selectedScrollRef = useRef<HTMLDivElement>(null)
+  const rejectedScrollRef = useRef<HTMLDivElement>(null)
   const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null)
   const [interviewDate, setInterviewDate] = useState<Date | undefined>(undefined)
   const [interviewTime, setInterviewTime] = useState<string>('')
@@ -149,6 +151,7 @@ export default function ProjectDetailsPage() {
       if (type === 'applications') {
         setPendingCount(response.counts.pending || 0)
         setInterviewCount(response.counts.interview || 0)
+        setRejectedCount(response.counts.rejected || 0)
       } else if (type === 'bookings') {
         setSelectedCount(response.counts.total || 0)
       }
@@ -204,6 +207,33 @@ export default function ProjectDetailsPage() {
       
       // Handle new data structure with counts
       if (response && typeof response === 'object' && 'data' in response) {
+        extractCounts(response, 'applications')
+        return response.data
+      }
+      return response
+    },
+    [projectId]
+  )
+
+  // Paginated applications for rejected status (read-only)
+  const {
+    data: rejectedApplications,
+    loading: rejectedLoading,
+    hasMore: hasMoreRejected,
+    loadMore: loadMoreRejected,
+    refresh: refreshRejected
+  } = usePagination(
+    async (page: number) => {
+      if (!projectId) return []
+      const response = await api.applications.getAll({ 
+        project_id: projectId, 
+        status: 'rejected',
+        page,
+        limit: 10
+      })
+      
+      if (response && typeof response === 'object' && 'data' in response) {
+        extractCounts(response, 'applications')
         return response.data
       }
       return response
@@ -256,12 +286,15 @@ export default function ProjectDetailsPage() {
             pendingRef: pendingScrollRef.current,
             interviewRef: interviewScrollRef.current,
             selectedRef: selectedScrollRef.current,
+            rejectedRef: rejectedScrollRef.current,
             hasMorePending,
             hasMoreInterview,
             hasMoreSelected,
+            hasMoreRejected,
             pendingLoading,
             interviewLoading,
             selectedLoading,
+            rejectedLoading,
             activeTab
           })
           
@@ -274,6 +307,9 @@ export default function ProjectDetailsPage() {
           } else if (entry.target === selectedScrollRef.current && hasMoreSelected && !selectedLoading) {
             console.log('Loading more selected bookings')
             loadMoreSelected()
+          } else if (entry.target === rejectedScrollRef.current && hasMoreRejected && !rejectedLoading) {
+            console.log('Loading more rejected applications')
+            loadMoreRejected()
           }
         }
       })
@@ -296,13 +332,17 @@ export default function ProjectDetailsPage() {
         console.log('Observing selected scroll ref')
         observer.observe(selectedScrollRef.current)
       }
+      if (rejectedScrollRef.current) {
+        console.log('Observing rejected scroll ref')
+        observer.observe(rejectedScrollRef.current)
+      }
     }, 100)
 
     return () => {
       clearTimeout(timeoutId)
       observer.disconnect()
     }
-  }, [hasMorePending, hasMoreInterview, hasMoreSelected, pendingLoading, interviewLoading, selectedLoading, loadMorePending, loadMoreInterview, loadMoreSelected, activeTab])
+  }, [hasMorePending, hasMoreInterview, hasMoreSelected, hasMoreRejected, pendingLoading, interviewLoading, selectedLoading, rejectedLoading, loadMorePending, loadMoreInterview, loadMoreSelected, loadMoreRejected, activeTab])
 
 
   
@@ -405,6 +445,7 @@ export default function ProjectDetailsPage() {
       toast.success('Application rejected')
       refreshPending()
       refreshInterview()
+      refreshRejected()
     } catch (error) {
       console.error('Error rejecting application:', error)
       toast.error('Failed to reject application')
@@ -634,7 +675,7 @@ export default function ProjectDetailsPage() {
 
         {/* 3-Tab System */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 bg-white border-b border-slate-200 h-12">
+          <TabsList className="grid w-full grid-cols-4 bg-white border-b border-slate-200 h-12">
             <TabsTrigger 
               value="pending" 
               className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none"
@@ -646,6 +687,12 @@ export default function ProjectDetailsPage() {
               className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none"
             >
               Interview ({interviewCount || 0})
+            </TabsTrigger>
+            <TabsTrigger 
+              value="rejected" 
+              className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none"
+            >
+              Rejected ({rejectedCount || 0})
             </TabsTrigger>
             <TabsTrigger 
               value="selected" 
@@ -945,6 +992,137 @@ export default function ProjectDetailsPage() {
                     {hasMoreInterview && (
                       <div ref={interviewScrollRef} className="flex justify-center py-4">
                         {interviewLoading && (
+                          <div className="flex items-center space-x-2 text-slate-500">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                            <span>Loading more applications...</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Rejected Tab */}
+          <TabsContent value="rejected">
+            <Card className="bg-white border-2 border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
+              <CardHeader>
+                <CardTitle className="text-2xl font-bold text-slate-900">Rejected Applications</CardTitle>
+                <CardDescription className="text-slate-600">
+                  Applications that were not shortlisted for this project
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {rejectedApplications?.length === 0 ? (
+                  <div className="text-center py-8">
+                    <UserX className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                    <p className="text-slate-600">No rejected applications</p>
+                    <p className="text-sm text-slate-500">Rejected applications will appear here</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {rejectedApplications?.map((application: any) => (
+                      <Card key={application.id} className="bg-white border-2 border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all duration-300 group">
+                        <CardContent className="p-0">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center space-x-3">
+                              <Avatar className="w-10 h-10 border-2 border-blue-200">
+                                <AvatarImage src={application.experts?.photo_url} />
+                                <AvatarFallback className="text-lg font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+                                  {application.experts?.name?.charAt(0) || 'E'}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <h3 className="font-semibold text-slate-900">{application.experts?.name || 'Unknown Expert'}</h3>
+                                <p className="text-sm text-slate-600">₹{application.experts?.hourly_rate || 0}/hr</p>
+                              </div>
+                            </div>
+                            <Badge className={getStatusColor(application.status)}>
+                              <div className="flex items-center space-x-1">
+                                {getStatusIcon(application.status)}
+                                <span className="capitalize">{application.status}</span>
+                              </div>
+                            </Badge>
+                          </div>
+                          
+                          <p className="text-sm text-slate-600 mb-4">{application.experts?.bio || 'No bio available'}</p>
+                          
+                          {/* Expert Details */}
+                          <div className="grid grid-cols-2 gap-3 text-sm mb-4">
+                            <div>
+                              <span className="text-slate-500">Experience:</span>
+                              <p className="font-medium text-slate-700">{application.experts?.experience_years || 0} years</p>
+                            </div>
+                            <div>
+                              <span className="text-slate-500">Rating:</span>
+                              <div className="flex items-center space-x-1">
+                                <Star className="h-4 w-4 text-yellow-400 fill-current" />
+                                <span className="font-medium text-slate-700">
+                                  {application.experts?.rating || 0}/5 ({application.experts?.total_ratings || 0})
+                                </span>
+                              </div>
+                            </div>
+                            <div>
+                              <span className="text-slate-500">Domain:</span>
+                              <p className="font-medium text-slate-700">
+                                {application.experts?.domain_expertise && application.experts.domain_expertise.length > 0 
+                                  ? application.experts.domain_expertise.join(', ') 
+                                  : 'Not specified'}
+                              </p>
+                            </div>
+                            <div>
+                              <span className="text-slate-500">Status:</span>
+                              <Badge 
+                                variant={application.experts?.is_verified ? "default" : "secondary"} 
+                                className="ml-1"
+                              >
+                                {application.experts?.is_verified ? 'Verified' : 'Pending'}
+                              </Badge>
+                            </div>
+                          </div>
+
+                          {/* Subskills */}
+                          {application.experts?.subskills && application.experts.subskills.length > 0 && (
+                            <div className="mb-4">
+                              <span className="text-sm text-slate-500">Specializations:</span>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {application.experts.subskills.slice(0, 4).map((skill: string, index: number) => (
+                                  <Badge key={index} variant="outline" className="text-xs">
+                                    {skill}
+                                  </Badge>
+                                ))}
+                                {application.experts.subskills.length > 4 && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    +{application.experts.subskills.length - 4} more
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Qualifications */}
+                          {application.experts?.qualifications && (
+                            <div className="mb-4">
+                              <span className="text-sm text-slate-500">Qualifications:</span>
+                              <p className="text-sm mt-1 text-slate-700">{application.experts.qualifications}</p>
+                            </div>
+                          )}
+                          
+                          <div className="flex items-center justify-between">
+                            <div className="text-sm text-slate-500">
+                              Applied: {new Date(application.applied_at).toLocaleDateString()}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+
+                    {/* Infinite scroll trigger for Rejected Applications */}
+                    {hasMoreRejected && (
+                      <div ref={rejectedScrollRef} className="flex justify-center py-4">
+                        {rejectedLoading && (
                           <div className="flex items-center space-x-2 text-slate-500">
                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                             <span>Loading more applications...</span>
