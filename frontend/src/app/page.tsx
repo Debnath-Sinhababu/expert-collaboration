@@ -152,6 +152,13 @@ export default function Home() {
         </div>
       </header>
       
+      {/* Foreground Banner Carousel */}
+      <div className="container mx-auto px-4 py-4">
+        <div className="relative w-full h-48 sm:h-64 md:h-80 lg:h-96 rounded-2xl overflow-hidden border-2 border-slate-200 shadow-sm">
+          <BackgroundBannerCarousel foreground className="h-full" />
+        </div>
+      </div>
+
     
 
       {user && (

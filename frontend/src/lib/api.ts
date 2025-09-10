@@ -38,7 +38,15 @@ export const api = {
     getByUserId: async (userId: string) => {
       const headers = await getAuthHeaders()
       const query = new URLSearchParams({ _t: Date.now().toString() }).toString()
-      return fetch(`${API_BASE_URL}/api/experts/user/${userId}?${query}`, { headers }).then(res => res.json())
+      const res = await fetch(`${API_BASE_URL}/api/experts/user/${userId}?${query}`, { headers })
+      if (res.status === 404) {
+        return null
+      }
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(json?.error || `Failed to fetch expert for user ${userId}`)
+      }
+      return json
     },
     getRecommended: async (projectId: string) => {
       const headers = await getAuthHeaders()
@@ -95,7 +103,16 @@ export const api = {
     getByUserId: async (userId: string) => {
       const headers = await getAuthHeaders()
       const query = new URLSearchParams({ _t: Date.now().toString() }).toString()
-      return fetch(`${API_BASE_URL}/api/institutions/user/${userId}?${query}`, { headers }).then(res => res.json())
+      const res = await fetch(`${API_BASE_URL}/api/institutions/user/${userId}?${query}`, { headers })
+      // Normalize 404 to null so callers can do a simple truthy check
+      if (res.status === 404) {
+        return null
+      }
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(json?.error || `Failed to fetch institution for user ${userId}`)
+      }
+      return json
     },
     create: async (data: any) => {
       const headers = await getAuthHeaders()
