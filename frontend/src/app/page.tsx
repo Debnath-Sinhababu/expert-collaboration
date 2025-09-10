@@ -158,10 +158,10 @@ export default function Home() {
         <div className="bg-white border-2 border-slate-200 rounded-2xl shadow-sm mx-4 my-8">
           <div className="container mx-auto px-8 py-16 text-center">
             <div className="max-w-4xl mx-auto">
-              <h1 className="text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent">
+              <h1 className="text-4xl lg:text-[40px] font-bold mb-6 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent">
                 Welcome back to Calxmap
               </h1>
-              <p className="text-xl lg:text-2xl text-slate-600 mb-12 max-w-3xl mx-auto leading-relaxed">
+              <p className="text-lg lg:text-xl text-slate-600 mb-12 max-w-3xl mx-auto leading-relaxed">
                 Continue your journey in connecting education with expertise. Your dashboard awaits with new opportunities and insights.
               </p>
               

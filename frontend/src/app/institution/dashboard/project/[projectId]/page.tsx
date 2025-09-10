@@ -529,10 +529,10 @@ export default function ProjectDetailsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-400 mx-auto mb-4"></div>
-          <p className="text-slate-300">Loading project details...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading project details...</p>
         </div>
       </div>
     )
@@ -540,11 +540,11 @@ export default function ProjectDetailsPage() {
 
   if (error || !project) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-400 mb-4">Error</h1>
-          <p className="text-slate-300 mb-4">{error || 'Project not found'}</p>
-          <Button onClick={() => router.push('/institution/dashboard')}>
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Error</h1>
+          <p className="text-slate-600 mb-4">{error || 'Project not found'}</p>
+          <Button onClick={() => router.push('/institution/dashboard')} className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Dashboard
           </Button>
@@ -554,16 +554,11 @@ export default function ProjectDetailsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 relative">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
 
       {/* Header */}
-      <header className="bg-slate-900/95 backdrop-blur-xl shadow-2xl border-b border-slate-700/50 relative z-10">
-        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
+      <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
+        <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-4">
               <Button
@@ -576,7 +571,7 @@ export default function ProjectDetailsPage() {
               </Button>
               <Link href="/" className="flex items-center space-x-2 group">
                 <Logo size="md" />
-                <span className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Calxmap</span>
+                <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Calxmap</span>
               </Link>
             </div>
             
@@ -588,9 +583,9 @@ export default function ProjectDetailsPage() {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8 relative z-10">
+      <main className="container mx-auto px-4 py-8">
         {/* Project Info Section */}
-        <Card className="mb-8 bg-white/90 backdrop-blur-md border-0 shadow-xl">
+        <Card className="mb-8 bg-white border-2 border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
@@ -598,8 +593,8 @@ export default function ProjectDetailsPage() {
                 <CardDescription className="text-slate-600">{project.description}</CardDescription>
               </div>
               <div className="flex items-center space-x-2">
-                <Badge variant="outline" className="capitalize">{project.status}</Badge>
-                <Badge variant="secondary" className="capitalize">{project.type}</Badge>
+                <Badge variant="outline" className="capitalize border-slate-300 text-slate-700">{project.status}</Badge>
+                <Badge variant="secondary" className="capitalize bg-slate-100 text-slate-700">{project.type}</Badge>
               </div>
             </div>
           </CardHeader>
@@ -639,22 +634,22 @@ export default function ProjectDetailsPage() {
 
         {/* 3-Tab System */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="flex w-full gap-2 overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-3 sm:gap-0 sm:overflow-visible scrollbar-hide bg-white/90 backdrop-blur-md border-0 shadow-lg">
+          <TabsList className="grid w-full grid-cols-3 bg-white border-b border-slate-200 h-12">
             <TabsTrigger 
-              className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" 
-              value="pending"
+              value="pending" 
+              className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none"
             >
               Pending ({pendingCount || 0})
             </TabsTrigger>
             <TabsTrigger 
-              className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" 
-              value="interview"
+              value="interview" 
+              className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none"
             >
               Interview ({interviewCount || 0})
             </TabsTrigger>
             <TabsTrigger 
-              className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" 
-              value="selected"
+              value="selected" 
+              className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none"
             >
               Selected ({selectedCount || 0})
             </TabsTrigger>
@@ -662,25 +657,25 @@ export default function ProjectDetailsPage() {
 
           {/* Pending Tab */}
           <TabsContent value="pending">
-            <Card>
+            <Card className="bg-white border-2 border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
               <CardHeader>
-                <CardTitle>Pending Applications</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-2xl font-bold text-slate-900">Pending Applications</CardTitle>
+                <CardDescription className="text-slate-600">
                   Review and move applications to interview stage
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {pendingApplications?.length === 0 ? (
                   <div className="text-center py-8">
-                    <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600">No pending applications</p>
-                    <p className="text-sm text-gray-500">Applications will appear here when experts apply</p>
+                    <Users className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                    <p className="text-slate-600">No pending applications</p>
+                    <p className="text-sm text-slate-500">Applications will appear here when experts apply</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     {pendingApplications?.map((application: any) => (
-                      <Card key={application.id} className="bg-white/95 backdrop-blur-sm border-0 shadow-lg hover:shadow-2xl hover:shadow-blue-500/20 transition-all duration-300">
-                        <CardContent className="p-4">
+                      <Card key={application.id} className="bg-white border-2 border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all duration-300 group">
+                        <CardContent className="p-0">
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center space-x-3">
                               <Avatar className="w-10 h-10 border-2 border-blue-200">
@@ -784,7 +779,7 @@ export default function ProjectDetailsPage() {
                                 size="sm"
                                 onClick={() => handleProceedToInterview(application.id)}
                                 disabled={processingApplications[application.id]}
-                                className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white"
+                                className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
                               >
                                 <Calendar className="h-4 w-4 mr-1" />
                                 {processingApplications[application.id] ? 'Processing...' : 'Proceed for Interview'}
@@ -799,8 +794,8 @@ export default function ProjectDetailsPage() {
                     {hasMorePending && (
                       <div ref={pendingScrollRef} className="flex justify-center py-4">
                         {pendingLoading && (
-                          <div className="flex items-center space-x-2 text-gray-500">
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+                          <div className="flex items-center space-x-2 text-slate-500">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                             <span>Loading more applications...</span>
                           </div>
                         )}
@@ -814,25 +809,25 @@ export default function ProjectDetailsPage() {
 
           {/* Interview Tab */}
           <TabsContent value="interview">
-            <Card>
+            <Card className="bg-white border-2 border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
               <CardHeader>
-                <CardTitle>Interview Stage</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-2xl font-bold text-slate-900">Interview Stage</CardTitle>
+                <CardDescription className="text-slate-600">
                   Applications ready for interview - proceed to create bookings
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {interviewApplications?.length === 0 ? (
                   <div className="text-center py-8">
-                    <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600">No applications in interview stage</p>
-                    <p className="text-sm text-gray-500">Move applications from pending to see them here</p>
+                    <Calendar className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                    <p className="text-slate-600">No applications in interview stage</p>
+                    <p className="text-sm text-slate-500">Move applications from pending to see them here</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     {interviewApplications?.map((application: any) => (
-                      <Card key={application.id} className="bg-white/95 backdrop-blur-sm border-0 shadow-lg hover:shadow-2xl hover:shadow-blue-500/20 transition-all duration-300">
-                        <CardContent className="p-4">
+                      <Card key={application.id} className="bg-white border-2 border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all duration-300 group">
+                        <CardContent className="p-0">
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center space-x-3">
                               <Avatar className="w-10 h-10 border-2 border-blue-200">
@@ -935,7 +930,7 @@ export default function ProjectDetailsPage() {
                                 size="sm"
                                 onClick={() => handleProceedToBooking(application.id)}
                                 disabled={processingApplications[application.id]}
-                                className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
+                                className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
                               >
                                 <CheckCircle className="h-4 w-4 mr-1" />
                                 {processingApplications[application.id] ? 'Processing...' : 'Proceed for Booking'}
@@ -950,8 +945,8 @@ export default function ProjectDetailsPage() {
                     {hasMoreInterview && (
                       <div ref={interviewScrollRef} className="flex justify-center py-4">
                         {interviewLoading && (
-                          <div className="flex items-center space-x-2 text-gray-500">
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+                          <div className="flex items-center space-x-2 text-slate-500">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                             <span>Loading more applications...</span>
                           </div>
                         )}
@@ -965,26 +960,26 @@ export default function ProjectDetailsPage() {
 
           {/* Selected Tab */}
           <TabsContent value="selected">
-            <Card>
+            <Card className="bg-white border-2 border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
               <CardHeader>
-                <CardTitle>Selected Bookings</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-2xl font-bold text-slate-900">Selected Bookings</CardTitle>
+                <CardDescription className="text-slate-600">
                   Manage confirmed bookings for this project
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {selectedBookings?.length === 0 ? (
                   <div className="text-center py-8">
-                    <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600">No bookings yet</p>
-                    <p className="text-sm text-gray-500">Bookings will appear here when you proceed with applications</p>
+                    <BookOpen className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                    <p className="text-slate-600">No bookings yet</p>
+                    <p className="text-sm text-slate-500">Bookings will appear here when you proceed with applications</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     {selectedBookings?.map((booking: any) => {
                      
                       return (
-                      <div key={booking.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                      <div key={booking.id} className="bg-white border-2 border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all duration-300 group">
                         <div className="flex justify-between items-start min-w-0">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-3 mb-2 min-w-0">
@@ -1182,6 +1177,7 @@ export default function ProjectDetailsPage() {
                                 <Button
                                   size="sm"
                                   onClick={() => handleUpdateBookingStatus(booking.id, booking?.application_id, 'completed')}
+                                  className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
                                 >
                                   <CheckCircle className="h-4 w-4 mr-1" />
                                   Mark Complete & Rate
@@ -1202,6 +1198,7 @@ export default function ProjectDetailsPage() {
                                 size="sm"
                                 onClick={() => handleRateExpert(booking)}
                                 variant={getBookingRating(booking.id) ? "outline" : "default"}
+                                className={getBookingRating(booking.id) ? "border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50 text-slate-700 hover:text-blue-700" : "bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"}
                               >
                                 <Star className="h-4 w-4 mr-1" />
                                 Rate Expert
@@ -1217,8 +1214,8 @@ export default function ProjectDetailsPage() {
                     {hasMoreSelected && (
                       <div ref={selectedScrollRef} className="flex justify-center py-4">
                         {selectedLoading && (
-                          <div className="flex items-center space-x-2 text-gray-500">
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+                          <div className="flex items-center space-x-2 text-slate-500">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                             <span>Loading more bookings...</span>
                           </div>
                         )}
@@ -1230,7 +1227,7 @@ export default function ProjectDetailsPage() {
             </Card>
           </TabsContent>
         </Tabs>
-      </div>
+      </main>
 
       {/* Interview Date Modal */}
       <Dialog open={showInterviewModal} onOpenChange={setShowInterviewModal}>
@@ -1276,7 +1273,7 @@ export default function ProjectDetailsPage() {
               <Button
                 onClick={handleInterviewSubmit}
                 disabled={processingApplications[selectedApplicationId || '']}
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
               >
                 {processingApplications[selectedApplicationId || ''] ? 'Processing...' : 'Proceed to Interview'}
               </Button>
