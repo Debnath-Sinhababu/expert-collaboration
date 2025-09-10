@@ -23,6 +23,9 @@ export const api = {
       min_hourly_rate?: number; 
       max_hourly_rate?: number;
       is_verified?: boolean;
+      min_rating?: number;
+      sort_by?: string;
+      sort_order?: 'asc' | 'desc';
     }) => {
       const headers = await getAuthHeaders()
       const query = new URLSearchParams({

@@ -81,7 +81,10 @@ app.get('/api/experts', async (req, res) => {
       domain_expertise = '', 
       min_hourly_rate = '', 
       max_hourly_rate = '',
-      is_verified = ''
+      is_verified = '',
+      min_rating = '',
+      sort_by = '',
+      sort_order = 'desc'
     } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
     
@@ -106,8 +109,7 @@ app.get('/api/experts', async (req, res) => {
     let query = supabaseClient
       .from('experts')
       .select('*')
-      .range(offset, offset + parseInt(limit) - 1)
-      .order('created_at', { ascending: false });
+      .range(offset, offset + parseInt(limit) - 1);
     
     if (search) {
       query = query.or(`name.ilike.%${search}%,bio.ilike.%${search}%`);
@@ -127,6 +129,17 @@ app.get('/api/experts', async (req, res) => {
     
     if (is_verified) {
       query = query.eq('is_verified', is_verified === 'true');
+    }
+    
+    if (min_rating) {
+      query = query.gte('rating', parseFloat(min_rating));
+    }
+    
+    // Apply sorting
+    if (sort_by) {
+      query = query.order(sort_by, { ascending: (String(sort_order).toLowerCase() !== 'desc') });
+    } else {
+      query = query.order('created_at', { ascending: false });
     }
     
     const { data, error } = await query;

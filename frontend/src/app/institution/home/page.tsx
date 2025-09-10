@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
 import { EXPERTISE_DOMAINS } from '@/lib/constants'
@@ -17,6 +17,7 @@ import { MultiSelect } from '@/components/ui/multi-select'
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel'
 import { Checkbox } from '@/components/ui/checkbox'
 import Autoplay from 'embla-carousel-autoplay'
+import { usePagination } from '@/hooks/usePagination'
 import NotificationBell from '@/components/NotificationBell'
 import ProfileDropdown from '@/components/ProfileDropdown'
 import Logo from '@/components/Logo'
@@ -108,6 +109,32 @@ export default function InstitutionHome() {
   const [availableSubskills, setAvailableSubskills] = useState<string[]>([])
   const [partneredInstitutions, setPartneredInstitutions] = useState<any[]>([])
   const [institutionsLoading, setInstitutionsLoading] = useState(true)
+  // Featured experts (top-rated, independent of filters)
+  const [featuredExperts, setFeaturedExperts] = useState<Expert[]>([])
+  const [featuredLoading, setFeaturedLoading] = useState(false)
+  // Infinite experts list (filtered)
+  const {
+    data: allExperts,
+    loading: expertsListLoading,
+    hasMore: hasMoreExperts,
+    loadMore: loadMoreExperts,
+    refresh: refreshExpertsList
+  } = usePagination(
+    async (page: number) => {
+      const params: any = {
+        page,
+        limit: 10,
+        is_verified: true
+      }
+      if (searchTerm) params.search = searchTerm
+      if (selectedDomain && selectedDomain !== 'all') params.domain_expertise = selectedDomain
+      if (minRate) params.min_hourly_rate = parseFloat(minRate)
+      if (maxRate) params.max_hourly_rate = parseFloat(maxRate)
+      const data = await api.experts.getAll(params)
+      return Array.isArray(data) ? data : (data?.data || [])
+    },
+    [searchTerm, selectedDomain, minRate, maxRate]
+  )
   
   // Expert selection modal state
   const [showExpertSelectionModal, setShowExpertSelectionModal] = useState(false)
@@ -121,6 +148,21 @@ export default function InstitutionHome() {
   const [institutionProjects, setInstitutionProjects] = useState<any[]>([])
   const [quickSelectedProjectId, setQuickSelectedProjectId] = useState<string | null>(null)
   const [sendingQuickMessage, setSendingQuickMessage] = useState(false)
+  // Infinite list sentinel
+  const expertsListEndRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    const el = expertsListEndRef.current
+    if (!el) return
+    const observer = new IntersectionObserver((entries) => {
+      const entry = entries[0]
+      if (entry.isIntersecting && hasMoreExperts && !expertsListLoading) {
+        loadMoreExperts()
+      }
+    }, { root: null, rootMargin: '200px', threshold: 0.1 })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [hasMoreExperts, expertsListLoading, loadMoreExperts, allExperts])
 
   const router = useRouter()
 
@@ -180,6 +222,25 @@ export default function InstitutionHome() {
     }
   }
 
+  // Load featured experts: top-rated, limit 10, rating >= 4
+  const loadFeaturedExperts = async () => {
+    try {
+      setFeaturedLoading(true)
+      const data = await api.experts.getAll({
+        limit: 10,
+        is_verified: true,
+        min_rating: 4,
+        sort_by: 'rating',
+        sort_order: 'desc'
+      })
+      setFeaturedExperts(Array.isArray(data) ? data : (data?.data || []))
+    } catch (e) {
+      console.error('Error loading featured experts:', e)
+    } finally {
+      setFeaturedLoading(false)
+    }
+  }
+
   const loadInstitutionProjects = async () => {
     if (!institution?.id) return
     try {
@@ -219,11 +280,19 @@ export default function InstitutionHome() {
 
   useEffect(() => {
     if (institution) {
-      loadExperts()
+      // loadExperts()
       loadPartneredInstitutions()
       loadInstitutionProjects()
+      loadFeaturedExperts()
     }
-  }, [institution, searchTerm, selectedDomain, minRate, maxRate])
+  }, [institution])
+
+  useEffect(() => {
+    // Refresh only the infinite list when filters change
+    if (institution) {
+      refreshExpertsList()
+    }
+  }, [searchTerm, selectedDomain, minRate, maxRate])
 
   // useEffect(()=>{
   //    loadRecommendedExperts('cb2b9213-077c-4115-845d-8699d489d2d6')
@@ -692,6 +761,160 @@ export default function InstitutionHome() {
         </div>
       )}
 
+      {/* Featured Experts (Top-rated) - moved above filters */}
+      <div className="bg-gradient-to-r from-slate-50 via-blue-50 to-indigo-100 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-6">
+            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">Featured Experts</h2>
+            <p className="text-slate-600">Top-rated experts (4.0+), curated for you</p>
+          </div>
+          {featuredLoading ? (
+            <div className="flex justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : (
+            <Carousel className="w-full"
+              opts={{ align: 'start', containScroll: 'trimSnaps' }}
+              plugins={[Autoplay({ delay: 3000 })]}
+            >
+              <CarouselContent className="-ml-2 md:-ml-4">
+                {featuredExperts.map((expert) => (
+                  <CarouselItem key={expert.id} className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3">
+                    <Card className="bg-white border-2 border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 group hover:border-blue-300">
+                      <CardHeader>
+                        <div className="flex items-start space-x-3">
+                          <Avatar className="w-12 h-12">
+                            <AvatarImage src={expert.photo_url} alt={expert.name} />
+                            <AvatarFallback className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">
+                              {expert.name?.charAt(0) || 'E'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <CardTitle className="text-lg line-clamp-1">{expert.name}</CardTitle>
+                            <div className="flex items-center text-slate-600 text-sm">
+                              <Star className="h-4 w-4 mr-1 fill-yellow-400 text-yellow-400" />
+                              {expert.rating?.toFixed(1) || '0.0'} ({expert.total_ratings || 0})
+                            </div>
+                            <div className="flex items-center text-slate-600 text-sm">₹{expert.hourly_rate}/hour</div>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <CardDescription className="truncate mb-4">{expert.bio}</CardDescription>
+                        {expert.domain_expertise && expert.domain_expertise.length > 0 && (
+                          <div className="mb-4">
+                            <div className="flex flex-wrap gap-1">
+                              {expert.domain_expertise.slice(0, 2).map((domain: string, index: number) => (
+                                <Badge key={index} className={`text-xs ${getDomainColor(domain)}`}>{domain}</Badge>
+                              ))}
+                              {expert.domain_expertise.length > 2 && (
+                                <Badge variant="secondary" className="text-xs">+{expert.domain_expertise.length - 2} more</Badge>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        <div className="flex space-x-2">
+                          <Button className="flex-1 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300" onClick={() => { setQuickSelectExpert(expert); setShowQuickSelectModal(true); }}>
+                            <UserCheck className="h-4 w-4 mr-2" />
+                            Select Expert
+                          </Button>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="outline" size="icon" className="border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50 transition-all duration-300">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
+                              <DialogHeader className="flex-shrink-0">
+                                <DialogTitle>{expert.name}</DialogTitle>
+                                <DialogDescription>Complete Expert Profile</DialogDescription>
+                              </DialogHeader>
+                              <div className="space-y-4 overflow-y-auto flex-1 pr-2">
+                                <div className="flex items-center space-x-4 mb-4">
+                                  <Avatar className="w-16 h-16 border-2 border-blue-200 flex-shrink-0">
+                                    <AvatarImage src={expert.photo_url} />
+                                    <AvatarFallback className="text-xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">
+                                      {expert.name?.charAt(0) || 'E'}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div className="min-w-0 flex-1">
+                                    <h4 className="font-semibold text-lg truncate">{expert.name}</h4>
+                                    <p className="text-sm text-gray-600 truncate">{expert.domain_expertise?.join(', ')}</p>
+                                  </div>
+                                </div>
+                                <div className="max-h-32 overflow-y-auto">
+                                  <h4 className="font-medium mb-2">Professional Bio</h4>
+                                  <p className="text-sm text-gray-600 leading-relaxed">{expert.bio}</p>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                  <div>
+                                    <h4 className="font-medium mb-1">Domain Expertise</h4>
+                                    <p className="text-sm">{expert.domain_expertise?.join(', ')}</p>
+                                  </div>
+                                  <div>
+                                    <h4 className="font-medium mb-1">Hourly Rate</h4>
+                                    <p className="text-sm">₹{expert.hourly_rate}</p>
+                                  </div>
+                                  <div>
+                                    <h4 className="font-medium mb-1">Experience</h4>
+                                    <p className="text-sm">{expert.experience_years || 0} years</p>
+                                  </div>
+                                  <div>
+                                    <h4 className="font-medium mb-1">Contact</h4>
+                                    <p className="text-sm">{expert.email}</p>
+                                  </div>
+                                </div>
+                                {expert.subskills && expert.subskills.length > 0 && (
+                                  <div>
+                                    <h4 className="font-medium mb-2">Specializations</h4>
+                                    <div className="max-h-24 overflow-y-auto">
+                                      <div className="flex flex-wrap gap-2">
+                                        {expert.subskills.map((skill: string, index: number) => (
+                                          <Badge key={index} variant="secondary" className="text-xs">
+                                            {skill}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                                {expert.qualifications && (
+                                  <div>
+                                    <h4 className="font-medium mb-1">Qualifications</h4>
+                                    <div className="max-h-20 overflow-y-auto">
+                                      <p className="text-sm leading-relaxed">{expert.qualifications}</p>
+                                    </div>
+                                  </div>
+                                )}
+                                {expert.resume_url && (
+                                  <div>
+                                    <h4 className="font-medium mb-1">Resume</h4>
+                                    <a 
+                                      href={expert.resume_url} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 hover:underline text-sm"
+                                    >
+                                      View Resume
+                                    </a>
+                                  </div>
+                                )}
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious />
+              <CarouselNext />
+            </Carousel>
+          )}
+        </div>
+      </div>
+
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome Section */}
@@ -940,200 +1163,152 @@ export default function InstitutionHome() {
           </div>
         </div>
 
-        {/* Experts Carousel */}
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">
-                Featured Experts
-              </h2>
-              <p className="text-slate-600 text-lg">
-                Discover top-rated professionals ready to collaborate ({experts.length} available)
-              </p>
-            </div>
+        {/* All Experts (List View with infinite scrolling) */}
+        <div className="mb-12">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">All Experts</h2>
+            <span className="text-slate-600">{(allExperts || []).length} loaded</span>
           </div>
-
-          {experts.length === 0 ? (
+          {(!allExperts || allExperts.length === 0) && !expertsListLoading ? (
             <div className="text-center py-12">
-              <GraduationCap className="mx-auto h-12 w-12 text-slate-400 mb-4" />
+              <Users className="mx-auto h-12 w-12 text-slate-400 mb-4" />
               <h3 className="text-lg font-medium text-slate-900 mb-2">No experts found</h3>
               <p className="text-slate-500">Try adjusting your search criteria</p>
             </div>
           ) : (
-            <Carousel className="w-full"
-            opts={{
-              align: "start",
-              containScroll: "trimSnaps"
-            }}
-            plugins={[
-              Autoplay({
-                delay: 3000,
-              }),
-            ]}
-            >
-              <CarouselContent className="-ml-2 md:-ml-4">
-                {experts.map((expert) => (
-                  <CarouselItem key={expert.id} className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3">
-                    <Card className="bg-white border-2 border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 group hover:border-blue-300">
-                      <CardHeader>
-                        <div className="flex items-start space-x-3">
-                          <Avatar className="w-12 h-12">
-                            <AvatarImage src={expert.photo_url} alt={expert.name} />
-                            <AvatarFallback className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">
-                              {expert.name?.charAt(0) || 'E'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <CardTitle className="text-lg line-clamp-1">{expert.name}</CardTitle>
-                            <div className="flex items-center text-slate-600 text-sm">
-                              <Star className="h-4 w-4 mr-1 fill-yellow-400 text-yellow-400" />
-                              {expert.rating?.toFixed(1) || '0.0'} ({expert.total_ratings || 0})
-                            </div>
-                            <div className="flex items-center text-slate-600 text-sm">
-                           
-                              ₹{expert.hourly_rate}/hour
-                            </div>
+            <div className="space-y-4">
+              {allExperts?.map((expert: any) => (
+                <Card key={expert.id} className="hover:shadow-md transition-all duration-300 border-2 border-slate-200 bg-white">
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <Avatar className="w-12 h-12">
+                        <AvatarImage src={expert.photo_url} alt={expert.name} />
+                        <AvatarFallback className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">
+                          {expert.name?.charAt(0) || 'E'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                          <h3 className="text-lg font-semibold text-slate-900 truncate">{expert.name}</h3>
+                          <div className="flex items-center text-slate-600 text-sm">
+                            <Star className="h-4 w-4 mr-1 fill-yellow-400 text-yellow-400" />
+                            {expert.rating?.toFixed(1) || '0.0'} ({expert.total_ratings || 0})
                           </div>
                         </div>
-                      </CardHeader>
-                      
-                      <CardContent>
-                        <CardDescription className="truncate mb-4">
-                          {expert.bio}
-                        </CardDescription>
-                        
-                        <div className="space-y-2 mb-4">
-                          <div className="flex items-center text-slate-600 text-sm">
-                            <Briefcase className="h-4 w-4 mr-2" />
-                            {expert.experience_years || 0} years experience
-                          </div>
-                          <div className="flex items-center text-slate-600 text-sm">
-                            <Award className="h-4 w-4 mr-2" />
-                            {expert.is_verified ? 'Verified' : 'Unverified'}
-                          </div>
+                        <p className="text-slate-600 text-sm line-clamp-2 mt-1">{expert.bio}</p>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {expert.domain_expertise?.slice(0, 3)?.map((d: string, i: number) => (
+                            <Badge key={i} className={`text-xs ${getDomainColor(d)}`}>{d}</Badge>
+                          ))}
                         </div>
-
-                        {expert.domain_expertise && expert.domain_expertise.length > 0 && (
-                          <div className="mb-4">
-                            <div className="flex flex-wrap gap-1">
-                              {expert.domain_expertise.slice(0, 2).map((domain, index) => (
-                                <Badge key={index} className={`text-xs ${getDomainColor(domain)}`}>
-                                  {domain}
-                                </Badge>
-                              ))}
-                              {expert.domain_expertise.length > 2 && (
-                                <Badge variant="secondary" className="text-xs">
-                                  +{expert.domain_expertise.length - 2} more
-                                </Badge>
+                        <div className="flex items-center gap-4 text-sm text-slate-600 mt-2">
+                          <span>₹{expert.hourly_rate}/hour</span>
+                          {expert.experience_years ? <span>{expert.experience_years}+ yrs</span> : null}
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0 ml-2 flex gap-2">
+                        <Button className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white" onClick={() => { setQuickSelectExpert(expert); setShowQuickSelectModal(true); }}>
+                          <UserCheck className="h-4 w-4 mr-2" />
+                          Select
+                        </Button>
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="icon" className="border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50 transition-all duration-300">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
+                            <DialogHeader className="flex-shrink-0">
+                              <DialogTitle>{expert.name}</DialogTitle>
+                              <DialogDescription>Complete Expert Profile</DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4 overflow-y-auto flex-1 pr-2">
+                              <div className="flex items-center space-x-4 mb-4">
+                                <Avatar className="w-16 h-16 border-2 border-blue-200 flex-shrink-0">
+                                  <AvatarImage src={expert.photo_url} />
+                                  <AvatarFallback className="text-xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">
+                                    {expert.name?.charAt(0) || 'E'}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="min-w-0 flex-1">
+                                  <h4 className="font-semibold text-lg truncate">{expert.name}</h4>
+                                  <p className="text-sm text-gray-600 truncate">{expert.domain_expertise?.join(', ')}</p>
+                                </div>
+                              </div>
+                              <div className="max-h-32 overflow-y-auto">
+                                <h4 className="font-medium mb-2">Professional Bio</h4>
+                                <p className="text-sm text-gray-600 leading-relaxed">{expert.bio}</p>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                  <h4 className="font-medium mb-1">Domain Expertise</h4>
+                                  <p className="text-sm">{expert.domain_expertise?.join(', ')}</p>
+                                </div>
+                                <div>
+                                  <h4 className="font-medium mb-1">Hourly Rate</h4>
+                                  <p className="text-sm">₹{expert.hourly_rate}</p>
+                                </div>
+                                <div>
+                                  <h4 className="font-medium mb-1">Experience</h4>
+                                  <p className="text-sm">{expert.experience_years || 0} years</p>
+                                </div>
+                                <div>
+                                  <h4 className="font-medium mb-1">Contact</h4>
+                                  <p className="text-sm">{expert.email}</p>
+                                </div>
+                              </div>
+                              {expert.subskills && expert.subskills.length > 0 && (
+                                <div>
+                                  <h4 className="font-medium mb-2">Specializations</h4>
+                                  <div className="max-h-24 overflow-y-auto">
+                                    <div className="flex flex-wrap gap-2">
+                                      {expert.subskills.map((skill: string, index: number) => (
+                                        <Badge key={index} variant="secondary" className="text-xs">
+                                          {skill}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                              {expert.qualifications && (
+                                <div>
+                                  <h4 className="font-medium mb-1">Qualifications</h4>
+                                  <div className="max-h-20 overflow-y-auto">
+                                    <p className="text-sm leading-relaxed">{expert.qualifications}</p>
+                                  </div>
+                                </div>
+                              )}
+                              {expert.resume_url && (
+                                <div>
+                                  <h4 className="font-medium mb-1">Resume</h4>
+                                  <a 
+                                    href={expert.resume_url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:underline text-sm"
+                                  >
+                                    View Resume
+                                  </a>
+                                </div>
                               )}
                             </div>
-                          </div>
-                        )}
-
-                        <div className="flex space-x-2">
-                          <Button 
-                            className="flex-1 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
-                            onClick={() => {
-                              setQuickSelectExpert(expert)
-                              setShowQuickSelectModal(true)
-                            }}
-                          >
-                            <UserCheck className="h-4 w-4 mr-2" />
-                            Select Expert
-                          </Button>
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button variant="outline" size="icon" className="border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50 transition-all duration-300">
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
-                              <DialogHeader className="flex-shrink-0">
-                                <DialogTitle>{expert.name}</DialogTitle>
-                                <DialogDescription>Complete Expert Profile</DialogDescription>
-                              </DialogHeader>
-                              <div className="space-y-4 overflow-y-auto flex-1 pr-2">
-                                <div className="flex items-center space-x-4 mb-4">
-                                  <Avatar className="w-16 h-16 border-2 border-blue-200 flex-shrink-0">
-                                    <AvatarImage src={expert.photo_url} />
-                                    <AvatarFallback className="text-xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">
-                                      {expert.name?.charAt(0) || 'E'}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <div className="min-w-0 flex-1">
-                                    <h4 className="font-semibold text-lg truncate">{expert.name}</h4>
-                                    <p className="text-sm text-gray-600 truncate">{expert.domain_expertise?.join(', ')}</p>
-                                  </div>
-                                </div>
-                                <div className="max-h-32 overflow-y-auto">
-                                  <h4 className="font-medium mb-2">Professional Bio</h4>
-                                  <p className="text-sm text-gray-600 leading-relaxed">{expert.bio}</p>
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                  <div>
-                                    <h4 className="font-medium mb-1">Domain Expertise</h4>
-                                    <p className="text-sm">{expert.domain_expertise?.join(', ')}</p>
-                                  </div>
-                                  <div>
-                                    <h4 className="font-medium mb-1">Hourly Rate</h4>
-                                    <p className="text-sm">₹{expert.hourly_rate}</p>
-                                  </div>
-                                  <div>
-                                    <h4 className="font-medium mb-1">Experience</h4>
-                                    <p className="text-sm">{expert.experience_years || 0} years</p>
-                                  </div>
-                                  <div>
-                                    <h4 className="font-medium mb-1">Contact</h4>
-                                    <p className="text-sm">{expert.email}</p>
-                                  </div>
-                                </div>
-                                {expert.subskills && expert.subskills.length > 0 && (
-                                  <div>
-                                    <h4 className="font-medium mb-2">Specializations</h4>
-                                    <div className="max-h-24 overflow-y-auto">
-                                      <div className="flex flex-wrap gap-2">
-                                        {expert.subskills.map((skill: string, index: number) => (
-                                          <Badge key={index} variant="secondary" className="text-xs">
-                                            {skill}
-                                          </Badge>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  </div>
-                                )}
-                                {expert.qualifications && (
-                                  <div>
-                                    <h4 className="font-medium mb-1">Qualifications</h4>
-                                    <div className="max-h-20 overflow-y-auto">
-                                      <p className="text-sm leading-relaxed">{expert.qualifications}</p>
-                                    </div>
-                                  </div>
-                                )}
-                                {expert.resume_url && (
-                                  <div>
-                                    <h4 className="font-medium mb-1">Resume</h4>
-                                    <a 
-                                      href={expert.resume_url} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer"
-                                      className="text-blue-600 hover:underline text-sm"
-                                    >
-                                      View Resume
-                                    </a>
-                                  </div>
-                                )}
-                              </div>
-                            </DialogContent>
-                          </Dialog>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </CarouselItem>
-                ))}
-              </CarouselContent>
-              <CarouselPrevious />
-              <CarouselNext />
-            </Carousel>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              {/* Infinite sentinel */}
+              <div ref={expertsListEndRef} />
+              {expertsListLoading && (
+                <div className="flex justify-center py-6 text-slate-600">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-2"></div>
+                  Loading more experts...
+                </div>
+              )}
+            </div>
           )}
         </div>
 
