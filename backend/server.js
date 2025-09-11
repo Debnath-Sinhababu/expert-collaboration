@@ -1449,7 +1449,7 @@ app.get('/api/applications', async (req, res) => {
     // Filter by status - default to 'pending' (in progress) applications
     // Status values: 'pending', 'accepted', 'rejected'
     if (status) {
-      console.log('Filtering by status:', status);
+    
       query = query.eq('status', status);
       
       // Log the business logic behind the filtering
@@ -1730,40 +1730,64 @@ app.put('/api/applications/:id', async (req, res) => {
     
     // Send notification to expert about application status change
     try {
-      if (req.body.status === 'accepted' || req.body.status === 'rejected') {
+      if (req.body.status === 'interview') {
         const serviceClient = createClient(
           process.env.SUPABASE_URL,
           process.env.SUPABASE_SERVICE_ROLE_KEY
         );
         // Get application details for notification
-        const { data: applicationData } = await serviceClient
-          .from('applications')
-          .select(`
-            project_id,
-            expert_id,
-            status,
-            projects!inner(title, institution_id),
-            experts!inner(name, email, user_id),
-            institutions!inner(name)
-          `)
-          .eq('id', req.params.id)
-          .single();
+        const { data: applicationData } = await supabaseClient
+        .from('applications')
+        .select(`
+          project_id,
+          expert_id,
+          status,
+          projects (
+            title,
+            institution_id,
+            institutions(name)
+          ),
+          experts(name, email, user_id)
+        `)
+        .eq('id', req.params.id)
+        .single();
+
+          console.log('applicationData', applicationData)
         
         if (applicationData) {
-          // Send email notification
-          await notificationService.sendApplicationStatusNotification(
-            applicationData.experts.email,
-            applicationData.projects.title,
-            applicationData.institutions.name,
-            req.body.status
-          );
-          
-          // Send real-time notification
-          socketService.sendApplicationStatusNotification(
-            applicationData.experts.user_id, // Use Supabase user_id instead of expert_id
-            applicationData.projects.title,
-            req.body.status
-          );
+          const status = req.body.status;
+         
+          if (status === 'interview') {
+            // Email for interview stage
+            await notificationService.sendMovedToInterviewNotification(
+              applicationData.experts.email,
+              applicationData.projects.title,
+              applicationData.project_id
+            );
+            // Realtime for interview stage
+            socketService.sendApplicationStatusNotification(
+              applicationData.experts.user_id,
+              applicationData.projects.title,
+              'interview',
+              applicationData.project_id
+            );
+          } else if (status === 'accepted') {
+            // Email + realtime for accepted (pre-booking)
+            await notificationService.sendApplicationStatusNotification(
+              applicationData.experts.email,
+              applicationData.projects.title,
+              applicationData.projects.institutions.name,
+              'accepted'
+            );
+            socketService.sendApplicationStatusNotification(
+              applicationData.experts.user_id,
+              applicationData.projects.title,
+              'accepted',
+              applicationData.project_id
+            );
+          } else if (status === 'rejected') {
+            // Do not notify per requirement
+          }
         }
       }
     } catch (notificationError) {
@@ -1831,12 +1855,14 @@ app.post('/api/bookings', async (req, res) => {
         .single();
       
       if (bookingData) {
+       
         // Send email notification
         await notificationService.sendBookingNotification(
           bookingData.experts.email,
           bookingData.projects.title,
           bookingData.institutions.name,
-          bookingData
+          bookingData,
+          true
         );
         
         // Send real-time notification
@@ -1844,7 +1870,9 @@ app.post('/api/bookings', async (req, res) => {
           bookingData.experts.user_id, // Use Supabase user_id instead of expert_id
           bookingData.projects.title,
           bookingData.institutions.name,
-          true // isCreation = true
+         
+          bookingData.project_id,
+          true
         );
       }
     } catch (notificationError) {
@@ -2297,13 +2325,15 @@ app.put('/api/bookings/:id', async (req, res) => {
         .eq('id', id)
         .single();
       
+        console.log('bookingData', bookingData)
       if (bookingData) {
         // Send email notification
         await notificationService.sendBookingNotification(
           bookingData.experts.email,
           bookingData.projects.title,
           bookingData.institutions.name,
-          bookingData
+          bookingData,
+          false
         );
         
         // Send real-time notification

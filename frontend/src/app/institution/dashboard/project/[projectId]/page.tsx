@@ -489,6 +489,7 @@ export default function ProjectDetailsPage() {
       if (newStatus === 'cancelled') {
         // For cancelled bookings, delete them immediately
         await handleBookingDelete(bookingId,applicationId)
+       
       } else if (newStatus === 'completed') {
         // For completed bookings, update status and open rating modal
         await api.bookings.update(bookingId, { status: newStatus })
@@ -528,6 +529,7 @@ export default function ProjectDetailsPage() {
         })
          loadProjectData()
         refreshSelected()
+        refreshRejected()
         toast.success('Booking deleted successfully')
       } catch (error) {
         console.error('Error deleting booking:', error)

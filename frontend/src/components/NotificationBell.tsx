@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { useSocket } from '@/hooks/useSocket'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
 export default function NotificationBell() {
@@ -13,6 +14,7 @@ export default function NotificationBell() {
   const [isClearing, setIsClearing] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const { isConnected, notifications, connect, disconnect, clearNotifications } = useSocket()
+  const router = useRouter()
 
   useEffect(() => {
     let isMounted = true;
@@ -162,7 +164,13 @@ export default function NotificationBell() {
               {notifications.map((notification, index) => (
                 <div
                   key={index}
-                  className={`p-3 sm:p-4 border-l-4 ${getNotificationColor(notification.type)}`}
+                  className={`p-3 sm:p-4 border-l-4 ${getNotificationColor(notification.type)} cursor-pointer`}
+                  onClick={() => {
+                    if (notification.projectId) {
+                      router.push(`/expert/project/${notification.projectId}`)
+                      setIsOpen(false)
+                    }
+                  }}
                 >
                   <div className="flex items-start space-x-2 sm:space-x-3">
                     {getNotificationIcon(notification.type)}
