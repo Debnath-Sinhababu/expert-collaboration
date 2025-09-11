@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -50,49 +50,51 @@ export default function FeedbackAnalyticsPage() {
   const [allFeedback, setAllFeedback] = useState<any[]>([])
   const [showScrollTop, setShowScrollTop] = useState(false)
   const sentinelRef = useRef<HTMLDivElement>(null)
+  const topSentinelRef = useRef<HTMLDivElement>(null)
+  const lastItemObserverRef = useRef<IntersectionObserver | null>(null)
 
-  // Handle scroll events for scroll-to-top button
+  // IntersectionObserver for scroll-to-top visibility
   useEffect(() => {
-    const handleScroll = () => {
-      setShowScrollTop(window.scrollY > 300)
-    }
-
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
+    if (!topSentinelRef.current) return
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        setShowScrollTop(!entry.isIntersecting)
+      })
+    }, { threshold: 0 })
+    observer.observe(topSentinelRef.current)
+    return () => observer.disconnect()
   }, [])
 
-  // Intersection Observer for infinite scrolling
-  useEffect(() => {
-    if (!sentinelRef.current || !analytics?.pagination.hasNextPage || loadingMore || loading) {
-      return
+  // Observe the last rendered feedback item instead of a fixed sentinel
+  const setLastItemRef = useCallback((node: HTMLDivElement | null) => {
+    if (lastItemObserverRef.current) {
+      lastItemObserverRef.current.disconnect()
     }
-
-    const observer = new IntersectionObserver(
+    if (!node || !analytics?.pagination.hasNextPage) return
+    lastItemObserverRef.current = new IntersectionObserver(
       (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            // Add a small delay to prevent rapid successive calls
-            setTimeout(() => {
-              if (analytics?.pagination.hasNextPage && !loadingMore && !loading) {
-                loadAnalytics(currentPage + 1, true)
-              }
-            }, 100)
-          }
-        })
+        const entry = entries[0]
+        if (entry.isIntersecting && !loading && !loadingMore) {
+          // Disconnect to avoid rapid multi-trigger; will reattach to new last item after render
+          lastItemObserverRef.current?.disconnect()
+          loadAnalytics(currentPage + 1, true)
+        }
       },
       {
-        rootMargin: '200px', // Start loading when 200px away from the target for smoother experience
-        threshold: 0.1
+        // Start preloading shortly before the actual last item reaches the viewport
+        rootMargin: '0px 0px 300px 0px',
+        threshold: 0.01
       }
     )
+    lastItemObserverRef.current.observe(node)
+  }, [analytics?.pagination.hasNextPage, currentPage, loading, loadingMore])
 
-    // Observe the sentinel element using ref
-    observer.observe(sentinelRef.current)
-
+  // Cleanup observer on unmount
+  useEffect(() => {
     return () => {
-      observer.disconnect()
+      lastItemObserverRef.current?.disconnect()
     }
-  }, [analytics?.pagination.hasNextPage, loadingMore, loading, currentPage, analytics?.pagination])
+  }, [])
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -261,6 +263,7 @@ export default function FeedbackAnalyticsPage() {
       </div>
 
       <div className="max-w-7xl mx-auto relative z-10">
+        <div ref={topSentinelRef} className="h-px" />
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
@@ -450,7 +453,11 @@ export default function FeedbackAnalyticsPage() {
                     </div>
                   ) : (
                     allFeedback.map((feedback, index) => (
-                    <div key={feedback.id} className="border-2 border-slate-200 rounded-lg p-3 sm:p-4 bg-white">
+                    <div
+                      key={feedback.id}
+                      className="border-2 border-slate-200 rounded-lg p-3 sm:p-4 bg-white"
+                      ref={index === allFeedback.length - 1 ? setLastItemRef : undefined as any}
+                    >
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 min-w-0">
                           <Badge className={getRatingColor(feedback.rating)}>
