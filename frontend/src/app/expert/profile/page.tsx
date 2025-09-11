@@ -16,6 +16,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { MultiSelect } from '@/components/ui/multi-select'
 import { EXPERTISE_DOMAINS } from '@/lib/constants'
+import Logo from '@/components/Logo'
 
 export default function ExpertProfile() {
   const [user, setUser] = useState<any>(null)
@@ -379,23 +380,26 @@ export default function ExpertProfile() {
       <div className="container mx-auto px-4 max-w-6xl py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <Link href="/expert/dashboard" className="inline-flex items-center space-x-2 hover:opacity-80 transition-opacity duration-300">
+          <div  className="inline-flex cursor-pointer items-center space-x-2 hover:opacity-80 transition-opacity duration-300"
+          onClick={() => router.back()}
+          >
             <ArrowLeft className="h-5 w-5 text-blue-500" />
-            <span className="bg-gradient-to-r from-blue-500 to-indigo-500 bg-clip-text text-transparent font-medium">Back to Dashboard</span>
-          </Link>
-          
-          <div className="text-center">
-            <Link href="/" className="inline-flex items-center space-x-2 mb-4 group">
-              <GraduationCap className="h-8 w-8 text-slate-700 group-hover:text-slate-800 transition-colors duration-300" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent group-hover:from-slate-800 group-hover:via-blue-800 group-hover:to-indigo-800 transition-all duration-300">Calxmap</span>
-            </Link>
+            <span className="bg-gradient-to-r from-blue-500 to-indigo-500 bg-clip-text text-transparent font-medium">Back</span>
           </div>
+          
+       
           
           <div className="w-24"></div> {/* Spacer for centering */}
         </div>
 
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent mb-2">Expert Profile</h1>
+        <div className="text-center">
+            <Link href="/" className="inline-flex items-center space-x-2 group">
+              <Logo size="lg" />
+             
+            </Link>
+          </div>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent mb-2">Profile Summary</h1>
           <p className="text-xl text-slate-600">
             Manage your professional profile and showcase your expertise
           </p>

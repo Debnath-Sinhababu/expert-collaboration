@@ -426,7 +426,7 @@ export default function InstitutionDashboard() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <Link href="/" className="flex items-center space-x-2 group">
-              <Logo size="md" />
+            
               <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Calxmap</span>
             </Link>
             

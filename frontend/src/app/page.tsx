@@ -116,12 +116,10 @@ export default function Home() {
       {/* Clean Modern Header */}
       <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center items-start gap-4">
             {/* Logo & Brand */}
             <div className="flex items-center space-x-4 group">
-              <div className="relative">
-                <Logo size="md" />
-              </div>
+             
               <div className="relative">
                 <span className="text-xl sm:text-2xl font-bold text-white group-hover:text-blue-100 transition-all duration-300">
                  Calxmap
@@ -143,7 +141,7 @@ export default function Home() {
                 </Button>
               </Link>
               <Link href="/auth/signup">
-                <Button className="bg-white hover:bg-blue-50 text-slate-900 hover:text-blue-900 font-medium shadow-sm hover:shadow-md transition-all duration-300 px-3 py-2 text-sm sm:text-base">
+                <Button className="bg-white hover:bg-blue-50 text-slate-900 hover:text-blue-900 font-medium shadow-sm hover:shadow-md transition-all duration-300 px-4 py-2 text-sm sm:text-base">
                  Sign Up
                 </Button>
               </Link>
@@ -163,7 +161,7 @@ export default function Home() {
 
       {user && (
         <div className="bg-white border-2 border-slate-200 rounded-2xl shadow-sm mx-4 my-8">
-          <div className="container mx-auto px-8 py-16 text-center">
+          <div className="container mx-auto px-6 sm:px-8 py-16 text-center">
             <div className="max-w-4xl mx-auto">
               <h1 className="text-4xl lg:text-[40px] font-bold mb-6 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent">
                 Welcome back to Calxmap
@@ -172,19 +170,19 @@ export default function Home() {
                 Continue your journey in connecting education with expertise. Your dashboard awaits with new opportunities and insights.
               </p>
               
-              <div className="flex flex-col sm:flex-row gap-6 justify-center">
+              <div className="flex flex-col sm:flex-row gap-6 justify-center items-start">
                 <Link href="/expert/dashboard">
                   <Button size="lg" className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-bold text-lg px-8 py-6 shadow-sm hover:shadow-md transition-all duration-300 group">
                     <Users className="mr-3 h-6 w-6 group-hover:scale-110 transition-transform duration-300" />
                     Expert Dashboard
-                    <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
+                    <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-1 transition-transform duration-300 hidden sm:block" />
                   </Button>
                 </Link>
                                   <Link href="/institution/dashboard">
                   <Button size="lg" className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-bold text-lg px-8 py-6 shadow-sm hover:shadow-md transition-all duration-300 group">
                       <Building className="mr-3 h-6 w-6 group-hover:scale-110 transition-transform duration-300" />
                       Institution Dashboard
-                      <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
+                      <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-1 transition-transform duration-300 hidden sm:block" />
                     </Button>
                   </Link>
               </div>
@@ -723,7 +721,7 @@ export default function Home() {
                     delay: 3000,
                   }),
                 ]}
-                className="w-full max-w-5xl mx-auto"
+                className="w-full max-w-6xl mx-auto"
               >
                 <CarouselContent>
                                      {[
@@ -752,8 +750,8 @@ export default function Home() {
                     </CarouselItem>
                   ))}
                 </CarouselContent>
-                <CarouselPrevious className="text-slate-600 hover:text-slate-900" />
-                <CarouselNext className="text-slate-600 hover:text-slate-900" />
+                <CarouselPrevious className="text-slate-600 hover:text-slate-900 hidden sm:block" />
+                <CarouselNext className="text-slate-600 hover:text-slate-900 hidden sm:block" />
               </Carousel>
               </div>
             </div>
@@ -816,8 +814,8 @@ export default function Home() {
                     </CarouselItem>
                   ))}
                 </CarouselContent>
-                <CarouselPrevious className="text-slate-600 hover:text-slate-900" />
-                <CarouselNext className="text-slate-600 hover:text-slate-900" />
+                <CarouselPrevious className="text-slate-600 hover:text-slate-900 hidden sm:block" />
+                <CarouselNext className="text-slate-600 hover:text-slate-900 hidden sm:block" />
               </Carousel>
               </div>
             </div>
@@ -922,19 +920,19 @@ export default function Home() {
                 <Link href="/auth/signup?role=expert">
                     <Button size="lg" className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-bold text-xl px-12 py-6 shadow-sm hover:shadow-md transition-all duration-300">
                     Hire an Expert
-                    <ArrowRight className="ml-3 h-6 w-6" />
+                    <ArrowRight className="ml-3 h-6 w-6 hidden sm:block" />
                   </Button>
                 </Link>
                 <Link href="/auth/signup?role=expert">
                     <Button size="lg" className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-bold text-xl px-12 py-6 shadow-sm hover:shadow-md transition-all duration-300">
                     Register as Expert
-                    <ArrowRight className="ml-3 h-6 w-6" />
+                    <ArrowRight className="ml-3 h-6 w-6 hidden sm:block" />
                   </Button>
                 </Link>
                 <Link href="/contact-us">
                     <Button size="lg" className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-bold text-xl px-12 py-6 shadow-sm hover:shadow-md transition-all duration-300">
                     Contact Us
-                    <ArrowRight className="ml-3 h-6 w-6" />
+                    <ArrowRight className="ml-3 h-6 w-6 hidden sm:block" />
                   </Button>
                 </Link>
                 </div>

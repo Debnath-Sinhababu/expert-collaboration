@@ -290,7 +290,7 @@ export default function ExpertProjectPage() {
   if (!project) return null
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 overflow-x-hidden">
       {/* Header */}
       <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -303,7 +303,7 @@ export default function ExpertProjectPage() {
               </Link>
               <div className="h-6 w-px bg-white/20" />
               <Link href="/" className="flex items-center space-x-2 group">
-                <Logo size="md" />
+                {/* <Logo size="md" /> */}
                 <span className="text-xl font-bold bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent group-hover:from-blue-200 group-hover:to-white transition-all duration-300">Calxmap</span>
               </Link>
             </div>
@@ -331,7 +331,7 @@ export default function ExpertProjectPage() {
         <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-lg transition-all duration-300 mb-8 relative group">
           <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 opacity-0 group-hover:opacity-5 transition-opacity duration-300 -z-10"></div>
           <CardHeader className="pb-4">
-            <div className="flex items-start justify-between">
+            <div className="flex flex-col sm:flex-row items-start justify-between">
               <div className="flex-1">
                 <CardTitle className="text-4xl font-bold text-slate-900 mb-3 tracking-tight">{project.title}</CardTitle>
                 <div className="flex items-center space-x-4 text-slate-600 mb-4">
@@ -350,7 +350,7 @@ export default function ExpertProjectPage() {
               </div>
               <div className="text-right">
                 <div className="text-3xl font-bold text-green-600">₹{project.hourly_rate}/hour</div>
-                <div className="text-sm text-slate-500">{project.duration_hours} hours</div>
+                <div className="text-sm text-slate-500 text-left">{project.duration_hours} hours</div>
               </div>
             </div>
           </CardHeader>
@@ -563,8 +563,8 @@ export default function ExpertProjectPage() {
                   </CarouselItem>
                 ))}
               </CarouselContent>
-              <CarouselPrevious className="text-slate-600 hover:text-slate-900" />
-              <CarouselNext className="text-slate-600 hover:text-slate-900" />
+              <CarouselPrevious className="text-slate-600 hover:text-slate-900 hidden sm:block" />
+              <CarouselNext className="text-slate-600 hover:text-slate-900 hidden sm:block" />
             </Carousel>
           </div>
         )}
@@ -619,8 +619,8 @@ export default function ExpertProjectPage() {
                   </CarouselItem>
                 ))}
               </CarouselContent>
-              <CarouselPrevious className="text-slate-600 hover:text-slate-900" />
-              <CarouselNext className="text-slate-600 hover:text-slate-900" />
+              <CarouselPrevious className="text-slate-600 hover:text-slate-900 hidden sm:block" />
+              <CarouselNext className="text-slate-600 hover:text-slate-900 hidden sm:block" />
             </Carousel>
           </div>
         )}

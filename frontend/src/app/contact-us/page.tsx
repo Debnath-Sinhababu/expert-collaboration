@@ -41,7 +41,6 @@ export default function ContactUs() {
           <div className="flex items-center justify-between h-16">
             <Link href="/" className="flex items-center space-x-3 group">
               <div className="relative">
-                <Logo size="md" />
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-full opacity-0 group-hover:opacity-20 blur-xl transition-opacity duration-300"></div>
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-full opacity-0 group-hover:opacity-10 blur-2xl transition-opacity duration-500"></div>
               </div>
@@ -62,14 +61,15 @@ export default function ContactUs() {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-16">
+      <main className="container mx-auto px-4 py-10">
         {/* Hero Section */}
         <div className="text-center mb-16">
+        <Logo size="lg" />
           <div className="inline-flex items-center space-x-2 bg-slate-100 backdrop-blur-sm px-6 py-3 rounded-full text-sm font-medium mb-6 border-2 border-slate-200">
             <MessageSquare className="h-5 w-5 text-slate-600" />
             <span className="text-slate-700">Get in Touch</span>
           </div>
-          <h1 className="text-5xl lg:text-6xl font-bold text-slate-900 mb-6 leading-tight">
+          <h1 className="text-4xl lg:text-5xl font-bold text-slate-900 mb-6 leading-tight">
             Let's Build Something
             <span className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent"> Amazing Together</span>
           </h1>
@@ -165,7 +165,7 @@ export default function ContactUs() {
                 </div>
                 
                 <div className="text-center mb-8">
-                  <div className="inline-flex items-center space-x-4 bg-slate-100 backdrop-blur-sm px-8 py-4 rounded-2xl border-2 border-slate-200">
+                  <div className="flex flex-col sm:flex-row items-center justify-center space-x-4 bg-slate-100 backdrop-blur-sm px-8 py-4 rounded-2xl border-2 border-slate-200">
                     <Mail className="h-6 w-6 text-slate-600" />
                     <span className="text-2xl font-bold text-slate-900">info@calxmap.in</span>
                     <Button 

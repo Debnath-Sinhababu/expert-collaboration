@@ -15,6 +15,7 @@ import { GraduationCap, Building, Globe, MapPin, ArrowLeft, Save, Edit, Users, S
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import Logo from '@/components/Logo'
 
 const INSTITUTION_TYPES = [
   'University',
@@ -194,23 +195,23 @@ export default function InstitutionProfile() {
       <div className="container mx-auto px-4 max-w-6xl relative z-10">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <Link href="/institution/dashboard" className="inline-flex items-center space-x-2 hover:opacity-80 transition-opacity duration-300">
+        <div  className="inline-flex cursor-pointer items-center space-x-2 hover:opacity-80 transition-opacity duration-300"
+          onClick={() => router.back()}
+          >
             <ArrowLeft className="h-5 w-5 text-blue-500" />
-            <span className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent font-medium">Back to Dashboard</span>
-          </Link>
-          
-          <div className="text-center">
-            <Link href="/" className="inline-flex items-center space-x-2 mb-4 group">
-              <GraduationCap className="h-8 w-8 text-blue-500 group-hover:text-blue-600 transition-colors duration-300" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent group-hover:from-blue-600 group-hover:to-indigo-600 transition-all duration-300">Calxmap</span>
-            </Link>
+            <span className="bg-gradient-to-r from-blue-500 to-indigo-500 bg-clip-text text-transparent font-medium">Back</span>
           </div>
+          
+        
           
           <div className="w-24"></div> {/* Spacer for centering */}
         </div>
 
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent mb-2">Institution Profile</h1>
+        <div className="text-center">
+            <Logo size="lg" />
+          </div>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent mb-2">Profile Summary</h1>
           <p className="text-xl text-slate-600">
             Manage your institution profile and showcase your academic excellence
           </p>

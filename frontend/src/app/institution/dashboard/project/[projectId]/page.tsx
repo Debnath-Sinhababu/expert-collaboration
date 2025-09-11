@@ -603,17 +603,17 @@ export default function ProjectDetailsPage() {
       <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
               <Button
                 variant="ghost"
-                onClick={() => router.push('/institution/dashboard')}
+                onClick={() => router.back()}
                 className="text-white hover:text-white hover:bg-transparent"
               >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Dashboard
+                <ArrowLeft className="h-4 w-4" />
+                Back 
               </Button>
               <Link href="/" className="flex items-center space-x-2 group">
-                <Logo size="md" />
+                {/* <Logo size="md" /> */}
                 <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Calxmap</span>
               </Link>
             </div>
@@ -630,7 +630,20 @@ export default function ProjectDetailsPage() {
         {/* Project Info Section */}
         <Card className="mb-8 bg-white border-2 border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
           <CardHeader>
-            <div className="flex items-center justify-between">
+            {/* Mobile Layout */}
+            <div className="block sm:hidden">
+              <div className="text-center mb-4">
+                <CardTitle className="text-xl font-bold text-slate-900 mb-2">{project.title}</CardTitle>
+                <CardDescription className="text-slate-600 text-sm">{project.description}</CardDescription>
+              </div>
+              <div className="flex justify-center gap-2 flex-wrap">
+                <Badge variant="outline" className="capitalize border-slate-300 text-slate-700 text-xs">{project.status}</Badge>
+                <Badge variant="secondary" className="capitalize bg-slate-100 text-slate-700 text-xs">{project.type}</Badge>
+              </div>
+            </div>
+            
+            {/* Desktop Layout - Keep original */}
+            <div className="hidden sm:flex flex-col sm:flex-row items-center justify-between gap-3">
               <div>
                 <CardTitle className="text-2xl font-bold text-slate-900 mb-2">{project.title}</CardTitle>
                 <CardDescription className="text-slate-600">{project.description}</CardDescription>
@@ -642,67 +655,106 @@ export default function ProjectDetailsPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div>
-                <span className="text-slate-500">Rate:</span>
-                <p className="font-medium">₹{project.hourly_rate}/hour</p>
-              </div>
-              <div>
-                <span className="text-slate-500">Duration:</span>
-                <p className="font-medium">{project.duration_hours} hours</p>
-              </div>
-              <div>
-                <span className="text-slate-500">Budget:</span>
-                <p className="font-medium">₹{project.total_budget}</p>
-              </div>
-              <div>
-                <span className="text-slate-500">Posted:</span>
-                <p className="font-medium">{new Date(project.created_at).toLocaleDateString()}</p>
-              </div>
-            </div>
-            {project.required_expertise && project.required_expertise.length > 0 && (
-              <div className="mt-4">
-                <span className="text-sm text-slate-500">Required Expertise:</span>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {project.required_expertise.map((skill: string, index: number) => (
-                    <Badge key={index} variant="secondary" className="text-xs">
-                      {skill}
-                    </Badge>
-                  ))}
+            {/* Mobile Layout */}
+            <div className="block sm:hidden">
+              <div className="grid grid-cols-2 gap-3 text-sm mb-4">
+                <div className="text-center p-2 bg-slate-50 rounded-lg">
+                  <span className="text-slate-500 block text-xs">Rate</span>
+                  <p className="font-medium text-sm">₹{project.hourly_rate}/hr</p>
+                </div>
+                <div className="text-center p-2 bg-slate-50 rounded-lg">
+                  <span className="text-slate-500 block text-xs">Duration</span>
+                  <p className="font-medium text-sm">{project.duration_hours} hrs</p>
+                </div>
+                <div className="text-center p-2 bg-slate-50 rounded-lg">
+                  <span className="text-slate-500 block text-xs">Budget</span>
+                  <p className="font-medium text-sm">₹{project.total_budget}</p>
+                </div>
+                <div className="text-center p-2 bg-slate-50 rounded-lg">
+                  <span className="text-slate-500 block text-xs">Posted</span>
+                  <p className="font-medium text-sm">{new Date(project.created_at).toLocaleDateString()}</p>
                 </div>
               </div>
-            )}
+              {project.required_expertise && project.required_expertise.length > 0 && (
+                <div>
+                  <span className="text-sm text-slate-500 block mb-2 text-center">Required Expertise</span>
+                  <div className="flex flex-wrap gap-1 justify-center">
+                    {project.required_expertise.map((skill: string, index: number) => (
+                      <Badge key={index} variant="secondary" className="text-xs px-2 py-1">
+                        {skill}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Desktop Layout - Keep original */}
+            <div className="hidden sm:block">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <span className="text-slate-500">Rate:</span>
+                  <p className="font-medium">₹{project.hourly_rate}/hour</p>
+                </div>
+                <div>
+                  <span className="text-slate-500">Duration:</span>
+                  <p className="font-medium">{project.duration_hours} hours</p>
+                </div>
+                <div>
+                  <span className="text-slate-500">Budget:</span>
+                  <p className="font-medium">₹{project.total_budget}</p>
+                </div>
+                <div>
+                  <span className="text-slate-500">Posted:</span>
+                  <p className="font-medium">{new Date(project.created_at).toLocaleDateString()}</p>
+                </div>
+              </div>
+              {project.required_expertise && project.required_expertise.length > 0 && (
+                <div className="mt-4">
+                  <span className="text-sm text-slate-500">Required Expertise:</span>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {project.required_expertise.map((skill: string, index: number) => (
+                      <Badge key={index} variant="secondary" className="text-xs">
+                        {skill}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
         {/* 3-Tab System */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 bg-white border-b border-slate-200 h-12">
-            <TabsTrigger 
-              value="pending" 
-              className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none"
-            >
-              Pending ({pendingCount || 0})
-            </TabsTrigger>
-            <TabsTrigger 
-              value="interview" 
-              className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none"
-            >
-              Interview ({interviewCount || 0})
-            </TabsTrigger>
-            <TabsTrigger 
-              value="rejected" 
-              className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none"
-            >
-              Rejected ({rejectedCount || 0})
-            </TabsTrigger>
-            <TabsTrigger 
-              value="selected" 
-              className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none"
-            >
-              Selected ({selectedCount || 0})
-            </TabsTrigger>
-          </TabsList>
+          <div className="w-full overflow-x-auto md:overflow-x-visible scrollbar-hide">
+            <TabsList className="flex md:grid w-max md:w-full md:grid-cols-4 gap-2 bg-white border-b border-slate-200 h-12 px-4 md:px-0">
+              <TabsTrigger 
+                value="pending" 
+                className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
+              >
+                Pending ({pendingCount || 0})
+              </TabsTrigger>
+              <TabsTrigger 
+                value="interview" 
+                className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
+              >
+                Interview ({interviewCount || 0})
+              </TabsTrigger>
+              <TabsTrigger 
+                value="rejected" 
+                className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
+              >
+                Rejected ({rejectedCount || 0})
+              </TabsTrigger>
+              <TabsTrigger 
+                value="selected" 
+                className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
+              >
+                Selected ({selectedCount || 0})
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* Pending Tab */}
           <TabsContent value="pending">

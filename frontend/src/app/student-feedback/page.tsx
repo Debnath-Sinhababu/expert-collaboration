@@ -154,7 +154,7 @@ export default function StudentFeedbackPage() {
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center space-x-3 group">
-              <Logo size="sm" />
+              <Logo size="md" />
               <span className="text-2xl font-bold text-slate-900 group-hover:text-blue-700 transition-colors">
                 Calxmap
               </span>

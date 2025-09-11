@@ -331,7 +331,7 @@ export default function ExpertHome() {
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
             <Link href="/" className="flex items-center space-x-2 group">
-              <Logo size="md" />
+              {/* <Logo size="md" /> */}
               <span className="text-xl font-bold bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent group-hover:from-blue-200 group-hover:to-white transition-all duration-300">Calxmap</span>
             </Link>
 
@@ -493,8 +493,8 @@ export default function ExpertHome() {
                       </CarouselItem>
                     ))}
                   </CarouselContent>
-                  <CarouselPrevious className="text-slate-600 hover:text-slate-900" />
-                  <CarouselNext className="text-slate-600 hover:text-slate-900" />
+                  <CarouselPrevious className="text-slate-600 hover:text-slate-900 hidden sm:block" />
+                  <CarouselNext className="text-slate-600 hover:text-slate-900 hidden sm:block" />
                 </Carousel>
               )}
             </div>
@@ -581,8 +581,8 @@ export default function ExpertHome() {
                           )
                         })}
                       </CarouselContent>
-                      <CarouselPrevious className="text-slate-600 hover:text-slate-900" />
-                      <CarouselNext className="text-slate-600 hover:text-slate-900" />
+                      <CarouselPrevious className="text-slate-600 hover:text-slate-900 hidden sm:block" />
+                      <CarouselNext className="text-slate-600 hover:text-slate-900 hidden sm:block" />
                     </Carousel>
                   )}
                 </div>
@@ -687,8 +687,8 @@ export default function ExpertHome() {
                           )
                         })}
                       </CarouselContent>
-                      <CarouselPrevious className="text-slate-600 hover:text-slate-900" />
-                      <CarouselNext className="text-slate-600 hover:text-slate-900" />
+                      <CarouselPrevious className="text-slate-600 hover:text-slate-900 hidden sm:block" />
+                      <CarouselNext className="text-slate-600 hover:text-slate-900 hidden sm:block" />
                     </Carousel>
                   )}
                 </div>

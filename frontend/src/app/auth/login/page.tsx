@@ -94,7 +94,7 @@ export default function LoginPage() {
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center space-x-3 group">
               <div className="relative">
-                <Logo size="md" />
+              
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-full opacity-0 group-hover:opacity-20 blur-xl transition-opacity duration-300"></div>
               </div>
               <div>
@@ -121,7 +121,9 @@ export default function LoginPage() {
         <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-12 items-center">
           {/* Left Side - Enhanced Branding */}
           <div className="hidden lg:block space-y-8">
+        
             <div className="space-y-6">
+            <Logo size="lg"  />
               <h1 className="text-5xl font-bold text-slate-900 leading-tight">
                 Welcome Back to
                 <span className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent ml-2">Calxmap</span>

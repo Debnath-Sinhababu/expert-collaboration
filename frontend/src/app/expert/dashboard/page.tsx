@@ -127,6 +127,7 @@ export default function ExpertDashboard() {
     proposedRate: ''
   })
   const [activeTab, setActiveTab] = useState('pending')
+  const tabsListRef = useRef<HTMLDivElement>(null)
 
   // Scroll refs for infinite scrolling
   const pendingScrollRef = useRef<HTMLDivElement>(null)
@@ -358,6 +359,27 @@ export default function ExpertDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Ensure the tabs list starts scrolled to show the active (pending) tab fully on mobile
+  useEffect(() => {
+    if (!tabsListRef.current) return
+    const container = tabsListRef.current
+    const active = container.querySelector('[data-state="active"]') as HTMLElement | null
+    if (active) {
+      // If active trigger is partially out of view, bring it to the start
+      const cRect = container.getBoundingClientRect()
+      const aRect = active.getBoundingClientRect()
+      if (aRect.left < cRect.left || aRect.right > cRect.right) {
+        active.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'start' })
+      }
+      // For initial pending, ensure we are at start
+      if (activeTab === 'pending') {
+        container.scrollTo({ left: 0 })
+      }
+    } else {
+      container.scrollTo({ left: 0 })
+    }
+  }, [activeTab])
+
   // Intersection Observer for infinite scrolling
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -478,7 +500,6 @@ export default function ExpertDashboard() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center space-x-2 group">
-              <Logo size="md" />
               <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Calxmap</span>
             </Link>
             
@@ -659,32 +680,34 @@ export default function ExpertDashboard() {
           </div>
           
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4 bg-white border-b border-slate-200 h-12">
-              <TabsTrigger 
-                value="pending" 
-                className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none"
-              >
-                Pending ({applicationCounts.pending || 0})
-              </TabsTrigger>
-              <TabsTrigger 
-                value="interview" 
-                className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none"
-              >
-                Interview ({applicationCounts.interview || 0})
-              </TabsTrigger>
-              <TabsTrigger 
-                value="bookings" 
-                className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none"
-              >
-                Bookings ({bookingCounts.total || 0})
-              </TabsTrigger>
-              <TabsTrigger 
-                value="rejected" 
-                className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none"
-              >
-                Rejected ({applicationCounts.rejected || 0})
-              </TabsTrigger>
-            </TabsList>
+            <div className="w-full overflow-x-auto md:overflow-x-visible scrollbar-hide">
+              <TabsList ref={tabsListRef} className="flex md:grid w-max md:w-full md:grid-cols-4 gap-2 bg-white border-b border-slate-200 h-12 px-4 md:px-0">
+                <TabsTrigger 
+                  value="pending" 
+                  className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
+                >
+                  Pending ({applicationCounts.pending || 0})
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="interview" 
+                  className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
+                >
+                  Interview ({applicationCounts.interview || 0})
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="bookings" 
+                  className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
+                >
+                  Bookings ({bookingCounts.total || 0})
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="rejected" 
+                  className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
+                >
+                  Rejected ({applicationCounts.rejected || 0})
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
 
             {/* Pending Applications Tab */}

@@ -647,7 +647,7 @@ export default function InstitutionHome() {
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
             <Link href="/" className="flex items-center space-x-2 group">
-              <Logo size="md" />
+              {/* <Logo size="md" /> */}
               <span className="text-xl font-bold text-white group-hover:text-blue-100 transition-all duration-300">Calxmap</span>
             </Link>
 
@@ -753,8 +753,8 @@ export default function InstitutionHome() {
                     )
                   })}
                 </CarouselContent>
-                <CarouselPrevious className="text-slate-600 hover:text-slate-900" />
-                <CarouselNext className="text-slate-600 hover:text-slate-900" />
+                <CarouselPrevious className="text-slate-600 hover:text-slate-900 hidden sm:block" />
+                <CarouselNext className="text-slate-600 hover:text-slate-900 hidden sm:block" />
               </Carousel>
             )}
           </div>
@@ -908,8 +908,8 @@ export default function InstitutionHome() {
                   </CarouselItem>
                 ))}
               </CarouselContent>
-              <CarouselPrevious />
-              <CarouselNext />
+              <CarouselPrevious className='text-slate-600 hover:text-slate-900 hidden sm:block' />
+              <CarouselNext className='text-slate-600 hover:text-slate-900 hidden sm:block' />
             </Carousel>
           )}
         </div>
@@ -929,7 +929,7 @@ export default function InstitutionHome() {
 
         {/* Post Requirement Section */}
         <div className="bg-white rounded-2xl shadow-sm border-2 border-slate-200 p-8 mb-8">
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-2">
             <div>
               <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">Post a New Requirement</h2>
               <p className="text-slate-600 text-lg">
@@ -1180,7 +1180,126 @@ export default function InstitutionHome() {
               {allExperts?.map((expert: any) => (
                 <Card key={expert.id} className="hover:shadow-md transition-all duration-300 border-2 border-slate-200 bg-white">
                   <CardContent className="p-4">
-                    <div className="flex items-start gap-3">
+                    {/* Mobile Layout */}
+                    <div className="block sm:hidden">
+                      {/* Avatar, Name, Rating - Centered */}
+                      <div className="flex flex-col items-center text-center mb-4">
+                        <Avatar className="w-12 h-12 mb-2">
+                          <AvatarImage src={expert.photo_url} alt={expert.name} />
+                          <AvatarFallback className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">
+                            {expert.name?.charAt(0) || 'E'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <h3 className="text-lg font-semibold text-slate-900 truncate mb-1">{expert.name}</h3>
+                        <div className="flex items-center text-slate-600 text-sm">
+                          <Star className="h-4 w-4 mr-1 fill-yellow-400 text-yellow-400" />
+                          {expert.rating?.toFixed(1) || '0.0'} ({expert.total_ratings || 0})
+                        </div>
+                      </div>
+                      
+                      {/* Description and other info */}
+                      <p className="text-slate-600 text-sm line-clamp-2 mt-1">{expert.bio}</p>
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {expert.domain_expertise?.slice(0, 3)?.map((d: string, i: number) => (
+                          <Badge key={i} className={`text-xs ${getDomainColor(d)}`}>{d}</Badge>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-slate-600 mt-2">
+                        <span>₹{expert.hourly_rate}/hour</span>
+                        {expert.experience_years ? <span>{expert.experience_years}+ yrs</span> : null}
+                      </div>
+                      
+                      {/* Buttons - Select stretched, Eye in corner */}
+                      <div className="flex gap-2 mt-4">
+                        <Button 
+                          className="flex-1 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white" 
+                          onClick={() => { setQuickSelectExpert(expert); setShowQuickSelectModal(true); }}
+                        >
+                          <UserCheck className="h-4 w-4 mr-2" />
+                          Select
+                        </Button>
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="icon" className="border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50 transition-all duration-300 flex-shrink-0">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
+                            <DialogHeader className="flex-shrink-0">
+                              <DialogTitle>{expert.name}</DialogTitle>
+                              <DialogDescription>Complete Expert Profile</DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4 overflow-y-auto flex-1 pr-2">
+                              <div className="flex items-center space-x-4 mb-4">
+                                <Avatar className="w-16 h-16 border-2 border-blue-200 flex-shrink-0">
+                                  <AvatarImage src={expert.photo_url} />
+                                  <AvatarFallback className="text-xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">
+                                    {expert.name?.charAt(0) || 'E'}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="min-w-0 flex-1">
+                                  <h4 className="font-semibold text-lg truncate">{expert.name}</h4>
+                                  <p className="text-sm text-gray-600 truncate">{expert.domain_expertise?.join(', ')}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-4 mb-4">
+                                <div className="flex items-center">
+                                  <Star className="h-4 w-4 mr-1 fill-yellow-400 text-yellow-400" />
+                                  <span className="font-medium">{expert.rating?.toFixed(1) || '0.0'}</span>
+                                  <span className="text-gray-500 ml-1">({expert.total_ratings || 0})</span>
+                                </div>
+                                <div className="text-lg font-bold text-green-600">
+                                  ₹{expert.hourly_rate}/hour
+                                </div>
+                              </div>
+                              <div className="mb-4">
+                                <h5 className="font-medium mb-2">About</h5>
+                                <p className="text-sm text-gray-600">{expert.bio}</p>
+                              </div>
+                              <div className="mb-4">
+                                <h5 className="font-medium mb-2">Domain Expertise</h5>
+                                <div className="flex flex-wrap gap-1">
+                                  {expert.domain_expertise?.map((domain: string, index: number) => (
+                                    <Badge key={index} className={`text-xs ${getDomainColor(domain)}`}>
+                                      {domain}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                              {expert.experience_years && (
+                                <div className="mb-4">
+                                  <h5 className="font-medium mb-2">Experience</h5>
+                                  <p className="text-sm text-gray-600">{expert.experience_years}+ years</p>
+                                </div>
+                              )}
+                              {expert.certifications && expert.certifications.length > 0 && (
+                                <div className="mb-4">
+                                  <h5 className="font-medium mb-2">Certifications</h5>
+                                  <div className="space-y-1">
+                                    {expert.certifications.map((cert: string, index: number) => (
+                                      <p key={index} className="text-sm text-gray-600">• {cert}</p>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              {expert.education && expert.education.length > 0 && (
+                                <div className="mb-4">
+                                  <h5 className="font-medium mb-2">Education</h5>
+                                  <div className="space-y-1">
+                                    {expert.education.map((edu: string, index: number) => (
+                                      <p key={index} className="text-sm text-gray-600">• {edu}</p>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
+                    </div>
+
+                    {/* Desktop Layout - Keep original */}
+                    <div className="hidden sm:flex items-start gap-3">
                       <Avatar className="w-12 h-12">
                         <AvatarImage src={expert.photo_url} alt={expert.name} />
                         <AvatarFallback className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">

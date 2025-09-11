@@ -164,7 +164,7 @@ export default function InstitutionProfileSetup() {
         {/* Header */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center space-x-2 mb-4 group">
-            <Logo size="sm" />
+            <Logo size="md" />
             <span className="text-2xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent group-hover:from-blue-800 group-hover:to-indigo-800 transition-all duration-300">Calxmap</span>
           </Link>
           <h1 className="text-4xl font-bold text-slate-900 mb-2 tracking-tight">Complete Your Institution Profile</h1>
