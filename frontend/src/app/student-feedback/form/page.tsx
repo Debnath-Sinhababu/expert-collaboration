@@ -218,10 +218,10 @@ export default function FeedbackFormPage() {
 
   if (!studentData || !universityData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-300">Loading your feedback sessions...</p>
+          <p className="text-slate-600">Loading your feedback sessions...</p>
         </div>
       </div>
     )
@@ -230,10 +230,10 @@ export default function FeedbackFormPage() {
   const currentSession = getCurrentSession()
   if (!currentSession) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md border-0 bg-white/10 backdrop-blur-xl shadow-2xl border border-white/20">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
           <CardContent className="p-6 text-center">
-            <p className="text-slate-300">Loading sessions...</p>
+            <p className="text-slate-600">Loading sessions...</p>
           </CardContent>
         </Card>
       </div>
@@ -244,12 +244,12 @@ export default function FeedbackFormPage() {
   const isLastSession = currentSessionIndex === sessions.length - 1
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden p-4">
       {/* Background Elements */}
       <div className="absolute inset-0">
-        <div className="absolute top-20 left-20 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-20 right-20 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-purple-500/5 to-pink-500/5 rounded-full blur-3xl"></div>
+        <div className="absolute top-20 left-20 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-20 right-20 w-80 h-80 bg-indigo-500/5 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-blue-300/10 to-indigo-300/10 rounded-full blur-3xl"></div>
       </div>
 
       <div className="max-w-4xl mx-auto relative z-10">
@@ -258,8 +258,8 @@ export default function FeedbackFormPage() {
           <div className="flex justify-center mb-4">
             <Logo size="lg" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Session Feedback Form</h1>
-          <p className="text-slate-300">
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Session Feedback Form</h1>
+          <p className="text-slate-600">
             Welcome, {studentData.student_name} from {universityData.name}
           </p>
         </div>
@@ -274,9 +274,9 @@ export default function FeedbackFormPage() {
               {sessions.filter(s => isSessionCompleted(s.session_type)).length} completed
             </span>
           </div>
-          <div className="w-full bg-white/10 rounded-full h-2">
+          <div className="w-full bg-slate-200 rounded-full h-2">
             <div 
-              className="bg-gradient-to-r from-blue-500 to-indigo-500 h-2 rounded-full transition-all duration-300"
+              className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 h-2 rounded-full transition-all duration-300"
               style={{ width: `${((currentSessionIndex + 1) / sessions.length) * 100}%` }}
             ></div>
           </div>
@@ -287,27 +287,27 @@ export default function FeedbackFormPage() {
           {sessions.map((session, index) => (
             <Card 
               key={session.id} 
-              className={`transition-all duration-300 border-0 ${
+              className={`transition-all duration-300 ${
                 index === currentSessionIndex 
-                  ? 'ring-2 ring-blue-500 shadow-2xl bg-white/15 backdrop-blur-xl' 
-                  : 'opacity-60 bg-white/10 backdrop-blur-sm'
+                  ? 'bg-white border-2 border-blue-300 shadow-sm hover:shadow-md' 
+                  : 'bg-white/80 border-2 border-slate-200'
               } ${
                 isSessionCompleted(session.session_type) 
-                  ? 'bg-green-500/10 border-green-500/20' 
-                  : 'border-white/20'
+                  ? 'ring-1 ring-green-300' 
+                  : ''
               }`}
             >
               <CardHeader>
-                <CardTitle className="flex items-center justify-between text-white">
+                <CardTitle className="flex items-center justify-between text-slate-900">
                   <span className="flex items-center space-x-2">
-                    <GraduationCap className="h-5 w-5 text-blue-400" />
+                    <GraduationCap className="h-5 w-5 text-blue-600" />
                     <span>{session.session_type === 'ET' ? 'Emerging Technologies' : 'Prompt Engineering'}</span>
                   </span>
                   {isSessionCompleted(session.session_type) && (
-                    <CheckCircle className="h-6 w-6 text-green-400" />
+                    <CheckCircle className="h-6 w-6 text-green-500" />
                   )}
                 </CardTitle>
-                <CardDescription className="text-slate-300">
+                <CardDescription className="text-slate-600">
                   {session.topic} - {session.expert_name}
                 </CardDescription>
               </CardHeader>
@@ -316,7 +316,7 @@ export default function FeedbackFormPage() {
                 <CardContent className="space-y-6">
                   {/* Rating Selection */}
                   <div className="space-y-3">
-                    <Label className="text-base font-medium text-white">How would you rate this session?</Label>
+                    <Label className="text-base font-medium text-slate-900">How would you rate this session?</Label>
                     <div className="grid grid-cols-2 gap-4">
                       {RATING_OPTIONS.map((option) => {
                         const Icon = option.icon
@@ -329,14 +329,14 @@ export default function FeedbackFormPage() {
                               value={option.value}
                               checked={feedbackData[session.id]?.rating === option.value}
                               onChange={(e) => handleFeedbackChange(session.id, 'rating', e.target.value)}
-                              className="h-4 w-4 text-blue-500 border-slate-400 focus:ring-blue-500 bg-slate-700"
+                              className="h-4 w-4 text-blue-600 border-slate-300 focus:ring-blue-600 bg-white"
                             />
                             <label 
                               htmlFor={`${session.id}-${option.value}`}
                               className={`flex items-center space-x-2 cursor-pointer ${option.color}`}
                             >
                               <Icon className="h-4 w-4" />
-                              <span className="text-white">{option.label}</span>
+                              <span className="text-slate-900">{option.label}</span>
                             </label>
                           </div>
                         )
@@ -346,47 +346,47 @@ export default function FeedbackFormPage() {
 
                   {/* Pros */}
                   <div className="space-y-2">
-                    <Label htmlFor={`pros-${session.id}`} className="text-white">What did you like about this session?</Label>
+                    <Label htmlFor={`pros-${session.id}`} className="text-slate-900">What did you like about this session?</Label>
                     <Textarea
                       id={`pros-${session.id}`}
                       placeholder="Share the positive aspects..."
                       value={feedbackData[session.id]?.pros || ''}
                       onChange={(e) => handleFeedbackChange(session.id, 'pros', e.target.value)}
                       rows={3}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:ring-blue-500 focus:border-blue-500"
+                      className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
 
                   {/* Cons */}
                   <div className="space-y-2">
-                    <Label htmlFor={`cons-${session.id}`} className="text-white">What could be improved?</Label>
+                    <Label htmlFor={`cons-${session.id}`} className="text-slate-900">What could be improved?</Label>
                     <Textarea
                       id={`cons-${session.id}`}
                       placeholder="Share areas for improvement..."
                       value={feedbackData[session.id]?.cons || ''}
                       onChange={(e) => handleFeedbackChange(session.id, 'cons', e.target.value)}
                       rows={3}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:ring-blue-500 focus:border-blue-500"
+                      className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
 
                   {/* Additional Comments */}
                   <div className="space-y-2">
-                    <Label htmlFor={`comments-${session.id}`} className="text-white">Additional Comments (Optional)</Label>
+                    <Label htmlFor={`comments-${session.id}`} className="text-slate-900">Additional Comments (Optional)</Label>
                     <Textarea
                       id={`comments-${session.id}`}
                       placeholder="Any other feedback or suggestions..."
                       value={feedbackData[session.id]?.additionalComments || ''}
                       onChange={(e) => handleFeedbackChange(session.id, 'additionalComments', e.target.value)}
                       rows={2}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:ring-blue-500 focus:border-blue-500"
+                      className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
 
                   {/* Submit Button */}
                   <Button
                     onClick={() => handleSubmitFeedback(session.id)}
-                    className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-bold py-6 shadow-2xl hover:shadow-3xl transition-all hover:scale-105 border-2 border-blue-400/20 hover:shadow-blue-500/25 hover:-translate-y-1"
+                    className="w-full bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-bold py-6 shadow-sm hover:shadow-md transition-all"
                     disabled={loading || !feedbackData[session.id]?.rating}
                   >
                     {loading ? 'Submitting...' : 'Submit Feedback'}
@@ -396,9 +396,9 @@ export default function FeedbackFormPage() {
 
               {isSessionCompleted(session.session_type) && (
                 <CardContent className="text-center py-6">
-                  <CheckCircle className="h-12 w-12 text-green-400 mx-auto mb-2" />
-                  <p className="text-green-400 font-medium">Feedback Submitted</p>
-                  <p className="text-sm text-slate-400">Thank you for your feedback!</p>
+                  <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-2" />
+                  <p className="text-green-700 font-medium">Feedback Submitted</p>
+                  <p className="text-sm text-slate-600">Thank you for your feedback!</p>
                 </CardContent>
               )}
             </Card>
@@ -407,13 +407,13 @@ export default function FeedbackFormPage() {
 
         {/* Alerts */}
         {error && (
-          <Alert className="mb-4 border-red-500/20 bg-red-500/10 text-red-200">
+          <Alert className="mb-4 border-red-200 bg-red-50 text-red-700">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
         {success && (
-          <Alert className="mb-4 border-green-500/20 bg-green-500/10 text-green-200">
+          <Alert className="mb-4 border-green-200 bg-green-50 text-green-700">
             <AlertDescription>{success}</AlertDescription>
           </Alert>
         )}
