@@ -415,7 +415,7 @@ export default function ProjectDetailsPage() {
         amount: (application as any).proposed_rate || 1000,
         start_date: new Date().toISOString().split('T')[0],
         end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        hours_booked: 1,
+        hours_booked: project.duration_hours,
         status: 'in_progress',
         payment_status: 'pending'
       }

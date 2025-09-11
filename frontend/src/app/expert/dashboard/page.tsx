@@ -35,7 +35,8 @@ import {
   Bell,
   Shield,
   Award,
-  AlertCircle
+  AlertCircle,
+  IndianRupee
 } from 'lucide-react'
 import { BookOpen } from 'lucide-react'
 import Link from 'next/link'
@@ -510,7 +511,7 @@ export default function ExpertDashboard() {
           <p className="text-xl text-slate-600 font-medium">Welcome back, {expert?.name}</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -532,24 +533,7 @@ export default function ExpertDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-700">Total Earnings</p>
-                  <p className="text-2xl font-bold text-slate-900">₹{analytics.totalEarnings.toLocaleString()}</p>
-                  {/* <div className="flex space-x-2 text-xs text-slate-500">
-                    <span>₹{analytics.monthlyEarnings.toLocaleString()} this month</span>
-                    <span>•</span>
-                    <span>{analytics.totalHoursWorked}h worked</span>
-                  </div> */}
-                </div>
-                <div className="p-3 bg-slate-100 rounded-full">
-                  <DollarSign className="h-8 w-8 text-slate-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        
 
           <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
             <CardContent className="p-6">
@@ -596,7 +580,7 @@ export default function ExpertDashboard() {
         </div>
 
         {/* Additional Analytics Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">

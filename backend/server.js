@@ -2170,15 +2170,18 @@ app.post('/api/ratings', async (req, res) => {
             // Calculate average rating
             const totalRatings = ratingsData.length;
             const sumRatings = ratingsData.reduce((sum, item) => sum + (item.rating || 0), 0);
+            console.log('sumRatings', sumRatings)
+            console.log('totalRatings', totalRatings)
             const averageRating = totalRatings > 0 ? (sumRatings / totalRatings).toFixed(1) : 0;
-            
+            console.log('averageRating', averageRating)
             console.log(`Expert ${expertId} - Total ratings: ${totalRatings}, Sum: ${sumRatings}, Average: ${averageRating}`);
             
             // Update the expert's rating column
             const { error: updateError } = await supabaseClient
               .from('experts')
               .update({ 
-                rating: parseFloat(averageRating)
+                rating: parseFloat(averageRating),
+                total_ratings: totalRatings
               })
               .eq('id', expertId);
             
