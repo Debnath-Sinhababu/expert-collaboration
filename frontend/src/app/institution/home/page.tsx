@@ -409,6 +409,12 @@ export default function InstitutionHome() {
       // Create bookings for experts who have already applied
       for (const expert of expertsWithApplications) {
         try {
+          // Check if a booking already exists for this expert and project
+          const existing = await api.bookings.getAll({ expert_id: expert.id, project_id: selectedProjectId, page: 1, limit: 1 })
+          const existingCount = Array.isArray(existing) ? existing.length : (existing?.data?.length || 0)
+          if (existingCount > 0) {
+            continue
+          }
           // Create booking using existing API
           const bookingData = {
             expert_id: expert.id,
@@ -422,6 +428,13 @@ export default function InstitutionHome() {
           }
 
           await api.bookings.create(bookingData)
+
+          // Update application status for this expert and project
+          const appsResp = await api.applications.getAll({ expert_id: expert.id, project_id: selectedProjectId, page: 1, limit: 1 })
+          const appId = Array.isArray(appsResp) ? appsResp[0]?.id : (appsResp?.data?.[0]?.id)
+          if (appId) {
+            await api.applications.update(appId, { status: 'accepted', reviewed_at: new Date().toISOString() })
+          }
           
           // Send custom notification for selected expert with booking
           await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/send-expert-selected`, {
@@ -434,6 +447,7 @@ export default function InstitutionHome() {
               expertId: expert.id,
               projectTitle: projectDetails.title,
               institutionName: institutionDetails.name,
+              projectId: selectedProjectId,
               type: 'expert_selected_with_booking'
             })
           })
@@ -888,7 +902,7 @@ export default function InstitutionHome() {
                                     </div>
                                   </div>
                                 )}
-                                {expert.resume_url && (
+                                {/* {expert.resume_url && (
                                   <div>
                                     <h4 className="font-medium mb-1">Resume</h4>
                                     <a 
@@ -900,7 +914,7 @@ export default function InstitutionHome() {
                                       View Resume
                                     </a>
                                   </div>
-                                )}
+                                )} */}
                               </div>
                             </DialogContent>
                           </Dialog>
@@ -1400,7 +1414,7 @@ export default function InstitutionHome() {
                                   </div>
                                 </div>
                               )}
-                              {expert.resume_url && (
+                              {/* {expert.resume_url && (
                                 <div>
                                   <h4 className="font-medium mb-1">Resume</h4>
                                   <a 
@@ -1412,7 +1426,7 @@ export default function InstitutionHome() {
                                     View Resume
                                   </a>
                                 </div>
-                              )}
+                              )} */}
                             </div>
                           </DialogContent>
                         </Dialog>
@@ -1667,7 +1681,18 @@ export default function InstitutionHome() {
                         status: 'in_progress',
                         hours_booked: projectDetails.duration_hours
                       }
-                      await api.bookings.create(bookingData)
+                      // Check if booking already exists for this expert and project
+                      const existingQuick = await api.bookings.getAll({ expert_id: quickSelectExpert.id, project_id: quickSelectedProjectId, page: 1, limit: 1 })
+                      const existingQuickCount = Array.isArray(existingQuick) ? existingQuick.length : (existingQuick?.data?.length || 0)
+                      if (existingQuickCount === 0) {
+                        await api.bookings.create(bookingData)
+                        // Update the existing application to accepted for this expert and project
+                        const quickApps = await api.applications.getAll({ expert_id: quickSelectExpert.id, project_id: quickSelectedProjectId, page: 1, limit: 1 })
+                        const quickAppId = Array.isArray(quickApps) ? quickApps[0]?.id : (quickApps?.data?.[0]?.id)
+                        if (quickAppId) {
+                          await api.applications.update(quickAppId, { status: 'accepted', reviewed_at: new Date().toISOString() })
+                        }
+                      }
                       await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/send-expert-selected`, {
                         method: 'POST',
                         headers: {

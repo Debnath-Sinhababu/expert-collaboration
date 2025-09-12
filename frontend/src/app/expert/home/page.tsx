@@ -870,11 +870,11 @@ export default function ExpertHome() {
                             {getProjectTypeLabel(project.type || '')}
                           </Badge>
                         </div>
-                        <div className="flex items-center text-slate-600 text-sm mb-3">
+                        {/* <div className="flex items-center text-slate-600 text-sm mb-3">
                           <Building2 className="h-4 w-4 mr-2 flex-shrink-0" />
                           <span className="font-medium truncate">{project.institutions?.name}</span>
-                        </div>
-                        <p className="text-slate-600 text-sm line-clamp-2 mb-4">
+                        </div> */}
+                        <p className="text-slate-600 text-sm line-clamp-2">
                           {project.description}
                         </p>
                       </div>

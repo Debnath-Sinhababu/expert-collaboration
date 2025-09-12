@@ -1358,7 +1358,7 @@ export default function ProjectDetailsPage() {
                                       </div>
                                     </div>
                                   )}
-                                  {booking.experts?.resume_url && (
+                                  {/* {booking.experts?.resume_url && (
                                     <div>
                                       <h4 className="font-medium mb-1">Resume</h4>
                                       <a 
@@ -1370,9 +1370,9 @@ export default function ProjectDetailsPage() {
                                         View Resume
                                       </a>
                                     </div>
-                                  )}
+                                  )} */}
                                   
-                                  {booking.experts?.linkedin_url && (
+                                  {/* {booking.experts?.linkedin_url && (
                                     <div>
                                       <h4 className="font-medium mb-1">LinkedIn Profile</h4>
                                       <a 
@@ -1384,7 +1384,7 @@ export default function ProjectDetailsPage() {
                                         View LinkedIn Profile
                                       </a>
                                     </div>
-                                  )}
+                                  )} */}
 
 
                                   <div className="pt-2 border-t">

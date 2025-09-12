@@ -55,7 +55,10 @@ interface Project {
     id: string
     name: string
     logo_url?: string
-    description?: string
+    description?: string,
+    address?: string,
+    city?: string,
+    state?: string
   }
   required_expertise: string[]
   domain_expertise: string
@@ -363,7 +366,7 @@ export default function ExpertProjectPage() {
                 </div>
                 <div className="flex items-center justify-center space-x-1">
                   <MapPin className="h-4 w-4" />
-                  <span className="text-sm">{project.location}</span>
+                  <span className="text-sm">{project.institutions.city}, {project.institutions.state}</span>
                 </div>
                 <div className="flex justify-center">
                   <Badge variant="outline" className="capitalize text-xs">
