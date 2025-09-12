@@ -14,6 +14,20 @@ const getAuthHeaders = async () => {
 }
 
 export const api = {
+  auth: {
+    forgotPassword: async (email: string) => {
+      const headers = await getAuthHeaders()
+      return fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ email })
+      }).then(async (res) => {
+        const json = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(json?.error || 'Failed to send reset email')
+        return json
+      })
+    }
+  },
   experts: {
     getAll: async (params?: { 
       page?: number; 
