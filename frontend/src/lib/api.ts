@@ -310,4 +310,12 @@ export const api = {
       }).then(res => res.json())
     }
   }
+  ,
+  studentFeedback: {
+    getByExpertName: async (expertName: string, limit = 20) => {
+      const headers = await getAuthHeaders()
+      const q = new URLSearchParams({ expertName, limit: String(limit), _t: Date.now().toString() }).toString()
+      return fetch(`${API_BASE_URL}/api/student/feedback/by-expert?${q}`, { headers }).then(res => res.json())
+    }
+  }
 }

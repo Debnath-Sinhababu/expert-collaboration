@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { GraduationCap, DollarSign, ArrowLeft, Save, Edit, User, Shield, Star, Briefcase, Calendar, Globe, Upload, Camera, X, FileText, IndianRupee } from 'lucide-react'
+import { GraduationCap, DollarSign, ArrowLeft, Save, Edit, User, Shield, Star, Briefcase, Calendar, Globe, Upload, Camera, X, FileText, IndianRupee, Link2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { MultiSelect } from '@/components/ui/multi-select'
@@ -27,6 +27,7 @@ export default function ExpertProfile() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const router = useRouter()
+  const [copied, setCopied] = useState(false)
 
   const [formData, setFormData] = useState({
     name: '',
@@ -110,6 +111,17 @@ export default function ExpertProfile() {
   }
 
   console.log(formData,'formData')
+
+  const handleCopyLink = async () => {
+    try {
+      const link = `${window.location.origin}/experts/${expert?.id || ''}`
+      await navigator.clipboard.writeText(link)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch (e) {
+      // silent
+    }
+  }
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -520,6 +532,17 @@ export default function ExpertProfile() {
                   <Edit className="h-4 w-4 mr-2" />
                   {editing ? 'Cancel Editing' : 'Edit Profile'}
                 </Button>
+                <Button
+                  type="button"
+                  onClick={handleCopyLink}
+                  className="w-full mt-3 border-2 border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 shadow-sm hover:shadow-md transition-all duration-300"
+                >
+                  <Link2 className="h-4 w-4 mr-2" />
+                  Copy Public Profile Link
+                </Button>
+                {copied && (
+                  <p className="text-xs text-green-600 mt-2">Link copied!</p>
+                )}
               </CardContent>
             </Card>
           </div>

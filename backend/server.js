@@ -2555,6 +2555,54 @@ app.post('/api/student/feedback', async (req, res) => {
   }
 });
 
+// Public: Get student feedback highlights (GOOD and VERY_GOOD only). Optional expertName filter.
+app.get('/api/student/feedback/by-expert', async (req, res) => {
+  try {
+    const { expertName, limit = 50 } = req.query;
+
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return res.status(500).json({ success: false, error: 'Service role key not configured' });
+    }
+
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    // Build select clause dynamically to avoid inner join when not filtering by expertName
+    let selectClause = `pros,rating,students:students(student_name)`;
+    const hasExpertName = typeof expertName === 'string' && expertName.trim() !== '';
+    if (hasExpertName) {
+      selectClause += `,feedback_sessions!inner(expert_name)`;
+    }
+
+    let query = serviceClient
+      .from('student_feedback')
+      .select(selectClause)
+      .in('rating', ['VERY_GOOD', 'GOOD'])
+      .limit(parseInt(limit));
+
+    if (hasExpertName) {
+      query = query.eq('feedback_sessions.expert_name', expertName);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    const mapped = Array.isArray(data) ? data.map((row) => ({
+      student_name: row?.students?.student_name || 'Student',
+      pros: row?.pros || '',
+      rating: row?.rating || 'GOOD'
+    })).filter(item => item.pros && item.pros.trim() !== '') : [];
+
+    res.json({ success: true, feedback: mapped });
+  } catch (error) {
+    console.error('Get feedback by expert error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Analytics dashboard (only for authorized user)
 app.get('/api/admin/feedback-analytics', async (req, res) => {
   try {
