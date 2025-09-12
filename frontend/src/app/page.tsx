@@ -34,12 +34,15 @@ import {
   Play,
   MessageSquare,
   DollarSign,
-  Network
+  Network,
+  Menu
 } from 'lucide-react'
 import Link from 'next/link'
 import Logo from '@/components/Logo'
 import BackgroundBannerCarousel from '@/components/BackgroundBannerCarousel'
 import Autoplay from "embla-carousel-autoplay"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import Image from 'next/image'
 
 export default function Home() {
   const [user, setUser] = useState<any>(null)
@@ -170,7 +173,7 @@ export default function Home() {
       {/* Clean Modern Header */}
       <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center items-start gap-4">
+          <div className="flex items-center justify-between">
             {/* Logo & Brand */}
             <div className="flex items-center space-x-4 group">
              
@@ -182,23 +185,40 @@ export default function Home() {
               </div>
             </div>
             
-            {/* Navigation & CTA */}
-            <div className="flex items-center justify-center sm:justify-end gap-2 flex-wrap">
+            {/* Navigation & CTA - Desktop */}
+            <div className="hidden sm:flex items-center justify-end gap-2">
               <Link href="/contact-us">
-                <Button variant="ghost" className="font-medium text-white hover:text-blue-100 hover:bg-white/10 border border-transparent hover:border-white/20 transition-all duration-300 px-3 py-2 text-sm sm:text-base">
-                  Contact Us
-                </Button>
+                <Button variant="ghost" className="font-medium text-white hover:text-blue-100 hover:bg-white/10 border border-transparent hover:border-white/20 transition-all duration-300 px-3 py-2 text-sm sm:text-base">Contact Us</Button>
               </Link>
               <Link href="/auth/login">
-                <Button variant="ghost" className="font-medium text-white hover:text-blue-100 hover:bg-white/10 border border-transparent hover:border-white/20 transition-all duration-300 px-3 py-2 text-sm sm:text-base">
-                  Sign In
-                </Button>
+                <Button variant="ghost" className="font-medium text-white hover:text-blue-100 hover:bg-white/10 border border-transparent hover:border-white/20 transition-all duration-300 px-3 py-2 text-sm sm:text-base">Sign In</Button>
               </Link>
               <Link href="/auth/signup">
-                <Button className="bg-white hover:bg-blue-50 text-slate-900 hover:text-blue-900 font-medium shadow-sm hover:shadow-md transition-all duration-300 px-4 py-2 text-sm sm:text-base">
-                 Sign Up
-                </Button>
+                <Button className="bg-white hover:bg-blue-50 text-slate-900 hover:text-blue-900 font-medium shadow-sm hover:shadow-md transition-all duration-300 px-4 py-2 text-sm sm:text-base">Sign Up</Button>
               </Link>
+            </div>
+
+            {/* Navigation - Mobile Menu */}
+            <div className="sm:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="font-medium text-white hover:text-blue-100 hover:bg-white/10 border border-transparent hover:border-white/20 transition-all duration-300 px-3 py-2">
+                    <Menu className="h-5 w-5" />
+                    <span className="sr-only">Open menu</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <Link href="/contact-us">
+                    <DropdownMenuItem className="cursor-pointer">Contact Us</DropdownMenuItem>
+                  </Link>
+                  <Link href="/auth/login">
+                    <DropdownMenuItem className="cursor-pointer">Sign In</DropdownMenuItem>
+                  </Link>
+                  <Link href="/auth/signup">
+                    <DropdownMenuItem className="cursor-pointer">Sign Up</DropdownMenuItem>
+                  </Link>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
@@ -354,7 +374,19 @@ export default function Home() {
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className="bg-white border-2 border-slate-200 rounded-2xl p-8 shadow-sm">
               <div className="text-center mb-16">
-                  <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-bold text-slate-900 mb-4">About Calxmap</h2>
+                  <div className='flex flex-col sm:flex-row gap-x-2 justify-center items-center mb-3'>
+                  <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-bold text-slate-900">About Calxmap</h2>
+                  <div className='h-10 w-20'>
+                  <Image
+    src="/images/calxmaplogo.png"
+    alt="Calxmap Logo"
+    width={60}
+    height={60}
+    className="block w-full h-full object-cover transition-all duration-300 rounded-md"
+    priority
+  />
+                  </div>
+                  </div>
                   <p className="text-lg sm:text-xl text-slate-600 max-w-4xl mx-auto mb-8">
                     At Calxmap, we believe knowledge creates opportunity. We are an <strong className="text-blue-700">Expert Marketplace</strong> that enables corporates and academic institutions to access verified professionals on-demand.
                 </p>
@@ -983,7 +1015,7 @@ export default function Home() {
                 Whether you're a corporate seeking on-demand professionals or a university bridging industry knowledge, 
                   <strong className="text-blue-700"> Calxmap is your partner for expert-driven success.</strong>
               </p>
-              <div className="flex flex-col sm:flex-row gap-6 justify-center">
+              <div className="flex flex-col lg:flex-row gap-6 justify-center">
                 <Link href="/auth/signup?role=expert">
                     <Button size="lg" className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-bold text-xl px-12 py-6 shadow-sm hover:shadow-md transition-all duration-300">
                     Hire an Expert

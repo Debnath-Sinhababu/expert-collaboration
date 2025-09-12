@@ -182,7 +182,7 @@ export default function LoginPage() {
           </div>
 
           {/* Right Side - Enhanced Login Form */}
-          <div className="w-full max-w-md mx-auto lg:mx-0 relative group">
+          <div className="w-full max-w-2xl mx-auto lg:mx-0 relative group">
             {/* Subtle background glow */}
             <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-indigo-500/5 rounded-2xl blur-2xl group-hover:from-blue-500/10 group-hover:to-indigo-500/10 transition-all duration-500"></div>
             <Card className="border-2 border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-300 relative z-10">
