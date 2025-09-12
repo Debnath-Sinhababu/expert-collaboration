@@ -612,7 +612,7 @@ export default function ProjectDetailsPage() {
                 <ArrowLeft className="h-4 w-4" />
                 Back 
               </Button>
-              <Link href="/" className="flex items-center space-x-2 group">
+              <Link href="/institution/home" className="flex items-center space-x-2 group">
                 {/* <Logo size="md" /> */}
                 <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Calxmap</span>
               </Link>

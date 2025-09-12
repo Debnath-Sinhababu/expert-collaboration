@@ -386,7 +386,16 @@ export default function ExpertProfile() {
             <ArrowLeft className="h-5 w-5 text-blue-500" />
             <span className="bg-gradient-to-r from-blue-500 to-indigo-500 bg-clip-text text-transparent font-medium">Back</span>
           </div>
-          
+          <nav className="hidden md:flex items-center space-x-8">
+              <Link href="/expert/home" className="text-blue-500 hover:text-blue-200 font-medium transition-colors duration-200 relative group">
+                Home
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-blue-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
+              </Link>
+              <Link href="/expert/dashboard" className="text-blue-500  hover:text-blue-200 font-medium transition-colors duration-200 relative group">
+                Dashboard
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-blue-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
+              </Link>
+            </nav>
        
           
           <div className="w-24"></div> {/* Spacer for centering */}

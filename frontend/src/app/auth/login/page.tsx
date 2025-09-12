@@ -192,7 +192,7 @@ export default function LoginPage() {
                 </div>
                 <CardTitle className="text-3xl font-bold text-slate-900">Welcome Back</CardTitle>
                 <CardDescription className="text-slate-600 text-lg">
-                  Sign in to your dashboard
+                  Sign in to continue
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -248,7 +248,7 @@ export default function LoginPage() {
                     className="w-full h-12 text-base font-medium bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300" 
                     disabled={loading}
                   >
-                    {loading ? 'Signing in...' : 'Sign In to Dashboard'}
+                    {loading ? 'Signing in...' : 'Sign In'}
                   </Button>
                 </form>
 
