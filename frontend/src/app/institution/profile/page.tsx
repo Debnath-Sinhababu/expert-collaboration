@@ -277,9 +277,16 @@ export default function InstitutionProfile() {
                   <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                     <div className="flex items-center space-x-2">
                       <MapPin className="h-5 w-5 text-purple-600" />
-                      <span className="text-slate-600">Location</span>
+                      <span className="text-slate-600">City</span>
                     </div>
                     <span className="font-bold text-slate-900">{institution?.city || 'N/A'}</span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <MapPin className="h-5 w-5 text-purple-600" />
+                      <span className="text-slate-600">State</span>
+                    </div>
+                    <span className="font-bold text-slate-900">{institution?.state || 'N/A'}</span>
                   </div>
                 </div>
 

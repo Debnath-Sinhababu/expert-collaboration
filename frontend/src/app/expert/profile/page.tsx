@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { GraduationCap, DollarSign, ArrowLeft, Save, Edit, User, Shield, Star, Briefcase, Calendar, Globe, Upload, Camera, X, FileText } from 'lucide-react'
+import { GraduationCap, DollarSign, ArrowLeft, Save, Edit, User, Shield, Star, Briefcase, Calendar, Globe, Upload, Camera, X, FileText, IndianRupee } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { MultiSelect } from '@/components/ui/multi-select'
@@ -466,12 +466,12 @@ export default function ExpertProfile() {
                         {expert?.is_verified ? 'Verified' : 'Pending'}
                       </span>
                     </div>
-                    <div className="flex items-center space-x-1 px-3 py-1 bg-blue-50 rounded-full border border-blue-200">
+                    {/* <div className="flex items-center space-x-1 px-3 py-1 bg-blue-50 rounded-full border border-blue-200">
                       <Star className="h-4 w-4 text-blue-600" />
                       <span className="text-sm text-blue-700 font-medium">
                         {expert?.rating || 0}/5
                       </span>
-                    </div>
+                    </div> */}
                   </div>
                 </div>
 
@@ -479,7 +479,7 @@ export default function ExpertProfile() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
                     <div className="flex items-center space-x-2">
-                      <DollarSign className="h-5 w-5 text-green-600" />
+                      <IndianRupee className="h-5 w-5 text-green-600" />
                       <span className="text-slate-600">Hourly Rate</span>
                     </div>
                     <span className="font-bold text-slate-900">₹{expert?.hourly_rate || 0}</span>
@@ -495,10 +495,16 @@ export default function ExpertProfile() {
                   
                   <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
                     <div className="flex items-center space-x-2">
-                      <Briefcase className="h-5 w-5 text-purple-600" />
-                      <span className="text-slate-600">Projects</span>
+                      <div className="flex items-center space-x-0.5">
+                        <Star className="h-4 w-4 text-yellow-500" fill="currentColor" />
+                        <Star className="h-4 w-4 text-yellow-500" fill="currentColor" />
+                        <Star className="h-4 w-4 text-yellow-500" fill="currentColor" />
+                        <Star className="h-4 w-4 text-yellow-500" fill="currentColor" />
+                        <Star className="h-4 w-4 text-slate-300" />
+                      </div>
+                      <span className="text-slate-600">Rating</span>
                     </div>
-                    <span className="font-bold text-slate-900">{expert?.total_projects || 0}</span>
+                    <span className="font-bold text-slate-900">4+</span>
                   </div>
                 </div>
 
@@ -811,7 +817,7 @@ export default function ExpertProfile() {
                       <div className="space-y-2">
                         <Label htmlFor="hourly_rate" className="text-slate-700">Hourly Rate (₹) *</Label>
                         <div className="relative">
-                          <DollarSign className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                          <IndianRupee className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                           <Input
                             id="hourly_rate"
                             type="number"

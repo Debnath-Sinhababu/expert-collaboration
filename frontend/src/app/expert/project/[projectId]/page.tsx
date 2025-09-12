@@ -366,7 +366,7 @@ export default function ExpertProjectPage() {
                 </div>
                 <div className="flex items-center justify-center space-x-1">
                   <MapPin className="h-4 w-4" />
-                  <span className="text-sm">{project.institutions.city}, {project.institutions.state}</span>
+                  <span className="text-sm">{project?.institutions?.city},{project?.institutions?.state}</span>
                 </div>
                 <div className="flex justify-center">
                   <Badge variant="outline" className="capitalize text-xs">
@@ -381,13 +381,13 @@ export default function ExpertProjectPage() {
               <div className="flex-1">
                 <CardTitle className="text-4xl font-bold text-slate-900 mb-3 tracking-tight">{project.title}</CardTitle>
                 <div className="flex items-center space-x-4 text-slate-600 mb-4">
-                  <div className="flex items-center space-x-1">
+                  {/* <div className="flex items-center space-x-1">
                     <Building className="h-4 w-4" />
                     <span>{project.institutions.name}</span>
-                  </div>
+                  </div> */}
                   <div className="flex items-center space-x-1">
                     <MapPin className="h-4 w-4" />
-                    <span>{project.location}</span>
+                    <span>{project?.institutions?.city},{project?.institutions?.state}</span>
                   </div>
                   <Badge variant="outline" className="capitalize">
                     {project.type?.replace('_', ' ')}
@@ -512,10 +512,10 @@ export default function ExpertProjectPage() {
             </div>
 
             {/* Institution Details */}
-            <div className="border-t pt-6">
+            {/* <div className="border-t pt-6">
               <h3 className="text-lg font-semibold text-slate-900 mb-3">About {project.institutions.name}</h3>
               <p className="text-slate-700">{project.institutions.description || 'No description available'}</p>
-            </div>
+            </div> */}
 
             {/* Apply Button */}
             <div className="border-t pt-6">
@@ -623,13 +623,13 @@ export default function ExpertProjectPage() {
                         </div>
                         <p className="text-slate-600 text-sm mb-4 truncate">{project.description}</p>
                         <div className="flex items-center justify-between text-sm text-slate-500 mb-4">
-                          <span className="flex items-center">
+                          {/* <span className="flex items-center">
                             <Building className="h-4 w-4 mr-1" />
                             {project.institutions.name}
-                          </span>
+                          </span> */}
                           <span className="flex items-center">
                             <MapPin className="h-4 w-4 mr-1" />
-                            {project.location}
+                            {project?.institutions?.city},{project?.institutions?.state}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
@@ -679,13 +679,13 @@ export default function ExpertProjectPage() {
                         </div>
                         <p className="text-slate-600 text-sm mb-4 truncate">{project.description}</p>
                         <div className="flex items-center justify-between text-sm text-slate-500 mb-4">
-                          <span className="flex items-center">
+                          {/* <span className="flex items-center">
                             <Building className="h-4 w-4 mr-1" />
                             {project.institutions.name}
-                          </span>
+                          </span> */}
                           <span className="flex items-center">
                             <MapPin className="h-4 w-4 mr-1" />
-                            {project.location}
+                            {project?.institutions?.city},{project?.institutions?.state}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">

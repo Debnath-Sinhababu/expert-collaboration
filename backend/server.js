@@ -710,7 +710,9 @@ app.get('/api/projects', async (req, res) => {
         institutions (
           id,
           name,
-          logo_url
+          logo_url,
+          city,
+          state
         )
       `)
       .range(offset, offset + parseInt(limit) - 1)
@@ -918,7 +920,10 @@ app.get('/api/projects/:id', async (req, res) => {
           id,
           name,
           logo_url,
-          description
+          description,
+          address,
+          city,
+          state
         )
       `)
       .eq('id', req.params.id)
@@ -1016,7 +1021,9 @@ app.get('/api/projects/recommended/:expertId', async (req, res) => {
         institutions (
           id,
           name,
-          logo_url
+          logo_url,
+          city,
+          state
         )
       `)
       .eq('status', 'open')
@@ -1197,9 +1204,11 @@ app.post('/api/applications/check-status', async (req, res) => {
     // Create a map of expert_id -> application status
     const applicationStatus = {};
     applications.forEach(app => {
+     
       applicationStatus[app.expert_id] = app.status;
+      
     });
-
+     
     // Return status for each expert
     const result = expertIds.map(expertId => ({
       expertId,
