@@ -1,6 +1,6 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -23,6 +23,7 @@ interface ProfileDropdownProps {
 
 export default function ProfileDropdown({ user, expert,institution, userType }: ProfileDropdownProps) {
   const router = useRouter()
+  const pathname = usePathname()
 
 
 
@@ -42,6 +43,18 @@ export default function ProfileDropdown({ user, expert,institution, userType }: 
   const getDashboardUrl = () => {
     return userType === 'expert' ? '/expert/dashboard' : '/institution/dashboard'
   }
+
+  const getHomeUrl = () => {
+    return userType === 'expert' ? '/expert/home' : '/institution/home'
+  }
+
+  // Determine current location to toggle label and destination dynamically
+  const dashboardPrefix = userType === 'expert' ? '/expert/dashboard' : '/institution/dashboard'
+  const homePath = getHomeUrl()
+  const isOnDashboard = pathname?.startsWith(dashboardPrefix) ?? false
+  const isOnHome = pathname === homePath
+  const primaryNavHref = isOnDashboard ? getHomeUrl() : getDashboardUrl()
+  const primaryNavLabel = isOnDashboard ? 'Go to Home' : 'Go to Dashboard'
 
   const getUserInitials = () => {
     if (expert?.name) {
@@ -121,10 +134,10 @@ export default function ProfileDropdown({ user, expert,institution, userType }: 
           </DropdownMenuItem>
 
           <DropdownMenuItem asChild className="focus:bg-blue-50 focus:text-blue-700 data-[highlighted]:bg-blue-50 data-[highlighted]:text-blue-700">
-            <Link href={getDashboardUrl()} className="w-full">
+            <Link href={primaryNavHref} className="w-full">
               <div className="w-full justify-start px-3 sm:px-4 py-2.5 sm:py-3 text-slate-700 flex items-center">
                 <Settings className="h-4 w-4 mr-2 sm:mr-3 text-blue-600" />
-                <span className="text-sm sm:text-base">Go to Dashboard</span>
+                <span className="text-sm sm:text-base">{primaryNavLabel}</span>
               </div>
             </Link>
           </DropdownMenuItem>

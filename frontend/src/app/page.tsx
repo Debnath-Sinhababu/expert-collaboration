@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
+import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Carousel, CarouselContent,
@@ -45,6 +46,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [itemsPerView, setItemsPerView] = useState(3);
   const [scrolled, setScrolled] = useState(false);
+  const [featuredUniversities, setFeaturedUniversities] = useState<{ name: string; desc: string; logo: string; color: string }[]>([])
   
   // Intersection observer for statistics animation
   const { ref: statsRef, inView } = useInView({
@@ -102,6 +104,34 @@ export default function Home() {
     // Cleanup
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Load featured universities dynamically (limit 5), reuse existing logo assets
+  useEffect(() => {
+    const loadInstitutions = async () => {
+      try {
+        const res = await api.institutions.getAll({ limit: 5 })
+        const institutions = Array.isArray(res) ? res : (res?.data ?? [])
+        const logos = [
+          '/images/universitylogo3.jpeg',
+          '/images/universityimage5.webp',
+          '/images/universityimage6.jpeg',
+          '/images/universityimage7.webp',
+          '/images/universityimage9.webp',
+        ]
+        const colors = ['blue', 'purple', 'indigo', 'teal', 'blue']
+        const mapped = institutions.slice(0, 5).map((inst: any, idx: number) => ({
+          name: inst?.name || 'University',
+          desc: inst?.description || 'Leading educational institution collaborating with experts',
+          logo: logos[idx % logos.length],
+          color: colors[idx % colors.length],
+        }))
+        setFeaturedUniversities(mapped)
+      } catch (e) {
+        // Fail silently; the fallback hardcoded list will render
+      }
+    }
+    loadInstitutions()
+  }, [])
 
   if (loading) {
     return (
@@ -724,12 +754,16 @@ export default function Home() {
                 className="w-full max-w-6xl mx-auto"
               >
                 <CarouselContent>
-                                     {[
-                     { name: "IIT Delhi", desc: "Leading technical education with industry experts", logo: 'https://images.unsplash.com/photo-1562774053-701939374585?w=200&h=200&fit=crop&crop=center', color: "blue" },
-                     { name: "Delhi University", desc: "Bridging academia with professional expertise", logo: '/images/universitylogo1.jpeg', color: "purple" },
-                     { name: "JNU", desc: "Excellence in research and liberal education", logo: '/images/universitylogo2.jpeg', color: "indigo" },
-                     { name: "IISc Bangalore", desc: "Premier institute for advanced scientific research", logo: '/images/universitylogo3.jpeg', color: "teal" },
-                   ].map((uni, index) => (
+                  {(featuredUniversities.length > 0
+                    ? featuredUniversities
+                    : [
+                        { name: "Shiv Nadar University", desc: "Leading technical education with industry experts", logo: '/images/universitylogo3.jpeg', color: "blue" },
+                        { name: "Indian Statistical Institute Kolkata", desc: "Bridging academia with professional expertise", logo: '/images/universityimage5.webp', color: "purple" },
+                        { name: "Tata Institute of Social Sciences", desc: "Excellence in research and liberal education", logo: '/images/universityimage6.jpeg', color: "indigo" },
+                        { name: "Ashoka University", desc: "Premier institute for advanced scientific research", logo: '/images/universityimage7.webp', color: "teal" },
+                        { name: "SRM Institute of Science and Technology", desc: "Leading technical education with industry experts", logo: '/images/universityimage9.webp', color: "blue" },
+                      ]
+                  ).map((uni, index) => (
                     <CarouselItem key={index} className="basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4">
                         <Card className="h-full mx-2 transition-all duration-300 border-2 border-slate-200 hover:border-blue-300 hover:shadow-md bg-white group">
                           <CardContent className="p-6 text-center">
