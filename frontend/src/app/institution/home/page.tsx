@@ -210,7 +210,7 @@ export default function InstitutionHome() {
       }
       
       if (searchTerm) params.search = searchTerm
-      if (selectedDomain !== 'all') params.domain_expertise = selectedDomain
+      if (selectedDomain && selectedDomain !== 'all') params.domain_expertise = selectedDomain
       if (minRate) params.min_hourly_rate = parseFloat(minRate)
       if (maxRate) params.max_hourly_rate = parseFloat(maxRate)
 
@@ -414,10 +414,11 @@ export default function InstitutionHome() {
             expert_id: expert.id,
             project_id: selectedProjectId,
             institution_id: institution?.id,
-            amount: projectDetails.hourly_rate * projectDetails.duration_hours,
+            amount: projectDetails.hourly_rate,
             start_date: new Date().toISOString().split('T')[0],
             end_date: projectDetails.end_date,
-            status: 'in_progress'
+            status: 'in_progress',
+            hours_booked: projectDetails.duration_hours
           }
 
           await api.bookings.create(bookingData)
@@ -454,6 +455,7 @@ export default function InstitutionHome() {
               expertId: expert.id,
               projectTitle: projectDetails.title,
               institutionName: institutionDetails.name,
+              projectId: projectDetails.id,
               type: 'expert_interest_shown'
             })
           })
@@ -1574,7 +1576,7 @@ export default function InstitutionHome() {
                   disabled={selectedExperts.length === 0}
                   className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
                 >
-                  Select Experts ({selectedExperts.length})
+                  Send Request ({selectedExperts.length})
                 </Button>
               </div>
             </div>
@@ -1659,10 +1661,11 @@ export default function InstitutionHome() {
                         expert_id: quickSelectExpert.id,
                         project_id: quickSelectedProjectId,
                         institution_id: institution.id,
-                        amount: projectDetails.hourly_rate * projectDetails.duration_hours,
+                        amount: projectDetails.hourly_rate,
                         start_date: new Date().toISOString().split('T')[0],
                         end_date: projectDetails.end_date,
-                        status: 'in_progress'
+                        status: 'in_progress',
+                        hours_booked: projectDetails.duration_hours
                       }
                       await api.bookings.create(bookingData)
                       await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/send-expert-selected`, {
@@ -1675,7 +1678,8 @@ export default function InstitutionHome() {
                           expertId: quickSelectExpert.id,
                           projectTitle: projectDetails.title,
                           institutionName: institutionDetails.name,
-                          type: 'expert_selected_with_booking'
+                          type: 'expert_selected_with_booking',
+                          projectId: quickSelectedProjectId
                         })
                       })
                     } else {
@@ -1690,7 +1694,8 @@ export default function InstitutionHome() {
                           expertId: quickSelectExpert.id,
                           projectTitle: projectDetails.title,
                           institutionName: institutionDetails.name,
-                          type: 'expert_interest_shown'
+                          type: 'expert_interest_shown',
+                          projectId: quickSelectedProjectId
                         })
                       })
                     }

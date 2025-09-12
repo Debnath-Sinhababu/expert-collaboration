@@ -299,21 +299,23 @@ class SocketService {
     });
   }
 
-  async sendExpertSelectedWithBookingNotification(expertId, projectTitle, institutionName) {
+  async sendExpertSelectedWithBookingNotification(expertId, projectTitle, institutionName, projectId) {
     return this.sendToUser(expertId, 'expert_selected_with_booking', {
       type: 'expert_selected_with_booking',
       projectTitle,
       institutionName,
+      projectId,
       message: `Congratulations! You've been selected for project: ${projectTitle}`,
     });
   }
 
-  async sendExpertInterestShownNotification(expertId, projectTitle, institutionName) {
+  async sendExpertInterestShownNotification(expertId, projectTitle, institutionName,projectId) {
     return this.sendToUser(expertId, 'expert_interest_shown', {
       type: 'expert_interest_shown',
       projectTitle,
       institutionName,
-      message: `Someone is interested in your profile for project: ${projectTitle}`,
+      projectId,
+      message: `An institution is interested in your profile for: ${projectTitle}. Tap to view details.`,
     });
   }
 }

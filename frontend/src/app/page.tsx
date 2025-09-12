@@ -47,6 +47,7 @@ export default function Home() {
   const [itemsPerView, setItemsPerView] = useState(3);
   const [scrolled, setScrolled] = useState(false);
   const [featuredUniversities, setFeaturedUniversities] = useState<{ name: string; desc: string; logo: string; color: string }[]>([])
+  const [featuredExperts, setFeaturedExperts] = useState<any[]>([])
   
   // Intersection observer for statistics animation
   const { ref: statsRef, inView } = useInView({
@@ -131,6 +132,29 @@ export default function Home() {
       }
     }
     loadInstitutions()
+  }, [])
+
+  // Load featured experts dynamically (limit 5)
+  useEffect(() => {
+    const loadExperts = async () => {
+      try {
+        const res = await api.experts.getAll({ limit: 5, min_rating: 4, sort_by: 'rating', sort_order: 'desc' as const })
+        const experts = Array.isArray(res) ? res : (res?.data ?? [])
+        const colors = ['blue', 'purple', 'green', 'orange', 'cyan']
+        const mapped = experts.slice(0, 5).map((e: any, idx: number) => ({
+          name: e?.name || 'Expert',
+          rating: typeof e?.rating === 'number' ? e.rating.toFixed(1) : (e?.rating ? String(e.rating) : '0.0'),
+          expertise: e?.domain_expertise || (Array.isArray(e?.subskills) ? e.subskills.slice(0, 2).join(', ') : 'Expert'),
+          experience: e?.experience_years ? `${e.experience_years}+ years` : '0 years',
+          color: colors[idx % colors.length],
+          photo: e?.photo_url || ''
+        }))
+        setFeaturedExperts(mapped)
+      } catch (e) {
+        // silent
+      }
+    }
+    loadExperts()
   }, [])
 
   if (loading) {
@@ -814,19 +838,28 @@ export default function Home() {
                 className="w-full max-w-6xl mx-auto"
               >
                 <CarouselContent>
-                  {[
-                    { name: "Dr. Rajesh Kumar", rating: "5.0", expertise: "AI & Machine Learning", experience: "15+ years", color: "blue" },
-                    { name: "Prof. Priya Sharma", rating: "4.8", expertise: "Data Science & Analytics", experience: "12+ years", color: "purple" },
-                    { name: "Mr. Arjun Patel", rating: "4.9", expertise: "Blockchain & Fintech", experience: "10+ years", color: "green" },
-                    { name: "Dr. Meera Singh", rating: "4.7", expertise: "Digital Marketing", experience: "8+ years", color: "orange" },
-                    { name: "Mr. Vikram Gupta", rating: "4.9", expertise: "Legal & Compliance", experience: "20+ years", color: "cyan" },
-                  ].map((expert, index) => (
+                  {(featuredExperts.length > 0
+                    ? featuredExperts
+                    : [
+                        { name: "Dr. Rajesh Kumar", rating: "5.0", expertise: "AI & Machine Learning", experience: "15+ years", color: "blue", photo: '' },
+                        { name: "Prof. Priya Sharma", rating: "4.8", expertise: "Data Science & Analytics", experience: "12+ years", color: "purple", photo: '' },
+                        { name: "Mr. Arjun Patel", rating: "4.9", expertise: "Blockchain & Fintech", experience: "10+ years", color: "green", photo: '' },
+                        { name: "Dr. Meera Singh", rating: "4.7", expertise: "Digital Marketing", experience: "8+ years", color: "orange", photo: '' },
+                        { name: "Mr. Vikram Gupta", rating: "4.9", expertise: "Legal & Compliance", experience: "20+ years", color: "cyan", photo: '' },
+                      ]
+                  ).map((expert: any, index: number) => (
                     <CarouselItem key={index} className="basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4">
                       <Card className="h-full mx-2 transition-all duration-300 border-2 border-slate-200 hover:border-blue-300 hover:shadow-md bg-white group">
                         <CardContent className="p-6 text-center">
-                          {/* Clean avatar */}
-                          <div className="w-16 h-16 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                            <Users className="h-8 w-8 text-white" />
+                          {/* Expert photo (logo) or fallback avatar */}
+                          <div className="w-16 h-16 rounded-full overflow-hidden mx-auto mb-4 shadow-sm border-2 border-slate-200 group-hover:border-blue-300 transition-colors duration-300">
+                            {expert.photo ? (
+                              <img src={expert.photo} alt={expert.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 flex items-center justify-center">
+                                <Users className="h-8 w-8 text-white" />
+                              </div>
+                            )}
                           </div>
                           
                           <h3 className="font-bold text-slate-900 mb-1 text-lg">{expert.name}</h3>

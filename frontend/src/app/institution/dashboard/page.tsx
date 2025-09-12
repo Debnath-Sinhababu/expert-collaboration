@@ -202,7 +202,8 @@ export default function InstitutionDashboard() {
             expert_id: expert.id,
             project_id: selectedProjectId,
             institution_id: institution?.id,
-            amount: projectDetails.hourly_rate * projectDetails.duration_hours,
+            amount: projectDetails.hourly_rate,
+            hours_booked: projectDetails.duration_hours,
             start_date: new Date().toISOString().split('T')[0],
             end_date: projectDetails.end_date,
             status: 'in_progress'
@@ -221,6 +222,7 @@ export default function InstitutionDashboard() {
               expertId: expert.id,
               projectTitle: projectDetails.title,
               institutionName: institutionDetails.name,
+              projectId: projectDetails.id,
               type: 'expert_selected_with_booking'
             })
           })
@@ -242,6 +244,7 @@ export default function InstitutionDashboard() {
               expertId: expert.id,
               projectTitle: projectDetails.title,
               institutionName: institutionDetails.name,
+              projectId: projectDetails.id,
               type: 'expert_interest_shown'
             })
           })
@@ -1006,7 +1009,7 @@ export default function InstitutionDashboard() {
                   disabled={selectedExperts.length === 0}
                   className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
                 >
-                  Select Experts ({selectedExperts.length})
+                 Send Request ({selectedExperts.length})
                 </Button>
               </div>
             </div>

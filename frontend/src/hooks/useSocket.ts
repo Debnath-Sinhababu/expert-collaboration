@@ -131,7 +131,7 @@ export const useSocket = (): UseSocketReturn => {
           type: 'expert_selected_with_booking',
           message: data.message,
           projectTitle: data.projectTitle,
-          institutionName: data.institutionName,
+          projectId: data.projectId,
           timestamp: new Date(),
         });
       });
@@ -142,7 +142,7 @@ export const useSocket = (): UseSocketReturn => {
           type: 'expert_interest_shown',
           message: data.message,
           projectTitle: data.projectTitle,
-          institutionName: data.institutionName,
+          projectId: data.projectId,
           timestamp: new Date(),
         });
       });

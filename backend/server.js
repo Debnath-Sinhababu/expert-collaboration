@@ -116,7 +116,15 @@ app.get('/api/experts', async (req, res) => {
     }
     
     if (domain_expertise) {
-      query = query.contains('domain_expertise', [domain_expertise]);
+      const dom = Array.isArray(domain_expertise) ? domain_expertise : String(domain_expertise)
+      // Support comma-separated list or single
+      const values = Array.isArray(dom) ? dom : dom.split(',').map(s => s.trim()).filter(Boolean)
+      if (values.length === 1) {
+        query = query.contains('domain_expertise', [values[0]])
+      } else if (values.length > 1) {
+        // Use overlap operator for Postgrest: domain_expertise overlaps any of values
+        query = query.overlaps('domain_expertise', values)
+      }
     }
     
     if (min_hourly_rate) {
@@ -1211,10 +1219,10 @@ app.post('/api/applications/check-status', async (req, res) => {
 // Send expert selected with booking notification
 app.post('/api/notifications/send-expert-selected', async (req, res) => {
   try {
-    const { expertId, projectTitle, institutionName } = req.body;
+    const { expertId, projectTitle, institutionName, projectId } = req.body;
     
-    if (!expertId || !projectTitle || !institutionName) {
-      return res.status(400).json({ error: 'expertId, projectTitle, and institutionName are required' });
+    if (!expertId || !projectTitle || !institutionName || !projectId) {
+      return res.status(400).json({ error: 'expertId, projectTitle, institutionName, and projectId are required' });
     }
 
     // Get expert details
@@ -1233,14 +1241,16 @@ app.post('/api/notifications/send-expert-selected', async (req, res) => {
     await notificationService.sendExpertSelectedWithBookingNotification(
       expertData.email,
       projectTitle,
-      institutionName
+
+      projectId
     );
     
     // Send real-time notification
     await socketService.sendExpertSelectedWithBookingNotification(
       expertData.user_id,
       projectTitle,
-      institutionName
+      institutionName,
+      projectId
     );
 
     console.log(`Expert selected notification sent to expert ${expertId}`);
@@ -1255,10 +1265,11 @@ app.post('/api/notifications/send-expert-selected', async (req, res) => {
 // Send expert interest shown notification
 app.post('/api/notifications/send-expert-interest', async (req, res) => {
   try {
-    const { expertId, projectTitle, institutionName } = req.body;
+    const { expertId, projectTitle, institutionName, projectId } = req.body;
+
     
-    if (!expertId || !projectTitle || !institutionName) {
-      return res.status(400).json({ error: 'expertId, projectTitle, and institutionName are required' });
+    if (!expertId || !projectTitle || !institutionName || !projectId) {
+      return res.status(400).json({ error: 'expertId, projectTitle, institutionName, and projectId are required' });
     }
 
     // Get expert details
@@ -1277,14 +1288,16 @@ app.post('/api/notifications/send-expert-interest', async (req, res) => {
     await notificationService.sendExpertInterestShownNotification(
       expertData.email,
       projectTitle,
-      institutionName
+      institutionName,
+      projectId
     );
     
     // Send real-time notification
     await socketService.sendExpertInterestShownNotification(
       expertData.user_id,
       projectTitle,
-      institutionName
+      institutionName,
+      projectId
     );
 
     console.log(`Expert interest notification sent to expert ${expertId}`);
