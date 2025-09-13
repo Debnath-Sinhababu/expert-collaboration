@@ -563,7 +563,7 @@ export default function Home() {
                         <span className="text-sm">Industry Trainers</span>
                       </div>
                     </div>
-                    <Link href="/auth/signup?role=expert">
+                    <Link href="/coming-soon/corporate">
                         <Button className="w-full bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-bold py-3 shadow-sm hover:shadow-md transition-all">
                         Post Your Requirement
                         <ArrowUpRight className="ml-2 h-4 w-4" />

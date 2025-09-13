@@ -171,11 +171,11 @@ export default function LoginPage() {
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2">
                   <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span className="text-sm text-slate-600">500+ Experts</span>
+                  <span className="text-sm text-slate-600">100+ Experts</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span className="text-sm text-slate-600">50+ Universities</span>
+                  <span className="text-sm text-slate-600">10+ Universities</span>
                 </div>
               </div>
             </div>
