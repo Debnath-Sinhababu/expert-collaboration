@@ -16,8 +16,8 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { MultiSelect } from '@/components/ui/multi-select'
 import { Drawer } from '@/components/ui/drawer'
-import ProjectApplications from '@/components/ProjectApplications'
 import ProfileDropdown from '@/components/ProfileDropdown'
 import Logo from '@/components/Logo'
 import { 
@@ -46,7 +46,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { RatingModal } from '@/components/RatingModal'
 import NotificationBell from '@/components/NotificationBell'
-
+import { toast } from 'sonner'
 
 export default function InstitutionDashboard() {
   const [user, setUser] = useState<any>(null)
@@ -57,8 +57,6 @@ export default function InstitutionDashboard() {
   const [bookingCounts, setBookingCounts] = useState<any>({ total: 0, in_progress: 0, completed: 0, cancelled: 0, pending: 0 })
   const [ratings, setRatings] = useState<any[]>([])
   const [allRatings, setAllRatings] = useState<any[]>([])
-  const [ratingModalOpen, setRatingModalOpen] = useState(false)
-  const [selectedBooking, setSelectedBooking] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
@@ -73,16 +71,48 @@ export default function InstitutionDashboard() {
     start_date: '',
     end_date: '',
     duration_hours: '',
-    required_expertise: ''
+    required_expertise: '',
+    domain_expertise: '',
+    subskills: [] as string[]
   })
   const [submittingProject, setSubmittingProject] = useState(false)
   const [editingProject, setEditingProject] = useState<any>(null)
   const [showEditForm, setShowEditForm] = useState(false)
-  const [applicationsDrawerOpen, setApplicationsDrawerOpen] = useState(false)
-  const [selectedProject, setSelectedProject] = useState<{ id: string; title?: string } | null>(null)
-
+  const [selectedSubskills, setSelectedSubskills] = useState<string[]>([])
+  const [availableSubskills, setAvailableSubskills] = useState<string[]>([])
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+  const [expertsLoading, setExpertsLoading] = useState(false)
+  const [recommendedExperts, setRecommendedExperts] = useState<any[]>([])
+  const [showExpertSelectionModal, setShowExpertSelectionModal] = useState(false)
+  const [selectedExperts, setSelectedExperts] = useState<string[]>([])
   const router = useRouter()
   
+  const handleDomainChange = (domain: string) => {
+    setProjectForm(prev => ({
+      ...prev,
+      domain_expertise: domain,
+      subskills: [] // Reset subskills when domain changes
+    }))
+    
+    // Find the selected domain and update available subskills
+    const selectedDomain = EXPERTISE_DOMAINS.find(d => d.name === domain)
+    if (selectedDomain) {
+      setAvailableSubskills([...selectedDomain.subskills])
+    } else {
+      setAvailableSubskills([])
+    }
+    
+    // Reset selected subskills
+    setSelectedSubskills([])
+  }
+
+  const handleSubskillChange = (newSubskills: string[]) => {
+    setSelectedSubskills(newSubskills)
+    setProjectForm(prev => ({
+      ...prev,
+      subskills: newSubskills
+    }))
+  }
 
   useEffect(() => {
     const getUser = async () => {
@@ -117,61 +147,162 @@ export default function InstitutionDashboard() {
     getUser()
   }, [router])
 
+  const handleExpertSelection = (expertId: string) => {
+    setSelectedExperts(prev => 
+      prev.includes(expertId) 
+        ? prev.filter(id => id !== expertId)
+        : [...prev, expertId]
+    )
+  }
+
+  const handleSelectExperts = async () => {
+    if (selectedExperts.length === 0) {
+      toast.error('Please select at least one expert')
+      return
+    }
+
+    if (!selectedProjectId) {
+      toast.error('No project selected')
+      return
+    }
+
+    try {
+      // Check application status for all selected experts
+      const applicationStatuses = await api.applications.checkStatus(selectedProjectId, selectedExperts)
+      
+      // Get project and institution details for notifications
+      const projectDetails = await api.projects.getById(selectedProjectId)
+      const institutionDetails = await api.institutions.getById(institution?.id || '')
+      
+      if (!projectDetails || !institutionDetails) {
+        toast.error('Failed to get project or institution details')
+        return
+      }
+
+      // Separate experts into two groups
+      const expertsWithApplications = []
+      const expertsWithoutApplications = []
+
+      for (const status of applicationStatuses) {
+        const expert = recommendedExperts.find(e => e.id === status.expertId)
+        if (!expert) continue
+
+        if (status.hasApplied) {
+          expertsWithApplications.push(expert)
+        } else {
+          expertsWithoutApplications.push(expert)
+        }
+      }
+
+      // Create bookings for experts who have already applied
+      for (const expert of expertsWithApplications) {
+        try {
+          // Create booking using existing API
+          const bookingData = {
+            expert_id: expert.id,
+            project_id: selectedProjectId,
+            institution_id: institution?.id,
+            amount: projectDetails.hourly_rate,
+            hours_booked: projectDetails.duration_hours,
+            start_date: new Date().toISOString().split('T')[0],
+            end_date: projectDetails.end_date,
+            status: 'in_progress'
+          }
+
+          await api.bookings.create(bookingData)
+          
+          // Send custom notification for selected expert with booking
+          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/send-expert-selected`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+            },
+            body: JSON.stringify({
+              expertId: expert.id,
+              projectTitle: projectDetails.title,
+              institutionName: institutionDetails.name,
+              projectId: projectDetails.id,
+              type: 'expert_selected_with_booking'
+            })
+          })
+        } catch (error) {
+          console.error(`Error creating booking for expert ${expert.id}:`, error)
+        }
+      }
+
+      // Send interest notifications for experts who haven't applied
+      for (const expert of expertsWithoutApplications) {
+        try {
+          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/send-expert-interest`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+            },
+            body: JSON.stringify({
+              expertId: expert.id,
+              projectTitle: projectDetails.title,
+              institutionName: institutionDetails.name,
+              projectId: projectDetails.id,
+              type: 'expert_interest_shown'
+            })
+          })
+        } catch (error) {
+          console.error(`Error sending interest notification to expert ${expert.id}:`, error)
+        }
+      }
+
+      // Show success message
+      const bookingCount = expertsWithApplications.length
+      const interestCount = expertsWithoutApplications.length
+      
+      let message = `Successfully processed ${selectedExperts.length} experts: `
+      if (bookingCount > 0) message += `${bookingCount} bookings created, `
+      if (interestCount > 0) message += `${interestCount} interest notifications sent`
+      
+      toast.success(message)
+      setShowExpertSelectionModal(false)
+      setSelectedExperts([])
+      setSelectedProjectId(null)
+    } catch (error) {
+      console.error('Error selecting experts:', error)
+      toast.error('Failed to select experts')
+    }
+  }
+
   const loadInstitutionData = async (userId: string) => {
     try {
-      const institutionsResponse = await api.institutions.getAll()
-      // Handle case where API might return { data: [...] } or direct array
-      const institutions = Array.isArray(institutionsResponse) ? institutionsResponse : (institutionsResponse?.data || [])
-      const institutionProfile = institutions.find((i: any) => i.user_id === userId)
+      const institutionsResponse = await api.institutions.getByUserId(userId)
       
-      if (!institutionProfile) {
+      if (!institutionsResponse) {
         router.push('/institution/profile-setup')
         return
       }
       
-      setInstitution(institutionProfile)
-      
-
+      setInstitution(institutionsResponse)
       
       // Initial light calls (experts list is paginated below). Lists are fed by paginated hooks
-      const [projectsResponse, applicationsResponse, expertsResponse, bookingsResponse, bookingCountsResponse] = await Promise.all([
-        api.projects.getAll(),
-        api.applications.getAll({ status: 'pending' }),
-        api.experts.getAll(),
-        api.bookings.getAll({ institution_id: institutionProfile.id }),
-        api.bookings.getCounts({ institution_id: institutionProfile.id })
+      const [bookingCountsResponse] = await Promise.all([
+        api.bookings.getCounts({ institution_id: institutionsResponse.id })
       ])
+    
+      
+      // Refresh projects after institution is set
+      // The usePagination hook will automatically refresh when institution.id changes
 
-      // Handle API responses that might have data property
-      const projects = Array.isArray(projectsResponse) ? projectsResponse : (projectsResponse?.data || [])
-      const applications = Array.isArray(applicationsResponse) ? applicationsResponse : (applicationsResponse?.data || [])
-      const experts = Array.isArray(expertsResponse) ? expertsResponse : (expertsResponse?.data || [])
-      const bookings = Array.isArray(bookingsResponse) ? bookingsResponse : (bookingsResponse?.data || [])
+     
+   
       const counts = bookingCountsResponse || { total: 0, in_progress: 0, completed: 0, cancelled: 0, pending: 0 }
 
-      setBookings(bookings)
       setBookingCounts(counts)
       
-      const institutionProjects = projects.filter((project: any) => project.institution_id === institutionProfile.id)
-      setProjects(institutionProjects)
 
-      console.log('institutionProjects', institutionProjects)
-      console.log('applications', applications)
-      const projectApplications = applications.filter((app: any) => 
-        institutionProjects.some((project: any) => project.id === app.project_id)
-      )
+    
+     
 
-      console.log('projectApplications', projectApplications)
-      setApplications(projectApplications)
 
-      // Fetch all ratings (to compute expert aggregates globally)
-      try {
-        const ratingsAll = await api.ratings.getAll({institution_id: institutionProfile.id})
-        const ratings = Array.isArray(ratingsAll) ? ratingsAll : (ratingsAll?.data || [])
-        setAllRatings(ratings)
-      } catch (e) {
-        console.log('Failed to fetch global ratings:', e)
-      }
+  
       
     } catch (error: any) {
       setError('Failed to load dashboard data')
@@ -181,52 +312,6 @@ export default function InstitutionDashboard() {
     }
   }
 
-
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'open': return 'bg-green-100 text-green-800'
-      case 'in_progress': return 'bg-blue-100 text-blue-800'
-      case 'completed': return 'bg-gray-100 text-gray-800'
-      case 'cancelled': return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
-
-  const getApplicationStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-800'
-      case 'accepted': return 'bg-green-100 text-green-800'
-      case 'rejected': return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'pending': return <Clock className="h-4 w-4" />
-      case 'accepted': return <CheckCircle className="h-4 w-4" />
-      case 'rejected': return <XCircle className="h-4 w-4" />
-      default: return <Clock className="h-4 w-4" />
-    }
-  }
-
-  const {
-    data: experts,
-    loading: expertsLoading,
-    hasMore: hasMoreExperts,
-    loadMore: loadMoreExperts,
-    refresh: refreshExperts
-  } = usePagination(
-    async (page: number) => {
-      return await api.experts.getAll({
-        page,
-        limit: 10,
-        search: searchTerm
-      });
-    },
-    [searchTerm]
-  );
 
   // Paginated projects owned by the institution
   const {
@@ -247,43 +332,7 @@ export default function InstitutionDashboard() {
     setProjects(pagedProjects)
   }, [pagedProjects])
 
-  // Paginated applications targeting institution projects
-  const {
-    data: pagedApplications,
-    loading: applicationsLoading,
-    hasMore: hasMoreApplications,
-    loadMore: loadMoreApplications,
-    refresh: refreshApplications
-  } = usePagination(
-    async (page: number) => {
-      if (!institution?.id) return []
-      return await api.applications.getAll({ page, limit: 10, institution_id: institution?.id, status: 'pending' })
-    },
-    [institution?.id]
-  )
-
-  useEffect(() => {
-    setApplications(pagedApplications)
-  }, [pagedApplications])
-
-  // Paginated bookings for the institution
-  const {
-    data: pagedBookings,
-    loading: bookingsLoading,
-    hasMore: hasMoreBookings,
-    loadMore: loadMoreBookings,
-    refresh: refreshBookings
-  } = usePagination(
-    async (page: number) => {
-      if (!institution?.id) return []
-      return await api.bookings.getAll({ page, limit: 10, institution_id: institution?.id })
-    },
-    [institution?.id]
-  )
-
-  useEffect(() => {
-    setBookings(pagedBookings)
-  }, [pagedBookings])
+ 
 
   // Refresh booking counts when institution changes (for stats display)
   useEffect(() => {
@@ -293,10 +342,6 @@ export default function InstitutionDashboard() {
   }, [institution?.id])
 
 
-
-  const handleSearchExperts = (term: string) => {
-    setSearchTerm(term)
-  }
 
   const fetchBookingCounts = async () => {
     try {
@@ -310,89 +355,6 @@ export default function InstitutionDashboard() {
   }
 
 
-
-  const handleProjectSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!projectForm.title || !projectForm.description || !projectForm.type || !projectForm.hourly_rate) {
-      setError('Please fill in all required fields')
-      return
-    }
-
-    setSubmittingProject(true)
-    try {
-      await api.projects.create({
-        institution_id: institution.id,
-        title: projectForm.title,
-        description: projectForm.description,
-        type: projectForm.type,
-        hourly_rate: parseFloat(projectForm.hourly_rate),
-        total_budget: parseFloat(projectForm.total_budget) || parseFloat(projectForm.hourly_rate) * parseInt(projectForm.duration_hours || '1'),
-        start_date: projectForm.start_date,
-        end_date: projectForm.end_date,
-        duration_hours: parseInt(projectForm.duration_hours) || 1,
-        required_expertise: projectForm.required_expertise.split(',').map(s => s.trim()).filter(s => s),
-        status: 'open'
-      })
-      
-      // Reset form and close dialog
-      setProjectForm({
-        title: '',
-        description: '',
-        type: '',
-        hourly_rate: '',
-        total_budget: '',
-        start_date: '',
-        end_date: '',
-        duration_hours: '',
-        required_expertise: ''
-      })
-      setShowProjectForm(false)
-      
-      // Refresh data to show new project
-      await loadInstitutionData(user.id)
-      setError('')
-    } catch (error: any) {
-      console.error('Project creation error:', error)
-      setError('Failed to create project')
-    } finally {
-      setSubmittingProject(false)
-    }
-  }
-
-  const handleApplicationAction = async (applicationId: string, action: 'accept' | 'reject') => {
-    try {
-      await api.applications.update(applicationId, { status: action === 'accept' ? 'accepted' : 'rejected',reviewed_at: new Date() })
-      
-      // If accepting, create a booking
-      if (action === 'accept') {
-        const application = applications.find(app => app.id === applicationId)
-        if (application) {
-          const bookingData = {
-            expert_id: application.expert_id,
-            institution_id: institution.id,
-            project_id: application.project_id,
-            application_id: applicationId,
-            amount: application.proposed_rate || 1000,
-            start_date: new Date().toISOString().split('T')[0],
-            end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 days from now
-            hours_booked: 1,
-            status: 'in_progress',
-            payment_status: 'pending'
-          }
-          
-          await api.bookings.create(bookingData)
-        }
-      }
-      
-      // Refresh all data to show updated applications and new bookings
-      await loadInstitutionData(user.id)
-      setError('')
-    } catch (error: any) {
-      console.error('Application action error:', error)
-      setError(`Failed to ${action} application`)
-    }
-  }
-
   const handleEditProject = (project: any) => {
     setEditingProject(project)
     setProjectForm({
@@ -404,20 +366,82 @@ export default function InstitutionDashboard() {
       start_date: project.start_date,
       end_date: project.end_date,
       duration_hours: project.duration_hours.toString(),
-      required_expertise: project.required_expertise.join(', ')
+      required_expertise: project.required_expertise.join(', '),
+      domain_expertise: project.domain_expertise || '',
+      subskills: project.subskills || []
     })
+    
+    // Set subskills state
+    setSelectedSubskills(project.subskills || [])
+    
+    // Set available subskills based on domain
+    if (project.domain_expertise) {
+      const selectedDomain = EXPERTISE_DOMAINS.find(d => d.name === project.domain_expertise)
+      if (selectedDomain) {
+        setAvailableSubskills([...selectedDomain.subskills])
+      }
+    }
+    
     setShowEditForm(true)
   }
 
   const handleViewApplications = (project: any) => {
-    setSelectedProject({ id: project.id, title: project.title })
-    setApplicationsDrawerOpen(true)
+    // Check if there are any applications for this project
+    
+    
+    // Navigate to the project details page
+    router.push(`/institution/dashboard/project/${project.id}`)
   }
 
   const handleUpdateProject = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!projectForm.title || !projectForm.description || !projectForm.type || !projectForm.hourly_rate) {
-      setError('Please fill in all required fields')
+   
+    if (!projectForm.title.trim()) {
+      toast.error('Project title is required.')
+      return
+    }
+    
+    if (!projectForm.type) {
+      toast.error('Project type is required.')
+      return
+    }
+    
+    if (!projectForm.hourly_rate || parseFloat(projectForm.hourly_rate) <= 0) {
+      toast.error('Valid hourly rate is required.')
+      return
+    }
+    
+    if (!projectForm.total_budget || parseFloat(projectForm.total_budget) <= 0) {
+      toast.error('Valid total budget is required.')
+      return
+    }
+    
+    if (!projectForm.start_date) {
+      toast.error('Start date is required.')
+      return
+    }
+    
+    if (!projectForm.end_date) {
+      toast.error('End date is required.')
+      return
+    }
+    
+    if (!projectForm.duration_hours || parseInt(projectForm.duration_hours) <= 0) {
+      toast.error('Valid duration in hours is required.')
+      return
+    }
+    
+    if (!projectForm.domain_expertise) {
+      toast.error('Domain expertise is required.')
+      return
+    }
+    
+    if (!projectForm.subskills || projectForm.subskills.length === 0) {
+      toast.error('At least one specialization is required.')
+      return
+    }
+    
+    if (!projectForm.description.trim()) {
+      toast.error('Project description is required.')
       return
     }
 
@@ -432,7 +456,9 @@ export default function InstitutionDashboard() {
         start_date: projectForm.start_date,
         end_date: projectForm.end_date,
         duration_hours: parseInt(projectForm.duration_hours) || 1,
-        required_expertise: projectForm.required_expertise.split(',').map(s => s.trim()).filter(s => s)
+        required_expertise: projectForm.required_expertise.split(',').map(s => s.trim()).filter(s => s),
+        domain_expertise: projectForm.domain_expertise,
+        subskills: projectForm.subskills
       })
       
       console.log('Project updated successfully:', result)
@@ -446,11 +472,19 @@ export default function InstitutionDashboard() {
         start_date: '',
         end_date: '',
         duration_hours: '',
-        required_expertise: ''
+        required_expertise: '',
+        domain_expertise: '',
+        subskills: []
       })
+      setSelectedSubskills([])
+      setAvailableSubskills([])
       setShowEditForm(false)
       setEditingProject(null)
-      await loadInstitutionData(user.id)
+     
+      refreshProjects()
+      if (result && result.id) {
+        await loadRecommendedExperts(result.id)
+      }
       setError('')
     } catch (error: any) {
       console.error('Project update error:', error)
@@ -460,26 +494,152 @@ export default function InstitutionDashboard() {
     }
   }
 
-  const handleCreateProject = () => {
-    setProjectForm({
-      title: '',
-      description: '',
-      type: '',
-      hourly_rate: '',
-      total_budget: '',
-      start_date: '',
-      end_date: '',
-      duration_hours: '',
-      required_expertise: ''
-    })
-    setShowProjectForm(true)
+  const loadRecommendedExperts = async (projectId: string) => {
+    try {
+      setExpertsLoading(true)
+      setSelectedProjectId(projectId)
+      const data = await api.experts.getRecommended(projectId)
+      setRecommendedExperts(Array.isArray(data) ? data : [])
+      setShowExpertSelectionModal(true)
+    } catch (error) {
+      console.error('Error fetching recommended experts:', error)
+      toast.error('Failed to load expert recommendations')
+    } finally {
+      setExpertsLoading(false)
+    }
+  }
+
+  const handleCreateProject = async () => {
+    // Frontend validation
+    if (!projectForm.title.trim()) {
+      toast.error('Project title is required.')
+      return
+    }
+    
+    if (!projectForm.type) {
+      toast.error('Project type is required.')
+      return
+    }
+    
+    if (!projectForm.hourly_rate || parseFloat(projectForm.hourly_rate) <= 0) {
+      toast.error('Valid hourly rate is required.')
+      return
+    }
+    
+    if (!projectForm.total_budget || parseFloat(projectForm.total_budget) <= 0) {
+      toast.error('Valid total budget is required.')
+      return
+    }
+    
+    if (!projectForm.start_date) {
+      toast.error('Start date is required.')
+      return
+    }
+    
+    if (!projectForm.end_date) {
+      toast.error('End date is required.')
+      return
+    }
+    
+    if (!projectForm.duration_hours || parseInt(projectForm.duration_hours) <= 0) {
+      toast.error('Valid duration in hours is required.')
+      return
+    }
+    
+    if (!projectForm.domain_expertise) {
+      toast.error('Domain expertise is required.')
+      return
+    }
+    
+    if (!projectForm.subskills || projectForm.subskills.length === 0) {
+      toast.error('At least one specialization is required.')
+      return
+    }
+    
+    if (!projectForm.description.trim()) {
+      toast.error('Project description is required.')
+      return
+    }
+    
+    // Validate date logic
+    const startDate = new Date(projectForm.start_date)
+    const endDate = new Date(projectForm.end_date)
+    
+    if (endDate <= startDate) {
+      toast.error('End date must be after start date.')
+      return
+    }
+
+    try {
+      setSubmittingProject(true)
+      
+      const projectData = {
+        ...projectForm,
+        institution_id: institution?.id,
+        hourly_rate: parseFloat(projectForm.hourly_rate),
+        total_budget: parseFloat(projectForm.total_budget),
+        duration_hours: parseInt(projectForm.duration_hours),
+        required_expertise: projectForm.required_expertise.split(',').map(s => s.trim()).filter(s => s),
+        domain_expertise: projectForm.domain_expertise,
+        subskills: projectForm.subskills
+      }
+
+      console.log('Project data:', projectData)
+   
+
+      const response = await api.projects.create(projectData)
+      
+      // Reset form
+      setProjectForm({
+        title: '',
+        description: '',
+        type: '',
+        hourly_rate: '',
+        total_budget: '',
+        start_date: '',
+        end_date: '',
+        duration_hours: '',
+        required_expertise: '',
+        domain_expertise: '',
+        subskills: []
+      })
+      
+      setSelectedSubskills([])
+      setAvailableSubskills([])
+      
+      setShowProjectForm(false)
+      
+      // Show success toast with dashboard navigation
+      toast.success('Requirement posted successfully!', {
+        description: 'Navigate to your dashboard to view the latest requirement and manage applications.',
+        action: {
+          label: 'Go to Dashboard',
+          onClick: () => router.push('/institution/dashboard')
+        },
+        duration: 5000
+      })
+
+      refreshProjects()
+      
+      // Load recommended experts for the new project
+      if (response && response.id) {
+        await loadRecommendedExperts(response.id)
+      }
+      
+    } catch (error) {
+      console.error('Error creating project:', error)
+      toast.error('Failed to create project. Please try again or contact support if the issue persists.')
+    } finally {
+      setSubmittingProject(false)
+    }
   }
 
   const handleCloseProject = async (projectId: string) => {
     try {
       const result = await api.projects.update(projectId, { status: 'closed' })
       console.log('Project closed successfully:', result)
-      await loadInstitutionData(user.id)
+     
+      refreshProjects()
       setError('')
     } catch (error: any) {
       console.error('Project close error:', error)
@@ -487,122 +647,14 @@ export default function InstitutionDashboard() {
     }
   }
 
-
-
-  // Get status variant for badges
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case 'in_progress':
-        return 'default'
-      case 'completed':
-        return 'secondary'
-      case 'cancelled':
-        return 'destructive'
-      default:
-        return 'outline'
-    }
-  }
-
-  // Handle booking status update
-  const handleUpdateBookingStatus = async (bookingId: string, newStatus: string) => {
-    try {
-      if (newStatus === 'cancelled') {
-        // For cancelled bookings, delete them immediately
-        await handleBookingDelete(bookingId)
-      } else if (newStatus === 'completed') {
-        // For completed bookings, update status and open rating modal
-        await api.bookings.update(bookingId, { status: newStatus })
-        await loadInstitutionData(user.id)
-        
-        // Find the updated booking and open rating modal
-        const updatedBooking = bookings.find(b => b.id === bookingId)
-        if (updatedBooking) {
-          setSelectedBooking({ ...updatedBooking, status: 'completed' })
-          setRatingModalOpen(true)
-        }
-      } else {
-        // For other status updates
-        await api.bookings.update(bookingId, { status: newStatus })
-        await loadInstitutionData(user.id)
-      }
-    } catch (error) {
-      console.error('Error updating booking status:', error)
-      alert('Failed to update booking status')
-    }
-  }
-
-  // Handle booking deletion
-  const handleBookingDelete = async (bookingId: string) => {
-    if (confirm('Are you sure you want to delete this booking? This action cannot be undone.')) {
-      try {
-        await api.bookings.delete(bookingId)
-        await loadInstitutionData(user.id)
-      } catch (error) {
-        console.error('Error deleting booking:', error)
-        alert('Failed to delete booking')
-      }
-    }
-  }
-
-  const getBookingStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmed': return 'bg-green-100 text-green-800'
-      case 'in_progress': return 'bg-blue-100 text-blue-800'
-      case 'completed': return 'bg-gray-100 text-gray-800'
-      case 'cancelled': return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
-
-  // Fetch ratings for completed bookings
-  const fetchRatings = async () => {
-    try {
-      const ratingsData = await api.ratings.getAll({ institution_id: institution.id })
-      setRatings(ratingsData)
-    } catch (error) {
-      console.error('Error fetching ratings:', error)
-    }
-  }
-
-  // Handle rating modal
-  const handleRateExpert = (booking: any) => {
-    setSelectedBooking(booking)
-    setRatingModalOpen(true)
-  }
-
-  const handleRatingSubmitted = () => {
-    loadInstitutionData(user.id)
-    fetchRatings()
-  }
-
-  // Check if a booking has been rated
-  const getBookingRating = (bookingId: string) => {
-    return ratings.find(r => r.booking_id === bookingId)
-  }
-
-  // Aggregate rating for an expert from allRatings
-  const getExpertAggregate = (expertId: string | undefined) => {
-    if (!expertId) return { avg: 0, count: 0 }
-    const list = allRatings.filter(r => r.expert_id === expertId)
-    const count = list.length
-    if (count === 0) return { avg: 0, count: 0 }
-    const sum = list.reduce((acc, r) => acc + (Number(r.rating) || 0), 0)
-    const avg = Math.round((sum / count) * 10) / 10
-    return { avg, count }
-  }
-
   // Load ratings when institution is available
-  useEffect(() => {
-    if (institution) {
-      fetchRatings()
-    }
-  }, [institution?.id]) // Only depend on institution ID
+// Only depend on institution ID
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-400 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-slate-300">Loading dashboard...</p>
         </div>
       </div>
@@ -610,20 +662,14 @@ export default function InstitutionDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 relative">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       {/* Header */}
-      <header className="bg-slate-900/95 backdrop-blur-xl shadow-2xl border-b border-slate-700/50 relative z-10">
-        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
+      <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
+        <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
-            <Link href="/" className="flex items-center space-x-2 group">
-              <Logo size="md" />
-              <span className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Calxmap</span>
+            <Link href="/institution/home" className="flex items-center space-x-2 group">
+            
+              <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Calxmap</span>
             </Link>
             
             <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 lg:gap-4">
@@ -637,7 +683,7 @@ export default function InstitutionDashboard() {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8 relative z-10">
+      <div className='container mx-auto px-4 py-8 relative z-10'>
         {error && (
           <Alert variant="destructive" className="mb-6 bg-red-50/90 backdrop-blur-md border-red-200">
             <AlertDescription>{error}</AlertDescription>
@@ -647,337 +693,584 @@ export default function InstitutionDashboard() {
         {/* Welcome Section */}
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="min-w-0 text-center sm:text-left">
-            <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent mb-4 drop-shadow-2xl">
-              Welcome back, {institution?.name}!
-            </h1>
-            <p className="text-lg sm:text-xl text-slate-300 drop-shadow-lg">
-              Manage your projects, review applications, and connect with qualified experts.
-            </p>
+             <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">
+               Welcome back, {institution?.name}!
+             </h1>
+             <p className="text-lg sm:text-xl text-slate-600">
+               Manage your projects, review applications, and connect with qualified experts.
+             </p>
           </div>
           <Dialog open={showProjectForm} onOpenChange={setShowProjectForm}>
-            <Button className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-2xl hover:shadow-3xl hover:shadow-blue-500/25 transition-all duration-300 w-full sm:w-auto border-2 border-blue-400/20 hover:border-blue-400/40" onClick={handleCreateProject}>
-              <Plus className="h-4 w-4 mr-2" />
-              Post New Project
-            </Button>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Post New Project</DialogTitle>
-                <DialogDescription>
-                  Create a new project to find qualified experts
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleProjectSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <DialogTrigger asChild>
+                <Button className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Post Requirement
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+                <DialogHeader className="flex-shrink-0">
+                  <DialogTitle>Create New Project</DialogTitle>
+                  <DialogDescription>
+                    Fill in the details to post a new requirement for experts
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="overflow-y-auto flex-1 pr-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="title">Project Title *</Label>
                     <Input
                       id="title"
-                      placeholder="Enter project title"
                       value={projectForm.title}
-                      onChange={(e) => setProjectForm(prev => ({ ...prev, title: e.target.value }))}
+                      onChange={(e) => setProjectForm({...projectForm, title: e.target.value})}
+                      placeholder="e.g., Guest Lecture on AI"
                       required
                     />
                   </div>
                   <div>
                     <Label htmlFor="type">Project Type *</Label>
-                    <Select value={projectForm.type} onValueChange={(value) => setProjectForm(prev => ({ ...prev, type: value }))}>
+                    <Select value={projectForm.type} onValueChange={(value) => setProjectForm({...projectForm, type: value})}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select project type" />
+                        <SelectValue placeholder="Select type" />
                       </SelectTrigger>
                       <SelectContent>
-                        {PROJECT_TYPES.map((type) => (
-                          <SelectItem key={type} value={type}>
-                            {type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                          </SelectItem>
-                        ))}
+                        <SelectItem value="guest_lecture">Guest Lecture</SelectItem>
+                        <SelectItem value="fdp">Faculty Development Program</SelectItem>
+                        <SelectItem value="workshop">Workshop</SelectItem>
+                        <SelectItem value="curriculum_dev">Curriculum Development</SelectItem>
+                        <SelectItem value="research_collaboration">Research Collaboration</SelectItem>
+                        <SelectItem value="training_program">Training Program</SelectItem>
+                        <SelectItem value="consultation">Consultation</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-                
-                <div>
-                  <Label htmlFor="description">Description *</Label>
-                  <Textarea
-                    id="description"
-                    placeholder="Describe the project requirements and objectives..."
-                    value={projectForm.description}
-                    onChange={(e) => setProjectForm(prev => ({ ...prev, description: e.target.value }))}
-                    rows={3}
-                    required
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
                     <Label htmlFor="hourly_rate">Hourly Rate (₹) *</Label>
                     <Input
                       id="hourly_rate"
                       type="number"
-                      placeholder="Enter hourly rate"
+                      min="1"
                       value={projectForm.hourly_rate}
-                      onChange={(e) => setProjectForm(prev => ({ ...prev, hourly_rate: e.target.value }))}
+                      onChange={(e) => setProjectForm({...projectForm, hourly_rate: e.target.value})}
+                      placeholder="1000"
                       required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="duration_hours">Duration (hours)</Label>
-                    <Input
-                      id="duration_hours"
-                      type="number"
-                      placeholder="Total hours"
-                      value={projectForm.duration_hours}
-                      onChange={(e) => setProjectForm(prev => ({ ...prev, duration_hours: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="total_budget">Total Budget (₹)</Label>
+                    <Label htmlFor="total_budget">Total Budget (₹) *</Label>
                     <Input
                       id="total_budget"
                       type="number"
-                      placeholder="Maximum budget"
+                      min="1"
                       value={projectForm.total_budget}
-                      onChange={(e) => setProjectForm(prev => ({ ...prev, total_budget: e.target.value }))}
+                      onChange={(e) => setProjectForm({...projectForm, total_budget: e.target.value})}
+                      placeholder="50000"
+                      required
                     />
                   </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="start_date">Start Date</Label>
+                    <Label htmlFor="start_date">Start Date *</Label>
                     <Input
                       id="start_date"
                       type="date"
                       value={projectForm.start_date}
-                      onChange={(e) => setProjectForm(prev => ({ ...prev, start_date: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="end_date">End Date</Label>
-                    <Input
-                      id="end_date"
-                      type="date"
-                      value={projectForm.end_date}
-                      onChange={(e) => setProjectForm(prev => ({ ...prev, end_date: e.target.value }))}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="required_expertise">Required Expertise</Label>
-                  <Input
-                    id="required_expertise"
-                    placeholder="Enter skills separated by commas (e.g., Machine Learning, Data Science)"
-                    value={projectForm.required_expertise}
-                    onChange={(e) => setProjectForm(prev => ({ ...prev, required_expertise: e.target.value }))}
-                  />
-                </div>
-
-                <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-0 sm:space-x-2">
-                  <Button type="button" variant="outline" onClick={() => setShowProjectForm(false)} className="w-full sm:w-auto">
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={submittingProject} className="w-full sm:w-auto">
-                    {submittingProject ? 'Creating...' : 'Create Project'}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
-
-          {/* Edit Project Dialog */}
-          <Dialog open={showEditForm} onOpenChange={setShowEditForm}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Edit Project</DialogTitle>
-                <DialogDescription>
-                  Update your project details
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleUpdateProject} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="edit-title">Project Title *</Label>
-                    <Input
-                      id="edit-title"
-                      placeholder="Enter project title"
-                      value={projectForm.title}
-                      onChange={(e) => setProjectForm(prev => ({ ...prev, title: e.target.value }))}
+                      onChange={(e) => setProjectForm({...projectForm, start_date: e.target.value})}
                       required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="edit-type">Project Type *</Label>
-                    <Select value={projectForm.type} onValueChange={(value) => setProjectForm(prev => ({ ...prev, type: value }))}>
+                    <Label htmlFor="end_date">End Date *</Label>
+                    <Input
+                      id="end_date"
+                      type="date"
+                      value={projectForm.end_date}
+                      onChange={(e) => setProjectForm({...projectForm, end_date: e.target.value})}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="duration_hours">Duration (Hours) *</Label>
+                    <Input
+                      id="duration_hours"
+                      type="number"
+                      min="1"
+                      value={projectForm.duration_hours}
+                      onChange={(e) => setProjectForm({...projectForm, duration_hours: e.target.value})}
+                      placeholder="40"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="domain_expertise">Domain Expertise *</Label>
+                    <Select value={projectForm.domain_expertise} onValueChange={handleDomainChange}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select project type" />
+                        <SelectValue placeholder="Select required domain" />
                       </SelectTrigger>
                       <SelectContent>
-                        {PROJECT_TYPES.map((type) => (
-                          <SelectItem key={type} value={type}>
-                            {type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        {EXPERTISE_DOMAINS.map((domain) => (
+                          <SelectItem key={domain.name} value={domain.name}>
+                            {domain.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
+                  <div>
+                    <Label htmlFor="required_expertise">Additional Skills (comma-separated)</Label>
+                    <Input
+                      id="required_expertise"
+                      value={projectForm.required_expertise}
+                      onChange={(e) => setProjectForm({...projectForm, required_expertise: e.target.value})}
+                      placeholder="AI, Machine Learning, Data Science"
+                    />
+                  </div>
                 </div>
                 
+                {/* Subskills Multi-Select */}
+                {projectForm.domain_expertise && availableSubskills.length > 0 && (
+                  <div className='my-3' onClick={(e) => e.stopPropagation()}>
+                    <Label className="text-slate-700" htmlFor="required_specialization">Required Specializations *</Label>
+                    <MultiSelect
+                      options={availableSubskills}
+                      selected={selectedSubskills}
+                      onSelectionChange={handleSubskillChange}
+                      placeholder="Select required specializations..."
+                      className="w-full"
+                    />
+                  </div>
+                )}
+                
                 <div>
-                  <Label htmlFor="edit-description">Description *</Label>
+                  <Label htmlFor="description">Description *</Label>
                   <Textarea
-                    id="edit-description"
-                    placeholder="Describe the project requirements and objectives..."
+                    id="description"
                     value={projectForm.description}
-                    onChange={(e) => setProjectForm(prev => ({ ...prev, description: e.target.value }))}
-                    rows={3}
+                    onChange={(e) => setProjectForm({...projectForm, description: e.target.value})}
+                    placeholder="Describe the project requirements..."
+                    rows={4}
                     required
                   />
                 </div>
+                </div>
+                <div className="flex-shrink-0 flex justify-end space-x-2 pt-4 border-t border-slate-200">
+                  <Button variant="outline" onClick={() => setShowProjectForm(false)}>
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleCreateProject}
+                    disabled={submittingProject}
+                    className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
+                  >
+                    {submittingProject ? 'Creating...' : 'Create Project'}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <Dialog open={showExpertSelectionModal} onOpenChange={setShowExpertSelectionModal}>
+          <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogHeader className="flex-shrink-0">
+              <DialogTitle>Select Recommended Experts</DialogTitle>
+              <DialogDescription>
+                Choose experts who match your project requirements. They will be notified about your project.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="flex-1 overflow-y-auto pr-2">
+              {expertsLoading ? (
+                <div className="flex justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : recommendedExperts.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-slate-500">No matching experts found for this project.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {recommendedExperts.map((expert) => (
+                    <Card key={expert.id} className={`relative transition-all duration-200 hover:shadow-md ${
+                      selectedExperts.includes(expert.id) 
+                        ? 'bg-blue-50/50' 
+                        : 'hover:border-blue-300'
+                    }`}>
+                      <CardContent className="p-4">
+                        {/* Desktop view icon (top-right) */}
+                        <Link
+                          href={`/experts/${expert.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hidden sm:inline-flex items-center justify-center absolute top-3 right-3 rounded-md p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                          aria-label="View expert profile"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Link>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                          {/* Expert Info */}
+                          <div className="flex flex-col sm:flex-row sm:items-center flex-1 min-w-0 gap-3 sm:gap-4">
+                            {/* Expert Photo */}
+                            <div className="flex-shrink-0 mx-auto sm:mx-0">
+                              {expert.photo_url ? (
+                                <img
+                                  src={expert.photo_url}
+                                  alt={expert.name}
+                                  className="w-16 h-16 rounded-full object-cover border-2 border-slate-200"
+                                />
+                              ) : (
+                                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl">
+                                  {expert.name?.charAt(0) || 'E'}
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Expert Details */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-col sm:flex-row items-center gap-2 mb-1 relative w-full">
+                                <div className="w-full sm:w-auto">
+                                  <h3 className="text-lg font-semibold text-slate-900 truncate mx-auto text-center sm:text-left">
+                                    {expert.name}
+                                  </h3>
+                                </div>
+                                {/* Mobile view icon (inline, right) */}
+                              
+                                <div className="flex items-center gap-2">
+                                  {expert.is_verified && (
+                                    <Badge className="bg-green-100 text-green-800 text-xs">
+                                      Verified
+                                    </Badge>
+                                  )}
+                                  <Badge className="bg-blue-100 text-blue-800 text-xs">
+                                    {expert.matchScore}% Match
+                                  </Badge>
+                                  <Link
+                                  href={`/experts/${expert.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="sm:hidden text-slate-500 hover:text-slate-900"
+                                  aria-label="View expert profile"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Link>
+                                  
+                                </div>
+                              </div>
+                              
+                              <div className="flex flex-col sm:flex-row items-center text-slate-600 text-sm mb-2 gap-1 sm:gap-0">
+                                <span className="font-medium">₹{expert.hourly_rate}/hour</span>
+                                <span className="hidden sm:inline mx-2">•</span>
+                                <span>{expert.experience_years || 0} years experience</span>
+                                <span className="hidden sm:inline mx-2">•</span>
+                                <div className="flex items-center">
+                                  <Star className="h-4 w-4 text-yellow-500 mr-1" />
+                                  <span>{expert.rating || 0}</span>
+                                </div>
+                              </div>
+                              
+                              <p className="text-slate-600 text-sm line-clamp-2 mb-2">
+                                {expert.bio}
+                              </p>
+                              
+                              {/* Skills */}
+                              {expert.subskills && expert.subskills.length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                  {expert.subskills.slice(0, 3).map((skill: string, index: number) => (
+                                    <Badge key={index} variant="secondary" className="text-xs">
+                                      {skill}
+                                    </Badge>
+                                  ))}
+                                  {expert.subskills.length > 3 && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      +{expert.subskills.length - 3} more
+                                    </Badge>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* Select Button */}
+                          <div className="flex-shrink-0 w-full sm:w-auto sm:ml-4">
+                            <Button
+                              variant={selectedExperts.includes(expert.id) ? "default" : "outline"}
+                              onClick={() => handleExpertSelection(expert.id)}
+                              className={`w-full sm:w-auto ${selectedExperts.includes(expert.id) 
+                                ? "bg-blue-600 hover:bg-blue-700 text-white" 
+                                : "border-blue-300 text-blue-600 hover:bg-blue-50"
+                              }`}
+                            >
+                              {selectedExperts.includes(expert.id) ? (
+                                <>
+                                  <CheckCircle className="h-4 w-4 mr-2" />
+                                  Selected
+                                </>
+                              ) : (
+                                <>
+                                  <UserCheck className="h-4 w-4 mr-2" />
+                                  Select
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="flex-shrink-0 flex justify-between items-center pt-4 border-t border-slate-200">
+              <div className="text-sm text-slate-600">
+                {selectedExperts.length} expert{selectedExperts.length !== 1 ? 's' : ''} selected
+              </div>
+              <div className="flex space-x-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowExpertSelectionModal(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleSelectExperts}
+                  disabled={selectedExperts.length === 0}
+                  className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
+                >
+                 Send Request ({selectedExperts.length})
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+          {/* Edit Project Dialog */}
+          <Dialog open={showEditForm} onOpenChange={setShowEditForm}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+              <DialogHeader className="flex-shrink-0">
+                <DialogTitle>Edit Project</DialogTitle>
+                <DialogDescription>
+                  Update your project details
+                </DialogDescription>
+              </DialogHeader>
+              <div className="overflow-y-auto flex-1 pr-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="edit-hourly_rate">Hourly Rate (₹) *</Label>
+                    <Label htmlFor="title">Project Title *</Label>
                     <Input
-                      id="edit-hourly_rate"
-                      type="number"
-                      placeholder="Enter hourly rate"
-                      value={projectForm.hourly_rate}
-                      onChange={(e) => setProjectForm(prev => ({ ...prev, hourly_rate: e.target.value }))}
+                      id="title"
+                      value={projectForm.title}
+                      onChange={(e) => setProjectForm({...projectForm, title: e.target.value})}
+                      placeholder="e.g., Guest Lecture on AI"
                       required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="edit-duration_hours">Duration (hours)</Label>
+                    <Label htmlFor="type">Project Type *</Label>
+                    <Select value={projectForm.type} onValueChange={(value) => setProjectForm({...projectForm, type: value})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="guest_lecture">Guest Lecture</SelectItem>
+                        <SelectItem value="fdp">Faculty Development Program</SelectItem>
+                        <SelectItem value="workshop">Workshop</SelectItem>
+                        <SelectItem value="curriculum_dev">Curriculum Development</SelectItem>
+                        <SelectItem value="research_collaboration">Research Collaboration</SelectItem>
+                        <SelectItem value="training_program">Training Program</SelectItem>
+                        <SelectItem value="consultation">Consultation</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="hourly_rate">Hourly Rate (₹) *</Label>
                     <Input
-                      id="edit-duration_hursor"
+                      id="hourly_rate"
                       type="number"
-                      placeholder="Total hours"
-                      value={projectForm.duration_hours}
-                      onChange={(e) => setProjectForm(prev => ({ ...prev, duration_hours: e.target.value }))}
+                      min="1"
+                      value={projectForm.hourly_rate}
+                      onChange={(e) => setProjectForm({...projectForm, hourly_rate: e.target.value})}
+                      placeholder="1000"
+                      required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="edit-total_budget">Total Budget (₹)</Label>
+                    <Label htmlFor="total_budget">Total Budget (₹) *</Label>
                     <Input
-                      id="edit-total_budget"
+                      id="total_budget"
                       type="number"
-                      placeholder="Maximum budget"
+                      min="1"
                       value={projectForm.total_budget}
-                      onChange={(e) => setProjectForm(prev => ({ ...prev, total_budget: e.target.value }))}
+                      onChange={(e) => setProjectForm({...projectForm, total_budget: e.target.value})}
+                      placeholder="50000"
+                      required
                     />
                   </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="edit-start_date">Start Date</Label>
+                    <Label htmlFor="start_date">Start Date *</Label>
                     <Input
-                      id="edit-start_date"
+                      id="start_date"
                       type="date"
                       value={projectForm.start_date}
-                      onChange={(e) => setProjectForm(prev => ({ ...prev, start_date: e.target.value }))}
+                      onChange={(e) => setProjectForm({...projectForm, start_date: e.target.value})}
+                      required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="edit-end_date">End Date</Label>
+                    <Label htmlFor="end_date">End Date *</Label>
                     <Input
-                      id="edit-end_date"
+                      id="end_date"
                       type="date"
                       value={projectForm.end_date}
-                      onChange={(e) => setProjectForm(prev => ({ ...prev, end_date: e.target.value }))}
+                      onChange={(e) => setProjectForm({...projectForm, end_date: e.target.value})}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="duration_hours">Duration (Hours) *</Label>
+                    <Input
+                      id="duration_hours"
+                      type="number"
+                      min="1"
+                      value={projectForm.duration_hours}
+                      onChange={(e) => setProjectForm({...projectForm, duration_hours: e.target.value})}
+                      placeholder="40"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="domain_expertise">Domain Expertise *</Label>
+                    <Select value={projectForm.domain_expertise} onValueChange={handleDomainChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select required domain" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {EXPERTISE_DOMAINS.map((domain) => (
+                          <SelectItem key={domain.name} value={domain.name}>
+                            {domain.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="required_expertise">Additional Skills (comma-separated)</Label>
+                    <Input
+                      id="required_expertise"
+                      value={projectForm.required_expertise}
+                      onChange={(e) => setProjectForm({...projectForm, required_expertise: e.target.value})}
+                      placeholder="AI, Machine Learning, Data Science"
                     />
                   </div>
                 </div>
-
+                
+                {/* Subskills Multi-Select */}
+                {projectForm.domain_expertise && availableSubskills.length > 0 && (
+                  <div className='my-3' onClick={(e) => e.stopPropagation()}>
+                    <Label className="text-slate-700" htmlFor="required_specialization">Required Specializations *</Label>
+                    <MultiSelect
+                      options={availableSubskills}
+                      selected={selectedSubskills}
+                      onSelectionChange={handleSubskillChange}
+                      placeholder="Select required specializations..."
+                      className="w-full"
+                    />
+                  </div>
+                )}
+                
                 <div>
-                  <Label htmlFor="edit-required_expertise">Required Expertise</Label>
-                  <Input
-                    id="edit-required_expertise"
-                    placeholder="Enter skills separated by commas (e.g., Machine Learning, Data Science)"
-                    value={projectForm.required_expertise}
-                    onChange={(e) => setProjectForm(prev => ({ ...prev, required_expertise: e.target.value }))}
+                  <Label htmlFor="description">Description *</Label>
+                  <Textarea
+                    id="description"
+                    value={projectForm.description}
+                    onChange={(e) => setProjectForm({...projectForm, description: e.target.value})}
+                    placeholder="Describe the project requirements..."
+                    rows={4}
+                    required
                   />
                 </div>
-
-                <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-0 sm:space-x-2">
-                  <Button type="button" variant="outline" onClick={() => setShowEditForm(false)} className="w-full sm:w-auto">
+                </div>
+                <div className="flex-shrink-0 flex justify-end space-x-2 pt-4 border-t border-slate-200">
+                  <Button variant="outline" onClick={() => setShowEditForm(false)}>
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={submittingProject} className="w-full sm:w-auto">
+                  <Button 
+                    onClick={handleUpdateProject}
+                    disabled={submittingProject}
+                    className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
+                  >
                     {submittingProject ? 'Updating...' : 'Update Project'}
                   </Button>
                 </div>
-              </form>
             </DialogContent>
           </Dialog>
         </div>
 
         {/* Stats Cards */}
         <div className="grid md:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-white/90 backdrop-blur-md border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Projects</p>
-                  <p className="text-2xl font-bold text-gray-900">{projects.length}</p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-sm font-medium text-slate-600">Total Projects</p>
+                  <p className="text-2xl font-bold text-slate-900">{projects.length}</p>
+                  <p className="text-xs text-slate-500">
                     {projects.filter(p => p.status === 'open').length} open
                   </p>
                 </div>
-                <div className="p-3 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full shadow-lg">
+                <div className="p-3 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-full">
                   <Briefcase className="h-8 w-8 text-white" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/90 backdrop-blur-md border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
-                                  <div>
-                    <p className="text-sm font-medium text-gray-600">Applications</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {projects.reduce((total, project) => total + (project.applicationCounts?.total || 0), 0)}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {projects.reduce((total, project) => total + (project.applicationCounts?.pending || 0), 0)} pending
-                    </p>
-                  </div>
-                <div className="p-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full shadow-lg">
+                <div>
+                  <p className="text-sm font-medium text-slate-600">Applications</p>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {projects.reduce((total, project) => total + (project.applicationCounts?.total || 0), 0)}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {projects.reduce((total, project) => total + (project.applicationCounts?.pending || 0), 0)} pending
+                  </p>
+                </div>
+                <div className="p-3 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-full">
                   <Users className="h-8 w-8 text-white" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/90 backdrop-blur-md border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Active Bookings</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-sm font-medium text-slate-600">Active Bookings</p>
+                  <p className="text-2xl font-bold text-slate-900">
                     {bookingCounts.in_progress}
                   </p>
-                  <p className="text-xs text-gray-500">in progress</p>
+                  <p className="text-xs text-slate-500">in progress</p>
                 </div>
-                <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full shadow-lg">
+                <div className="p-3 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-full">
                   <BookOpen className="h-8 w-8 text-white" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/90 backdrop-blur-md border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Completed</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-sm font-medium text-slate-600">Completed</p>
+                  <p className="text-2xl font-bold text-slate-900">
                     {bookingCounts.completed}
                   </p>
-                  <p className="text-xs text-gray-500">bookings</p>
+                  <p className="text-xs text-slate-500">bookings</p>
                 </div>
-                <div className="p-3 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full shadow-lg">
+                <div className="p-3 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-full">
                   <CheckCircle className="h-8 w-8 text-white" />
                 </div>
               </div>
@@ -1006,74 +1299,63 @@ export default function InstitutionDashboard() {
         </div>
 
         {/* Main Content */}
-        <Tabs defaultValue="projects" className="space-y-6">
-          <TabsList className="flex w-full gap-2 overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-3 sm:gap-0 sm:overflow-visible scrollbar-hide bg-white/90 backdrop-blur-md border-0 shadow-lg">
-            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start ml-3 sm:ml-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" value="projects">My Projects</TabsTrigger>
-            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" value="bookings">Bookings</TabsTrigger>
-            <TabsTrigger className="flex-shrink-0 whitespace-nowrap px-3 py-2 snap-start mr-3 sm:mr-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white hover:bg-gray-100/80 transition-all" value="experts">Browse Experts</TabsTrigger>
-          </TabsList>
-
-          {/* Projects Tab */}
-          <TabsContent value="projects">
-            <Card>
-              <CardHeader>
-                <CardTitle>My Projects</CardTitle>
-                <CardDescription>
-                  Manage your posted projects and track their progress
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {projects.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Briefcase className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600">No projects posted yet</p>
-                    <p className="text-sm text-gray-500">Create your first project to find experts</p>
-                    <Button className="mt-4" onClick={handleCreateProject}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Post Your First Project
-                    </Button>
-                  </div>
+        <div className="space-y-6">
+          <Card className="bg-white border-2 border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
+            <CardHeader>
+              <CardTitle className="text-2xl font-bold text-slate-900">My Projects</CardTitle>
+              <CardDescription className="text-slate-600">
+                Manage your posted projects and track their progress
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {projects.length === 0 ? (
+                <div className="text-center py-8">
+                  <Briefcase className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                  <p className="text-slate-600">No projects posted yet</p>
+                  <p className="text-sm text-slate-500">Create your first project to find experts</p>
+                
+                </div>
                 ) : (
                   <div className="space-y-4">
                     {projects.map((project: any) => (
                       <div 
                         key={project.id} 
-                        className="border rounded-lg p-4 hover:shadow-md transition-shadow"
+                        className="bg-white border-2 border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all duration-300 group"
                       >
                         <div className="flex items-center justify-between mb-2 min-w-0">
-                          <h3 className="font-semibold text-lg truncate pr-2">{project.title}</h3>
+                          <h3 className="font-semibold text-lg text-slate-900 truncate pr-2">{project.title}</h3>
                           <div className="flex items-center space-x-2 flex-shrink-0">
-                            <Badge variant="outline" className="capitalize">{project.status}</Badge>
-                            <Badge variant="secondary" className="capitalize">{project.type}</Badge>
+                            <Badge variant="outline" className="capitalize border-slate-300 text-slate-700">{project.status}</Badge>
+                            <Badge variant="secondary" className="capitalize bg-slate-100 text-slate-700">{project.type}</Badge>
                           </div>
                         </div>
-                        <p className="text-sm text-gray-600 mb-3 line-clamp-2">{project.description}</p>
+                        <p className="text-sm text-slate-600 mb-3 line-clamp-2">{project.description}</p>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-sm">
                           <div>
-                            <span className="text-gray-500">Rate:</span>
-                            <p className="font-medium">₹{project.hourly_rate}/hour</p>
+                            <span className="text-slate-500">Rate:</span>
+                            <p className="font-medium text-slate-900">₹{project.hourly_rate}/hour</p>
                           </div>
                           <div>
-                            <span className="text-gray-500">Duration:</span>
-                            <p className="font-medium">{project.duration_hours} hours</p>
+                            <span className="text-slate-500">Duration:</span>
+                            <p className="font-medium text-slate-900">{project.duration_hours} hours</p>
                           </div>
                           <div>
-                            <span className="text-gray-500">Budget:</span>
-                            <p className="font-medium">₹{project.total_budget}</p>
+                            <span className="text-slate-500">Budget:</span>
+                            <p className="font-medium text-slate-900">₹{project.total_budget}</p>
                           </div>
                           <div>
-                            <span className="text-gray-500">Applications:</span>
-                            <p className="font-medium">
-                              {applications.filter(app => app.project_id === project.id).length}
+                            <span className="text-slate-500">Applications:</span>
+                            <p className="font-medium text-slate-900">
+                              {project.applicationCounts?.total}
                             </p>
                           </div>
                         </div>
                         {project.required_expertise && project.required_expertise.length > 0 && (
                           <div className="mb-4">
-                            <span className="text-sm text-gray-500">Required Expertise:</span>
+                            <span className="text-sm text-slate-500">Required Expertise:</span>
                             <div className="flex flex-wrap gap-2 mt-1">
                               {project.required_expertise.map((skill: string, index: number) => (
-                                <Badge key={index} variant="secondary" className="text-xs">
+                                <Badge key={index} variant="secondary" className="text-xs bg-slate-100 text-slate-700">
                                   {skill}
                                 </Badge>
                               ))}
@@ -1081,25 +1363,26 @@ export default function InstitutionDashboard() {
                           </div>
                         )}
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm text-slate-500">
                             Posted: {new Date(project.created_at).toLocaleDateString()}
                           </div>
                           <div className="flex flex-wrap gap-2">
                             <Button 
                               size="sm" 
                               variant="outline" 
-                              className="flex-1 sm:flex-none"
+                              className="flex-1 sm:flex-none border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50 text-slate-700 hover:text-blue-700"
                               onClick={() => handleViewApplications(project)}
+                              disabled={!project.applicationCounts?.total}
                             >
                               <Eye className="h-4 w-4 mr-2" />
                               View Applications ({project.applicationCounts?.pending || 0})
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => handleEditProject(project)} className="flex-1 sm:flex-none">
+                            <Button size="sm" variant="outline" onClick={() => handleEditProject(project)} className="flex-1 sm:flex-none border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50 text-slate-700 hover:text-blue-700">
                               <Edit className="h-4 w-4 mr-2" />
                               Edit
                             </Button>
                             {project.status === 'open' && (
-                              <Button size="sm" variant="outline" onClick={() => handleCloseProject(project.id)} className="flex-1 sm:flex-none">
+                              <Button size="sm" variant="outline" onClick={() => handleCloseProject(project.id)} className="flex-1 sm:flex-none border-2 border-slate-300 hover:border-red-400 hover:bg-red-50 text-slate-700 hover:text-red-700">
                                 <XCircle className="h-4 w-4 mr-2" />
                                 Close
                               </Button>
@@ -1122,458 +1405,18 @@ export default function InstitutionDashboard() {
                             return () => observer.disconnect();
                           }
                         }}
-                        className="text-center py-4 text-sm text-gray-500"
+                        className="text-center py-4 text-sm text-slate-500"
                       >
                         Loading more projects...
                       </div>
                     )}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Applications Tab */}
-        
-
-          {/* Bookings Tab */}
-          <TabsContent value="bookings">
-            <Card>
-              <CardHeader>
-                <CardTitle>My Bookings</CardTitle>
-                <CardDescription>
-                  Manage your booked projects and track their progress
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {bookings.length === 0 ? (
-                  <div className="text-center py-8">
-                    <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600">No bookings yet</p>
-                    <p className="text-sm text-gray-500">Bookings will appear here when you accept expert applications</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {bookings.map((booking: any) => {
-                      const rating = getBookingRating(booking.id)
-                      return (
-                        <div 
-                          key={booking.id} 
-                          className="border rounded-lg p-4 hover:shadow-md transition-shadow"
-                        >
-                          <div className="flex justify-between items-start min-w-0">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-3 mb-2 min-w-0">
-                                <h4 className="font-semibold truncate pr-2">{booking.project?.title}</h4>
-                                <Badge variant={getStatusVariant(booking.status)}>
-                                  {booking.status.replace('_', ' ')}
-                                </Badge>
-                              </div>
-                              
-                              <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-3">
-                                <div>
-                                  <span className="font-medium">Expert:</span> {booking.experts?.name}
-                                </div>
-                                <div>
-                                  <span className="font-medium">Amount:</span> ${booking.amount}
-                                </div>
-                                <div>
-                                  <span className="font-medium">Start Date:</span> {new Date(booking.start_date).toLocaleDateString()}
-                                </div>
-                                <div>
-                                  <span className="font-medium">End Date:</span> {new Date(booking.end_date).toLocaleDateString()}
-                                </div>
-                              </div>
-
-                              {/* Show rating if completed and rated */}
-                              {booking.status === 'completed' && rating && (
-                                <div className="flex items-center gap-2 mb-3">
-                                  <div className="flex">
-                                    {[1, 2, 3, 4, 5].map((star) => (
-                                      <Star
-                                        key={star}
-                                        className={`h-4 w-4 ${
-                                          star <= rating.rating
-                                            ? 'fill-yellow-400 text-yellow-400'
-                                            : 'text-gray-300'
-                                        }`}
-                                      />
-                                    ))}
-                                  </div>
-                                  <span className="text-sm text-gray-600">
-                                    {rating.rating}/5 - {rating.feedback && `"${rating.feedback}"`}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                            
-                            <div className="flex flex-col gap-2">
-                              {booking.status === 'in_progress' && (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleUpdateBookingStatus(booking.id, 'completed')}
-                                  >
-                                    <CheckCircle className="h-4 w-4 mr-1" />
-                                    Mark Complete & Rate
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleUpdateBookingStatus(booking.id, 'cancelled')}
-                                  >
-                                    <XCircle className="h-4 w-4 mr-1" />
-                                    Cancel & Delete
-                                  </Button>
-                                </>
-                              )}
-                              
-                              {booking.status === 'completed' && !rating && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleRateExpert(booking)}
-                                >
-                                  <Star className="h-4 w-4 mr-1" />
-                                  Rate Expert
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                    {/* Infinite loader sentinel for bookings */}
-                    {(hasMoreBookings && !bookingsLoading) && (
-                      <div 
-                        ref={(el) => {
-                          if (el) {
-                            const observer = new IntersectionObserver(([entry]) => {
-                              if (entry.isIntersecting) {
-                                loadMoreBookings();
-                              }
-                            }, { threshold: 0.1 });
-                            observer.observe(el);
-                            return () => observer.disconnect();
-                          }
-                        }}
-                        className="text-center py-4 text-sm text-gray-500"
-                      >
-                        Loading more bookings...
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Experts Tab */}
-          <TabsContent value="experts">
-            <Card>
-              <CardHeader>
-                <CardTitle>Browse Experts</CardTitle>
-                <CardDescription>
-                  Find and connect with qualified experts for your projects
-                </CardDescription>
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-4">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      placeholder="Search experts by name, domain, or skills..."
-                      value={searchTerm}
-                      onChange={(e) => handleSearchExperts(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                  <Button variant="outline" size="sm" className="w-full sm:w-auto">
-                    <Filter className="h-4 w-4 mr-2" />
-                    Filter
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {experts.length === 0 && !expertsLoading ? (
-                  <div className="text-center py-8">
-                    <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600">
-                      {searchTerm ? 'No experts match your search' : 'No experts available'}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {searchTerm ? 'Try different keywords' : 'Check back later for new expert profiles'}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {experts.map((expert: any) => (
-                      <div key={expert.id} className="border rounded-lg p-4 shadow-md transition-shadow">
-                        <div className="flex items-center justify-between mb-3 min-w-0">
-                          <div className="flex items-center space-x-3 min-w-0 flex-1">
-                            <Avatar className="w-12 h-12 border-2 border-blue-200">
-                              <AvatarImage src={expert.photo_url} />
-                              <AvatarFallback className="text-lg font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
-                                {expert.name?.charAt(0) || 'E'}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="min-w-0 flex-1">
-                              <h3 className="font-semibold text-lg truncate pr-2">{expert.name}</h3>
-                              <p className="text-sm text-gray-600 truncate pr-2">{expert.domain_expertise}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Badge variant={expert.is_verified ? "default" : "secondary"}>
-                              {expert.is_verified ? 'Verified' : 'Pending'}
-                            </Badge>
-                          {(() => {
-                            const agg = getExpertAggregate(expert?.id)
-                            return (
-                              <div className="flex items-center space-x-1">
-                                <div className="flex items-center">
-                                  {[1, 2, 3, 4, 5].map((star) => (
-                                    <Star 
-                                      key={star} 
-                                      className={`h-3 w-3 ${star <= Math.round(agg.avg) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} 
-                                    />
-                                  ))}
-                                </div>
-                                <span className="text-sm">{agg.avg || 0}</span>
-                              </div>
-                            )
-                          })()}
-                          </div>
-                        </div>
-                        
-                        <p className="text-sm text-gray-600 mb-4 line-clamp-2">{expert.bio}</p>
-                        
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-sm">
-                          <div>
-                            <span className="text-gray-500">Hourly Rate:</span>
-                            <p className="font-medium">₹{expert.hourly_rate}</p>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Experience:</span>
-                            <p className="font-medium">{expert.experience_years || 0} years</p>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Rating:</span>
-                            {(() => {
-                              const agg = getExpertAggregate(expert?.id)
-                              return (
-                                <p className="font-medium">{agg.avg || 0}/5 ({agg.count || 0})</p>
-                              )
-                            })()}
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Availability:</span>
-                            <p className="font-medium">
-                              {expert.availability?.length || 0} slots
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                          <div className="text-sm text-gray-500">
-                            Joined: {new Date(expert.created_at).toLocaleDateString()}
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button size="sm" variant="outline" className="flex-1 sm:flex-none">
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  View Full Profile
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="max-w-2xl">
-                                <DialogHeader>
-                                  <DialogTitle>{expert.name}</DialogTitle>
-                                  <DialogDescription>Complete Expert Profile</DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-4">
-                                  <div className="flex items-center space-x-4 mb-4">
-                                    <Avatar className="w-16 h-16 border-2 border-blue-200">
-                                      <AvatarImage src={expert.photo_url} />
-                                      <AvatarFallback className="text-xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
-                                        {expert.name?.charAt(0) || 'E'}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <div>
-                                      <h4 className="font-semibold text-lg">{expert.name}</h4>
-                                      <p className="text-sm text-gray-600">{expert.domain_expertise}</p>
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <h4 className="font-medium mb-2">Professional Bio</h4>
-                                    <p className="text-sm text-gray-600">{expert.bio}</p>
-                                  </div>
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                      <h4 className="font-medium mb-1">Domain Expertise</h4>
-                                      <p className="text-sm">{expert.domain_expertise}</p>
-                                    </div>
-                                    <div>
-                                      <h4 className="font-medium mb-1">Hourly Rate</h4>
-                                      <p className="text-sm">₹{expert.hourly_rate}</p>
-                                    </div>
-                                    <div>
-                                      <h4 className="font-medium mb-1">Experience</h4>
-                                      <p className="text-sm">{expert.experience_years || 0} years</p>
-                                    </div>
-                                    <div>
-                                      <h4 className="font-medium mb-1">Contact</h4>
-                                      <p className="text-sm">{expert.email}</p>
-                                    </div>
-                                  </div>
-                                  {expert.qualifications && (
-                                    <div>
-                                      <h4 className="font-medium mb-1">Qualifications</h4>
-                                      <p className="text-sm">{expert.qualifications}</p>
-                                    </div>
-                                  )}
-                                  {/* {expert.availability && expert.availability.length > 0 && (
-                                    <div>
-                                      <h4 className="font-medium mb-2">Availability</h4>
-                                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                        {expert.availability.map((slot: string, index: number) => (
-                                          <Badge key={index} variant="secondary" className="text-xs">
-                                            {slot}
-                                          </Badge>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )} */}
-                                  {expert.resume_url && (
-                                    <div>
-                                      <h4 className="font-medium mb-1">Resume</h4>
-                                      <a 
-                                        href={expert.resume_url} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="text-blue-600 hover:underline text-sm"
-                                      >
-                                        View Resume
-                                      </a>
-                                    </div>
-                                  )}
-                                </div>
-                              </DialogContent>
-                            </Dialog>
-                            <Button size="sm" className="bg-blue-600 hover:bg-blue-700 flex-1 sm:flex-none">
-                              <MessageSquare className="h-4 w-4 mr-2" />
-                              Contact Expert
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-
-                    {/* Infinite loader sentinel for experts */}
-                    {(hasMoreExperts && !expertsLoading) && (
-                      <div 
-                        ref={(el) => {
-                          if (el) {
-                            const observer = new IntersectionObserver(([entry]) => {
-                              if (entry.isIntersecting) {
-                                loadMoreExperts();
-                              }
-                            }, { threshold: 0.1 });
-                            observer.observe(el);
-                            return () => observer.disconnect();
-                          }
-                        }}
-                        className="text-center py-4 text-sm text-gray-500"
-                      >
-                        Loading more experts...
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Notifications Tab */}
-          {/* <TabsContent value="notifications">
-            <Card>
-              <CardHeader>
-                <CardTitle>Notifications</CardTitle>
-                <CardDescription>
-                  Stay updated on project applications and expert activities
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {applications.length > 0 ? (
-                    applications.map((application) => {
-                      const project = projects.find(p => p.id === application.project_id)
-                      const expert: any = experts.find((e: any) => e.id === application.expert_id)
-                      return (
-                        <div key={application.id} className="flex items-start space-x-3 p-4 border rounded-lg">
-                          <Bell className="h-5 w-5 text-blue-600 mt-0.5" />
-                          <div className="flex-1">
-                            <p className="text-sm font-medium">
-                              New Application Received
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              {expert?.name} applied to "{project?.title}"
-                            </p>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {new Date(application.applied_at).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <Badge className={getApplicationStatusColor(application.status)}>
-                            {application.status}
-                          </Badge>
-                        </div>
-                      )
-                    })
-                  ) : (
-                    <div className="text-center py-8">
-                      <Bell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600">No notifications yet</p>
-                      <p className="text-sm text-gray-500">You'll receive updates when experts apply to your projects</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent> */}
-
-          {/* Profile Tab */}
-
-
-
-
-
-
-
-              
-        </Tabs>
+            </CardContent>
+          </Card>
+        </div>
+        </div>
       </div>
-
-      {/* Rating Modal */}
-      <RatingModal
-        isOpen={ratingModalOpen}
-        onClose={() => setRatingModalOpen(false)}
-        booking={selectedBooking}
-        onRatingSubmitted={handleRatingSubmitted}
-      />
-
-      {/* Applications Drawer */}
-      <Drawer
-        open={applicationsDrawerOpen}
-        onOpenChange={setApplicationsDrawerOpen}
-        title={`Applications for: ${selectedProject?.title || 'Project'}`}
-      >
-        {selectedProject && (
-          <ProjectApplications
-            projectId={selectedProject.id}
-            projectTitle={selectedProject.title || ''}
-            onClose={() => setApplicationsDrawerOpen(false)}
-            pageSize={20}
-            institutionId={institution?.id || ''}
-            onRefreshBookings={refreshBookings}
-          />
-        )}
-      </Drawer>
-    </div>
+    
   )
 }

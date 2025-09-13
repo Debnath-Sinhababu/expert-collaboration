@@ -7,6 +7,7 @@ interface Notification {
   expertName?: string;
   institutionName?: string;
   status?: string;
+  projectId?: string;
   timestamp: Date;
 }
 
@@ -85,6 +86,7 @@ export const useSocket = (): UseSocketReturn => {
           type: 'application_status_changed',
           message: data.message,
           projectTitle: data.projectTitle,
+          projectId: data.projectId,
           status: data.status,
           timestamp: new Date(),
         });
@@ -97,6 +99,7 @@ export const useSocket = (): UseSocketReturn => {
           message: data.message,
           projectTitle: data.projectTitle,
           institutionName: data.institutionName,
+          projectId: data.projectId,
           timestamp: new Date(),
         });
       });
@@ -107,7 +110,6 @@ export const useSocket = (): UseSocketReturn => {
           type: 'booking_updated',
           message: data.message,
           projectTitle: data.projectTitle,
-          institutionName: data.institutionName,
           timestamp: new Date(),
         });
       });
@@ -119,6 +121,39 @@ export const useSocket = (): UseSocketReturn => {
           message: data.message,
           projectTitle: data.projectTitle,
           institutionName: data.institutionName,
+          timestamp: new Date(),
+        });
+      });
+
+      newSocket.on('expert_selected_with_booking', (data: any) => {
+        console.log('Expert selected with booking notification:', data);
+        addNotification({
+          type: 'expert_selected_with_booking',
+          message: data.message,
+          projectTitle: data.projectTitle,
+          projectId: data.projectId,
+          timestamp: new Date(),
+        });
+      });
+
+      newSocket.on('expert_interest_shown', (data: any) => {
+        console.log('Expert interest shown notification:', data);
+        addNotification({
+          type: 'expert_interest_shown',
+          message: data.message,
+          projectTitle: data.projectTitle,
+          projectId: data.projectId,
+          timestamp: new Date(),
+        });
+      });
+
+      newSocket.on('moved_to_interview', (data: any) => {
+        console.log('Moved to interview notification:', data);
+        addNotification({
+          type: 'moved_to_interview',
+          message: data.message,
+          projectTitle: data.projectTitle,
+          projectId: data.projectId,
           timestamp: new Date(),
         });
       });

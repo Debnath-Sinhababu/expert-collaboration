@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel'
+import Autoplay from 'embla-carousel-autoplay'
 
 interface Banner {
   src: string
@@ -15,8 +16,8 @@ const banners: Banner[] = [
     gradient: "from-blue-500/20 to-transparent"
   },
   {
-    src: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1200&h=600&fit=crop&crop=center",
-    alt: "Corporate Buildings Background",
+    src: "https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
+    alt: "Professional meeting with presenter at board and team with laptops",
     gradient: "from-indigo-500/20 to-transparent"
   },
   {
@@ -29,42 +30,37 @@ const banners: Banner[] = [
     alt: "Modern Office Complex Background",
     gradient: "from-cyan-500/20 to-transparent"
   },
-  {
-    src: "https://images.unsplash.com/photo-1523050854058-8df90110c9e1?w=1200&h=600&fit=crop&crop=center",
-    alt: "Academic Library Background",
-    gradient: "from-pink-500/20 to-transparent"
-  }
+ 
 ]
 
-export default function BackgroundBannerCarousel() {
-  const [currentIndex, setCurrentIndex] = useState(0)
+type BackgroundBannerCarouselProps = {
+  foreground?: boolean
+  className?: string
+}
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentIndex((prevIndex) => (prevIndex + 1) % banners.length)
-    }, 4000) // Change banner every 4 seconds
-
-    return () => clearInterval(interval)
-  }, [])
-
+export default function BackgroundBannerCarousel({ foreground = false, className = '' }: BackgroundBannerCarouselProps) {
   return (
-    <div className="absolute inset-0 opacity-10 overflow-hidden">
-      {banners.map((banner, index) => (
-        <div
-          key={index}
-          className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-            index === currentIndex ? 'opacity-100' : 'opacity-0'
-          }`}
-        >
-          <div className={`absolute inset-0 bg-gradient-to-br ${banner.gradient}`}>
-            <img 
-              src={banner.src}
-              alt={banner.alt}
-              className="w-full h-full object-cover"
-            />
-          </div>
-        </div>
-      ))}
+    <div className={`${foreground ? 'relative w-full h-full overflow-hidden' : 'absolute inset-0 overflow-hidden opacity-10'} ${className}`}>
+      <Carousel
+        opts={{ align: 'start', loop: true }}
+        plugins={[Autoplay({ delay: 4000 })]}
+        className="w-full h-full"
+      >
+        <CarouselContent className="h-48 sm:h-64 md:h-80 lg:h-96">
+          {banners.map((banner, index) => (
+            <CarouselItem key={index} className="h-48 sm:h-64 md:h-80 lg:h-96">
+              <div className="relative w-full h-full">
+                <img
+                  src={banner.src}
+                  alt={banner.alt}
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+                <div className={`absolute inset-0 bg-gradient-to-br ${banner.gradient}`}></div>
+              </div>
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+      </Carousel>
     </div>
   )
 }

@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS experts (
     bio TEXT,
     photo_url TEXT,
     experience_years INTEGER, 
-    qualifications TEXT[],
+    qualifications TEXT,
     domain_expertise TEXT[],
     hourly_rate DECIMAL(10,2),
     resume_url TEXT,

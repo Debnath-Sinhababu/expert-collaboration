@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     template: "%s | Calxmap",
   },
   description:
-    "Calxmap is a global knowledge ecosystem that transforms expertise into influence and connections into opportunities. It is the world’s first Knowledge Networking Platform where experts become brands, students unlock opportunities, universities bridge with industry, and industries find the right talent and ideas.",
+    "Calxmap is a global knowledge ecosystem that transforms expertise into influence and connections into opportunities. It is the world’s first knowledge sharing networking platform where experts become brands, students unlock opportunities, universities bridge with industry, and industries find the right talent and ideas.",
   keywords: [
     "Calxmap",
     "knowledge networking",

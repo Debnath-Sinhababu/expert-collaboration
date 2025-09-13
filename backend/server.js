@@ -70,6 +70,30 @@ app.get('/api/health-static', (req, res) => {
   res.json({ status: 'OK' });
 });
 
+// Auth: Forgot password - send reset email
+app.post('/api/auth/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body || {};
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const redirectTo = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/reset-password`;
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo
+    });
+
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 app.get('/api/experts', async (req, res) => {
   console.log('GET /api/experts - Query params:', req.query);
@@ -81,7 +105,10 @@ app.get('/api/experts', async (req, res) => {
       domain_expertise = '', 
       min_hourly_rate = '', 
       max_hourly_rate = '',
-      is_verified = ''
+      is_verified = '',
+      min_rating = '',
+      sort_by = '',
+      sort_order = 'desc'
     } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
     
@@ -106,15 +133,22 @@ app.get('/api/experts', async (req, res) => {
     let query = supabaseClient
       .from('experts')
       .select('*')
-      .range(offset, offset + parseInt(limit) - 1)
-      .order('created_at', { ascending: false });
+      .range(offset, offset + parseInt(limit) - 1);
     
     if (search) {
       query = query.or(`name.ilike.%${search}%,bio.ilike.%${search}%`);
     }
     
     if (domain_expertise) {
-      query = query.contains('domain_expertise', [domain_expertise]);
+      const dom = Array.isArray(domain_expertise) ? domain_expertise : String(domain_expertise)
+      // Support comma-separated list or single
+      const values = Array.isArray(dom) ? dom : dom.split(',').map(s => s.trim()).filter(Boolean)
+      if (values.length === 1) {
+        query = query.contains('domain_expertise', [values[0]])
+      } else if (values.length > 1) {
+        // Use overlap operator for Postgrest: domain_expertise overlaps any of values
+        query = query.overlaps('domain_expertise', values)
+      }
     }
     
     if (min_hourly_rate) {
@@ -127,6 +161,17 @@ app.get('/api/experts', async (req, res) => {
     
     if (is_verified) {
       query = query.eq('is_verified', is_verified === 'true');
+    }
+    
+    if (min_rating) {
+      query = query.gte('rating', parseFloat(min_rating));
+    }
+    
+    // Apply sorting
+    if (sort_by) {
+      query = query.order(sort_by, { ascending: (String(sort_order).toLowerCase() !== 'desc') });
+    } else {
+      query = query.order('created_at', { ascending: false });
     }
     
     const { data, error } = await query;
@@ -234,6 +279,7 @@ app.post('/api/experts', upload.fields([
       qualifications_url: qualificationsData?.url || null,
       qualifications_public_id: qualificationsData?.publicId || null,
       domain_expertise: req.body.domain_expertise ? [req.body.domain_expertise] : [],
+      subskills: req.body.subskills ? JSON.parse(req.body.subskills) : [],
       hourly_rate: req.body.hourly_rate,
       resume_url: resumeData?.url || null,
       resume_public_id: resumeData?.publicId || null,
@@ -265,7 +311,45 @@ app.get('/api/experts/:id', async (req, res) => {
       .eq('id', req.params.id)
       .single();
     
-    if (error) throw error;
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows returned
+        return res.status(404).json({ error: 'Expert not found' });
+      }
+      throw error;
+    }
+    
+    if (!data) {
+      return res.status(404).json({ error: 'Expert not found' });
+    }
+    
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get expert by user_id
+app.get('/api/experts/user/:userId', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('experts')
+      .select('*')
+      .eq('user_id', req.params.userId)
+      .single();
+    
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows returned
+        return res.status(404).json({ error: 'Expert not found' });
+      }
+      throw error;
+    }
+    
+    if (!data) {
+      return res.status(404).json({ error: 'Expert not found' });
+    }
+    
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -502,6 +586,10 @@ app.post('/api/institutions', async (req, res) => {
       phone: req.body.contact_phone,
       contact_person: req.body.contact_person,
       pincode: req.body.pincode || null,
+      student_count: req.body.student_count || null,
+      established_year: req.body.established_year || null,
+      accreditation: req.body.accreditation || null
+
     };
     
     console.log('Institution data to insert:', institutionData);
@@ -529,7 +617,45 @@ app.get('/api/institutions/:id', async (req, res) => {
       .eq('id', req.params.id)
       .single();
     
-    if (error) throw error;
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows returned
+        return res.status(404).json({ error: 'Institution not found' });
+      }
+      throw error;
+    }
+    
+    if (!data) {
+      return res.status(404).json({ error: 'Institution not found' });
+    }
+    
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get institution by user_id
+app.get('/api/institutions/user/:userId', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('institutions')
+      .select('*')
+      .eq('user_id', req.params.userId)
+      .single();
+    
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows returned
+        return res.status(404).json({ error: 'Institution not found' });
+      }
+      throw error;
+    }
+    
+    if (!data) {
+      return res.status(404).json({ error: 'Institution not found' });
+    }
+    
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -596,7 +722,9 @@ app.get('/api/projects', async (req, res) => {
       max_hourly_rate = '',
       status = '',
       institution_id = '',
-      expert_id = '' // used for filtering out applied projects
+      expert_id = '', // used for filtering out applied projects
+      domain_expertise = '', // new parameter for similar projects
+      required_expertise = '' // new parameter for similar projects
     } = req.query;
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
@@ -610,7 +738,9 @@ app.get('/api/projects', async (req, res) => {
         institutions (
           id,
           name,
-          logo_url
+          logo_url,
+          city,
+          state
         )
       `)
       .range(offset, offset + parseInt(limit) - 1)
@@ -627,6 +757,15 @@ app.get('/api/projects', async (req, res) => {
     if (max_hourly_rate) query = query.lte('hourly_rate', parseFloat(max_hourly_rate));
     if (status) query = query.eq('status', status);
     if (institution_id) query = query.eq('institution_id', institution_id);
+    
+    // Similar projects filters
+    if (domain_expertise) {
+      query = query.eq('domain_expertise', domain_expertise);
+    }
+    if (required_expertise) {
+      const skills = required_expertise.split(',').map(s => s.trim());
+      query = query.overlaps('required_expertise', skills);
+    }
 
     // Expert filtering: remove projects they already applied to
     if (expert_id && expert_id.trim() !== '') {
@@ -808,13 +947,27 @@ app.get('/api/projects/:id', async (req, res) => {
         institutions (
           id,
           name,
-          logo_url
+          logo_url,
+          description,
+          address,
+          city,
+          state
         )
       `)
       .eq('id', req.params.id)
       .single();
     
-    if (error) throw error;
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+      throw error;
+    }
+    
+    if (!data) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -861,6 +1014,386 @@ app.put('/api/projects/:id', async (req, res) => {
   }
 });
 
+// Get recommended projects for an expert based on their skills
+app.get('/api/projects/recommended/:expertId', async (req, res) => {
+  try {
+    console.log('GET /api/projects/recommended - Expert ID:', req.params.expertId);
+
+    // Get expert profile
+    const { data: expertData, error: expertError } = await supabase
+      .from('experts')
+      .select('*')
+      .eq('id', req.params.expertId)
+      .single();
+
+    if (expertError) throw expertError;
+    if (!expertData) {
+      return res.status(404).json({ error: 'Expert not found' });
+    }
+
+    // Get projects that the expert has already applied to
+    const { data: appliedProjects, error: appliedError } = await supabase
+      .from('applications')
+      .select('project_id')
+      .eq('expert_id', req.params.expertId);
+
+    if (appliedError) throw appliedError;
+
+    const appliedProjectIds = appliedProjects?.map(app => app.project_id) || [];
+
+    // Get all open projects with institution data, excluding already applied projects
+    let query = supabase
+      .from('projects')
+      .select(`
+        *,
+        institutions (
+          id,
+          name,
+          logo_url,
+          city,
+          state
+        )
+      `)
+      .eq('status', 'open')
+      .order('created_at', { ascending: false });
+
+    // Exclude projects that the expert has already applied to
+    if (appliedProjectIds.length > 0) {
+      query = query.not('id', 'in', `(${appliedProjectIds.join(',')})`);
+    }
+
+    const { data: projectsData, error: projectsError } = await query;
+
+    if (projectsError) throw projectsError;
+
+    // Calculate match scores for each project
+    const recommendations = projectsData.map(project => {
+      const matchScore = calculateProjectMatchScore(expertData, project);
+      return {
+        ...project,
+        matchScore: Math.round(matchScore)
+      };
+    })
+    .filter(rec => rec.matchScore >= 60) // Only show projects with 60%+ match
+    .sort((a, b) => b.matchScore - a.matchScore)
+    .slice(0, 10); // Top 10 recommendations
+
+    // Get application counts for recommended projects
+    if (recommendations.length > 0) {
+      const projectIds = recommendations.map(project => project.id);
+      
+      const { data: applicationCounts, error: countsError } = await supabase
+        .from('applications')
+        .select('project_id, status')
+        .in('project_id', projectIds);
+
+      if (!countsError && applicationCounts) {
+        const projectCounts = {};
+        applicationCounts.forEach(app => {
+          if (!projectCounts[app.project_id]) {
+            projectCounts[app.project_id] = { total: 0, pending: 0 };
+          }
+          projectCounts[app.project_id].total++;
+          if (app.status === 'pending') {
+            projectCounts[app.project_id].pending++;
+          }
+        });
+
+        recommendations.forEach(project => {
+          project.applicationCounts = projectCounts[project.id] || { total: 0, pending: 0 };
+        });
+      }
+    }
+
+    console.log(`Recommendations generated: ${recommendations.length} projects for expert ${req.params.expertId}`);
+    res.json(recommendations);
+
+  } catch (error) {
+    console.error('GET /api/projects/recommended error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Helper function to calculate project match score
+function calculateProjectMatchScore(expert, project) {
+  let score = 0;
+  
+  // Domain Match (40% weight)
+  if (expert.domain_expertise && project.domain_expertise) {
+    const expertDomains = Array.isArray(expert.domain_expertise) ? expert.domain_expertise : [expert.domain_expertise];
+    if (expertDomains.includes(project.domain_expertise)) {
+      score += 40;
+    }
+  }
+  
+  // Subskills Match (30% weight)
+  if (expert.subskills && project.subskills && 
+      Array.isArray(expert.subskills) && Array.isArray(project.subskills)) {
+    const subskillMatches = expert.subskills.filter(skill => 
+      project.subskills.includes(skill)
+    ).length;
+    if (project.subskills.length > 0) {
+      score += (subskillMatches / project.subskills.length) * 30;
+    }
+  }
+  
+  // General Skills Match (20% weight)
+  if (expert.required_expertise && project.required_expertise &&
+      Array.isArray(expert.required_expertise) && Array.isArray(project.required_expertise)) {
+    const skillMatches = expert.required_expertise.filter(skill => 
+      project.required_expertise.includes(skill)
+    ).length;
+    if (project.required_expertise.length > 0) {
+      score += (skillMatches / project.required_expertise.length) * 20;
+    }
+  }
+  
+  // Rate Compatibility (10% weight)
+  if (expert.hourly_rate && project.hourly_rate) {
+    // Expert rate should be within 20% of project rate (flexible matching)
+    const rateDifference = Math.abs(expert.hourly_rate - project.hourly_rate) / project.hourly_rate;
+    if (rateDifference <= 0.2) {
+      score += 10;
+    } else if (rateDifference <= 0.5) {
+      score += 5; // Partial points for reasonable rate difference
+    }
+  }
+  
+  return Math.min(score, 100); // Cap at 100%
+}
+
+// Get recommended experts for a project based on project requirements
+app.get('/api/experts/recommended/:projectId', async (req, res) => {
+  try {
+    console.log('GET /api/experts/recommended - Project ID:', req.params.projectId);
+
+    // Get project details
+    const { data: projectData, error: projectError } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', req.params.projectId)
+      .single();
+
+    if (projectError) throw projectError;
+    if (!projectData) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    // Get all verified experts
+    const { data: expertsData, error: expertsError } = await supabase
+      .from('experts')
+      .select('*')
+      .eq('is_verified', true)
+      .order('rating', { ascending: false });
+
+    if (expertsError) throw expertsError;
+
+    // Calculate match scores for each expert
+    const recommendations = expertsData.map(expert => {
+      const matchScore = calculateExpertMatchScore(expert, projectData);
+      return {
+        ...expert,
+        matchScore: Math.round(matchScore)
+      };
+    })
+    .filter(rec => rec.matchScore >= 40) // Only show experts with 60%+ match
+    .sort((a, b) => b.matchScore - a.matchScore)
+    .slice(0, 10); // Top 10 recommendations
+
+    console.log(`Expert recommendations generated: ${recommendations.length} experts for project ${req.params.projectId}`);
+    res.json(recommendations);
+
+  } catch (error) {
+    console.error('GET /api/experts/recommended error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Check if experts have applied to a project
+app.post('/api/applications/check-status', async (req, res) => {
+  try {
+    const { projectId, expertIds } = req.body;
+    
+    if (!projectId || !expertIds || !Array.isArray(expertIds)) {
+      return res.status(400).json({ error: 'projectId and expertIds array are required' });
+    }
+
+    console.log('Checking application status for project:', projectId, 'experts:', expertIds);
+
+    // Get application status for each expert
+    const { data: applications, error } = await supabase
+      .from('applications')
+      .select('expert_id, status')
+      .eq('project_id', projectId)
+      .in('expert_id', expertIds);
+
+    if (error) throw error;
+
+    // Create a map of expert_id -> application status
+    const applicationStatus = {};
+    applications.forEach(app => {
+     
+      applicationStatus[app.expert_id] = app.status;
+      
+    });
+     
+    // Return status for each expert
+    const result = expertIds.map(expertId => ({
+      expertId,
+      hasApplied: !!applicationStatus[expertId],
+      applicationStatus: applicationStatus[expertId] || null
+    }));
+
+    console.log('Application status check result:', result);
+    res.json(result);
+
+  } catch (error) {
+    console.error('Error checking application status:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Send expert selected with booking notification
+app.post('/api/notifications/send-expert-selected', async (req, res) => {
+  try {
+    const { expertId, projectTitle, institutionName, projectId } = req.body;
+    
+    if (!expertId || !projectTitle || !institutionName || !projectId) {
+      return res.status(400).json({ error: 'expertId, projectTitle, institutionName, and projectId are required' });
+    }
+
+    // Get expert details
+    const { data: expertData, error: expertError } = await supabase
+      .from('experts')
+      .select('email, user_id')
+      .eq('id', expertId)
+      .single();
+
+    if (expertError) throw expertError;
+    if (!expertData) {
+      return res.status(404).json({ error: 'Expert not found' });
+    }
+
+    // Send email notification
+    await notificationService.sendExpertSelectedWithBookingNotification(
+      expertData.email,
+      projectTitle,
+
+      projectId
+    );
+    
+    // Send real-time notification
+    await socketService.sendExpertSelectedWithBookingNotification(
+      expertData.user_id,
+      projectTitle,
+      institutionName,
+      projectId
+    );
+
+    console.log(`Expert selected notification sent to expert ${expertId}`);
+    res.json({ success: true });
+
+  } catch (error) {
+    console.error('Error sending expert selected notification:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Send expert interest shown notification
+app.post('/api/notifications/send-expert-interest', async (req, res) => {
+  try {
+    const { expertId, projectTitle, institutionName, projectId } = req.body;
+
+    
+    if (!expertId || !projectTitle || !institutionName || !projectId) {
+      return res.status(400).json({ error: 'expertId, projectTitle, institutionName, and projectId are required' });
+    }
+
+    // Get expert details
+    const { data: expertData, error: expertError } = await supabase
+      .from('experts')
+      .select('email, user_id')
+      .eq('id', expertId)
+      .single();
+
+    if (expertError) throw expertError;
+    if (!expertData) {
+      return res.status(404).json({ error: 'Expert not found' });
+    }
+
+    // Send email notification
+    await notificationService.sendExpertInterestShownNotification(
+      expertData.email,
+      projectTitle,
+      institutionName,
+      projectId
+    );
+    
+    // Send real-time notification
+    await socketService.sendExpertInterestShownNotification(
+      expertData.user_id,
+      projectTitle,
+      institutionName,
+      projectId
+    );
+
+    console.log(`Expert interest notification sent to expert ${expertId}`);
+    res.json({ success: true });
+
+  } catch (error) {
+    console.error('Error sending expert interest notification:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Helper function to calculate expert match score for a project
+function calculateExpertMatchScore(expert, project) {
+  let score = 0;
+  
+  // Domain Match (40% weight)
+  if (expert.domain_expertise && project.domain_expertise) {
+    const expertDomains = Array.isArray(expert.domain_expertise) ? expert.domain_expertise : [expert.domain_expertise];
+    if (expertDomains.includes(project.domain_expertise)) {
+      score += 40;
+    }
+  }
+  
+  // Subskills Match (30% weight)
+  if (expert.subskills && project.subskills && 
+      Array.isArray(expert.subskills) && Array.isArray(project.subskills)) {
+    const subskillMatches = expert.subskills.filter(skill => 
+      project.subskills.includes(skill)
+    ).length;
+    if (project.subskills.length > 0) {
+      score += (subskillMatches / project.subskills.length) * 30;
+    }
+  }
+  
+  // General Skills Match (20% weight)
+  if (expert.required_expertise && project.required_expertise &&
+      Array.isArray(expert.required_expertise) && Array.isArray(project.required_expertise)) {
+    const skillMatches = expert.required_expertise.filter(skill => 
+      project.required_expertise.includes(skill)
+    ).length;
+    if (project.required_expertise.length > 0) {
+      score += (skillMatches / project.required_expertise.length) * 20;
+    }
+  }
+  
+  // Rate Compatibility (10% weight)
+  if (expert.hourly_rate && project.hourly_rate) {
+    // Expert rate should be within 20% of project rate (flexible matching)
+    const rateDifference = Math.abs(expert.hourly_rate - project.hourly_rate) / project.hourly_rate;
+    if (rateDifference <= 0.2) {
+      score += 10;
+    } else if (rateDifference <= 0.5) {
+      score += 5; // Partial points for reasonable rate difference
+    }
+  }
+  
+  return Math.min(score, 100); // Cap at 100%
+}
+
 app.get('/api/applications', async (req, res) => {
   try {
     console.log('=== GET APPLICATIONS DEBUG ===');
@@ -868,7 +1401,7 @@ app.get('/api/applications', async (req, res) => {
     
     // Default to 'pending' status to show only in-progress applications
     // This ensures dashboards only show applications that need attention
-    const { expert_id, project_id, institution_id, page = 1, limit = 10, status = 'pending' } = req.query;
+    const { expert_id, project_id, institution_id, page = 1, limit = 10,status } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
     
     console.log('Applications filtering:', { 
@@ -908,9 +1441,26 @@ app.get('/api/applications', async (req, res) => {
         experts (
           id,
           name,
+          email,
+          phone,
           photo_url,
+          profile_photo_thumbnail_url,
+          profile_photo_small_url,
           bio,
-          hourly_rate
+          experience_years,
+          qualifications,
+          domain_expertise,
+          subskills,
+          hourly_rate,
+          resume_url,
+          availability,
+          is_verified,
+          kyc_status,
+          rating,
+          total_ratings,
+          linkedin_url,
+          created_at,
+          updated_at
         ),
         projects (
           id,
@@ -918,8 +1468,15 @@ app.get('/api/applications', async (req, res) => {
           description,
           type,
           hourly_rate,
+          total_budget,
           start_date,
-          end_date
+          end_date,
+          duration_hours,
+          required_expertise,
+          domain_expertise,
+          subskills,
+          status,
+          max_applications
         )
       `)
       .range(offset, offset + parseInt(limit) - 1)
@@ -942,7 +1499,7 @@ app.get('/api/applications', async (req, res) => {
     // Filter by status - default to 'pending' (in progress) applications
     // Status values: 'pending', 'accepted', 'rejected'
     if (status) {
-      console.log('Filtering by status:', status);
+    
       query = query.eq('status', status);
       
       // Log the business logic behind the filtering
@@ -963,7 +1520,36 @@ app.get('/api/applications', async (req, res) => {
     });
     
     if (error) throw error;
-    res.json(data);
+
+    // Get counts for all statuses for the same filters
+    let countQuery = supabaseClient
+      .from('applications')
+      .select('status');
+    
+    if (expert_id) countQuery = countQuery.eq('expert_id', expert_id);
+    if (project_id) countQuery = countQuery.eq('project_id', project_id);
+    if (institution_id) countQuery = countQuery.eq('institution_id', institution_id);
+    
+    const { data: allApplications, error: countError } = await countQuery;
+    
+    if (countError) {
+      console.log('Count query error:', countError);
+      res.json(data);
+    } else {
+      // Calculate counts by status
+      const counts = {
+        total: allApplications?.length || 0,
+        pending: allApplications?.filter(a => a.status === 'pending').length || 0,
+        interview: allApplications?.filter(a => a.status === 'interview').length || 0,
+        accepted: allApplications?.filter(a => a.status === 'accepted').length || 0,
+        rejected: allApplications?.filter(a => a.status === 'rejected').length || 0
+      };
+      
+      res.json({
+        data: data,
+        counts: counts
+      });
+    }
   } catch (error) {
     console.log('GET applications error:', error);
     res.status(500).json({ error: error.message });
@@ -994,7 +1580,7 @@ app.get('/api/applications/counts', async (req, res) => {
     const { data: userData, error: userError } = await supabaseClient.auth.getUser();
     if (userError) throw userError;
 
-    const { expert_id, project_id, institution_id, status = 'pending' } = req.query;
+    const { expert_id, project_id, institution_id, status } = req.query;
     
     let query = supabaseClient
       .from('applications')
@@ -1003,6 +1589,7 @@ app.get('/api/applications/counts', async (req, res) => {
     if (expert_id) query = query.eq('expert_id', expert_id);
     if (project_id) query = query.eq('project_id', project_id);
     if (institution_id) query = query.eq('institution_id', institution_id);
+    // Only filter by status if specifically requested
     if (status) query = query.eq('status', status);
     
     const { data, error } = await query;
@@ -1013,6 +1600,7 @@ app.get('/api/applications/counts', async (req, res) => {
     const applicationCounts = {
       total: data?.length || 0,
       pending: data?.filter(a => a.status === 'pending').length || 0,
+      interview: data?.filter(a => a.status === 'interview').length || 0,
       accepted: data?.filter(a => a.status === 'accepted').length || 0,
       rejected: data?.filter(a => a.status === 'rejected').length || 0
     };
@@ -1175,10 +1763,16 @@ app.put('/api/applications/:id', async (req, res) => {
     console.log('Authenticated user:', userData?.user?.id);
     console.log('User error:', userError);
 
+    // Handle interview_date field if provided
+    const updateData = { ...req.body };
+    if (updateData.interview_date) {
+      // Convert to proper timestamp format
+      updateData.interview_date = new Date(updateData.interview_date).toISOString();
+    }
     
     const { data, error } = await supabaseClient
       .from('applications')
-      .update(req.body)
+      .update(updateData)
       .eq('id', req.params.id)
       .select();
     
@@ -1186,40 +1780,64 @@ app.put('/api/applications/:id', async (req, res) => {
     
     // Send notification to expert about application status change
     try {
-      if (req.body.status === 'accepted' || req.body.status === 'rejected') {
+      if (req.body.status === 'interview') {
         const serviceClient = createClient(
           process.env.SUPABASE_URL,
           process.env.SUPABASE_SERVICE_ROLE_KEY
         );
         // Get application details for notification
-        const { data: applicationData } = await serviceClient
-          .from('applications')
-          .select(`
-            project_id,
-            expert_id,
-            status,
-            projects!inner(title, institution_id),
-            experts!inner(name, email, user_id),
-            institutions!inner(name)
-          `)
-          .eq('id', req.params.id)
-          .single();
+        const { data: applicationData } = await supabaseClient
+        .from('applications')
+        .select(`
+          project_id,
+          expert_id,
+          status,
+          projects (
+            title,
+            institution_id,
+            institutions(name)
+          ),
+          experts(name, email, user_id)
+        `)
+        .eq('id', req.params.id)
+        .single();
+
+          console.log('applicationData', applicationData)
         
         if (applicationData) {
-          // Send email notification
-          await notificationService.sendApplicationStatusNotification(
-            applicationData.experts.email,
-            applicationData.projects.title,
-            applicationData.institutions.name,
-            req.body.status
-          );
-          
-          // Send real-time notification
-          socketService.sendApplicationStatusNotification(
-            applicationData.experts.user_id, // Use Supabase user_id instead of expert_id
-            applicationData.projects.title,
-            req.body.status
-          );
+          const status = req.body.status;
+         
+          if (status === 'interview') {
+            // Email for interview stage
+            await notificationService.sendMovedToInterviewNotification(
+              applicationData.experts.email,
+              applicationData.projects.title,
+              applicationData.project_id
+            );
+            // Realtime for interview stage
+            socketService.sendApplicationStatusNotification(
+              applicationData.experts.user_id,
+              applicationData.projects.title,
+              'interview',
+              applicationData.project_id
+            );
+          } else if (status === 'accepted') {
+            // Email + realtime for accepted (pre-booking)
+            await notificationService.sendApplicationStatusNotification(
+              applicationData.experts.email,
+              applicationData.projects.title,
+              applicationData.projects.institutions.name,
+              'accepted'
+            );
+            socketService.sendApplicationStatusNotification(
+              applicationData.experts.user_id,
+              applicationData.projects.title,
+              'accepted',
+              applicationData.project_id
+            );
+          } else if (status === 'rejected') {
+            // Do not notify per requirement
+          }
         }
       }
     } catch (notificationError) {
@@ -1287,12 +1905,14 @@ app.post('/api/bookings', async (req, res) => {
         .single();
       
       if (bookingData) {
+       
         // Send email notification
         await notificationService.sendBookingNotification(
           bookingData.experts.email,
           bookingData.projects.title,
           bookingData.institutions.name,
-          bookingData
+          bookingData,
+          true
         );
         
         // Send real-time notification
@@ -1300,7 +1920,9 @@ app.post('/api/bookings', async (req, res) => {
           bookingData.experts.user_id, // Use Supabase user_id instead of expert_id
           bookingData.projects.title,
           bookingData.institutions.name,
-          true // isCreation = true
+         
+          bookingData.project_id,
+          true
         );
       }
     } catch (notificationError) {
@@ -1339,7 +1961,7 @@ app.get('/api/bookings', async (req, res) => {
     console.log('Authenticated user for booking fetch:', userData?.user?.id);
     console.log('User error:', userError);
 
-    const { expert_id, institution_id, page = 1, limit = 10 } = req.query;
+    const { expert_id, institution_id, project_id, page = 1, limit = 10 } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
     let query = supabaseClient
       .from('bookings')
@@ -1348,7 +1970,26 @@ app.get('/api/bookings', async (req, res) => {
         experts (
           id,
           name,
-          photo_url
+          email,
+          phone,
+          photo_url,
+          profile_photo_thumbnail_url,
+          profile_photo_small_url,
+          bio,
+          experience_years,
+          qualifications,
+          domain_expertise,
+          subskills,
+          hourly_rate,
+          resume_url,
+          availability,
+          is_verified,
+          kyc_status,
+          rating,
+          total_ratings,
+          linkedin_url,
+          created_at,
+          updated_at
         ),
         institutions (
           id,
@@ -1358,7 +1999,18 @@ app.get('/api/bookings', async (req, res) => {
         projects (
           id,
           title,
-          type
+          description,
+          type,
+          hourly_rate,
+          total_budget,
+          start_date,
+          end_date,
+          duration_hours,
+          required_expertise,
+          domain_expertise,
+          subskills,
+          status,
+          max_applications
         )
       `)
       .range(offset, offset + parseInt(limit) - 1)
@@ -1366,6 +2018,7 @@ app.get('/api/bookings', async (req, res) => {
     
     if (expert_id) query = query.eq('expert_id', expert_id);
     if (institution_id) query = query.eq('institution_id', institution_id);
+    if (project_id) query = query.eq('project_id', project_id);
     
     const { data, error } = await query;
     
@@ -1407,7 +2060,36 @@ app.get('/api/bookings', async (req, res) => {
     }
 
     console.log('Bookings fetched:', data?.length || 0);
-    res.json(data);
+    
+    // Get counts for all bookings for the same filters
+    let countQuery = supabaseClient
+      .from('bookings')
+      .select('status');
+    
+    if (expert_id) countQuery = countQuery.eq('expert_id', expert_id);
+    if (institution_id) countQuery = countQuery.eq('institution_id', institution_id);
+    if (project_id) countQuery = countQuery.eq('project_id', project_id);
+    
+    const { data: allBookings, error: countError } = await countQuery;
+    
+    if (countError) {
+      console.log('Booking count query error:', countError);
+      res.json(data);
+    } else {
+      // Calculate counts by status
+      const counts = {
+        total: allBookings?.length || 0,
+        in_progress: allBookings?.filter(b => b.status === 'in_progress').length || 0,
+        completed: allBookings?.filter(b => b.status === 'completed').length || 0,
+        cancelled: allBookings?.filter(b => b.status === 'cancelled').length || 0,
+        pending: allBookings?.filter(b => b.status === 'pending').length || 0
+      };
+      
+      res.json({
+        data: data,
+        counts: counts
+      });
+    }
   } catch (error) {
     console.error('Booking fetch error:', error);
     res.status(500).json({ error: error.message });
@@ -1438,7 +2120,7 @@ app.get('/api/bookings/counts', async (req, res) => {
     const { data: userData, error: userError } = await supabaseClient.auth.getUser();
     if (userError) throw userError;
 
-    const { expert_id, institution_id } = req.query;
+    const { expert_id, institution_id, project_id } = req.query;
     
     let query = supabaseClient
       .from('bookings')
@@ -1446,6 +2128,7 @@ app.get('/api/bookings/counts', async (req, res) => {
     
     if (expert_id) query = query.eq('expert_id', expert_id);
     if (institution_id) query = query.eq('institution_id', institution_id);
+    if (project_id) query = query.eq('project_id', project_id);
     
     const { data, error } = await query;
     
@@ -1513,33 +2196,11 @@ app.post('/api/ratings', async (req, res) => {
       .insert([req.body])
       .select();
     
-    if (error) {
-      console.log('Error occurred, trying with service role...');
-      console.log('Error message:', error.message);
-      console.log('Service role key available:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
-      console.log('RLS policy blocked the insert, trying with service role...');
-      console.log('Service role key available:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
-      
-      // If RLS blocks it, try with service role (temporary workaround)
-      const serviceClient = createClient(
-        process.env.SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY
-      );
-      
-      console.log('Using service role key for rating creation...');
-      
-      const { data: serviceData, error: serviceError } = await serviceClient
-        .from('ratings')
-        .insert([req.body])
-        .select();
-      
-      if (serviceError) {
-        console.error('Service role insert error:', serviceError);
-        throw serviceError;
+      if (error) {
+        console.error('Rating creation error:', error);
+        throw error;
       }
-      
-      console.log('Rating created successfully with service role:', serviceData[0]);
-      
+     
       // After creating the rating with service role, update the expert's aggregate rating
       try {
         const expertId = req.body.expert_id;
@@ -1548,7 +2209,7 @@ app.post('/api/ratings', async (req, res) => {
           console.log('Updating expert rating for expert_id:', expertId);
           
           // Calculate aggregate rating for this expert
-          const { data: ratingsData, error: ratingsError } = await serviceClient
+          const { data: ratingsData, error: ratingsError } = await supabaseClient
             .from('ratings')
             .select('rating')
             .eq('expert_id', expertId);
@@ -1559,15 +2220,18 @@ app.post('/api/ratings', async (req, res) => {
             // Calculate average rating
             const totalRatings = ratingsData.length;
             const sumRatings = ratingsData.reduce((sum, item) => sum + (item.rating || 0), 0);
+            console.log('sumRatings', sumRatings)
+            console.log('totalRatings', totalRatings)
             const averageRating = totalRatings > 0 ? (sumRatings / totalRatings).toFixed(1) : 0;
-            
+            console.log('averageRating', averageRating)
             console.log(`Expert ${expertId} - Total ratings: ${totalRatings}, Sum: ${sumRatings}, Average: ${averageRating}`);
             
             // Update the expert's rating column
-            const { error: updateError } = await serviceClient
+            const { error: updateError } = await supabaseClient
               .from('experts')
               .update({ 
-                rating: parseFloat(averageRating)
+                rating: parseFloat(averageRating),
+                total_ratings: totalRatings
               })
               .eq('id', expertId);
             
@@ -1583,20 +2247,10 @@ app.post('/api/ratings', async (req, res) => {
         // Don't fail the rating creation if the update fails
       }
       
-      res.status(201).json(serviceData[0]);
+      res.status(201).json(data[0]);
       return;
-    }
     
-    if (error) {
-      console.error('Rating creation error:', error);
-      throw error;
-    }
-    
-    console.log('Rating created successfully:', data[0]);
-    
-  
-    
-    res.status(201).json(data[0]);
+   
   } catch (error) {
     console.error('Rating creation error:', error);
     res.status(500).json({ error: error.message });
@@ -1724,13 +2378,15 @@ app.put('/api/bookings/:id', async (req, res) => {
         .eq('id', id)
         .single();
       
+        console.log('bookingData', bookingData)
       if (bookingData) {
         // Send email notification
         await notificationService.sendBookingNotification(
           bookingData.experts.email,
           bookingData.projects.title,
           bookingData.institutions.name,
-          bookingData
+          bookingData,
+          false
         );
         
         // Send real-time notification
@@ -1900,6 +2556,54 @@ app.post('/api/student/feedback', async (req, res) => {
   } catch (error) {
     console.error('Submit feedback error:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Public: Get student feedback highlights (GOOD and VERY_GOOD only). Optional expertName filter.
+app.get('/api/student/feedback/by-expert', async (req, res) => {
+  try {
+    const { expertName, limit = 50 } = req.query;
+
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return res.status(500).json({ success: false, error: 'Service role key not configured' });
+    }
+
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    // Build select clause dynamically to avoid inner join when not filtering by expertName
+    let selectClause = `pros,rating,students:students(student_name)`;
+    const hasExpertName = typeof expertName === 'string' && expertName.trim() !== '';
+    if (hasExpertName) {
+      selectClause += `,feedback_sessions!inner(expert_name)`;
+    }
+
+    let query = serviceClient
+      .from('student_feedback')
+      .select(selectClause)
+      .in('rating', ['VERY_GOOD', 'GOOD'])
+      .limit(parseInt(limit));
+
+    if (hasExpertName) {
+      query = query.eq('feedback_sessions.expert_name', expertName);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    const mapped = Array.isArray(data) ? data.map((row) => ({
+      student_name: row?.students?.student_name || 'Student',
+      pros: row?.pros || '',
+      rating: row?.rating || 'GOOD'
+    })).filter(item => item.pros && item.pros.trim() !== '') : [];
+
+    res.json({ success: true, feedback: mapped });
+  } catch (error) {
+    console.error('Get feedback by expert error:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

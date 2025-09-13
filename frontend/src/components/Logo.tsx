@@ -8,20 +8,20 @@ interface LogoProps {
 export default function Logo({ size = 'md', className = '' }: LogoProps) {
 
   return (
-    <div className={`flex items-center mt-1 justify-center ${className}`}>
+    <div className={`flex items-center justify-center leading-none ${className}`}>
       {/* Logo Image Only - No Circle Background */}
-      <div className={`relative group`}>
+      <div className={`relative group overflow-hidden ${size === 'sm' ? 'w-10 h-10' : size === 'md' ? 'w-20 h-20' : 'w-52 h-20'}`}>
         {/* Your actual logo image */}
-        <div className={`inline-flex rounded-full overflow-hidden bg-black ${size==='sm'?'w-8 h-8': size==='md'?'w-12 h-12': 'w-20 h-20'}  transform group-hover:scale-105`}>
+    
   <Image
-    src="/images/logo.png"
+    src="/images/calxmaplogo.png"
     alt="Calxmap Logo"
-    width={size === 'sm' ? 32 : size === 'md' ? 48 : 80}
-    height={size === 'sm' ? 32 : size === 'md' ? 48 : 80}
-    className="object-contain transition-all duration-300"
+    width={size === 'sm' ? 28 : size === 'md' ? 40 : 204}
+    height={size === 'sm' ? 28 : size === 'md' ? 40 : 64}
+    className="block w-full h-full object-cover transition-all duration-300 rounded-md"
     priority
   />
-</div>
+
 
 
       </div>

@@ -225,40 +225,72 @@ export default function ProjectApplications({ projectId, projectTitle, onClose, 
                       </div>
                       
                       {/* Expert Details Grid */}
-                      {expertDetail && (
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <span className="text-slate-500">Domain Expertise:</span>
-                            <p className="font-medium text-slate-700">{expertDetail.domain_expertise || 'Not specified'}</p>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-slate-500">Domain Expertise:</span>
+                          <p className="font-medium text-slate-700">
+                            {expert?.domain_expertise && expert.domain_expertise.length > 0 
+                              ? expert.domain_expertise.join(', ') 
+                              : 'Not specified'}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-slate-500">Hourly Rate:</span>
+                          <p className="font-medium text-slate-700">₹{expert?.hourly_rate || 0}/hr</p>
+                        </div>
+                        <div>
+                          <span className="text-slate-500">Experience:</span>
+                          <p className="font-medium text-slate-700">{expert?.experience_years || 0} years</p>
+                        </div>
+                        <div>
+                          <span className="text-slate-500">Verification:</span>
+                          <Badge variant={expert?.is_verified ? "default" : "secondary"} className="ml-1">
+                            {expert?.is_verified ? 'Verified' : 'Pending'}
+                          </Badge>
+                        </div>
+                        <div>
+                          <span className="text-slate-500">Rating:</span>
+                          <div className="flex items-center space-x-1">
+                            <Star className="h-4 w-4 text-yellow-400 fill-current" />
+                            <span className="font-medium text-slate-700">
+                              {expert?.rating || 0}/5 ({expert?.total_ratings || 0} reviews)
+                            </span>
                           </div>
-                          <div>
-                            <span className="text-slate-500">Hourly Rate:</span>
-                            <p className="font-medium text-slate-700">${expert?.hourly_rate || 0}/hr</p>
-                          </div>
-                          <div>
-                            <span className="text-slate-500">Experience:</span>
-                            <p className="font-medium text-slate-700">{expertDetail.experience_years || 0} years</p>
-                          </div>
-                          <div>
-                            <span className="text-slate-500">Verification:</span>
-                            <Badge variant={expertDetail.is_verified ? "default" : "secondary"} className="ml-1">
-                              {expertDetail.is_verified ? 'Verified' : 'Pending'}
-                            </Badge>
-                          </div>
-                          <div>
-                            <span className="text-slate-500">Rating:</span>
-                            <div className="flex items-center space-x-1">
-                              <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                              <span className="font-medium text-slate-700">{expertAggregate.rating}/5</span>
-                            </div>
+                        </div>
+                        <div>
+                          <span className="text-slate-500">KYC Status:</span>
+                          <Badge 
+                            variant={expert?.kyc_status === 'approved' ? "default" : "secondary"} 
+                            className="ml-1 capitalize"
+                          >
+                            {expert?.kyc_status || 'pending'}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      {/* Subskills */}
+                      {expert?.subskills && expert.subskills.length > 0 && (
+                        <div>
+                          <span className="text-sm text-slate-500">Specializations:</span>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {expert.subskills.slice(0, 5).map((skill, index) => (
+                              <Badge key={index} variant="outline" className="text-xs">
+                                {skill}
+                              </Badge>
+                            ))}
+                            {expert.subskills.length > 5 && (
+                              <Badge variant="secondary" className="text-xs">
+                                +{expert.subskills.length - 5} more
+                              </Badge>
+                            )}
                           </div>
                         </div>
                       )}
                       
-                      {expertDetail?.qualifications && (
+                      {expert?.qualifications && (
                         <div>
                           <span className="text-sm text-slate-500">Qualifications:</span>
-                          <p className="text-sm mt-1 text-slate-700">{expertDetail.qualifications}</p>
+                          <p className="text-sm mt-1 text-slate-700">{expert.qualifications}</p>
                         </div>
                       )}
                       

@@ -14,6 +14,20 @@ const getAuthHeaders = async () => {
 }
 
 export const api = {
+  auth: {
+    forgotPassword: async (email: string) => {
+      const headers = await getAuthHeaders()
+      return fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ email })
+      }).then(async (res) => {
+        const json = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(json?.error || 'Failed to send reset email')
+        return json
+      })
+    }
+  },
   experts: {
     getAll: async (params?: { 
       page?: number; 
@@ -23,6 +37,9 @@ export const api = {
       min_hourly_rate?: number; 
       max_hourly_rate?: number;
       is_verified?: boolean;
+      min_rating?: number;
+      sort_by?: string;
+      sort_order?: 'asc' | 'desc';
     }) => {
       const headers = await getAuthHeaders()
       const query = new URLSearchParams({
@@ -34,6 +51,23 @@ export const api = {
     getById: async (id: string) => {
       const headers = await getAuthHeaders()
       return fetch(`${API_BASE_URL}/api/experts/${id}`, { headers }).then(res => res.json())
+    },
+    getByUserId: async (userId: string) => {
+      const headers = await getAuthHeaders()
+      const query = new URLSearchParams({ _t: Date.now().toString() }).toString()
+      const res = await fetch(`${API_BASE_URL}/api/experts/user/${userId}?${query}`, { headers })
+      if (res.status === 404) {
+        return null
+      }
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(json?.error || `Failed to fetch expert for user ${userId}`)
+      }
+      return json
+    },
+    getRecommended: async (projectId: string) => {
+      const headers = await getAuthHeaders()
+      return fetch(`${API_BASE_URL}/api/experts/recommended/${projectId}`, { headers }).then(res => res.json())
     },
     create: async (data: any) => {
       const headers = await getAuthHeaders()
@@ -83,6 +117,20 @@ export const api = {
       const query = new URLSearchParams({ _t: Date.now().toString() }).toString()
       return fetch(`${API_BASE_URL}/api/institutions/${id}?${query}`, { headers }).then(res => res.json())
     },
+    getByUserId: async (userId: string) => {
+      const headers = await getAuthHeaders()
+      const query = new URLSearchParams({ _t: Date.now().toString() }).toString()
+      const res = await fetch(`${API_BASE_URL}/api/institutions/user/${userId}?${query}`, { headers })
+      // Normalize 404 to null so callers can do a simple truthy check
+      if (res.status === 404) {
+        return null
+      }
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(json?.error || `Failed to fetch institution for user ${userId}`)
+      }
+      return json
+    },
     create: async (data: any) => {
       const headers = await getAuthHeaders()
       return fetch(`${API_BASE_URL}/api/institutions`, {
@@ -101,6 +149,7 @@ export const api = {
     }
   },
 
+
   projects: {
     getAll: async (params?: { 
       page?: number; 
@@ -112,6 +161,8 @@ export const api = {
       status?: string;
       institution_id?: string;
       expert_id?: string; // Add expert_id to filter out projects they've already applied to
+      domain_expertise?: string; // For similar projects
+      required_expertise?: string; // For similar projects (comma-separated)
     }) => {
       const headers = await getAuthHeaders()
       const query = new URLSearchParams({
@@ -119,6 +170,10 @@ export const api = {
         _t: Date.now().toString()
       }).toString()
       return fetch(`${API_BASE_URL}/api/projects${query ? `?${query}` : ''}`, { headers }).then(res => res.json())
+    },
+    getRecommended: async (expertId: string) => {
+      const headers = await getAuthHeaders()
+      return fetch(`${API_BASE_URL}/api/projects/recommended/${expertId}`, { headers }).then(res => res.json())
     },
     getById: async (id: string) => {
       const headers = await getAuthHeaders()
@@ -191,16 +246,27 @@ export const api = {
         headers,
         body: JSON.stringify(data)
       }).then(res => res.json())
+    },
+    checkStatus: async (projectId: string, expertIds: string[]) => {
+      const headers = await getAuthHeaders()
+      return fetch(`${API_BASE_URL}/api/applications/check-status`, {
+        method: 'POST',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ projectId, expertIds })
+      }).then(res => res.json())
     }
   },
 
   bookings: {
-    getAll: async (params?: { expert_id?: string; institution_id?: string; page?: number; limit?: number }) => {
+    getAll: async (params?: { expert_id?: string; institution_id?: string; project_id?: string; page?: number; limit?: number }) => {
       const headers = await getAuthHeaders()
       const query = new URLSearchParams(params as any).toString()
       return fetch(`${API_BASE_URL}/api/bookings${query ? `?${query}` : ''}`, { headers }).then(res => res.json())
     },
-    getCounts: async (params?: { expert_id?: string; institution_id?: string }) => {
+    getCounts: async (params?: { expert_id?: string; institution_id?: string; project_id?: string }) => {
       const headers = await getAuthHeaders()
       const query = new URLSearchParams(params as any).toString()
       return fetch(`${API_BASE_URL}/api/bookings/counts${query ? `?${query}` : ''}`, { headers }).then(res => res.json())
@@ -242,6 +308,14 @@ export const api = {
         headers,
         body: JSON.stringify(data)
       }).then(res => res.json())
+    }
+  }
+  ,
+  studentFeedback: {
+    getByExpertName: async (expertName: string, limit = 20) => {
+      const headers = await getAuthHeaders()
+      const q = new URLSearchParams({ expertName, limit: String(limit), _t: Date.now().toString() }).toString()
+      return fetch(`${API_BASE_URL}/api/student/feedback/by-expert?${q}`, { headers }).then(res => res.json())
     }
   }
 }
