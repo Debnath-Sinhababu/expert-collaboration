@@ -1,0 +1,98 @@
+name: supabase-daily-backup
+
+# Schedule: daily at 02:00 IST (20:30 UTC)
+on:
+  schedule:
+    - cron: '30 20 * * *'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      BACKUP_BUCKET: ${{ secrets.SUPABASE_BACKUP_BUCKET }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Dump roles (role metadata)
+        run: supabase db dump --db-url "$SUPABASE_DB_URL" -f roles.sql --role-only
+
+      - name: Dump schema (no data)
+        run: supabase db dump --db-url "$SUPABASE_DB_URL" -f schema.sql
+
+      - name: Dump data (data-only, fast COPY format)
+        run: supabase db dump --db-url "$SUPABASE_DB_URL" -f data.sql --data-only --use-copy
+
+      - name: Compress dumps
+        run: |
+          TIMESTAMP=$(date -u +"%Y%m%dT%H%M%SZ")
+          TARFILE="supabase-backup-${TIMESTAMP}.tar.gz"
+          tar czf "$TARFILE" roles.sql schema.sql data.sql
+          echo "TARFILE=$TARFILE" >> $GITHUB_ENV
+
+      - name: Upload backup to Supabase Storage bucket
+        run: |
+          FNAME=$TARFILE
+          echo "Uploading $FNAME to bucket: $BACKUP_BUCKET"
+          curl -s -X POST "$SUPABASE_URL/storage/v1/object/$BACKUP_BUCKET/backups/$FNAME" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @"$FNAME"
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Clean up old backups (keep last 7)
+        run: |
+          cat > cleanup-backups.js <<'EOF'
+          import { createClient } from "@supabase/supabase-js";
+
+          const supabase = createClient(
+            process.env.SUPABASE_URL,
+            process.env.SUPABASE_SERVICE_ROLE_KEY
+          );
+
+          const bucket = process.env.BACKUP_BUCKET;
+          const folder = "backups"; // subfolder where backups are stored
+          const keep = 7;
+
+          const run = async () => {
+            const { data, error } = await supabase.storage.from(bucket).list(folder, {
+              sortBy: { column: "name", order: "desc" }
+            });
+            if (error) throw error;
+
+            if (!data || data.length <= keep) {
+              console.log("Nothing to delete. Total backups:", data?.length || 0);
+              return;
+            }
+
+            const toDelete = data.slice(keep).map(f => `${folder}/${f.name}`);
+            console.log("Deleting old backups:", toDelete);
+
+            const { error: delError } = await supabase.storage.from(bucket).remove(toDelete);
+            if (delError) throw delError;
+
+            console.log("Cleanup complete.");
+          };
+
+          run().catch(err => {
+            console.error("Cleanup failed:", err);
+            process.exit(1);
+          });
+          EOF
+
+          npm install @supabase/supabase-js
+          node cleanup-backups.js
