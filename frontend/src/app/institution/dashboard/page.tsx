@@ -1287,10 +1287,7 @@ export default function InstitutionDashboard() {
                   <Briefcase className="h-12 w-12 text-slate-400 mx-auto mb-4" />
                   <p className="text-slate-600">No projects posted yet</p>
                   <p className="text-sm text-slate-500">Create your first project to find experts</p>
-                  <Button className="mt-4 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300" onClick={handleCreateProject}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Post Your First Project
-                  </Button>
+                
                 </div>
                 ) : (
                   <div className="space-y-4">

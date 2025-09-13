@@ -115,6 +115,16 @@ export default function InstitutionProfileSetup() {
         setSaving(false)
         return
       }
+      if (!formData.city?.trim()) {
+        toast.error('Please enter city')
+        setSaving(false)
+        return
+      }
+      if (!formData.state?.trim()) {
+        toast.error('Please enter state')
+        setSaving(false)
+        return
+      }
 
       const institutionData = {
         ...formData,
@@ -293,24 +303,25 @@ export default function InstitutionProfileSetup() {
 
                 <div className="grid md:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="city">City</Label>
+                    <Label htmlFor="city">City *</Label>
                     <Input
                       id="city"
                       placeholder="Enter city"
                       value={formData.city}
+                      required
                       onChange={(e) => handleInputChange('city', e.target.value)}
                       className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="state">State</Label>
+                    <Label htmlFor="state">State *</Label>
                     <Select value={formData.state} onValueChange={(value) => handleInputChange('state', value)}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select state" />
                       </SelectTrigger>
                       <SelectContent>
-                        {STATES.map((state) => (
+                        {STATES.map((state:any) => (
                           <SelectItem key={state} value={state}>
                             {state}
                           </SelectItem>

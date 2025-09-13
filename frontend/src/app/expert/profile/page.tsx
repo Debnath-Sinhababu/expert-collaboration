@@ -304,7 +304,7 @@ export default function ExpertProfile() {
             hourly_rate: parseFloat(formData.hourly_rate),
             experience_years: parseInt(formData.experience_years) || 0,
             updated_at: new Date().toISOString(),
-            qualifications: ''
+          
           }
           await api.experts.update(expert.id, expertData)
         }
@@ -809,7 +809,7 @@ export default function ExpertProfile() {
 
                       {/* Subskills Multi-Select */}
                       {formData.domain_expertise && availableSubskills.length > 0 && (
-                        <div className="space-y-2">
+                        <div className="space-y-2 min-w-0 max-w-full overflow-hidden">
                           <Label className="text-slate-700">Specializations & Skills *</Label>
                           <MultiSelect
                             options={availableSubskills}

@@ -12,6 +12,7 @@ import Logo from '@/components/Logo'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
+import { toast } from 'sonner'
 
 export const dynamic = 'force-dynamic'
 
@@ -60,17 +61,12 @@ export default function Signup() {
       if (error) throw error
 
       if (data.user) {
-        setSuccess('Account created successfully! Please check your email to verify your account.')
+       toast.success('Account created successfully! Please check your email to verify your account.')
         
-        setTimeout(() => {
-          if (activeTab === 'expert') {
-            router.push('/expert/profile-setup')
-          } else {
-            router.push('/institution/profile-setup')
-          }
-        }, 2000)
+       router.push('/auth/login')
       }
     } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'An error occurred')
       setError(error instanceof Error ? error.message : 'An error occurred')
     } finally {
       setLoading(false)

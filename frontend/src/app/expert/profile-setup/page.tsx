@@ -315,7 +315,8 @@ export default function ExpertProfileSetup() {
         const errorData = await response.json()
         throw new Error(errorData.error || 'Failed to create profile')
       }
-      setSuccess('Profile created successfully! Redirecting to dashboard...')
+      toast.success('Profile created successfully! Redirecting to dashboard...')
+   
       
         router.push('/expert/home')
       
@@ -585,7 +586,7 @@ export default function ExpertProfileSetup() {
 
                   {/* Subskills Multi-Select */}
                   {formData.domain_expertise && availableSubskills.length > 0 && (
-                    <div className="space-y-2">
+                    <div className="space-y-2 min-w-0 max-w-full overflow-hidden">
                       <Label className="text-slate-700">Specializations & Skills *</Label>
       
                       <MultiSelect
@@ -593,7 +594,7 @@ export default function ExpertProfileSetup() {
                         selected={selectedSubskills}
                         onSelectionChange={handleSubskillChange}
                         placeholder="Select your specializations..."
-                        className="w-full"
+                        className="w-full min-w-0"
                       />
                     </div>
                   )}
