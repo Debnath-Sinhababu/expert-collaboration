@@ -586,6 +586,10 @@ app.post('/api/institutions', async (req, res) => {
       phone: req.body.contact_phone,
       contact_person: req.body.contact_person,
       pincode: req.body.pincode || null,
+      student_count: req.body.student_count || null,
+      established_year: req.body.established_year || null,
+      accreditation: req.body.accreditation || null
+
     };
     
     console.log('Institution data to insert:', institutionData);

@@ -888,17 +888,27 @@ export default function InstitutionDashboard() {
               ) : (
                 <div className="space-y-4">
                   {recommendedExperts.map((expert) => (
-                    <Card key={expert.id} className={`transition-all duration-200 hover:shadow-md ${
+                    <Card key={expert.id} className={`relative transition-all duration-200 hover:shadow-md ${
                       selectedExperts.includes(expert.id) 
                         ? 'bg-blue-50/50' 
                         : 'hover:border-blue-300'
                     }`}>
                       <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
+                        {/* Desktop view icon (top-right) */}
+                        <Link
+                          href={`/experts/${expert.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hidden sm:inline-flex items-center justify-center absolute top-3 right-3 rounded-md p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                          aria-label="View expert profile"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Link>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                           {/* Expert Info */}
-                          <div className="flex items-center space-x-4 flex-1 min-w-0">
+                          <div className="flex flex-col sm:flex-row sm:items-center flex-1 min-w-0 gap-3 sm:gap-4">
                             {/* Expert Photo */}
-                            <div className="flex-shrink-0">
+                            <div className="flex-shrink-0 mx-auto sm:mx-0">
                               {expert.photo_url ? (
                                 <img
                                   src={expert.photo_url}
@@ -914,25 +924,41 @@ export default function InstitutionDashboard() {
                             
                             {/* Expert Details */}
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h3 className="text-lg font-semibold text-slate-900 truncate">
-                                  {expert.name}
-                                </h3>
-                                {expert.is_verified && (
-                                  <Badge className="bg-green-100 text-green-800 text-xs">
-                                    Verified
+                              <div className="flex flex-col sm:flex-row items-center gap-2 mb-1 relative w-full">
+                                <div className="w-full sm:w-auto">
+                                  <h3 className="text-lg font-semibold text-slate-900 truncate mx-auto text-center sm:text-left">
+                                    {expert.name}
+                                  </h3>
+                                </div>
+                                {/* Mobile view icon (inline, right) */}
+                              
+                                <div className="flex items-center gap-2">
+                                  {expert.is_verified && (
+                                    <Badge className="bg-green-100 text-green-800 text-xs">
+                                      Verified
+                                    </Badge>
+                                  )}
+                                  <Badge className="bg-blue-100 text-blue-800 text-xs">
+                                    {expert.matchScore}% Match
                                   </Badge>
-                                )}
-                                <Badge className="bg-blue-100 text-blue-800 text-xs">
-                                  {expert.matchScore}% Match
-                                </Badge>
+                                  <Link
+                                  href={`/experts/${expert.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="sm:hidden text-slate-500 hover:text-slate-900"
+                                  aria-label="View expert profile"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Link>
+                                  
+                                </div>
                               </div>
                               
-                              <div className="flex items-center text-slate-600 text-sm mb-2">
+                              <div className="flex flex-col sm:flex-row items-center text-slate-600 text-sm mb-2 gap-1 sm:gap-0">
                                 <span className="font-medium">₹{expert.hourly_rate}/hour</span>
-                                <span className="mx-2">•</span>
+                                <span className="hidden sm:inline mx-2">•</span>
                                 <span>{expert.experience_years || 0} years experience</span>
-                                <span className="mx-2">•</span>
+                                <span className="hidden sm:inline mx-2">•</span>
                                 <div className="flex items-center">
                                   <Star className="h-4 w-4 text-yellow-500 mr-1" />
                                   <span>{expert.rating || 0}</span>
@@ -962,14 +988,14 @@ export default function InstitutionDashboard() {
                           </div>
                           
                           {/* Select Button */}
-                          <div className="flex-shrink-0 ml-4">
+                          <div className="flex-shrink-0 w-full sm:w-auto sm:ml-4">
                             <Button
                               variant={selectedExperts.includes(expert.id) ? "default" : "outline"}
                               onClick={() => handleExpertSelection(expert.id)}
-                              className={selectedExperts.includes(expert.id) 
+                              className={`w-full sm:w-auto ${selectedExperts.includes(expert.id) 
                                 ? "bg-blue-600 hover:bg-blue-700 text-white" 
                                 : "border-blue-300 text-blue-600 hover:bg-blue-50"
-                              }
+                              }`}
                             >
                               {selectedExperts.includes(expert.id) ? (
                                 <>
