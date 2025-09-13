@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -7,12 +7,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Eye, EyeOff, Users, BookOpen, Building, ArrowLeft, Shield, Zap, CheckCircle, Star, Globe, Award } from 'lucide-react'
+import { Eye, EyeOff, Users, BookOpen, Building, ArrowLeft, Shield, Zap, CheckCircle, Star, Globe, Award, MapPin, Clock, IndianRupee, ArrowRight } from 'lucide-react'
 import Logo from '@/components/Logo'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
+import { api } from '@/lib/api'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,6 +26,10 @@ export default function Signup() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [activeTab, setActiveTab] = useState('expert')
+  const [topProjects, setTopProjects] = useState<any[]>([])
+  const [loadingTop, setLoadingTop] = useState<boolean>(false)
+  const desktopScrollRef = useRef<HTMLDivElement>(null)
+  const mobileScrollRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const searchParam = useSearchParams()
 
@@ -78,6 +83,90 @@ export default function Signup() {
     setActiveTab(role)
   }, [searchParam])
   
+  // Load latest open projects (Top Requirements)
+  useEffect(() => {
+    const loadTop = async () => {
+      try {
+        setLoadingTop(true)
+        const data = await api.projects.getAll({ status: 'open', limit: 7 })
+        const list = Array.isArray(data) ? data : (data?.data || [])
+        setTopProjects(list)
+      } catch (e) {
+        console.error('Failed to load top requirements', e)
+      } finally {
+        setLoadingTop(false)
+      }
+    }
+    loadTop()
+  }, [])
+
+  const formatTimeAgo = (isoDate?: string) => {
+    if (!isoDate) return ''
+    const now = new Date()
+    const then = new Date(isoDate)
+    const diff = Math.max(0, now.getTime() - then.getTime())
+    const minutes = Math.floor(diff / (1000 * 60))
+    if (minutes < 60) return `${minutes}m ago`
+    const hours = Math.floor(minutes / 60)
+    if (hours < 24) return `${hours}h ago`
+    const days = Math.floor(hours / 24)
+    if (days < 7) return `${days}d ago`
+    const weeks = Math.floor(days / 7)
+    return `${weeks}w ago`
+  }
+
+  // Auto-scroll vertical lists; pause on hover/touch
+  useEffect(() => {
+    const startAutoScroll = (ref: React.RefObject<HTMLDivElement>, speed: number) => {
+      if (!ref.current) return () => {}
+      let rafId: number | null = null
+      let paused = false
+      let last = 0
+      const el = ref.current
+
+      const step = (t: number) => {
+        if (!el) return
+        if (!last) last = t
+        const dt = t - last
+        last = t
+        if (!paused) {
+          const increment = (dt * 0.05) * speed // ~50px/sec at speed 1
+          el.scrollTop += increment
+          const max = el.scrollHeight - el.clientHeight - 1
+          if (el.scrollTop >= max) {
+            el.scrollTop = 0
+          }
+        }
+        rafId = requestAnimationFrame(step)
+      }
+
+      const onEnter = () => { paused = true }
+      const onLeave = () => { paused = false }
+      el.addEventListener('mouseenter', onEnter)
+      el.addEventListener('mouseleave', onLeave)
+      el.addEventListener('touchstart', onEnter)
+      el.addEventListener('touchend', onLeave)
+      rafId = requestAnimationFrame(step)
+
+      return () => {
+        if (rafId) cancelAnimationFrame(rafId)
+        el.removeEventListener('mouseenter', onEnter)
+        el.removeEventListener('mouseleave', onLeave)
+        el.removeEventListener('touchstart', onEnter)
+        el.removeEventListener('touchend', onLeave)
+      }
+    }
+
+    const cleanups: Array<() => void> = []
+    if (desktopScrollRef.current && topProjects.length > 0) {
+      cleanups.push(startAutoScroll(desktopScrollRef, 1))
+    }
+    if (mobileScrollRef.current && topProjects.length > 0) {
+      cleanups.push(startAutoScroll(mobileScrollRef, 0.8))
+    }
+    return () => { cleanups.forEach(fn => fn()) }
+  }, [topProjects])
+  
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
@@ -120,8 +209,8 @@ export default function Signup() {
       </header>
 
       <div className="relative flex items-center justify-center min-h-[calc(100vh-80px)] p-4">
-        <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-12 items-center">
-          {/* Left Side - Enhanced Branding */}
+        <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-12">
+          {/* Left Side - Enhanced Branding + Top Requirements */}
           <div className="hidden lg:block space-y-8">
              <Logo size="lg"  />
             <div className="space-y-6">
@@ -129,45 +218,49 @@ export default function Signup() {
                 Join the Future of
                 <span className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent"> Calxmap</span>
               </h1>
-              <p className="text-xl text-slate-600 leading-relaxed">
-                Transform your expertise into influence and build meaningful connections with leading organizations worldwide.
-              </p>
+           
             </div>
 
-            <div className="space-y-6">
-              <div className="flex items-start space-x-4 group">
-                  <div className="w-12 h-12 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300">
-                    <Shield className="h-6 w-6 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-slate-900 mb-2">Verified Network</h3>
-                    <p className="text-slate-600">Join a trusted community of verified experts and leading institutions.</p>
+          
+
+
+            {/* Top Requirements - Desktop */}
+            {topProjects.length > 0 && (
+              <div className="mt-8">
+                <h3 className="text-xl font-semibold text-slate-900 mb-3">Current Requirements</h3>
+                <div ref={desktopScrollRef} className="space-y-3 max-h-[360px] overflow-y-auto pr-1 rounded-lg scrollbar-hide">
+                  {topProjects.slice(0,5).map((p) => (
+                    <div key={p.id}>
+                      <div className="group rounded-lg border-2 border-slate-200 bg-white p-4 hover:border-blue-300 hover:shadow-md transition-all duration-300 cursor-pointer"
+                        onClick={() => toast.warning('Pls create your account or login to view the project')}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h4 className="font-semibold text-slate-900 truncate group-hover:text-blue-700">{p.title}</h4>
+                              <span className="text-xs text-slate-500">{formatTimeAgo(p.created_at)}</span>
+                            </div>
+                            <div className="flex items-center text-slate-600 text-xs gap-3">
+                              {p.hourly_rate && (
+                                <span className="flex items-center"><IndianRupee className="h-3 w-3 mr-1" />{p.hourly_rate}/hr</span>
+                              )}
+                              {p.institutions?.city && (
+                                <span className="flex items-center"><MapPin className="h-3 w-3 mr-1" />{p.institutions.city}{p.institutions?.state ? `, ${p.institutions.state}` : ''}</span>
+                              )}
+                            </div>
+                          </div>
+                          <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-blue-600 flex-shrink-0 cursor-pointer"
+                            onClick={() => toast.warning('Pls create your account or login to view the project')}
+                           
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-
-              <div className="flex items-start space-x-4 group">
-                <div className="w-12 h-12 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300">
-                  <Zap className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2">Instant Opportunities</h3>
-                  <p className="text-slate-600">Get immediate access to exciting projects and collaboration opportunities.</p>
-                </div>
-              </div>
-
-              <div className="flex items-start space-x-4 group">
-                <div className="w-12 h-12 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300">
-                  <Globe className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2">Global Reach</h3>
-                  <p className="text-slate-600">Connect with organizations and experts from around the world.</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Trust indicators */}
-            <div className="pt-6 border-t border-slate-200">
+            )}
+             <div className="pt-6 border-t border-slate-200">
               <p className="text-sm text-slate-500 mb-3">Why professionals choose Calxmap</p>
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-center space-x-2">
@@ -176,7 +269,7 @@ export default function Signup() {
                 </div>
                 <div className="flex items-center space-x-2">
                   <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span className="text-sm text-slate-600">1000+ Projects</span>
+                  <span className="text-sm text-slate-600">50+ Projects</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Award className="h-4 w-4 text-blue-500" />
@@ -184,7 +277,7 @@ export default function Signup() {
                 </div>
                 <div className="flex items-center space-x-2">
                   <Users className="h-4 w-4 text-purple-500" />
-                  <span className="text-sm text-slate-600">50+ Universities</span>
+                  <span className="text-sm text-slate-600">10+ Universities</span>
                 </div>
               </div>
             </div>
@@ -205,6 +298,36 @@ export default function Signup() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                {/* Top Requirements - Mobile */}
+                {topProjects.length > 0 && (
+                  <div className="lg:hidden -mt-4 mb-2">
+                    <h3 className="text-base font-semibold text-slate-900 mb-2">Current Requirements</h3>
+                    <div ref={mobileScrollRef} className="space-y-2 max-h-72 overflow-y-auto -mr-1 pr-1 rounded-lg scrollbar-hide">
+                      {topProjects.slice(0,5).map((p) => (
+                        <div key={p.id} >
+                          <div className="rounded-lg border-2 border-slate-200 bg-white p-3 hover:border-blue-300 hover:shadow-sm transition-all duration-300 cursor-pointer"
+                            onClick={() => toast.warning('Pls create your account or login to view the project')}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <h4 className="font-medium text-slate-900 truncate">{p.title}</h4>
+                                <div className="flex items-center text-slate-600 text-xs gap-2 mt-1">
+                                  {p.hourly_rate && (
+                                    <span className="flex items-center"><IndianRupee className="h-3 w-3 mr-1" />{p.hourly_rate}/hr</span>
+                                  )}
+                                  <span className="flex items-center"><Clock className="h-3 w-3 mr-1" />{formatTimeAgo(p.created_at)}</span>
+                                </div>
+                              </div>
+                              <ArrowRight className="h-3 w-3 text-slate-400 flex-shrink-0 cursor-pointer" 
+                             
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
                   <TabsList className="grid w-full grid-cols-2 h-12 bg-slate-100 p-1">
                     <TabsTrigger value="expert" className="flex items-center space-x-2 text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-300 rounded-lg">

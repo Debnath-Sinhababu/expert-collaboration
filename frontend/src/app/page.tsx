@@ -42,6 +42,7 @@ import Logo from '@/components/Logo'
 import BackgroundBannerCarousel from '@/components/BackgroundBannerCarousel'
 import Autoplay from "embla-carousel-autoplay"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import Image from 'next/image'
 
 export default function Home() {
@@ -51,6 +52,8 @@ export default function Home() {
   const [scrolled, setScrolled] = useState(false);
   const [featuredUniversities, setFeaturedUniversities] = useState<{ name: string; desc: string; logo: string; color: string }[]>([])
   const [featuredExperts, setFeaturedExperts] = useState<any[]>([])
+  const [userRole, setUserRole] = useState<'expert' | 'institution' | null>(null)
+  const [showWelcomeDialog, setShowWelcomeDialog] = useState(false)
   
   // Intersection observer for statistics animation
   const { ref: statsRef, inView } = useInView({
@@ -76,6 +79,39 @@ export default function Home() {
 
     return () => subscription.unsubscribe()
   }, [])
+
+  useEffect(() => {
+    const resolveRole = async () => {
+      if (!user) { setUserRole(null); return }
+      const metaRole = (user as any)?.user_metadata?.role
+      if (metaRole === 'expert' || metaRole === 'institution') {
+        setUserRole(metaRole)
+        return
+      }
+      try {
+        const [expert, institution] = await Promise.all([
+          api.experts.getByUserId(user.id).catch(() => null),
+          api.institutions.getByUserId(user.id).catch(() => null)
+        ])
+        if (expert) setUserRole('expert')
+        else if (institution) setUserRole('institution')
+        else setUserRole(null)
+      } catch {
+        setUserRole(null)
+      }
+    }
+    resolveRole()
+  }, [user])
+
+  useEffect(() => {
+    if (!user || !userRole) return
+    const key = 'calxmap_welcome_dialog_shown'
+    const shown = sessionStorage.getItem(key)
+    if (!shown) {
+      setShowWelcomeDialog(true)
+      sessionStorage.setItem(key, '1')
+    }
+  }, [user, userRole])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -233,61 +269,21 @@ export default function Home() {
 
     
 
-      {user && (
-        <div className="bg-white border-2 border-slate-200 rounded-2xl shadow-sm mx-4 my-8">
-          <div className="container mx-auto px-6 sm:px-8 py-16 text-center">
-            <div className="max-w-4xl mx-auto">
-              <h1 className="text-4xl lg:text-[40px] font-bold mb-6 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent">
-                Welcome back to Calxmap
-              </h1>
-              <p className="text-lg lg:text-xl text-slate-600 mb-12 max-w-3xl mx-auto leading-relaxed">
-                Continue your journey in connecting education with expertise. Your dashboard awaits with new opportunities and insights.
-              </p>
-              
-              <div className="flex flex-col sm:flex-row gap-6 justify-center items-start">
-                <Link href="/expert/dashboard">
-                  <Button size="lg" className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-bold text-lg px-8 py-6 shadow-sm hover:shadow-md transition-all duration-300 group">
-                    <Users className="mr-3 h-6 w-6 group-hover:scale-110 transition-transform duration-300" />
-                    Expert Dashboard
-                    <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-1 transition-transform duration-300 hidden sm:block" />
-                  </Button>
-                </Link>
-                                  <Link href="/institution/dashboard">
-                  <Button size="lg" className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-bold text-lg px-8 py-6 shadow-sm hover:shadow-md transition-all duration-300 group">
-                      <Building className="mr-3 h-6 w-6 group-hover:scale-110 transition-transform duration-300" />
-                      Institution Dashboard
-                      <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-1 transition-transform duration-300 hidden sm:block" />
-                    </Button>
-                  </Link>
-              </div>
-              
-              {/* Trust indicators */}
-              <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div className="text-center group">
-                  <div className="w-16 h-16 mx-auto mb-4 bg-blue-50 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 border border-blue-200">
-                    <TrendingUp className="h-8 w-8 text-blue-600" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2">Active Projects</h3>
-                  <p className="text-slate-600">Track your ongoing collaborations</p>
-                </div>
-                <div className="text-center group">
-                  <div className="w-16 h-16 mx-auto mb-4 bg-indigo-50 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 border border-indigo-200">
-                    <Users2 className="h-8 w-8 text-indigo-600" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2">Network Growth</h3>
-                  <p className="text-slate-600">Expand your professional connections</p>
-                </div>
-                <div className="text-center group">
-                  <div className="w-16 h-16 mx-auto mb-4 bg-purple-50 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 border border-purple-200">
-                    <BarChart3 className="h-8 w-8 text-purple-600" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2">Performance Insights</h3>
-                  <p className="text-slate-600">Monitor your impact metrics</p>
-                </div>
-              </div>
+      {user && userRole && (
+        <Dialog open={showWelcomeDialog} onOpenChange={setShowWelcomeDialog}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent">Welcome back to Calxmap</DialogTitle>
+              <DialogDescription className="text-slate-600">Continue to your {userRole === 'expert' ? 'Expert' : 'Institution'} home page.</DialogDescription>
+            </DialogHeader>
+            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Link href={userRole === 'expert' ? '/expert/home' : '/institution/home'}>
+                <Button className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white w-full">Go to {userRole === 'expert' ? 'Expert' : 'Institution'} Home</Button>
+              </Link>
+              <Button variant="outline" onClick={() => setShowWelcomeDialog(false)} className="w-full">Maybe later</Button>
             </div>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
 
      
@@ -374,7 +370,7 @@ export default function Home() {
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className="bg-white border-2 border-slate-200 rounded-2xl p-8 shadow-sm">
               <div className="text-center mb-16">
-                  <div className='flex flex-col sm:flex-row gap-x-2 justify-center items-center mb-3'>
+                  <div className='flex flex-col sm:flex-row gap-x-2 justify-center items-center mb-5'>
                   <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-bold text-slate-900">About Calxmap</h2>
                   <div className='h-10 w-20'>
                   <Image
@@ -643,7 +639,7 @@ export default function Home() {
                     {inView ? (
                       <CountUp 
                         start={0} 
-                        end={500} 
+                        end={100} 
                         duration={2.5} 
                         delay={0.2}
                         suffix="+"
@@ -661,7 +657,7 @@ export default function Home() {
                     {inView ? (
                       <CountUp 
                         start={0} 
-                        end={50} 
+                        end={10} 
                         duration={2.5} 
                         delay={0.4}
                         suffix="+"
@@ -679,7 +675,7 @@ export default function Home() {
                     {inView ? (
                       <CountUp 
                         start={0} 
-                        end={1000} 
+                        end={50} 
                         duration={2.5} 
                         delay={0.6}
                         suffix="+"
@@ -727,7 +723,7 @@ export default function Home() {
                 </div>
                   <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-bold text-slate-900 mb-4">Sikshit – Parshiksit – Viksit Bharat</h2>
                   <p className="text-lg sm:text-xl text-slate-600 max-w-4xl mx-auto mb-8">
-                    In collaboration with <strong className="text-blue-700">STPI</strong>, Calxmap is running a <strong className="text-blue-700">₹1000 Cr CSR initiative</strong> to provide free access to training and expert-driven education for government institutions.
+                    In collaboration with <strong className="text-blue-700">STPI</strong>, Calxmap is running a <strong className="text-blue-700">CSR initiative</strong> to provide free access to training and expert-driven education for government institutions.
                 </p>
               </div>
 
@@ -1016,7 +1012,7 @@ export default function Home() {
                   <strong className="text-blue-700"> Calxmap is your partner for expert-driven success.</strong>
               </p>
               <div className="flex flex-col lg:flex-row gap-6 justify-center">
-                <Link href="/auth/signup?role=expert">
+                <Link href="/auth/signup?role=institution">
                     <Button size="lg" className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-bold text-xl px-12 py-6 shadow-sm hover:shadow-md transition-all duration-300">
                     Hire an Expert
                     <ArrowRight className="ml-3 h-6 w-6 hidden sm:block" />
