@@ -225,7 +225,7 @@ export default function Signup() {
 
 
             {/* Top Requirements - Desktop */}
-            {topProjects.length > 0 && (
+            {topProjects.length > 0 ? (
               <div className="mt-8">
                 <h3 className="text-xl font-semibold text-slate-900 mb-3">Current Requirements</h3>
                 <div ref={desktopScrollRef} className="space-y-3 max-h-[360px] overflow-y-auto pr-1 rounded-lg scrollbar-hide">
@@ -259,7 +259,43 @@ export default function Signup() {
                   ))}
                 </div>
               </div>
-            )}
+            ):
+            <div className="space-y-6">
+                <p className="text-xl text-slate-600 leading-relaxed">
+                Continue your journey in transforming expertise into influence and connections into opportunities.
+              </p>
+            <div className="flex items-start space-x-4 group">
+                <div className="w-12 h-12 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300">
+                  <Shield className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900 mb-2">Enterprise Security</h3>
+                  <p className="text-slate-600">Your data is protected with enterprise-grade security and privacy measures.</p>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-4 group">
+              <div className="w-12 h-12 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300">
+                <Zap className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900 mb-2">Instant Access</h3>
+                <p className="text-slate-600">Get immediate access to your dashboard and start collaborating with experts.</p>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-4 group">
+              <div className="w-12 h-12 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300">
+                <Users className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900 mb-2">Global Network</h3>
+                <p className="text-slate-600">Connect with verified experts and institutions worldwide.</p>
+              </div>
+            </div>
+          </div>
+          
+          }
              <div className="pt-6 border-t border-slate-200">
               <p className="text-sm text-slate-500 mb-3">Why professionals choose Calxmap</p>
               <div className="grid grid-cols-2 gap-4">
