@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { useSocket } from '@/hooks/useSocket'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
 export default function NotificationBell() {
@@ -13,6 +14,7 @@ export default function NotificationBell() {
   const [isClearing, setIsClearing] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const { isConnected, notifications, connect, disconnect, clearNotifications } = useSocket()
+  const router = useRouter()
 
   useEffect(() => {
     let isMounted = true;
@@ -70,6 +72,10 @@ export default function NotificationBell() {
         return <Clock className="h-4 w-4 text-purple-500" />
       case 'new_project_available':
         return <Info className="h-4 w-4 text-orange-500" />
+      case 'expert_selected_with_booking':
+        return <CheckCircle className="h-4 w-4 text-green-600" />
+      case 'expert_interest_shown':
+        return <Info className="h-4 w-4 text-blue-600" />
       default:
         return <AlertCircle className="h-4 w-4 text-gray-500" />
     }
@@ -86,6 +92,10 @@ export default function NotificationBell() {
         return 'bg-purple-50 border-purple-200'
       case 'new_project_available':
         return 'bg-orange-50 border-orange-200'
+      case 'expert_selected_with_booking':
+        return 'bg-green-100 border-green-300'
+      case 'expert_interest_shown':
+        return 'bg-blue-100 border-blue-300'
       default:
         return 'bg-gray-50 border-gray-200'
     }
@@ -154,7 +164,13 @@ export default function NotificationBell() {
               {notifications.map((notification, index) => (
                 <div
                   key={index}
-                  className={`p-3 sm:p-4 border-l-4 ${getNotificationColor(notification.type)}`}
+                  className={`p-3 sm:p-4 border-l-4 ${getNotificationColor(notification.type)} cursor-pointer`}
+                  onClick={() => {
+                    if (notification.projectId) {
+                      router.push(`/expert/project/${notification.projectId}`)
+                      setIsOpen(false)
+                    }
+                  }}
                 >
                   <div className="flex items-start space-x-2 sm:space-x-3">
                     {getNotificationIcon(notification.type)}

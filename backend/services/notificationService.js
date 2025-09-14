@@ -102,6 +102,7 @@ class NotificationService {
 
   async sendNotification(notification) {
     try {
+      console.log('sending notification', notification)
       const { type, data } = notification;
       let emailContent = '';
 
@@ -125,13 +126,31 @@ class NotificationService {
         case 'booking_created':
           emailContent = `<h2>New Booking Created</h2>
             <p>A new booking has been created for your project: ${data.project_title}</p>
-            <p>Expert: ${data.expert_name}</p>`;
+           
+            ${process.env.FRONTEND_URL && data.project_id ? `<p><a href="${process.env.FRONTEND_URL}/expert/project/${data.project_id}">View project details</a></p>` : ''}`;
           break;
         case 'booking_updated':
           emailContent = `<h2>Booking Updated</h2>
-            <p>Your booking has been updated for project: ${data.project_title}</p>
-            <p>Institution: ${data.institution_name}</p>
+            <p>Your booking has been completed for project: ${data.project_title}</p>
+        
             <p>Amount: ₹${data.amount}</p>`;
+          break;
+        case 'expert_selected_with_booking':
+          emailContent = `<h2>Congratulations! You've Been Selected</h2>
+            <p>Great news! You have been selected for the project: ${data.project_title}</p>
+            <p>Your booking has been confirmed and you can now start working on this project.</p>
+            <p>Please check your dashboard for more details.</p>`;
+          break;
+        case 'expert_interest_shown':
+          emailContent = `<h2>Someone is Interested in Your Profile</h2>
+            <p>An institution has shown interest in your profile for their project: ${data.project_title}</p>
+            <p>Please apply to this project to confirm your interest and start the collaboration process.</p>
+            ${process.env.FRONTEND_URL && data.project_id ? `<p><a href="${process.env.FRONTEND_URL}/expert/project/${data.project_id}">View project details</a></p>` : ''}`
+          break;
+        case 'moved_to_interview':
+          emailContent = `<h2>Great news!</h2>
+            <p>Your application for ${data.project_title} has been moved to the interview stage.</p>
+            ${process.env.FRONTEND_URL && data.project_id ? `<p><a href="${process.env.FRONTEND_URL}/expert/project/${data.project_id}">View project and interview details</a></p>` : ''}`;
           break;
         default:
           emailContent = `<h2>Notification</h2>
@@ -179,16 +198,51 @@ class NotificationService {
     });
   }
 
-  async sendBookingNotification(expertEmail, projectTitle, institutionName, bookingData) {
+  async sendBookingNotification(expertEmail, projectTitle, institutionName, bookingData,isCreation=false) {
+    console.log('bookingData', bookingData,isCreation)
     await this.addToQueue({
-      type: 'booking_updated',
+      type: isCreation ? 'booking_created' : 'booking_updated',
       data: {
         email: expertEmail,
         project_title: projectTitle,
-        institution_name: institutionName,
+        project_id: bookingData.project_id,
         amount: bookingData.amount,
         start_date: new Date(bookingData.start_date).toLocaleDateString(),
         end_date: new Date(bookingData.end_date).toLocaleDateString()
+      }
+    });
+  }
+
+  async sendMovedToInterviewNotification(expertEmail, projectTitle, projectId) {
+    console.log('moved to interview reached', expertEmail, projectTitle, projectId)
+    await this.addToQueue({
+      type: 'moved_to_interview',
+      data: {
+        email: expertEmail,
+        project_title: projectTitle,
+        project_id: projectId
+      }
+    });
+  }
+
+  async sendExpertSelectedWithBookingNotification(expertEmail, projectTitle, institutionName) {
+    await this.addToQueue({
+      type: 'expert_selected_with_booking',
+      data: {
+        email: expertEmail,
+        project_title: projectTitle,
+        institution_name: institutionName
+      }
+    });
+  }
+
+  async sendExpertInterestShownNotification(expertEmail, projectTitle, institutionName,projectId) {
+    await this.addToQueue({
+      type: 'expert_interest_shown',
+      data: {
+        email: expertEmail,
+        project_title: projectTitle,
+        project_id: projectId
       }
     });
   }

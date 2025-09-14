@@ -177,6 +177,7 @@ class SocketService {
 
   // public: send to a single user (uses room emission, falls back to queue)
   async sendToUser(userId, event, data) {
+   
     if (!this.io) {
       console.warn('Socket.IO not initialized');
       return false;
@@ -254,23 +255,67 @@ class SocketService {
     });
   }
 
-  async sendApplicationStatusNotification(expertId, projectTitle, status) {
+  async sendApplicationStatusNotification(expertId, projectTitle, status, projectId) {
+    if (status === 'rejected') {
+      // Per requirement: no notification on rejection
+      return true;
+    }
+    if (status === 'interview') {
+      console.log('interview reached')
+      return this.sendToUser(expertId, 'moved_to_interview', {
+        type: 'moved_to_interview',
+        projectTitle,
+        projectId,
+        message: `Your application for "${projectTitle}" is now in the interview stage. Tap to view details.`,
+      });
+    }
+    if (status === 'accepted') {
+      // Accepted will be followed by booking creation flow which sends booking_created
+      return this.sendToUser(expertId, 'application_status_changed', {
+        type: 'application_accepted',
+        projectTitle,
+        projectId,
+        message: `You're selected for "${projectTitle}". Booking will be created shortly.`,
+      });
+    }
+    // default fallback
     return this.sendToUser(expertId, 'application_status_changed', {
-      type: status === 'accepted' ? 'application_accepted' : 'application_rejected',
+      type: 'application_status_changed',
       projectTitle,
+      projectId,
       status,
-      message: `Your application for "${projectTitle}" has been ${status}`,
+      message: `Your application for "${projectTitle}" has been updated to ${status}.`,
     });
   }
 
-  async sendBookingNotification(expertId, projectTitle, institutionName, isCreation = false) {
+  async sendBookingNotification(expertId, projectTitle, institutionName, projectId=null, isCreation = false) {
     const eventType = isCreation ? 'booking_created' : 'booking_updated';
-    const message = isCreation ? `New booking created for project: ${projectTitle}` : `Booking updated for project: ${projectTitle}`;
+    const message = isCreation ? `New booking created for project: ${projectTitle}` : `Booking completed for project: ${projectTitle}`;
     return this.sendToUser(expertId, eventType, {
       type: eventType,
       projectTitle,
-      institutionName,
+      projectId,
       message,
+    });
+  }
+
+  async sendExpertSelectedWithBookingNotification(expertId, projectTitle, institutionName, projectId) {
+    return this.sendToUser(expertId, 'expert_selected_with_booking', {
+      type: 'expert_selected_with_booking',
+      projectTitle,
+      institutionName,
+      projectId,
+      message: `Congratulations! You've been selected for project: ${projectTitle}`,
+    });
+  }
+
+  async sendExpertInterestShownNotification(expertId, projectTitle, institutionName,projectId) {
+    return this.sendToUser(expertId, 'expert_interest_shown', {
+      type: 'expert_interest_shown',
+      projectTitle,
+      institutionName,
+      projectId,
+      message: `An institution is interested in your profile for: ${projectTitle}. Tap to view details.`,
     });
   }
 }

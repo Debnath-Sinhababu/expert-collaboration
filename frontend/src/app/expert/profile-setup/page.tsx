@@ -11,26 +11,13 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Upload, Calendar, DollarSign, X, Camera, FileText, Download } from 'lucide-react'
+import { MultiSelect } from '@/components/ui/multi-select'
+import { Upload, Calendar, DollarSign, X, Camera, FileText, Download, Check, IndianRupee } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import Logo from '@/components/Logo'
-
-const EXPERTISE_DOMAINS = [
-  'Computer Science & IT',
-  'Engineering',
-  'Business & Management',
-  'Finance & Economics',
-  'Healthcare & Medicine',
-  'Education & Training',
-  'Research & Development',
-  'Marketing & Sales',
-  'Data Science & Analytics',
-  'Design & Creative',
-  'Law & Legal',
-  'Other'
-]
+import { EXPERTISE_DOMAINS } from '@/lib/constants'
 
 const AVAILABILITY_SLOTS = [
   'Monday Morning',
@@ -69,6 +56,7 @@ export default function ExpertProfileSetup() {
     bio: '',
     qualifications: '',
     domain_expertise: '',
+    subskills: [] as string[],
     resume_url: '',
     hourly_rate: '',
     photo_url: '',
@@ -81,6 +69,8 @@ export default function ExpertProfileSetup() {
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string>('')
   const [photoError, setPhotoError] = useState('')
+  const [selectedSubskills, setSelectedSubskills] = useState<string[]>([])
+  const [availableSubskills, setAvailableSubskills] = useState<string[]>([])
   
   const [selectedResume, setSelectedResume] = useState<File | null>(null)
   const [resumeError, setResumeError] = useState('')
@@ -104,6 +94,33 @@ export default function ExpertProfileSetup() {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handleDomainChange = (domain: string) => {
+    setFormData(prev => ({
+      ...prev,
+      domain_expertise: domain,
+      subskills: [] // Reset subskills when domain changes
+    }))
+    
+    // Find the selected domain and update available subskills
+    const selectedDomain = EXPERTISE_DOMAINS.find(d => d.name === domain)
+    if (selectedDomain) {
+      setAvailableSubskills([...selectedDomain.subskills])
+    } else {
+      setAvailableSubskills([])
+    }
+    
+    // Reset selected subskills
+    setSelectedSubskills([])
+  }
+
+  const handleSubskillChange = (newSubskills: string[]) => {
+    setSelectedSubskills(newSubskills)
+    setFormData(prev => ({
+      ...prev,
+      subskills: newSubskills
+    }))
   }
 
   const handleAvailabilityChange = (slot: string, checked: boolean) => {
@@ -233,6 +250,12 @@ export default function ExpertProfileSetup() {
         return
       }
 
+      if (formData.subskills.length === 0) {
+        toast.error('Please select at least one specialization/skill')
+        setSaving(false)
+        return
+      }
+
       if (!formData.hourly_rate) {
         toast.error('Please enter your hourly rate')
         setSaving(false)
@@ -245,6 +268,9 @@ export default function ExpertProfileSetup() {
         return
       }
 
+      console.log(formData,'formData')
+      
+
       // Create FormData for file upload
       const formDataToSend = new FormData()
       formDataToSend.append('user_id', user.id)
@@ -254,6 +280,7 @@ export default function ExpertProfileSetup() {
       formDataToSend.append('phone', formData.phone)
       formDataToSend.append('qualifications', formData.qualifications)
       formDataToSend.append('domain_expertise', formData.domain_expertise)
+      formDataToSend.append('subskills', JSON.stringify(formData.subskills))
       formDataToSend.append('hourly_rate', formData.hourly_rate.toString())
       formDataToSend.append('resume_url', formData.resume_url)
       formDataToSend.append('experience_years', formData.experience_years)
@@ -288,9 +315,10 @@ export default function ExpertProfileSetup() {
         const errorData = await response.json()
         throw new Error(errorData.error || 'Failed to create profile')
       }
-      setSuccess('Profile created successfully! Redirecting to dashboard...')
+      toast.success('Profile created successfully! Redirecting to dashboard...')
+   
       
-        router.push('/expert/dashboard')
+        router.push('/expert/home')
       
     } catch (error: any) {
       setError(error.message)
@@ -301,40 +329,40 @@ export default function ExpertProfileSetup() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-400 mx-auto mb-4"></div>
-          <p className="text-slate-300">Loading profile setup...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading profile setup...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 relative py-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative py-8">
       {/* Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-20 w-64 h-64 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-blue-500/5 to-indigo-500/5 rounded-full blur-3xl"></div>
       </div>
       
       <div className="container mx-auto px-4 max-w-4xl relative z-10">
         {/* Header */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center space-x-2 mb-4 group">
-            <Logo size="sm" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Calxmap</span>
+            <Logo size="md" />
+            <span className="text-2xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent group-hover:from-blue-800 group-hover:to-indigo-800 transition-all duration-300">Calxmap</span>
           </Link>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent mb-2">Complete Your Expert Profile</h1>
-          <p className="text-xl text-slate-300">
+          <h1 className="text-4xl font-bold text-slate-900 mb-2 tracking-tight">Complete Your Expert Profile</h1>
+          <p className="text-xl text-slate-600">
             Tell us about your expertise and start receiving project opportunities
           </p>
         </div>
 
-        <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 hover:scale-[1.02] hover:-translate-y-1" style={{boxShadow: '0 25px 50px -12px rgba(59, 130, 246, 0.25), 0 0 0 1px rgba(59, 130, 246, 0.15)'}}>
+        <Card className="bg-white border-2 border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
           <CardHeader>
-            <CardTitle className="text-slate-900">Expert Profile Setup</CardTitle>
+            <CardTitle className="text-2xl font-bold text-slate-900">Expert Profile Setup</CardTitle>
             <CardDescription className="text-slate-600">
               Complete your profile to start connecting with universities and institutions
             </CardDescription>
@@ -542,19 +570,34 @@ export default function ExpertProfileSetup() {
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="domain_expertise" className="text-slate-700">Domain Expertise *</Label>
-                    <Select value={formData.domain_expertise} onValueChange={(value) => handleInputChange('domain_expertise', value)}>
+                    <Select value={formData.domain_expertise} onValueChange={handleDomainChange}>
                       <SelectTrigger className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300">
                         <SelectValue placeholder="Select your primary domain" />
                       </SelectTrigger>
                       <SelectContent>
                         {EXPERTISE_DOMAINS.map((domain) => (
-                          <SelectItem key={domain} value={domain}>
-                            {domain}
+                          <SelectItem key={domain.name} value={domain.name}>
+                            {domain.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* Subskills Multi-Select */}
+                  {formData.domain_expertise && availableSubskills.length > 0 && (
+                    <div className="space-y-2 min-w-0 max-w-full overflow-hidden">
+                      <Label className="text-slate-700">Specializations & Skills *</Label>
+      
+                      <MultiSelect
+                        options={availableSubskills}
+                        selected={selectedSubskills}
+                        onSelectionChange={handleSubskillChange}
+                        placeholder="Select your specializations..."
+                        className="w-full min-w-0"
+                      />
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <Label htmlFor="experience_years" className="text-slate-700">Years of Experience</Label>
@@ -573,7 +616,7 @@ export default function ExpertProfileSetup() {
                   <div className="space-y-2">
                     <Label htmlFor="hourly_rate" className="text-slate-700">Hourly Rate (₹) *</Label>
                     <div className="relative">
-                      <DollarSign className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                    <IndianRupee className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                       <Input
                         id="hourly_rate"
                         type="number"
@@ -654,13 +697,13 @@ export default function ExpertProfileSetup() {
 
               <div className="flex justify-between pt-6 flex-wrap gap-3">
                 <Link href="/auth/login">
-                  <Button variant="outline" className="border-slate-300 text-slate-600 hover:bg-slate-50 hover:border-slate-400 hover:text-slate-700 transition-all duration-300">
+                  <Button variant="outline" className="border-2 border-slate-300 text-slate-700 transition-all duration-300 hover:text-white hover:border-transparent hover:bg-gradient-to-r hover:from-slate-900 hover:via-blue-900 hover:to-indigo-900 hover:shadow-sm">
                     Back to Login
                   </Button>
                 </Link>
                 <Button
                   type="submit"
-                  className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-lg hover:shadow-xl hover:shadow-blue-500/25 transition-all duration-300 border-2 border-blue-400/20 hover:border-blue-400/40"
+                  className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
                   disabled={saving}
                 >
                   {saving ? 'Creating Profile...' : 'Complete Profile Setup'}

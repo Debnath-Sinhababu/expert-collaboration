@@ -11,24 +11,12 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { GraduationCap, DollarSign, ArrowLeft, Save, Edit, User, Shield, Star, Briefcase, Calendar, Globe, Upload, Camera, X, FileText } from 'lucide-react'
+import { GraduationCap, DollarSign, ArrowLeft, Save, Edit, User, Shield, Star, Briefcase, Calendar, Globe, Upload, Camera, X, FileText, IndianRupee, Link2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-
-const EXPERTISE_DOMAINS = [
-  'Computer Science & IT',
-  'Engineering',
-  'Business & Management',
-  'Finance & Economics',
-  'Healthcare & Medicine',
-  'Education & Training',
-  'Research & Development',
-  'Marketing & Sales',
-  'Data Science & Analytics',
-  'Design & Creative',
-  'Law & Legal',
-  'Other'
-]
+import { MultiSelect } from '@/components/ui/multi-select'
+import { EXPERTISE_DOMAINS } from '@/lib/constants'
+import Logo from '@/components/Logo'
 
 export default function ExpertProfile() {
   const [user, setUser] = useState<any>(null)
@@ -39,12 +27,14 @@ export default function ExpertProfile() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const router = useRouter()
+  const [copied, setCopied] = useState(false)
 
   const [formData, setFormData] = useState({
     name: '',
     bio: '',
     qualifications: '',
     domain_expertise: '',
+    subskills: [] as string[],
     resume_url: '',
     hourly_rate: '',
     photo_url: '',
@@ -62,6 +52,9 @@ export default function ExpertProfile() {
   
   const [selectedQualifications, setSelectedQualifications] = useState<File | null>(null)
   const [qualificationsError, setQualificationsError] = useState('')
+  
+  const [selectedSubskills, setSelectedSubskills] = useState<string[]>([])
+  const [availableSubskills, setAvailableSubskills] = useState<string[]>([])
 
   useEffect(() => {
     const getUser = async () => {
@@ -80,10 +73,10 @@ export default function ExpertProfile() {
 
   const loadExpertData = async (userId: string) => {
     try {
-      const expertsResponse = await api.experts.getAll()
-      if (expertsResponse && Array.isArray(expertsResponse)) {
-        const expertProfile = expertsResponse.find((exp: any) => exp.user_id === userId)
-        console.log(expertProfile,'expertProfile')
+      const expertProfile = await api.experts.getByUserId(userId)
+      
+      
+     
         if (expertProfile) {
           setExpert(expertProfile)
           setFormData({
@@ -91,6 +84,7 @@ export default function ExpertProfile() {
             bio: expertProfile.bio || '',
             qualifications: expertProfile.qualifications || '',
             domain_expertise: expertProfile.domain_expertise[0] || '',
+            subskills: expertProfile.subskills || [],
             resume_url: expertProfile.resume_url || '',
             hourly_rate: expertProfile.hourly_rate?.toString() || '',
             photo_url: expertProfile.photo_url || '',
@@ -98,8 +92,19 @@ export default function ExpertProfile() {
             phone: expertProfile.phone || '',
             linkedin_url: expertProfile.linkedin_url || ''
           })
+          
+          // Set subskills state
+          setSelectedSubskills(expertProfile.subskills || [])
+          
+          // Set available subskills based on domain
+          if (expertProfile.domain_expertise && expertProfile.domain_expertise[0]) {
+            const selectedDomain = EXPERTISE_DOMAINS.find(d => d.name === expertProfile.domain_expertise[0])
+            if (selectedDomain) {
+              setAvailableSubskills([...selectedDomain.subskills])
+            }
+          }
         }
-      }
+      
     } catch (error) {
       console.error('Error loading expert data:', error)
     }
@@ -107,8 +112,46 @@ export default function ExpertProfile() {
 
   console.log(formData,'formData')
 
+  const handleCopyLink = async () => {
+    try {
+      const link = `${window.location.origin}/experts/${expert?.id || ''}`
+      await navigator.clipboard.writeText(link)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch (e) {
+      // silent
+    }
+  }
+
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handleDomainChange = (domain: string) => {
+    setFormData(prev => ({
+      ...prev,
+      domain_expertise: domain,
+      subskills: [] // Reset subskills when domain changes
+    }))
+    
+    // Find the selected domain and update available subskills
+    const selectedDomain = EXPERTISE_DOMAINS.find(d => d.name === domain)
+    if (selectedDomain) {
+      setAvailableSubskills([...selectedDomain.subskills])
+    } else {
+      setAvailableSubskills([])
+    }
+    
+    // Reset selected subskills
+    setSelectedSubskills([])
+  }
+
+  const handleSubskillChange = (newSubskills: string[]) => {
+    setSelectedSubskills(newSubskills)
+    setFormData(prev => ({
+      ...prev,
+      subskills: newSubskills
+    }))
   }
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -222,6 +265,7 @@ export default function ExpertProfile() {
           formDataToSend.append('experience_years', formData.experience_years)
           formDataToSend.append('linkedin_url', formData.linkedin_url)
           formDataToSend.append('domain_expertise', formData.domain_expertise)
+          formDataToSend.append('subskills', JSON.stringify(formData.subskills))
 
           // Add the photo file if selected
           if (selectedPhoto) {
@@ -256,10 +300,11 @@ export default function ExpertProfile() {
           const expertData = {
             ...formData,
             domain_expertise: formData.domain_expertise,
+            subskills: formData.subskills,
             hourly_rate: parseFloat(formData.hourly_rate),
             experience_years: parseInt(formData.experience_years) || 0,
             updated_at: new Date().toISOString(),
-            qualifications: ''
+          
           }
           await api.experts.update(expert.id, expertData)
         }
@@ -279,6 +324,7 @@ export default function ExpertProfile() {
         formDataToSend.append('phone', formData.phone)
         formDataToSend.append('qualifications', formData.qualifications)
         formDataToSend.append('domain_expertise', formData.domain_expertise)
+        formDataToSend.append('subskills', JSON.stringify(formData.subskills))
         formDataToSend.append('hourly_rate', formData.hourly_rate.toString())
         formDataToSend.append('experience_years', formData.experience_years)
         formDataToSend.append('linkedin_url', formData.linkedin_url)
@@ -332,45 +378,50 @@ export default function ExpertProfile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-400 mx-auto mb-4"></div>
-          <p className="text-slate-300">Loading profile...</p>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading profile...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 relative py-8">
-      {/* Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-20 w-64 h-64 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
-      </div>
-      
-      <div className="container mx-auto px-4 max-w-6xl relative z-10">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      <div className="container mx-auto px-4 max-w-6xl py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <Link href="/expert/dashboard" className="inline-flex items-center space-x-2 text-slate-300 hover:text-white transition-colors duration-300">
-            <ArrowLeft className="h-5 w-5" />
-            <span>Back to Dashboard</span>
-          </Link>
-          
-          <div className="text-center">
-            <Link href="/" className="inline-flex items-center space-x-2 mb-4 group">
-              <GraduationCap className="h-8 w-8 text-blue-400 group-hover:text-blue-300 transition-colors duration-300" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Calxmap</span>
-            </Link>
+          <div  className="inline-flex cursor-pointer items-center space-x-2 hover:opacity-80 transition-opacity duration-300"
+          onClick={() => router.back()}
+          >
+            <ArrowLeft className="h-5 w-5 text-blue-500" />
+            <span className="bg-gradient-to-r from-blue-500 to-indigo-500 bg-clip-text text-transparent font-medium">Back</span>
           </div>
+          <nav className="hidden md:flex items-center space-x-8">
+              <Link href="/expert/home" className="text-blue-500 hover:text-blue-200 font-medium transition-colors duration-200 relative group">
+                Home
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-blue-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
+              </Link>
+              <Link href="/expert/dashboard" className="text-blue-500  hover:text-blue-200 font-medium transition-colors duration-200 relative group">
+                Dashboard
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-blue-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
+              </Link>
+            </nav>
+       
           
           <div className="w-24"></div> {/* Spacer for centering */}
         </div>
 
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent mb-2">Expert Profile</h1>
-          <p className="text-xl text-slate-300">
+        <div className="text-center">
+            <Link href="/" className="inline-flex items-center space-x-2 group">
+              <Logo size="lg" />
+             
+            </Link>
+          </div>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent mb-2">Profile Summary</h1>
+          <p className="text-xl text-slate-600">
             Manage your professional profile and showcase your expertise
           </p>
         </div>
@@ -378,53 +429,75 @@ export default function ExpertProfile() {
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Profile Summary Card */}
           <div className="lg:col-span-1">
-            <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 hover:scale-[1.02] hover:-translate-y-1" style={{boxShadow: '0 25px 50px -12px rgba(59, 130, 246, 0.25), 0 0 0 1px rgba(59, 130, 246, 0.15)'}}>
+            <Card className="bg-white border-2 border-slate-200 rounded-lg shadow-sm hover:shadow-md hover:border-blue-300 transition-all duration-300">
               <CardContent className="p-6 text-center">
                 <div className="mb-6">
                   <div className="relative">
-                    <Avatar className="w-24 h-24 mx-auto mb-4 border-4 border-blue-200">
+                    <Avatar className="w-24 h-24 mx-auto mb-4 border-2 border-slate-200">
                       <AvatarImage src={expert?.photo_url} />
                       <AvatarFallback className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
                         {expert?.name?.charAt(0) || user?.email?.charAt(0) || 'E'}
                       </AvatarFallback>
                     </Avatar>
                     {editing && (
-                      <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center border-2 border-white shadow-lg">
+                      <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center border-2 border-white shadow-md">
                         <Camera className="h-4 w-4 text-white" />
                       </div>
                     )}
                   </div>
                   <h2 className="text-2xl font-bold text-slate-900 mb-2">{expert?.name || 'Expert User'}</h2>
-                  <p className="text-slate-600 mb-4">{expert?.domain_expertise || 'Domain Expert'}</p>
+                  <p className="text-slate-600 mb-2">{expert?.domain_expertise || 'Domain Expert'}</p>
+                  
+                  {/* Subskills Display */}
+                  {expert?.subskills && expert.subskills.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-sm text-slate-500 mb-2">Specializations:</p>
+                      <div className="flex flex-wrap gap-1 justify-center">
+                        {expert.subskills.slice(0, 3).map((skill: string) => (
+                          <span
+                            key={skill}
+                            className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200"
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                        {expert.subskills.length > 3 && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-50 text-slate-600 border border-slate-200">
+                            +{expert.subskills.length - 3} more
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   
                   {/* Status Badges */}
                   <div className="flex justify-center space-x-2 mb-4">
-                    <div className="flex items-center space-x-1 px-3 py-1 bg-green-100 rounded-full">
+                    <div className="flex items-center space-x-1 px-3 py-1 bg-green-50 rounded-full border border-green-200">
                       <Shield className="h-4 w-4 text-green-600" />
                       <span className="text-sm text-green-700 font-medium">
                         {expert?.is_verified ? 'Verified' : 'Pending'}
                       </span>
                     </div>
-                    <div className="flex items-center space-x-1 px-3 py-1 bg-blue-100 rounded-full">
+                    {/* <div className="flex items-center space-x-1 px-3 py-1 bg-blue-50 rounded-full border border-blue-200">
                       <Star className="h-4 w-4 text-blue-600" />
                       <span className="text-sm text-blue-700 font-medium">
                         {expert?.rating || 0}/5
                       </span>
-                    </div>
+                    </div> */}
                   </div>
                 </div>
 
                 {/* Quick Stats */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
                     <div className="flex items-center space-x-2">
-                      <DollarSign className="h-5 w-5 text-green-600" />
+                      <IndianRupee className="h-5 w-5 text-green-600" />
                       <span className="text-slate-600">Hourly Rate</span>
                     </div>
                     <span className="font-bold text-slate-900">₹{expert?.hourly_rate || 0}</span>
                   </div>
                   
-                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
                     <div className="flex items-center space-x-2">
                       <Calendar className="h-5 w-5 text-blue-600" />
                       <span className="text-slate-600">Experience</span>
@@ -432,29 +505,51 @@ export default function ExpertProfile() {
                     <span className="font-bold text-slate-900">{expert?.experience_years || 0} years</span>
                   </div>
                   
-                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
                     <div className="flex items-center space-x-2">
-                      <Briefcase className="h-5 w-5 text-purple-600" />
-                      <span className="text-slate-600">Projects</span>
+                      <div className="flex items-center space-x-0.5">
+                        <Star className="h-4 w-4 text-yellow-500" fill="currentColor" />
+                        <Star className="h-4 w-4 text-yellow-500" fill="currentColor" />
+                        <Star className="h-4 w-4 text-yellow-500" fill="currentColor" />
+                        <Star className="h-4 w-4 text-yellow-500" fill="currentColor" />
+                        <Star className="h-4 w-4 text-slate-300" />
+                      </div>
+                      <span className="text-slate-600">Rating</span>
                     </div>
-                    <span className="font-bold text-slate-900">{expert?.total_projects || 0}</span>
+                    <span className="font-bold text-slate-900">4+</span>
                   </div>
                 </div>
 
                 <Button
-                  onClick={() => setEditing(!editing)}
-                  className="w-full mt-6 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-lg hover:shadow-xl hover:shadow-blue-500/25 transition-all duration-300 border-2 border-blue-400/20 hover:border-blue-400/40"
+                  onClick={() => {
+                    setEditing(!editing)
+                    if(editing){
+                      loadExpertData(user.id)
+                    }
+                  }}
+                  className="w-full mt-6 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
                 >
                   <Edit className="h-4 w-4 mr-2" />
                   {editing ? 'Cancel Editing' : 'Edit Profile'}
                 </Button>
+                <Button
+                  type="button"
+                  onClick={handleCopyLink}
+                  className="w-full mt-3 border-2 border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 shadow-sm hover:shadow-md transition-all duration-300"
+                >
+                  <Link2 className="h-4 w-4 mr-2" />
+                  Copy Public Profile Link
+                </Button>
+                {copied && (
+                  <p className="text-xs text-green-600 mt-2">Link copied!</p>
+                )}
               </CardContent>
             </Card>
           </div>
 
           {/* Profile Form Card */}
           <div className="lg:col-span-2">
-            <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 hover:scale-[1.02] hover:-translate-y-1" style={{boxShadow: '0 25px 50px -12px rgba(59, 130, 246, 0.25), 0 0 0 1px rgba(59, 130, 246, 0.15)'}}>
+            <Card className="bg-white border-2 border-slate-200 rounded-lg shadow-sm hover:shadow-md hover:border-blue-300 transition-all duration-300">
               <CardHeader>
                 <CardTitle className="text-slate-900">Profile Information</CardTitle>
                 <CardDescription className="text-slate-600">
@@ -490,7 +585,7 @@ export default function ExpertProfile() {
                           placeholder="Enter your full name"
                           value={formData.name}
                           onChange={(e) => handleInputChange('name', e.target.value)}
-                          className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
+                          className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
                           required
                           disabled={!editing}
                         />
@@ -503,7 +598,7 @@ export default function ExpertProfile() {
                           placeholder="Enter your phone number"
                           value={formData.phone}
                           onChange={(e) => handleInputChange('phone', e.target.value)}
-                          className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
+                          className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
                           disabled={!editing}
                           required
                         />
@@ -542,7 +637,7 @@ export default function ExpertProfile() {
                       <Label htmlFor="qualifications_pdf" className="text-slate-700">Qualifications Documents (PDF)</Label>
                       {editing ? (
                         <>
-                          <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+                          <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 hover:bg-blue-50 transition-all duration-300">
                             <input
                               type="file"
                               id="qualifications_pdf"
@@ -624,7 +719,7 @@ export default function ExpertProfile() {
                         {/* Photo Upload Area */}
                         <div className="space-y-4">
                           {!photoPreview ? (
-                            <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors duration-300">
+                            <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 hover:bg-blue-50 transition-all duration-300">
                               <input
                                 type="file"
                                 id="profile_photo"
@@ -698,19 +793,34 @@ export default function ExpertProfile() {
                     <div className="grid md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="domain_expertise" className="text-slate-700">Domain Expertise *</Label>
-                        <Select value={formData.domain_expertise} onValueChange={(value) => handleInputChange('domain_expertise', value)} disabled={!editing}>
+                        <Select value={formData.domain_expertise} onValueChange={handleDomainChange} disabled={!editing}>
                           <SelectTrigger className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300">
                             <SelectValue placeholder="Select your primary domain" />
                           </SelectTrigger>
                           <SelectContent>
                             {EXPERTISE_DOMAINS.map((domain) => (
-                              <SelectItem key={domain} value={domain}>
-                                {domain}
+                              <SelectItem key={domain.name} value={domain.name}>
+                                {domain.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
+
+                      {/* Subskills Multi-Select */}
+                      {formData.domain_expertise && availableSubskills.length > 0 && (
+                        <div className="space-y-2 min-w-0 max-w-full overflow-hidden">
+                          <Label className="text-slate-700">Specializations & Skills *</Label>
+                          <MultiSelect
+                            options={availableSubskills}
+                            selected={selectedSubskills}
+                            onSelectionChange={handleSubskillChange}
+                            placeholder="Select your specializations..."
+                            className="w-full"
+                            disabled={!editing}
+                          />
+                        </div>
+                      )}
 
                       <div className="space-y-2">
                         <Label htmlFor="experience_years" className="text-slate-700">Years of Experience</Label>
@@ -720,7 +830,7 @@ export default function ExpertProfile() {
                           placeholder="Enter years of experience"
                           value={formData.experience_years}
                           onChange={(e) => handleInputChange('experience_years', e.target.value)}
-                          className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
+                          className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
                           disabled={!editing}
                         />
                       </div>
@@ -730,7 +840,7 @@ export default function ExpertProfile() {
                       <div className="space-y-2">
                         <Label htmlFor="hourly_rate" className="text-slate-700">Hourly Rate (₹) *</Label>
                         <div className="relative">
-                          <DollarSign className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                          <IndianRupee className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                           <Input
                             id="hourly_rate"
                             type="number"
@@ -751,7 +861,7 @@ export default function ExpertProfile() {
                           placeholder="https://linkedin.com/in/yourprofile"
                           value={formData.linkedin_url}
                           onChange={(e) => handleInputChange('linkedin_url', e.target.value)}
-                          className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
+                          className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
                           disabled={!editing}
                         />
                       </div>
@@ -761,7 +871,7 @@ export default function ExpertProfile() {
                       <Label htmlFor="resume" className="text-slate-700">Resume/CV (PDF)</Label>
                       {editing ? (
                         <>
-                          <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+                          <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 hover:bg-blue-50 transition-all duration-300">
                             <input
                               type="file"
                               id="resume"
@@ -834,7 +944,7 @@ export default function ExpertProfile() {
                     <div className="flex justify-end pt-6">
                       <Button
                         type="submit"
-                        className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-lg hover:shadow-xl hover:shadow-blue-500/25 transition-all duration-300 border-2 border-blue-400/20 hover:border-blue-400/40"
+                        className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
                         disabled={saving}
                       >
                         <Save className="h-4 w-4 mr-2" />
