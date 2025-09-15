@@ -305,7 +305,7 @@ export default function Home() {
                 </h1>
                 
                 <p className="text-lg sm:text-xl lg:text-2xl text-slate-600 mb-12 max-w-4xl mx-auto leading-relaxed">
-                  Calxmap is India's leading <strong className="text-blue-700">Expert Marketplace</strong>, connecting corporates and universities with verified professionals — from <strong className="text-blue-700">Chartered Accountants and Corporate Lawyers</strong> to <strong className="text-blue-700">Industry Trainers and Technologists</strong>.
+                  <strong className="text-blue-700">Expert Marketplace</strong>, connecting corporates and universities with verified professionals — from <strong className="text-blue-700">Chartered Accountants and Corporate Lawyers</strong> to <strong className="text-blue-700">Industry Trainers and Technologists</strong>.
                 </p>
 
                 {/* Problem Statement */}
