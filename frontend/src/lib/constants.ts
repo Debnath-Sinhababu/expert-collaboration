@@ -142,6 +142,7 @@ export const EXPERTISE_DOMAINS = [
       "Big Data (Hadoop, Spark)",
       "Statistical Modeling",
       "AI Ethics & Governance",
+      "Prompt Engineering & LLMs",
       "MLOps"
     ]
   },
