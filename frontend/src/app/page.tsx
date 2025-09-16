@@ -298,6 +298,7 @@ export default function Home() {
                 
                 <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-900 mb-6 leading-tight">
                   Hire
+                  
                   <span className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent"> Experts.</span>
                   <br />
                   <span className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent">Anytime.</span>
@@ -305,7 +306,7 @@ export default function Home() {
                 </h1>
                 
                 <p className="text-lg sm:text-xl lg:text-2xl text-slate-600 mb-12 max-w-4xl mx-auto leading-relaxed">
-                  Calxmap is India's leading <strong className="text-blue-700">Expert Marketplace</strong>, connecting corporates and universities with verified professionals — from <strong className="text-blue-700">Chartered Accountants and Corporate Lawyers</strong> to <strong className="text-blue-700">Industry Trainers and Technologists</strong>.
+                  <strong className="text-blue-700">Expert Marketplace</strong>, connecting corporates and universities with verified professionals — from <strong className="text-blue-700">Chartered Accountants and Corporate Lawyers</strong> to <strong className="text-blue-700">Industry Trainers and Technologists</strong>.
                 </p>
 
                 {/* Problem Statement */}
