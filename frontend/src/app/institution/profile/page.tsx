@@ -28,6 +28,7 @@ const INSTITUTION_TYPES = [
   'Arts & Science College',
   'Community College',
   'Training Institute',
+  'Corporate',
   'Other'
 ]
 
@@ -66,7 +67,17 @@ export default function InstitutionProfile() {
     phone: '',
     established_year: '',
     accreditation: '',
-    student_count: ''
+    student_count: '',
+    // Corporate specific
+    gstin: '',
+    pan: '',
+    cin: '',
+    industry: '',
+    company_size: '',
+    requires_po: 'false',
+    nda_required: 'false',
+    preferred_engagements: '',
+    work_mode_preference: ''
   })
 
   useEffect(() => {
@@ -105,7 +116,16 @@ export default function InstitutionProfile() {
             phone: institutionProfile.phone || '',
             established_year: institutionProfile.established_year?.toString() || '',
             accreditation: institutionProfile.accreditation || '',
-            student_count: institutionProfile.student_count?.toString() || ''
+            student_count: institutionProfile.student_count?.toString() || '',
+            gstin: institutionProfile.gstin || '',
+            pan: institutionProfile.pan || '',
+            cin: institutionProfile.cin || '',
+            industry: institutionProfile.industry || '',
+            company_size: institutionProfile.company_size || '',
+            requires_po: (institutionProfile.requires_po ? 'true' : 'false'),
+            nda_required: (institutionProfile.nda_required ? 'true' : 'false'),
+            preferred_engagements: Array.isArray(institutionProfile.preferred_engagements) ? institutionProfile.preferred_engagements.join(', ') : (institutionProfile.preferred_engagements || ''),
+            work_mode_preference: institutionProfile.work_mode_preference || ''
           })
         }
       
@@ -149,6 +169,37 @@ export default function InstitutionProfile() {
         return
       }
 
+      // Corporate-specific required checks when editing
+      if (formData.type === 'Corporate') {
+        if (!formData.industry?.trim()) {
+          toast.error('Please enter industry')
+          setSaving(false)
+          return
+        }
+        if (!formData.company_size) {
+          toast.error('Please select company size')
+          setSaving(false)
+          return
+        }
+        if (!formData.gstin?.trim()) {
+          toast.error('Please enter GSTIN')
+          setSaving(false)
+          return
+        }
+        if (!formData.pan?.trim()) {
+          toast.error('Please enter PAN')
+          setSaving(false)
+          return
+        }
+        if (!formData.cin?.trim()) {
+          toast.error('Please enter CIN')
+          setSaving(false)
+          return
+        }
+      
+      
+      }
+
       const institutionData = {
         ...formData,
         established_year: parseInt(formData.established_year) || null,
@@ -157,11 +208,23 @@ export default function InstitutionProfile() {
       }
 
       if (institution?.id) {
-        await api.institutions.update(institution.id, institutionData)
+        await api.institutions.update(institution.id, {
+          ...formData,
+          requires_po: formData.requires_po === 'true',
+          nda_required: formData.nda_required === 'true',
+          preferred_engagements: formData.preferred_engagements
+            ? formData.preferred_engagements.split(',').map((s: string) => s.trim()).filter(Boolean)
+            : []
+        })
         toast.success('Profile updated successfully!')
       } else {
         await api.institutions.create({
-          ...institutionData,
+          ...formData,
+          requires_po: formData.requires_po === 'true',
+          nda_required: formData.nda_required === 'true',
+          preferred_engagements: formData.preferred_engagements
+            ? formData.preferred_engagements.split(',').map((s: string) => s.trim()).filter(Boolean)
+            : [],
           user_id: user.id,
           email: user.email,
           created_at: new Date().toISOString()
@@ -347,7 +410,7 @@ export default function InstitutionProfile() {
 
                       <div className="space-y-2">
                         <Label htmlFor="type" className="text-slate-700">Institution Type *</Label>
-                        <Select value={formData.type} onValueChange={(value) => handleInputChange('type', value)} disabled={!editing}>
+                        <Select value={formData.type} onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))} disabled={!editing}>
                           <SelectTrigger className="border-2 border-slate-200 focus:border-blue-400 focus:ring-blue-400 transition-all duration-300">
                             <SelectValue placeholder="Select institution type" />
                           </SelectTrigger>
@@ -379,17 +442,14 @@ export default function InstitutionProfile() {
                     <div className="grid md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="website_url" className="text-slate-700">Website URL</Label>
-                        <div className="relative">
-                          <Globe className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                          <Input
-                            id="website_url"
-                            placeholder="https://www.yourinstitution.edu"
-                            value={formData.website_url}
-                            onChange={(e) => handleInputChange('website_url', e.target.value)}
-                            className="pl-10 border-2 border-slate-200 focus:border-blue-400 focus:ring-blue-400 transition-all duration-300"
-                            disabled={!editing}
-                          />
-                        </div>
+                        <Input
+                          id="website_url"
+                          placeholder="https://www.yourinstitution.edu"
+                          value={formData.website_url}
+                          onChange={(e) => setFormData(prev => ({ ...prev, website_url: e.target.value }))}
+                          className="border-2 border-slate-200 focus:border-blue-400 focus:ring-blue-400 transition-all duration-300"
+                          disabled={!editing}
+                        />
                       </div>
 
                       <div className="space-y-2">
@@ -527,7 +587,9 @@ export default function InstitutionProfile() {
                       <span>Additional Information</span>
                     </h3>
                     
-                    <div className="grid md:grid-cols-2 gap-4">
+                    {
+                      formData.type !== 'Corporate' &&
+                      <div className="grid md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="accreditation" className="text-slate-700">Accreditation</Label>
                         <Input
@@ -553,6 +615,8 @@ export default function InstitutionProfile() {
                         />
                       </div>
                     </div>
+                    }
+                   
 
                     <div className="space-y-2">
                       <Label htmlFor="logo_url" className="text-slate-700">Logo URL</Label>
@@ -566,6 +630,87 @@ export default function InstitutionProfile() {
                       />
                     </div>
                   </div>
+
+                  {formData.type === 'Corporate' && (
+                    <div className="space-y-4">
+          
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Industry *</Label>
+                          <Input value={formData.industry} onChange={(e) => setFormData(prev => ({ ...prev, industry: e.target.value }))} disabled={!editing}
+                          required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Company Size *</Label>
+                          <Select value={formData.company_size} onValueChange={(v) => setFormData(prev => ({ ...prev, company_size: v }))} disabled={!editing}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select size" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0-1">0-1</SelectItem>
+                              <SelectItem value="2-10">2-10</SelectItem>
+                              <SelectItem value="11-50">11-50</SelectItem>
+                              <SelectItem value="51-200">51-200</SelectItem>
+                              <SelectItem value="201-500">201-500</SelectItem>
+                              <SelectItem value="501-1000">501-1000</SelectItem>
+                              <SelectItem value="1001-5000">1001-5000</SelectItem>
+                              <SelectItem value="5001-10000">5001-10000</SelectItem>
+                              <SelectItem value="10000+">10000+</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>GSTIN *</Label>
+                          <Input value={formData.gstin} required onChange={(e) => setFormData(prev => ({ ...prev, gstin: e.target.value }))} disabled={!editing} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>PAN *</Label>
+                          <Input value={formData.pan} required onChange={(e) => setFormData(prev => ({ ...prev, pan: e.target.value }))} disabled={!editing} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>CIN *</Label>
+                          <Input value={formData.cin} required onChange={(e) => setFormData(prev => ({ ...prev, cin: e.target.value }))} disabled={!editing} />
+                        </div>
+                     
+                        <div className="space-y-2">
+                          <Label>Preferred Engagements (comma separated) *</Label>
+                          <Input value={formData.preferred_engagements} onChange={(e) => setFormData(prev => ({ ...prev, preferred_engagements: e.target.value }))} disabled={!editing} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Work Mode Preference *</Label>
+                          <Input value={formData.work_mode_preference} onChange={(e) => setFormData(prev => ({ ...prev, work_mode_preference: e.target.value }))} disabled={!editing} />
+                        </div>
+                     
+                      </div>
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Requires PO?</Label>
+                          <Select value={formData.requires_po} onValueChange={(v) => setFormData(prev => ({ ...prev, requires_po: v }))} disabled={!editing}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="false">No</SelectItem>
+                              <SelectItem value="true">Yes</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>NDA Required?</Label>
+                          <Select value={formData.nda_required} onValueChange={(v) => setFormData(prev => ({ ...prev, nda_required: v }))} disabled={!editing}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="false">No</SelectItem>
+                              <SelectItem value="true">Yes</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {editing && (
                     <div className="flex justify-end pt-6">

@@ -27,6 +27,7 @@ const INSTITUTION_TYPES = [
   'Arts & Science College',
   'Community College',
   'Training Institute',
+  'Corporate',
   'Other'
 ]
 
@@ -63,7 +64,17 @@ export default function InstitutionProfileSetup() {
     contact_phone: '',
     established_year: '',
     accreditation: '',
-    student_count: ''
+    student_count: '',
+    // Corporate specific
+    gstin: '',
+    pan: '',
+    cin: '',
+    industry: '',
+    company_size: '',
+    requires_po: 'false',
+    nda_required: 'false',
+    preferred_engagements: '',
+    work_mode_preference: ''
   })
 
   useEffect(() => {
@@ -126,8 +137,45 @@ export default function InstitutionProfileSetup() {
         return
       }
 
+      // If Corporate, validate a few key corporate fields
+      if (formData.type === 'Corporate') {
+        if (!formData.industry?.trim()) {
+          toast.error('Please enter industry')
+          setSaving(false)
+          return
+        }
+        if (!formData.company_size) {
+          toast.error('Please select company size')
+          setSaving(false)
+          return
+        }
+        if (!formData.gstin?.trim()) {
+          toast.error('Please enter GSTIN')
+          setSaving(false)
+          return
+        }
+        if (!formData.pan?.trim()) {
+          toast.error('Please enter PAN')
+          setSaving(false)
+          return
+        }
+        if (!formData.cin?.trim()) {
+          toast.error('Please enter CIN')
+          setSaving(false)
+          return
+        }
+       
+      
+      }
+
       const institutionData = {
         ...formData,
+        // normalize types for backend
+        requires_po: formData.requires_po === 'true',
+        nda_required: formData.nda_required === 'true',
+        preferred_engagements: formData.preferred_engagements
+          ? formData.preferred_engagements.split(',').map(s => s.trim()).filter(Boolean)
+          : [],
         user_id: user.id,
         email: user.email,
         established_year: parseInt(formData.established_year) || null,
@@ -227,19 +275,127 @@ export default function InstitutionProfileSetup() {
                   <div className="space-y-2">
                     <Label htmlFor="type" className="text-slate-700">Institution Type *</Label>
                     <Select value={formData.type} onValueChange={(value) => handleInputChange('type', value)}>
-                      <SelectTrigger className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300">
-                        <SelectValue placeholder="Select institution type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {INSTITUTION_TYPES.map((type) => (
-                          <SelectItem key={type} value={type}>
-                            {type}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                        <SelectTrigger className="border-2 border-slate-200 focus:border-blue-400 focus:ring-blue-400 transition-all duration-300">
+                          <SelectValue placeholder="Select institution type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {INSTITUTION_TYPES.map((type) => (
+                            <SelectItem key={type} value={type}>
+                              {type}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                 
                   </div>
-                </div>
+
+                  {/* Corporate-only fields */}
+                  {formData.type === 'Corporate' && (
+                    <div className=" space-y-4">
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Industry *</Label>
+                          <Input
+                            placeholder="e.g., IT Services, Manufacturing"
+                            value={formData.industry}
+                            onChange={(e) => handleInputChange('industry', e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Company Size *</Label>
+                          <Select value={formData.company_size} onValueChange={(v) => handleInputChange('company_size', v)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select size" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0-1">0-1</SelectItem>
+                              <SelectItem value="2-10">2-10</SelectItem>
+                              <SelectItem value="11-50">11-50</SelectItem>
+                              <SelectItem value="51-200">51-200</SelectItem>
+                              <SelectItem value="201-500">201-500</SelectItem>
+                              <SelectItem value="501-1000">501-1000</SelectItem>
+                              <SelectItem value="1001-5000">1001-5000</SelectItem>
+                              <SelectItem value="5001-10000">5001-10000</SelectItem>
+                              <SelectItem value="10000+">10000+</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>GSTIN *</Label>
+                          <Input
+                            placeholder="15-digit GSTIN"
+                            value={formData.gstin}
+                            onChange={(e) => handleInputChange('gstin', e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>PAN *</Label>
+                          <Input
+                            placeholder="PAN number"
+                            value={formData.pan}
+                            onChange={(e) => handleInputChange('pan', e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>CIN *</Label>
+                          <Input
+                            placeholder="Corporate Identification Number"
+                            value={formData.cin}
+                            onChange={(e) => handleInputChange('cin', e.target.value)}
+                            required
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label>Preferred Engagements (comma separated)</Label>
+                          <Input
+                            placeholder="training, workshop, consulting"
+                            value={formData.preferred_engagements}
+                            onChange={(e) => handleInputChange('preferred_engagements', e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Work Mode Preference</Label>
+                          <Input
+                            placeholder="onsite / remote / hybrid"
+                            value={formData.work_mode_preference}
+                            onChange={(e) => handleInputChange('work_mode_preference', e.target.value)}
+                          />
+                        </div>
+                    
+                      </div>
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Requires PO?</Label>
+                          <Select value={formData.requires_po} onValueChange={(v) => handleInputChange('requires_po', v)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="false">No</SelectItem>
+                              <SelectItem value="true">Yes</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>NDA Required?</Label>
+                          <Select value={formData.nda_required} onValueChange={(v) => handleInputChange('nda_required', v)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="false">No</SelectItem>
+                              <SelectItem value="true">Yes</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                 <div className="space-y-2">
                   <Label htmlFor="description" className="text-slate-700">Institution Description *</Label>
@@ -256,6 +412,18 @@ export default function InstitutionProfileSetup() {
 
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-2">
+                    <Label htmlFor="established_year">Established Year</Label>
+                    <Input
+                      id="established_year"
+                      type="number"
+                      placeholder="e.g., 1985"
+                      value={formData.established_year}
+                      onChange={(e) => handleInputChange('established_year', e.target.value)}
+                      className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
                     <Label htmlFor="website_url" className="text-slate-700">Website URL</Label>
                     <div className="relative">
                       <Globe className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
@@ -267,18 +435,6 @@ export default function InstitutionProfileSetup() {
                         className="pl-10 border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
                       />
                     </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="established_year">Established Year</Label>
-                    <Input
-                      id="established_year"
-                      type="number"
-                      placeholder="e.g., 1985"
-                      value={formData.established_year}
-                      onChange={(e) => handleInputChange('established_year', e.target.value)}
-                      className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
-                    />
                   </div>
                 </div>
               </div>
@@ -388,45 +544,50 @@ export default function InstitutionProfileSetup() {
               </div>
 
               {/* Additional Information */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-slate-900">Additional Information</h3>
-                
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="accreditation">Accreditation</Label>
-                    <Input
-                      id="accreditation"
-                      placeholder="e.g., NAAC A+, NBA, UGC"
-                      value={formData.accreditation}
-                      onChange={(e) => handleInputChange('accreditation', e.target.value)}
-                      className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
-                    />
+              {
+                formData.type !== 'Corporate' && (
+                  <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-slate-900">Additional Information</h3>
+                  
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="accreditation">Accreditation</Label>
+                      <Input
+                        id="accreditation"
+                        placeholder="e.g., NAAC A+, NBA, UGC"
+                        value={formData.accreditation}
+                        onChange={(e) => handleInputChange('accreditation', e.target.value)}
+                        className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
+                      />
+                    </div>
+  
+                    <div className="space-y-2">
+                      <Label htmlFor="student_count">Student Count</Label>
+                      <Input
+                        id="student_count"
+                        type="number"
+                        placeholder="Approximate number of students"
+                        value={formData.student_count}
+                        onChange={(e) => handleInputChange('student_count', e.target.value)}
+                        className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
+                      />
+                    </div>
                   </div>
-
+  
                   <div className="space-y-2">
-                    <Label htmlFor="student_count">Student Count</Label>
+                    <Label htmlFor="logo_url">Logo URL</Label>
                     <Input
-                      id="student_count"
-                      type="number"
-                      placeholder="Approximate number of students"
-                      value={formData.student_count}
-                      onChange={(e) => handleInputChange('student_count', e.target.value)}
+                      id="logo_url"
+                      placeholder="Link to your institution logo"
+                      value={formData.logo_url}
+                      onChange={(e) => handleInputChange('logo_url', e.target.value)}
                       className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
                     />
                   </div>
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="logo_url">Logo URL</Label>
-                  <Input
-                    id="logo_url"
-                    placeholder="Link to your institution logo"
-                    value={formData.logo_url}
-                    onChange={(e) => handleInputChange('logo_url', e.target.value)}
-                    className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
-                  />
-                </div>
-              </div>
+                )
+              }
+            
 
               <div className="flex justify-between pt-6 flex-wrap gap-3">
                 <Link href="/auth/login">

@@ -590,8 +590,21 @@ app.post('/api/institutions', async (req, res) => {
       pincode: req.body.pincode || null,
       student_count: req.body.student_count || null,
       established_year: req.body.established_year || null,
-      accreditation: req.body.accreditation || null
-
+      accreditation: req.body.accreditation || null,
+      // Corporate-specific optional fields
+      gstin: req.body.gstin || null,
+      pan: req.body.pan || null,
+      cin: req.body.cin || null,
+      industry: req.body.industry || null,
+      company_size: req.body.company_size || null,
+      requires_po: typeof req.body.requires_po === 'boolean' ? req.body.requires_po : (req.body.requires_po ? req.body.requires_po === 'true' : false),
+      nda_required: typeof req.body.nda_required === 'boolean' ? req.body.nda_required : (req.body.nda_required ? req.body.nda_required === 'true' : false),
+      preferred_engagements: Array.isArray(req.body.preferred_engagements)
+        ? req.body.preferred_engagements
+        : (typeof req.body.preferred_engagements === 'string' && req.body.preferred_engagements.trim().length > 0
+            ? req.body.preferred_engagements.split(',').map((s) => s.trim()).filter(Boolean)
+            : null),
+      work_mode_preference: req.body.work_mode_preference || null
     };
     
     console.log('Institution data to insert:', institutionData);
