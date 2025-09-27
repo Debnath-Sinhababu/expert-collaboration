@@ -499,12 +499,12 @@ app.put('/api/experts/:id', upload.fields([
 
 app.get('/api/institutions', async (req, res) => {
   try {
-    const { page = 1, limit = 10 } = req.query;
+    const { page = 1, limit = 10, search = '', type = '', exclude_type = '' } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
-    
+
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(' ')[1];
-    
+
     let supabaseClient = supabase;
     if (token) {
       supabaseClient = createClient(
@@ -519,13 +519,25 @@ app.get('/api/institutions', async (req, res) => {
         }
       );
     }
-    
-    const { data, error } = await supabaseClient
+
+    let query = supabaseClient
       .from('institutions')
       .select('*')
-      .range(offset, offset + parseInt(limit) - 1)
-      .order('created_at', { ascending: false });
-    
+      .order('created_at', { ascending: false })
+      .range(offset, offset + parseInt(limit) - 1);
+
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,city.ilike.%${search}%,state.ilike.%${search}%`);
+    }
+    if (type) {
+      query = query.eq('type', type);
+    }
+    if (exclude_type) {
+      query = query.neq('type', exclude_type);
+    }
+
+    const { data, error } = await query;
+
     if (error) throw error;
     res.json(data);
   } catch (error) {
@@ -1025,6 +1037,153 @@ app.put('/api/projects/:id', async (req, res) => {
     
     res.json(data[0]);
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =====================
+// Corporate Internships
+// =====================
+
+// Create internship (Corporate only)
+app.post('/api/internships', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    let supabaseClient = supabase;
+    let userId = null;
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      supabaseClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        }
+      );
+
+      const { data: userData } = await supabaseClient.auth.getUser();
+      userId = userData?.user?.id || null;
+    }
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Resolve user's institution and ensure it's Corporate
+    const { data: inst, error: instErr } = await supabaseClient
+      .from('institutions')
+      .select('id, type')
+      .eq('user_id', userId)
+      .single();
+
+    if (instErr || !inst) {
+      return res.status(403).json({ error: 'Institution not found for user' });
+    }
+    if ((inst.type || '').toLowerCase() !== 'corporate') {
+      return res.status(403).json({ error: 'Only Corporate institutions can create internships' });
+    }
+
+    // Build internship payload
+    const body = req.body || {};
+    const internship = {
+      corporate_institution_id: inst.id,
+      title: body.title,
+      skills_required: Array.isArray(body.skills_required)
+        ? body.skills_required
+        : (typeof body.skills_required === 'string' && body.skills_required.trim().length > 0
+            ? body.skills_required.split(',').map((s) => s.trim()).filter(Boolean)
+            : []),
+      work_mode: body.work_mode, // 'In office' | 'Hybrid' | 'Remote'
+      engagement: body.engagement, // 'Part-time' | 'Full-time'
+      openings: typeof body.openings === 'number' ? body.openings : parseInt(body.openings || '0'),
+      start_timing: body.start_timing, // 'immediately' | 'later'
+      start_date: body.start_timing === 'later' ? (body.start_date || null) : null,
+      duration_value: typeof body.duration_value === 'number' ? body.duration_value : parseInt(body.duration_value || '0'),
+      duration_unit: body.duration_unit, // 'weeks' | 'months'
+      responsibilities: body.responsibilities,
+      paid: body.paid === true || body.paid === 'Paid',
+      stipend_min: body.paid ? (typeof body.stipend_min === 'number' ? body.stipend_min : parseInt(body.stipend_min || '0')) : null,
+      stipend_max: body.paid ? (typeof body.stipend_max === 'number' ? body.stipend_max : parseInt(body.stipend_max || '0')) : null,
+      stipend_unit: body.paid ? (body.stipend_unit || 'month') : null,
+      incentives_min: body.incentives_min ? (typeof body.incentives_min === 'number' ? body.incentives_min : parseInt(body.incentives_min || '0')) : null,
+      incentives_max: body.incentives_max ? (typeof body.incentives_max === 'number' ? body.incentives_max : parseInt(body.incentives_max || '0')) : null,
+      incentives_unit: body.incentives_min || body.incentives_max ? (body.incentives_unit || 'month') : null,
+      ppo: body.ppo === true || body.ppo === 'true',
+      perks: Array.isArray(body.perks) ? body.perks : [],
+      screening_questions: Array.isArray(body.screening_questions) ? body.screening_questions : [],
+      alt_phone: body.alt_phone || null,
+      application_deadline: body.application_deadline || null,
+      location: body.location || null,
+      status: body.status || 'open',
+      visibility_scope: body.visibility_scope || 'public'
+    };
+
+    const { data, error } = await supabaseClient
+      .from('internships')
+      .insert([internship])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return res.status(201).json(data);
+  } catch (error) {
+    console.error('Create internship error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// List internships for the authenticated Corporate (pagination)
+app.get('/api/internships', async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    const authHeader = req.headers.authorization;
+    let supabaseClient = supabase;
+    let userId = null;
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      supabaseClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY,
+        {
+          global: {
+            headers: { Authorization: `Bearer ${token}` }
+          }
+        }
+      );
+      const { data: userData } = await supabaseClient.auth.getUser();
+      userId = userData?.user?.id || null;
+    }
+
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { data: inst, error: instErr } = await supabaseClient
+      .from('institutions')
+      .select('id, type')
+      .eq('user_id', userId)
+      .single();
+
+    if (instErr || !inst) return res.status(403).json({ error: 'Institution not found' });
+    if ((inst.type || '').toLowerCase() !== 'corporate') return res.status(403).json({ error: 'Only Corporate can view their internships' });
+
+    const { data, error } = await supabaseClient
+      .from('internships')
+      .select('*')
+      .eq('corporate_institution_id', inst.id)
+      .range(offset, offset + parseInt(limit) - 1)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    console.error('List internships error:', error);
     res.status(500).json({ error: error.message });
   }
 });

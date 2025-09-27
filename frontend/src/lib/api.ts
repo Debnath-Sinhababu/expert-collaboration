@@ -103,8 +103,28 @@ export const api = {
     }
   },
 
-  institutions: {
+  internships: {
+    create: async (data: any) => {
+      const headers = await getAuthHeaders()
+      return fetch(`${API_BASE_URL}/api/internships`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data)
+      }).then(async (res) => {
+        const json = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(json?.error || 'Failed to create internship')
+        return json
+      })
+    },
     getAll: async (params?: { page?: number; limit?: number }) => {
+      const headers = await getAuthHeaders()
+      const query = new URLSearchParams({ ...(params as any), _t: Date.now().toString() }).toString()
+      return fetch(`${API_BASE_URL}/api/internships${query ? `?${query}` : ''}`, { headers }).then(res => res.json())
+    }
+  },
+
+  institutions: {
+    getAll: async (params?: { page?: number; limit?: number; search?: string; type?: string; exclude_type?: string }) => {
       const headers = await getAuthHeaders()
       const query = new URLSearchParams({
         ...params as any,

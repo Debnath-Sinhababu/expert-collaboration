@@ -18,10 +18,11 @@ interface ProfileDropdownProps {
   user: any,
   expert?: any,
   institution?: any,
-  userType: 'expert' | 'institution'
+  userType: 'expert' | 'institution',
+  extraItems?: { label: string, href: string }[]
 }
 
-export default function ProfileDropdown({ user, expert,institution, userType }: ProfileDropdownProps) {
+export default function ProfileDropdown({ user, expert,institution, userType, extraItems }: ProfileDropdownProps) {
   const router = useRouter()
   const pathname = usePathname()
 
@@ -40,8 +41,15 @@ export default function ProfileDropdown({ user, expert,institution, userType }: 
     return userType === 'expert' ? '/expert/profile' : '/institution/profile'
   }
 
+  const isInternshipContext = pathname?.startsWith('/institution/internships') ?? false
+
   const getDashboardUrl = () => {
-    return userType === 'expert' ? '/expert/dashboard' : '/institution/dashboard'
+    if (userType === 'expert') return '/expert/dashboard'
+    // If institution is Corporate and user is in internship context, route to Internship Dashboard
+    if ((institution?.type || '').toLowerCase() === 'corporate' && isInternshipContext) {
+      return '/institution/internships/dashboard'
+    }
+    return '/institution/dashboard'
   }
 
   const getHomeUrl = () => {
@@ -49,7 +57,9 @@ export default function ProfileDropdown({ user, expert,institution, userType }: 
   }
 
   // Determine current location to toggle label and destination dynamically
-  const dashboardPrefix = userType === 'expert' ? '/expert/dashboard' : '/institution/dashboard'
+  const dashboardPrefix = userType === 'expert' 
+    ? '/expert/dashboard' 
+    : (isInternshipContext ? '/institution/internships/dashboard' : '/institution/dashboard')
   const homePath = getHomeUrl()
   const isOnDashboard = pathname?.startsWith(dashboardPrefix) ?? false
   const isOnHome = pathname === homePath
@@ -141,6 +151,21 @@ export default function ProfileDropdown({ user, expert,institution, userType }: 
               </div>
             </Link>
           </DropdownMenuItem>
+
+          {extraItems && extraItems.length > 0 && (
+            <>
+              {extraItems.map((item, idx) => (
+                <DropdownMenuItem asChild key={`${item.href}-${idx}`} className="focus:bg-blue-50 focus:text-blue-700 data-[highlighted]:bg-blue-50 data-[highlighted]:text-blue-700">
+                  <Link href={item.href} className="w-full">
+                    <div className="w-full justify-start px-3 sm:px-4 py-2.5 sm:py-3 text-slate-700 flex items-center">
+                      <span className="text-sm sm:text-base">{item.label}</span>
+                    </div>
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator className="border-slate-200 my-1 sm:my-2" />
+            </>
+          )}
 
           <DropdownMenuSeparator className="border-slate-200 my-1 sm:my-2" />
 
