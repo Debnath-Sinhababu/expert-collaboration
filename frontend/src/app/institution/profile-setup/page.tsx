@@ -164,8 +164,28 @@ export default function InstitutionProfileSetup() {
           setSaving(false)
           return
         }
-       
-      
+        // Format validations for GSTIN, PAN, CIN
+        const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]$/
+        const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/
+        const cinRegex = /^[LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/
+
+        if (!gstRegex.test(formData.gstin)) {
+          toast.error('Please enter a valid GSTIN (15 characters)')
+          setSaving(false)
+          return
+        }
+        if (!panRegex.test(formData.pan)) {
+          toast.error('Please enter a valid PAN (e.g., ABCDE1234F)')
+          setSaving(false)
+          return
+        }
+        if (!cinRegex.test(formData.cin)) {
+          toast.error('Please enter a valid CIN (21 characters)')
+          setSaving(false)
+          return
+        }
+
+
       }
 
       const institutionData = {
@@ -327,7 +347,11 @@ export default function InstitutionProfileSetup() {
                           <Input
                             placeholder="15-digit GSTIN"
                             value={formData.gstin}
-                            onChange={(e) => handleInputChange('gstin', e.target.value)}
+                            maxLength={15}
+                            onChange={(e) => {
+                              const upper = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')
+                              handleInputChange('gstin', upper)
+                            }}
                             required
                           />
                         </div>
@@ -336,7 +360,11 @@ export default function InstitutionProfileSetup() {
                           <Input
                             placeholder="PAN number"
                             value={formData.pan}
-                            onChange={(e) => handleInputChange('pan', e.target.value)}
+                            maxLength={10}
+                            onChange={(e) => {
+                              const upper = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')
+                              handleInputChange('pan', upper)
+                            }}
                             required
                           />
                         </div>
@@ -345,7 +373,11 @@ export default function InstitutionProfileSetup() {
                           <Input
                             placeholder="Corporate Identification Number"
                             value={formData.cin}
-                            onChange={(e) => handleInputChange('cin', e.target.value)}
+                            maxLength={21}
+                            onChange={(e) => {
+                              const upper = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')
+                              handleInputChange('cin', upper)
+                            }}
                             required
                           />
                         </div>

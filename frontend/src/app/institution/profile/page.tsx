@@ -196,7 +196,27 @@ export default function InstitutionProfile() {
           setSaving(false)
           return
         }
-      
+        // Format validations for GSTIN, PAN, CIN
+        const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]$/
+        const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/
+        const cinRegex = /^[LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/
+
+        if (!gstRegex.test(formData.gstin)) {
+          toast.error('Please enter a valid GSTIN (15 characters)')
+          setSaving(false)
+          return
+        }
+        if (!panRegex.test(formData.pan)) {
+          toast.error('Please enter a valid PAN (e.g., ABCDE1234F)')
+          setSaving(false)
+          return
+        }
+        if (!cinRegex.test(formData.cin)) {
+          toast.error('Please enter a valid CIN (21 characters)')
+          setSaving(false)
+          return
+        }
+
       
       }
 
@@ -662,23 +682,32 @@ export default function InstitutionProfile() {
                         </div>
                         <div className="space-y-2">
                           <Label>GSTIN *</Label>
-                          <Input value={formData.gstin} required onChange={(e) => setFormData(prev => ({ ...prev, gstin: e.target.value }))} disabled={!editing} />
+                          <Input value={formData.gstin} required maxLength={15} onChange={(e) => {
+                            const upper = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')
+                            setFormData(prev => ({ ...prev, gstin: upper }))
+                          }} disabled={!editing} />
                         </div>
                         <div className="space-y-2">
                           <Label>PAN *</Label>
-                          <Input value={formData.pan} required onChange={(e) => setFormData(prev => ({ ...prev, pan: e.target.value }))} disabled={!editing} />
+                          <Input value={formData.pan} required maxLength={10} onChange={(e) => {
+                            const upper = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')
+                            setFormData(prev => ({ ...prev, pan: upper }))
+                          }} disabled={!editing} />
                         </div>
                         <div className="space-y-2">
                           <Label>CIN *</Label>
-                          <Input value={formData.cin} required onChange={(e) => setFormData(prev => ({ ...prev, cin: e.target.value }))} disabled={!editing} />
+                          <Input value={formData.cin} required maxLength={21} onChange={(e) => {
+                            const upper = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')
+                            setFormData(prev => ({ ...prev, cin: upper }))
+                          }} disabled={!editing} />
                         </div>
                      
                         <div className="space-y-2">
-                          <Label>Preferred Engagements (comma separated) *</Label>
+                          <Label>Preferred Engagements (comma separated)</Label>
                           <Input value={formData.preferred_engagements} onChange={(e) => setFormData(prev => ({ ...prev, preferred_engagements: e.target.value }))} disabled={!editing} />
                         </div>
                         <div className="space-y-2">
-                          <Label>Work Mode Preference *</Label>
+                          <Label>Work Mode Preference</Label>
                           <Input value={formData.work_mode_preference} onChange={(e) => setFormData(prev => ({ ...prev, work_mode_preference: e.target.value }))} disabled={!editing} />
                         </div>
                      
