@@ -585,7 +585,7 @@ app.post('/api/institutions', async (req, res) => {
       is_verified: true, // Auto-verify since email verification is required for login
       rating: req.body.rating || 0.00,
       total_ratings: req.body.total_projects || 0,
-      phone: req.body.contact_phone,
+      phone: req.body.contact_phone || req.body.phone,
       contact_person: req.body.contact_person,
       pincode: req.body.pincode || null,
       student_count: req.body.student_count || null,
