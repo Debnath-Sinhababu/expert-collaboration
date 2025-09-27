@@ -30,6 +30,9 @@ export default function CorporateInternshipsIndexPage() {
   const [selectedType, setSelectedType] = useState<string>('all')
   const [showSelectModal, setShowSelectModal] = useState(false)
   const [selectedInstitutionIds, setSelectedInstitutionIds] = useState<string[]>([])
+  const [showChooseInternshipModal, setShowChooseInternshipModal] = useState(false)
+  const [corporateInternships, setCorporateInternships] = useState<any[]>([])
+  const [selectedInternshipId, setSelectedInternshipId] = useState<string | null>(null)
   const listEndRef = useState<HTMLDivElement | null>(null)[0]
   const router = useRouter()
 
@@ -297,8 +300,96 @@ export default function CorporateInternshipsIndexPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowSelectModal(false)}>Close</Button>
-              <Button onClick={() => { setShowSelectModal(false); toast.success('Institutions selected. Backend save will be wired next.')}} disabled={selectedInstitutionIds.length === 0}>Confirm Selection</Button>
+              <Button 
+                onClick={async () => {
+                  if (selectedInstitutionIds.length === 0) return
+                  setShowSelectModal(false)
+                  try {
+                    // Load corporate internships for selection
+                    const data = await api.internships.getAll({ page: 1, limit: 50 })
+                    const arr = Array.isArray(data) ? data : (data?.data || [])
+                    setCorporateInternships(arr)
+                    if (arr.length > 0) setSelectedInternshipId(arr[0].id)
+                  } catch (e) {
+                    console.error('Failed to load internships', e)
+                  } finally {
+                    setShowChooseInternshipModal(true)
+                  }
+                }}
+                disabled={selectedInstitutionIds.length === 0}
+              >
+                Confirm Selection
+              </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Choose Internship Modal (similar to project selection modal) */}
+        <Dialog open={showChooseInternshipModal} onOpenChange={setShowChooseInternshipModal}>
+          <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogHeader className="flex-shrink-0">
+              <DialogTitle>Select Internship</DialogTitle>
+              <DialogDescription>
+                Choose an internship to send to the selected institutions.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto pr-2">
+              {corporateInternships.length === 0 ? (
+                <div className="text-center py-12 text-slate-600">No internships found. Create one first.</div>
+              ) : (
+                <div className="space-y-3">
+                  {corporateInternships.map((item) => {
+                    const isSelected = selectedInternshipId === item.id
+                    return (
+                      <label key={item.id} className={`block rounded-xl ${isSelected ? 'bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-600 p-[1.5px]' : ''}`}>
+                        <div className="bg-white rounded-xl p-4 flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="internship"
+                            checked={isSelected}
+                            onChange={() => setSelectedInternshipId(item.id)}
+                            className="mt-1"
+                          />
+                          <div className="min-w-0">
+                            <div className="flex items-center justify-between gap-3">
+                              <h3 className="font-semibold text-slate-900 truncate pr-2">{item.title}</h3>
+                              <div className="text-xs text-slate-600 flex-shrink-0">
+                                {item.engagement} · {item.work_mode}
+                              </div>
+                            </div>
+                            <p className="text-sm text-slate-600 line-clamp-2 mt-1">{item.responsibilities}</p>
+                            <div className="text-xs text-slate-500 mt-2">
+                              Openings: <span className="font-medium text-slate-900">{item.openings}</span> · Duration: <span className="font-medium text-slate-900">{item.duration_value} {item.duration_unit}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </label>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+            <div className="flex-shrink-0 flex justify-between items-center pt-4 border-t border-slate-200">
+              <div className="text-sm text-slate-600">
+                {selectedInstitutionIds.length} institution{selectedInstitutionIds.length !== 1 ? 's' : ''} selected
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setShowChooseInternshipModal(false)}>Cancel</Button>
+                <Button
+                  className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white"
+                  disabled={!selectedInternshipId}
+                  onClick={() => {
+                    // Backend wiring to save visibility will be added next
+                    toast.success('Selection captured. Backend save will be wired next.')
+                    setShowChooseInternshipModal(false)
+                    setSelectedInstitutionIds([])
+                    setSelectedInternshipId(null)
+                  }}
+                >
+                  Send Selection
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       </div>

@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
 
 const WORK_MODES = ['In office', 'Hybrid', 'Remote'] as const
@@ -48,6 +49,15 @@ export default function CreateInternshipPage() {
     screening_questions: ['Please confirm your availability for this internship. If not available immediately, how early would you be able to join?'],
     alt_phone: '',
   })
+
+  const PERKS_OPTIONS = [
+    'Certificate',
+    'Letter of recommendation',
+    'Flexible work hours',
+    '5 days a week',
+    'Informal dress code',
+    'Free snacks & beverages'
+  ]
 
   useEffect(() => {
     const init = async () => {
@@ -303,6 +313,31 @@ export default function CreateInternshipPage() {
                   <div className="inline-flex items-center gap-2">
                     <input type="checkbox" checked={form.ppo === 'true'} onChange={(e) => handleChange('ppo', e.target.checked ? 'true' : 'false')} />
                     <span>Yes</span>
+                  </div>
+                </div>
+
+                {/* Perks */}
+                <div className="space-y-2">
+                  <Label>Perks <span className="text-slate-500 text-xs">(Select all that apply)</span></Label>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {PERKS_OPTIONS.map((perk) => {
+                      const checked = form.perks.includes(perk)
+                      return (
+                        <label key={perk} className="flex items-center gap-3 cursor-pointer">
+                          <Checkbox
+                            className="h-5 w-5 rounded border-slate-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 data-[state=checked]:text-white"
+                            checked={checked}
+                            onCheckedChange={(val) => {
+                              setForm(prev => ({
+                                ...prev,
+                                perks: val ? [...prev.perks, perk] : prev.perks.filter(p => p !== perk)
+                              }))
+                            }}
+                          />
+                          <span className="text-sm text-slate-700">{perk}</span>
+                        </label>
+                      )
+                    })}
                   </div>
                 </div>
 

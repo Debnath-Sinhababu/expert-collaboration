@@ -1188,6 +1188,181 @@ app.get('/api/internships', async (req, res) => {
   }
 });
 
+// Visible internships for non-corporate institutions (public or targeted)
+app.get('/api/internships/visible', async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      search = '',
+      work_mode = '',
+      engagement = '',
+      paid = '',
+      min_stipend = '',
+      max_stipend = '',
+      skills = '', // comma-separated
+      location = ''
+    } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    // Resolve requester institution
+    const authHeader = req.headers.authorization;
+    let anonClient = supabase;
+    let userId = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      anonClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY,
+        { global: { headers: { Authorization: `Bearer ${token}` } } }
+      );
+      const { data: userData } = await anonClient.auth.getUser();
+      userId = userData?.user?.id || null;
+    }
+
+    let viewerInstitutionId = null;
+    if (userId) {
+      const { data: inst } = await anonClient
+        .from('institutions')
+        .select('id, type')
+        .eq('user_id', userId)
+        .single();
+      if (inst?.id) viewerInstitutionId = inst.id;
+    }
+
+    // Use service role for cross-table visibility evaluation (RLS-safe)
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    // Build base: open internships, visible to all or targeted to viewer
+    let baseQuery = serviceClient.from('internships')
+      .select('*')
+      .eq('status', 'open')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + parseInt(limit) - 1);
+
+    if (viewerInstitutionId) {
+      // filter via visibility: public OR listed
+      // We'll fetch public first; for targeted, we will do a secondary filtered pull if needed
+      // Simpler: keep single query and post-filter by checking mapping via an RPC-like approach
+      // Since PostgREST doesn't easily support EXISTS with param using JS SDK chaining, we'll fetch broader and filter in JS.
+    }
+
+    // Apply filters
+    if (work_mode) baseQuery = baseQuery.eq('work_mode', work_mode);
+    if (engagement) baseQuery = baseQuery.eq('engagement', engagement);
+    if (paid !== '') baseQuery = baseQuery.eq('paid', paid === 'true' || paid === true);
+    if (min_stipend) baseQuery = baseQuery.gte('stipend_min', parseInt(min_stipend));
+    if (max_stipend) baseQuery = baseQuery.lte('stipend_max', parseInt(max_stipend));
+    if (location) baseQuery = baseQuery.ilike('location', `%${location}%`);
+    if (search) baseQuery = baseQuery.or(`title.ilike.%${search}%,responsibilities.ilike.%${search}%`);
+    if (skills) {
+      const arr = String(skills).split(',').map(s => s.trim()).filter(Boolean);
+      if (arr.length > 0) baseQuery = baseQuery.overlaps('skills_required', arr);
+    }
+
+    const { data: rows, error } = await baseQuery;
+    if (error) throw error;
+
+    // Post-filter visibility: keep public; if viewerInstitutionId present, include targeted
+    let filtered = rows?.filter(r => r.visibility_scope === 'public') || [];
+    if (viewerInstitutionId) {
+      // fetch targeted internship ids for this institution
+      const { data: mappings } = await serviceClient
+        .from('internship_visibility')
+        .select('internship_id')
+        .eq('institution_id', viewerInstitutionId);
+      const targetedIds = new Set((mappings || []).map(m => m.internship_id));
+      filtered = rows.filter(r => r.visibility_scope === 'public' || targetedIds.has(r.id));
+    }
+
+    res.json(filtered);
+  } catch (error) {
+    console.error('Visible internships error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get internship by id with visibility checks
+app.get('/api/internships/:id', async (req, res) => {
+  try {
+    const internshipId = req.params.id;
+
+    const authHeader = req.headers.authorization;
+    let supabaseClient = supabase;
+    let userId = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      supabaseClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY,
+        { global: { headers: { Authorization: `Bearer ${token}` } } }
+      );
+      const { data: userData } = await supabaseClient.auth.getUser();
+      userId = userData?.user?.id || null;
+    }
+
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    // Fetch viewer institution
+    const { data: viewerInst } = await supabaseClient
+      .from('institutions')
+      .select('id, type')
+      .eq('user_id', userId)
+      .single();
+    if (!viewerInst?.id) return res.status(403).json({ error: 'Institution not found' });
+
+    // Use service role to fetch internship and perform manual visibility checks
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    const { data: internship, error } = await serviceClient
+      .from('internships')
+      .select('*')
+      .eq('id', internshipId)
+      .single();
+    if (error) throw error;
+    if (!internship) return res.status(404).json({ error: 'Not found' });
+
+    // Visibility rules
+    if ((viewerInst.type || '').toLowerCase() === 'corporate') {
+      // Corporate can see only their own internships unless public
+      const isOwner = internship.corporate_institution_id === viewerInst.id;
+      if (!isOwner && internship.visibility_scope !== 'public') {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+    } else {
+      // Non-corporate: must be public or targeted
+      if (internship.visibility_scope !== 'public') {
+        const { data: mapping } = await serviceClient
+          .from('internship_visibility')
+          .select('internship_id')
+          .eq('internship_id', internshipId)
+          .eq('institution_id', viewerInst.id)
+          .maybeSingle();
+        if (!mapping) return res.status(403).json({ error: 'Forbidden' });
+      }
+      if (internship.status !== 'open') return res.status(404).json({ error: 'Not found' });
+    }
+
+    // Attach corporate institution meta for display
+    const { data: corp } = await serviceClient
+      .from('institutions')
+      .select('id, name, logo_url, city, state, country')
+      .eq('id', internship.corporate_institution_id)
+      .single();
+
+    res.json({ ...internship, corporate: corp || null });
+  } catch (error) {
+    console.error('Get internship error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get recommended projects for an expert based on their skills
 app.get('/api/projects/recommended/:expertId', async (req, res) => {
   try {

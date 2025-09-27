@@ -120,6 +120,16 @@ export const api = {
       const headers = await getAuthHeaders()
       const query = new URLSearchParams({ ...(params as any), _t: Date.now().toString() }).toString()
       return fetch(`${API_BASE_URL}/api/internships${query ? `?${query}` : ''}`, { headers }).then(res => res.json())
+    },
+    getVisible: async (params?: { page?: number; limit?: number; search?: string; work_mode?: string; engagement?: string; paid?: boolean | string; min_stipend?: number | string; max_stipend?: number | string; skills?: string; location?: string }) => {
+      const headers = await getAuthHeaders()
+      const query = new URLSearchParams({ ...(params as any), _t: Date.now().toString() }).toString()
+      return fetch(`${API_BASE_URL}/api/internships/visible${query ? `?${query}` : ''}`, { headers }).then(res => res.json())
+    },
+    getById: async (id: string) => {
+      const headers = await getAuthHeaders()
+      const query = new URLSearchParams({ _t: Date.now().toString() }).toString()
+      return fetch(`${API_BASE_URL}/api/internships/${id}?${query}`, { headers }).then(res => res.json())
     }
   },
 
