@@ -18,11 +18,12 @@ interface ProfileDropdownProps {
   user: any,
   expert?: any,
   institution?: any,
-  userType: 'expert' | 'institution',
+  student?: any,
+  userType: 'expert' | 'institution' | 'student',
   extraItems?: { label: string, href: string }[]
 }
 
-export default function ProfileDropdown({ user, expert,institution, userType, extraItems }: ProfileDropdownProps) {
+export default function ProfileDropdown({ user, expert, institution, student, userType, extraItems }: ProfileDropdownProps) {
   const router = useRouter()
   const pathname = usePathname()
 
@@ -38,7 +39,9 @@ export default function ProfileDropdown({ user, expert,institution, userType, ex
   }
 
   const getProfileUrl = () => {
-    return userType === 'expert' ? '/expert/profile' : '/institution/profile'
+    if (userType === 'expert') return '/expert/profile'
+    if (userType === 'institution') return '/institution/profile'
+    return '/student/profile'
   }
 
   const isInternshipContext = pathname?.startsWith('/institution/internships') ?? false
@@ -53,13 +56,18 @@ export default function ProfileDropdown({ user, expert,institution, userType, ex
   }
 
   const getHomeUrl = () => {
-    return userType === 'expert' ? '/expert/home' : '/institution/home'
+    if (userType === 'expert') return '/expert/home'
+    if (userType === 'institution') return '/institution/home'
+    return '/student/home'
   }
 
   // Determine current location to toggle label and destination dynamically
   const dashboardPrefix = userType === 'expert' 
     ? '/expert/dashboard' 
-    : (isInternshipContext ? '/institution/internships/dashboard' : '/institution/dashboard')
+    : (userType === 'institution' 
+        ? (isInternshipContext ? '/institution/internships/dashboard' : '/institution/dashboard')
+        : '/student/home'
+      )
   const homePath = getHomeUrl()
   const isOnDashboard = pathname?.startsWith(dashboardPrefix) ?? false
   const isOnHome = pathname === homePath
@@ -72,6 +80,9 @@ export default function ProfileDropdown({ user, expert,institution, userType, ex
     }
     if (institution?.name) {
       return institution?.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase()
+    }
+    if (student?.name) {
+      return student?.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase()
     }
     if (user?.email) {
       return user.email.charAt(0).toUpperCase()
@@ -98,13 +109,13 @@ export default function ProfileDropdown({ user, expert,institution, userType, ex
           className="flex items-center space-x-1 sm:space-x-2 p-1.5 sm:p-2 bg-blue-50 transition-all duration-300 group max-w-48"
         >
           <Avatar className="w-7 h-7 sm:w-8 sm:h-8 border-2 border-slate-300 group-hover:border-blue-500 transition-all duration-300">
-            <AvatarImage src={expert?.photo_url} alt={expert?.name || 'Profile'} />
+            <AvatarImage src={expert?.photo_url} alt={(expert?.name || institution?.name || student?.name || 'Profile')} />
             <AvatarFallback className="text-xs sm:text-sm font-medium bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
               {getUserInitials()}
             </AvatarFallback>
           </Avatar>
           <span className="text-slate-700 group-hover:text-blue-700 transition-colors duration-300 hidden lg:block truncate">
-            {expert?.name || institution?.name}
+            {expert?.name || institution?.name || student?.name}
           </span>
           <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4 text-slate-500 group-hover:text-blue-600 transition-all duration-300" />
         </Button>
@@ -119,13 +130,13 @@ export default function ProfileDropdown({ user, expert,institution, userType, ex
         <div className="p-3 sm:p-4 border-b border-slate-200">
           <div className="flex items-start space-x-2 sm:space-x-3">
             <Avatar className="w-8 h-8 sm:w-10 sm:h-10 border-2 border-slate-300 flex-shrink-0">
-              <AvatarImage src={expert?.photo_url} alt={expert?.name || 'Profile'} />
+              <AvatarImage src={expert?.photo_url} alt={(expert?.name || institution?.name || student?.name || 'Profile')} />
               <AvatarFallback className="text-xs sm:text-sm font-medium bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
                 {getUserInitials()}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
-              <p className="text-sm sm:text-base text-slate-900 font-medium truncate">{expert?.name || institution?.name}</p>
+              <p className="text-sm sm:text-base text-slate-900 font-medium truncate">{expert?.name || institution?.name || student?.name}</p>
               <p className="text-xs sm:text-sm text-slate-600 break-words leading-relaxed">{user?.email}</p>
               <p className="text-blue-600 text-xs font-medium capitalize mt-1">{userType}</p>
             </div>

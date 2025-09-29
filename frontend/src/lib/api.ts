@@ -28,6 +28,23 @@ export const api = {
       })
     }
   },
+  internshipApplications: {
+    create: async (data: any) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/internship-applications`, { method: 'POST', headers, body: JSON.stringify(data) })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to apply')
+      return json
+    },
+    status: async (internshipId: string) => {
+      const headers = await getAuthHeaders()
+      const query = new URLSearchParams({ internship_id: internshipId, _t: Date.now().toString() }).toString()
+      const res = await fetch(`${API_BASE_URL}/api/internship-applications/status?${query}`, { headers })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to fetch application status')
+      return json as { applied: boolean; status: string | null }
+    }
+  },
   experts: {
     getAll: async (params?: { 
       page?: number; 
@@ -346,6 +363,33 @@ export const api = {
       const headers = await getAuthHeaders()
       const q = new URLSearchParams({ expertName, limit: String(limit), _t: Date.now().toString() }).toString()
       return fetch(`${API_BASE_URL}/api/student/feedback/by-expert?${q}`, { headers }).then(res => res.json())
+    }
+  }
+  ,
+  students: {
+    me: async () => {
+      const headers = await getAuthHeaders()
+      const query = new URLSearchParams({ _t: Date.now().toString() }).toString()
+      const res = await fetch(`${API_BASE_URL}/api/students/me?${query}`, { headers })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to fetch student profile')
+      return json
+    },
+    create: async (data: any) => {
+      // This method is not used for multipart (handled inline via fetch in the page)
+      // Keep JSON variant for potential headless usage
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/students`, { method: 'POST', headers, body: JSON.stringify(data) })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to create student profile')
+      return json
+    },
+    update: async (id: string, data: any) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/students/${id}`, { method: 'PUT', headers, body: JSON.stringify(data) })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to update student profile')
+      return json
     }
   }
 }

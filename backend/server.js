@@ -1222,12 +1222,22 @@ app.get('/api/internships/visible', async (req, res) => {
 
     let viewerInstitutionId = null;
     if (userId) {
+      // Try institution user
       const { data: inst } = await anonClient
         .from('institutions')
         .select('id, type')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
       if (inst?.id) viewerInstitutionId = inst.id;
+      // Fallback to student profile
+      if (!viewerInstitutionId) {
+        const { data: student } = await anonClient
+          .from('site_students')
+          .select('institution_id')
+          .eq('user_id', userId)
+          .maybeSingle();
+        if (student?.institution_id) viewerInstitutionId = student.institution_id;
+      }
     }
 
     // Use service role for cross-table visibility evaluation (RLS-safe)
@@ -1306,13 +1316,22 @@ app.get('/api/internships/:id', async (req, res) => {
 
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    // Fetch viewer institution
+    // Resolve viewer context: prefer institution; fallback to student profile's institution; support viewing public posts without institution
     const { data: viewerInst } = await supabaseClient
       .from('institutions')
       .select('id, type')
       .eq('user_id', userId)
-      .single();
-    if (!viewerInst?.id) return res.status(403).json({ error: 'Institution not found' });
+      .maybeSingle();
+
+    let viewerStudentInstId = null;
+    if (!viewerInst?.id) {
+      const { data: student } = await supabaseClient
+        .from('site_students')
+        .select('institution_id')
+        .eq('user_id', userId)
+        .maybeSingle();
+      viewerStudentInstId = student?.institution_id || null;
+    }
 
     // Use service role to fetch internship and perform manual visibility checks
     const serviceClient = createClient(
@@ -1329,20 +1348,27 @@ app.get('/api/internships/:id', async (req, res) => {
     if (!internship) return res.status(404).json({ error: 'Not found' });
 
     // Visibility rules
-    if ((viewerInst.type || '').toLowerCase() === 'corporate') {
+    const viewerIsCorporate = ((viewerInst?.type || '').toLowerCase() === 'corporate');
+    const viewerInstId = viewerInst?.id || viewerStudentInstId || null;
+
+    if (viewerIsCorporate) {
       // Corporate can see only their own internships unless public
-      const isOwner = internship.corporate_institution_id === viewerInst.id;
+      const isOwner = viewerInst && (internship.corporate_institution_id === viewerInst.id);
       if (!isOwner && internship.visibility_scope !== 'public') {
         return res.status(403).json({ error: 'Forbidden' });
       }
     } else {
       // Non-corporate: must be public or targeted
       if (internship.visibility_scope !== 'public') {
+        // If viewer has an institution context (institution or student-linked), check mapping; else forbid
+        if (!viewerInstId) {
+          return res.status(403).json({ error: 'Forbidden' });
+        }
         const { data: mapping } = await serviceClient
           .from('internship_visibility')
           .select('internship_id')
           .eq('internship_id', internshipId)
-          .eq('institution_id', viewerInst.id)
+          .eq('institution_id', viewerInstId)
           .maybeSingle();
         if (!mapping) return res.status(403).json({ error: 'Forbidden' });
       }
@@ -1359,6 +1385,333 @@ app.get('/api/internships/:id', async (req, res) => {
     res.json({ ...internship, corporate: corp || null });
   } catch (error) {
     console.error('Get internship error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =====================
+// Portal Students (site_students)
+// =====================
+
+// Get current student's profile
+app.get('/api/students/me', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const token = authHeader.substring(7);
+    const supabaseClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY,
+      { global: { headers: { Authorization: `Bearer ${token}` } } }
+    );
+    const { data: userData } = await supabaseClient.auth.getUser();
+    const userId = userData?.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { data, error } = await supabaseClient
+      .from('site_students')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Student profile not found' });
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create student profile
+app.post('/api/students', upload.fields([{ name: 'resume', maxCount: 1 }]), async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const token = authHeader.substring(7);
+    const supabaseClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY,
+      { global: { headers: { Authorization: `Bearer ${token}` } } }
+    );
+    const { data: userData } = await supabaseClient.auth.getUser();
+    const userId = userData?.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const body = req.body || {};
+    // If multipart, files will be present; handle resume upload
+    let resumeUrl = null;
+    let resumePublicId = null;
+    if (req.files?.resume?.[0]) {
+      const resumeData = await ImageUploadService.uploadPDF(
+        req.files.resume[0].buffer,
+        'student-resumes'
+      );
+      if (!resumeData.success) {
+        return res.status(500).json({ error: `Resume upload failed: ${resumeData.error}` });
+      }
+      resumeUrl = resumeData.url;
+      resumePublicId = resumeData.publicId;
+    }
+
+    const payload = {
+      user_id: userId,
+      name: body.name,
+      email: body.email,
+      phone: body.phone || null,
+      institution_id: body.institution_id || null,
+      degree: body.degree || null,
+      year: body.year || null,
+      specialization: body.specialization || null,
+      date_of_birth: body.date_of_birth || null,
+      gender: body.gender || null,
+      city: body.city || null,
+      state: body.state || null,
+      address: body.address || null,
+      availability: body.availability || null,
+      preferred_engagement: body.preferred_engagement || null,
+      preferred_work_mode: body.preferred_work_mode || null,
+      education_start_date: body.education_start_date || null,
+      education_end_date: (body.currently_studying === 'true' || body.currently_studying === true) ? null : (body.education_end_date || null),
+      currently_studying: (body.currently_studying === 'true' || body.currently_studying === true),
+      skills: Array.isArray(body.skills)
+        ? body.skills
+        : (typeof body.skills === 'string' && body.skills.trim().length > 0
+            ? body.skills.split(',').map((s) => s.trim()).filter(Boolean)
+            : []),
+      resume_url: resumeUrl || body.resume_url || null,
+      resume_public_id: resumePublicId || null,
+      linkedin_url: body.linkedin_url || null,
+      github_url: body.github_url || null,
+      portfolio_url: body.portfolio_url || null,
+    };
+
+    const { data, error } = await supabaseClient
+      .from('site_students')
+      .insert([payload])
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.status(201).json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update student profile
+app.put('/api/students/:id', upload.fields([{ name: 'resume', maxCount: 1 }]), async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const token = authHeader.substring(7);
+    const supabaseClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY,
+      { global: { headers: { Authorization: `Bearer ${token}` } } }
+    );
+    const { data: userData } = await supabaseClient.auth.getUser();
+    const userId = userData?.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const body = req.body || {};
+
+    // Fetch current profile to manage resume replacement if needed
+    const { data: currentProfile, error: currentErr } = await supabaseClient
+      .from('site_students')
+      .select('id, user_id, resume_public_id')
+      .eq('id', req.params.id)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (currentErr) throw currentErr;
+    if (!currentProfile) return res.status(404).json({ error: 'Student profile not found' });
+
+    let resumeUrl = body.resume_url || null;
+    let resumePublicId = body.resume_public_id || currentProfile.resume_public_id || null;
+    // If new resume file uploaded, replace existing
+    if (req.files?.resume?.[0]) {
+      if (currentProfile.resume_public_id) {
+        try { await ImageUploadService.deleteImage(currentProfile.resume_public_id); } catch (_) {}
+      }
+      const resumeData = await ImageUploadService.uploadPDF(
+        req.files.resume[0].buffer,
+        'student-resumes'
+      );
+      if (!resumeData.success) {
+        return res.status(500).json({ error: `Resume upload failed: ${resumeData.error}` });
+      }
+      resumeUrl = resumeData.url;
+      resumePublicId = resumeData.publicId;
+    }
+
+    const updates = {
+      name: body.name,
+      email: body.email,
+      phone: body.phone || null,
+      institution_id: body.institution_id || null,
+      degree: body.degree || null,
+      year: body.year || null,
+      specialization: body.specialization || null,
+      date_of_birth: body.date_of_birth || null,
+      gender: body.gender || null,
+      city: body.city || null,
+      state: body.state || null,
+      address: body.address || null,
+      availability: body.availability || null,
+      preferred_engagement: body.preferred_engagement || null,
+      preferred_work_mode: body.preferred_work_mode || null,
+      education_start_date: body.education_start_date || null,
+      education_end_date: (body.currently_studying === 'true' || body.currently_studying === true) ? null : (body.education_end_date || null),
+      currently_studying: (body.currently_studying === 'true' || body.currently_studying === true),
+      skills: Array.isArray(body.skills)
+        ? body.skills
+        : (typeof body.skills === 'string' && body.skills.trim().length > 0
+            ? body.skills.split(',').map((s) => s.trim()).filter(Boolean)
+            : []),
+      resume_url: resumeUrl || null,
+      resume_public_id: resumePublicId || null,
+      linkedin_url: body.linkedin_url || null,
+      github_url: body.github_url || null,
+      portfolio_url: body.portfolio_url || null,
+      updated_at: new Date().toISOString()
+    };
+
+    const { data, error } = await supabaseClient
+      .from('site_students')
+      .update(updates)
+      .eq('id', req.params.id)
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Student applies to internship
+app.post('/api/internship-applications', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const token = authHeader.substring(7);
+    const supabaseClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY,
+      { global: { headers: { Authorization: `Bearer ${token}` } } }
+    );
+    const { data: userData } = await supabaseClient.auth.getUser();
+    const userId = userData?.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    // Get student profile
+    const { data: student, error: stuErr } = await supabaseClient
+      .from('site_students')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+    if (stuErr || !student) return res.status(403).json({ error: 'Student profile not found' });
+
+    const body = req.body || {};
+    const internshipId = body.internship_id;
+    if (!internshipId) return res.status(400).json({ error: 'internship_id required' });
+
+    // Load internship
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+    const { data: internship, error: intErr } = await serviceClient
+      .from('internships')
+      .select('*')
+      .eq('id', internshipId)
+      .single();
+    if (intErr || !internship) return res.status(404).json({ error: 'Internship not found' });
+
+    // Determine flow
+    let status = 'pending_corporate';
+    let institutionId = student.institution_id || null;
+    if (internship.visibility_scope === 'restricted') {
+      // verify targeted
+      if (!institutionId) return res.status(403).json({ error: 'Not eligible for restricted internship' });
+      const { data: mapping } = await serviceClient
+        .from('internship_visibility')
+        .select('internship_id')
+        .eq('internship_id', internshipId)
+        .eq('institution_id', institutionId)
+        .maybeSingle();
+      if (!mapping) return res.status(403).json({ error: 'Not eligible for restricted internship' });
+      status = 'pending_institution';
+    }
+
+    const payload = {
+      internship_id: internshipId,
+      student_id: student.id,
+      institution_id: institutionId,
+      status,
+      cover_letter: body.cover_letter || null,
+      resume_url: body.resume_url || student.resume_url || null
+    };
+
+    const { data, error } = await supabaseClient
+      .from('internship_applications')
+      .insert([payload])
+      .select()
+      .single();
+    if (error) throw error;
+    res.status(201).json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Check if current student has applied to a given internship
+app.get('/api/internship-applications/status', async (req, res) => {
+  try {
+    const internshipId = req.query.internship_id;
+    if (!internshipId) return res.status(400).json({ error: 'internship_id required' });
+
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const token = authHeader.substring(7);
+    const supabaseClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY,
+      { global: { headers: { Authorization: `Bearer ${token}` } } }
+    );
+
+    const { data: userData } = await supabaseClient.auth.getUser();
+    const userId = userData?.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    // Get student profile id
+    const { data: student } = await supabaseClient
+      .from('site_students')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (!student?.id) return res.json({ applied: false, status: null });
+
+    const { data: application } = await supabaseClient
+      .from('internship_applications')
+      .select('id, status')
+      .eq('internship_id', internshipId)
+      .eq('student_id', student.id)
+      .maybeSingle();
+
+    return res.json({ applied: !!application, status: application?.status || null });
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
