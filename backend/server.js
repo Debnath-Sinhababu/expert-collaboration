@@ -1201,7 +1201,8 @@ app.get('/api/internships/visible', async (req, res) => {
       min_stipend = '',
       max_stipend = '',
       skills = '', // comma-separated
-      location = ''
+      location = '',
+      exclude_applied = 'false'
     } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
@@ -1221,6 +1222,7 @@ app.get('/api/internships/visible', async (req, res) => {
     }
 
     let viewerInstitutionId = null;
+    let viewerStudentId = null;
     if (userId) {
       // Try institution user
       const { data: inst } = await anonClient
@@ -1233,10 +1235,11 @@ app.get('/api/internships/visible', async (req, res) => {
       if (!viewerInstitutionId) {
         const { data: student } = await anonClient
           .from('site_students')
-          .select('institution_id')
+          .select('id, institution_id')
           .eq('user_id', userId)
           .maybeSingle();
         if (student?.institution_id) viewerInstitutionId = student.institution_id;
+        if (student?.id) viewerStudentId = student.id;
       }
     }
 
@@ -1286,6 +1289,17 @@ app.get('/api/internships/visible', async (req, res) => {
         .eq('institution_id', viewerInstitutionId);
       const targetedIds = new Set((mappings || []).map(m => m.internship_id));
       filtered = rows.filter(r => r.visibility_scope === 'public' || targetedIds.has(r.id));
+    }
+
+    // Optionally exclude internships already applied by this student
+    const shouldExcludeApplied = String(exclude_applied).toLowerCase() === 'true';
+    if (shouldExcludeApplied && viewerStudentId) {
+      const { data: applied } = await serviceClient
+        .from('internship_applications')
+        .select('internship_id')
+        .eq('student_id', viewerStudentId);
+      const appliedIds = new Set((applied || []).map(a => a.internship_id));
+      filtered = filtered.filter(r => !appliedIds.has(r.id));
     }
 
     res.json(filtered);
@@ -1673,6 +1687,199 @@ app.post('/api/internship-applications', async (req, res) => {
   }
 });
 
+// Corporate: list applications for a given internship they own
+app.get('/api/internships/:id/applications', async (req, res) => {
+  try {
+    const internshipId = req.params.id;
+    const { page = 1, limit = 10, stage = '' } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const token = authHeader.substring(7);
+    const supabaseClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY,
+      { global: { headers: { Authorization: `Bearer ${token}` } } }
+    );
+    const { data: userData } = await supabaseClient.auth.getUser();
+    const userId = userData?.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    // Verify corporate ownership
+    const { data: inst } = await supabaseClient
+      .from('institutions')
+      .select('id, type')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (!inst?.id || (inst.type || '').toLowerCase() !== 'corporate') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+    const { data: internship, error: intErr } = await serviceClient
+      .from('internships')
+      .select('id, corporate_institution_id, visibility_scope')
+      .eq('id', internshipId)
+      .maybeSingle();
+    if (intErr) throw intErr;
+    if (!internship || internship.corporate_institution_id !== inst.id) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    // For now, only flat list of applications (public internships -> direct student applications)
+    // Stage mapping for corporate view
+    const stageMap = {
+      pending: ['pending_corporate', 'approved_institution'],
+      interview: ['interview'],
+      selected: ['shortlisted_corporate', 'offered', 'hired'],
+      rejected: ['rejected_corporate']
+    };
+
+    let listQuery = serviceClient
+      .from('internship_applications')
+      .select(`
+        *,
+        student:student_id (
+          id,
+          name,
+          email,
+          phone,
+          institution_id,
+          degree,
+          year,
+          specialization,
+          skills,
+          linkedin_url,
+          github_url,
+          portfolio_url,
+          date_of_birth,
+          gender,
+          address,
+          city,
+          state,
+          availability,
+          preferred_engagement,
+          preferred_work_mode,
+          education_start_date,
+          education_end_date,
+          currently_studying,
+          resume_url
+        ),
+        institution:institution_id ( id, name, city, state )
+      `)
+      .eq('internship_id', internshipId)
+      .order('created_at', { ascending: false });
+
+    const normalizedStage = String(stage || '').toLowerCase();
+    if (normalizedStage && stageMap[normalizedStage]) {
+      listQuery = listQuery.in('status', stageMap[normalizedStage]);
+    }
+
+    listQuery = listQuery.range(offset, offset + parseInt(limit) - 1);
+    const { data: apps, error } = await listQuery;
+    if (error) throw error;
+
+    // Counts for all stages
+    const { data: allStatuses, error: countErr } = await serviceClient
+      .from('internship_applications')
+      .select('status')
+      .eq('internship_id', internshipId);
+    if (countErr) throw countErr;
+    const counts = { pending: 0, interview: 0, selected: 0, rejected: 0, total: allStatuses?.length || 0 };
+    (allStatuses || []).forEach((row) => {
+      const s = row.status;
+      if (stageMap.pending.includes(s)) counts.pending++;
+      else if (stageMap.interview.includes(s)) counts.interview++;
+      else if (stageMap.selected.includes(s)) counts.selected++;
+      else if (stageMap.rejected.includes(s)) counts.rejected++;
+    });
+
+    res.json({ data: apps, visibility: internship.visibility_scope, counts });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Corporate updates internship application status
+app.put('/api/internship-applications/:id/status', async (req, res) => {
+  try {
+    const applicationId = req.params.id;
+    const { status, interview_scheduled_at } = req.body || {};
+    if (!status) return res.status(400).json({ error: 'status required' });
+
+    const allowedStatuses = ['interview', 'shortlisted_corporate', 'rejected_corporate'];
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status for corporate update' });
+    }
+
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const token = authHeader.substring(7);
+    const supabaseClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY,
+      { global: { headers: { Authorization: `Bearer ${token}` } } }
+    );
+    const { data: userData } = await supabaseClient.auth.getUser();
+    const userId = userData?.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    // Confirm corporate ownership of the application via internship
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+    const { data: appRow, error: appErr } = await serviceClient
+      .from('internship_applications')
+      .select('id, internship_id')
+      .eq('id', applicationId)
+      .maybeSingle();
+    if (appErr) throw appErr;
+    if (!appRow) return res.status(404).json({ error: 'Application not found' });
+
+    const { data: inst } = await supabaseClient
+      .from('institutions')
+      .select('id, type')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (!inst?.id || (inst.type || '').toLowerCase() !== 'corporate') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const { data: internship } = await serviceClient
+      .from('internships')
+      .select('id, corporate_institution_id')
+      .eq('id', appRow.internship_id)
+      .maybeSingle();
+    if (!internship || internship.corporate_institution_id !== inst.id) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const updatePayload = { status, updated_at: new Date().toISOString() };
+    if (status === 'interview' && interview_scheduled_at) {
+      updatePayload.interview_scheduled_at = interview_scheduled_at;
+    }
+
+    const { data, error } = await supabaseClient
+      .from('internship_applications')
+      .update(updatePayload)
+      .eq('id', applicationId)
+      .select()
+      .maybeSingle();
+    if (error) throw error;
+    res.json(data || { success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Check if current student has applied to a given internship
 app.get('/api/internship-applications/status', async (req, res) => {
   try {
@@ -1711,6 +1918,86 @@ app.get('/api/internship-applications/status', async (req, res) => {
       .maybeSingle();
 
     return res.json({ applied: !!application, status: application?.status || null });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// List internship applications for current student with stage filters and counts
+app.get('/api/internship-applications', async (req, res) => {
+  try {
+    const { page = 1, limit = 10, stage = '' } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const token = authHeader.substring(7);
+    const supabaseClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY,
+      { global: { headers: { Authorization: `Bearer ${token}` } } }
+    );
+
+    const { data: userData } = await supabaseClient.auth.getUser();
+    const userId = userData?.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    // Resolve student profile
+    const { data: student, error: stuErr } = await supabaseClient
+      .from('site_students')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (stuErr) throw stuErr;
+    if (!student?.id) return res.status(404).json({ error: 'Student profile not found' });
+
+    // Stage to status mapping
+    const stageMap = {
+      pending: ['pending_institution', 'approved_institution', 'pending_corporate'],
+      interview: ['interview'],
+      selected: ['shortlisted_corporate', 'offered', 'hired'],
+      rejected: ['rejected_institution', 'rejected_corporate']
+    };
+
+    let query = supabaseClient
+      .from('internship_applications')
+      .select(`
+        *,
+        internships:internship_id (
+          id, title, work_mode, engagement, openings, duration_value, duration_unit, paid, stipend_min, stipend_max, created_at
+        )
+      `)
+      .eq('student_id', student.id)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + parseInt(limit) - 1);
+
+    const normalizedStage = String(stage).toLowerCase();
+    if (normalizedStage && stageMap[normalizedStage]) {
+      query = query.in('status', stageMap[normalizedStage]);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    // Counts for all stages
+    const { data: allStatuses, error: countErr } = await supabaseClient
+      .from('internship_applications')
+      .select('status')
+      .eq('student_id', student.id);
+    if (countErr) throw countErr;
+
+    const counts = { pending: 0, interview: 0, selected: 0, rejected: 0, total: allStatuses?.length || 0 };
+    (allStatuses || []).forEach((row) => {
+      const s = row.status;
+      if (stageMap.pending.includes(s)) counts.pending++;
+      else if (stageMap.interview.includes(s)) counts.interview++;
+      else if (stageMap.selected.includes(s)) counts.selected++;
+      else if (stageMap.rejected.includes(s)) counts.rejected++;
+    });
+
+    res.json({ data, counts });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

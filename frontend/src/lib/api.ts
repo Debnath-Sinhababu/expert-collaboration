@@ -43,6 +43,14 @@ export const api = {
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json?.error || 'Failed to fetch application status')
       return json as { applied: boolean; status: string | null }
+    },
+    list: async (params?: { page?: number; limit?: number; stage?: string }) => {
+      const headers = await getAuthHeaders()
+      const query = new URLSearchParams({ ...(params as any), _t: Date.now().toString() }).toString()
+      const res = await fetch(`${API_BASE_URL}/api/internship-applications${query ? `?${query}` : ''}`, { headers })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to fetch applications')
+      return json
     }
   },
   experts: {
@@ -147,6 +155,21 @@ export const api = {
       const headers = await getAuthHeaders()
       const query = new URLSearchParams({ _t: Date.now().toString() }).toString()
       return fetch(`${API_BASE_URL}/api/internships/${id}?${query}`, { headers }).then(res => res.json())
+    },
+    getApplications: async (id: string, params?: { page?: number; limit?: number; stage?: 'pending' | 'interview' | 'selected' | 'rejected' }) => {
+      const headers = await getAuthHeaders()
+      const query = new URLSearchParams({ ...(params as any), _t: Date.now().toString() }).toString()
+      const res = await fetch(`${API_BASE_URL}/api/internships/${id}/applications${query ? `?${query}` : ''}`, { headers })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to fetch applications')
+      return json
+    },
+    updateApplicationStatus: async (applicationId: string, status: string, extras?: { interview_scheduled_at?: string }) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/internship-applications/${applicationId}/status`, { method: 'PUT', headers, body: JSON.stringify({ status, ...(extras || {}) }) })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to update status')
+      return json
     }
   },
 

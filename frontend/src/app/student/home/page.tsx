@@ -68,7 +68,7 @@ export default function StudentHome() {
 
   const { data: internships, loading: listLoading, hasMore, loadMore } = usePagination(
     async (page: number) => {
-      const params: any = { page, limit: 10 }
+      const params: any = { page, limit: 10, exclude_applied: 'true' }
       if (search) params.search = search
       if (workMode !== 'all') params.work_mode = workMode
       if (engagement !== 'all') params.engagement = engagement
@@ -224,40 +224,50 @@ export default function StudentHome() {
               <div className="text-center py-8 text-slate-600">Loading internships...</div>
             ) : (
               <div className="space-y-4">
-                {internships.map((item: any) => (
-                  <div key={item.id} className="bg-white border-2 border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all duration-300 group">
-                    <div className="flex items-center justify-between mb-2 min-w-0">
-                      <h3 className="font-semibold text-lg text-slate-900 truncate pr-2">{item.title}</h3>
-                      <div className="text-xs text-slate-600 flex-shrink-0">{item.engagement} · {item.work_mode}</div>
-                    </div>
-                    <p className="text-sm text-slate-600 line-clamp-2 mb-2">{item.responsibilities}</p>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div><span className="text-slate-500">Openings:</span> <span className="font-medium text-slate-900">{item.openings}</span></div>
-                      <div><span className="text-slate-500">Duration:</span> <span className="font-medium text-slate-900">{item.duration_value} {item.duration_unit}</span></div>
-                      <div><span className="text-slate-500">Stipend:</span> <span className="font-medium text-slate-900">{item.paid ? `₹${item.stipend_min}${item.stipend_max ? ' - ₹' + item.stipend_max : ''}/month` : 'Unpaid'}</span></div>
-                      <div><span className="text-slate-500">Posted:</span> <span className="font-medium text-slate-900">{new Date(item.created_at).toLocaleDateString()}</span></div>
-                    </div>
-                    <div className="flex justify-end mt-3 gap-2">
-                      <Button variant="outline" className="border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50 text-slate-700 hover:text-blue-700" onClick={() => router.push(`/student/internships/${item.id}`)}>
-                        View
-                      </Button>
-                    </div>
+                {internships.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Briefcase className="h-12 w-12 text-slate-400 mx-auto mb-3" />
+                    <p className="text-slate-700 font-medium">No internships found</p>
+                    <p className="text-sm text-slate-500">Try adjusting filters or check back later</p>
                   </div>
-                ))}
-                {hasMore && !listLoading && (
-                  <div
-                    ref={(el) => {
-                      if (!el) return
-                      const obs = new IntersectionObserver(([entry]) => {
-                        if (entry.isIntersecting) loadMore()
-                      }, { threshold: 0.2 })
-                      obs.observe(el)
-                      return () => obs.disconnect()
-                    }}
-                    className="text-center py-4 text-sm text-slate-500"
-                  >
-                    Loading more...
-                  </div>
+                ) : (
+                  <>
+                    {internships.map((item: any) => (
+                      <div key={item.id} className="bg-white border-2 border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all duration-300 group">
+                        <div className="flex items-center justify-between mb-2 min-w-0">
+                          <h3 className="font-semibold text-lg text-slate-900 truncate pr-2">{item.title}</h3>
+                          <div className="text-xs text-slate-600 flex-shrink-0">{item.engagement} · {item.work_mode}</div>
+                        </div>
+                        <p className="text-sm text-slate-600 line-clamp-2 mb-2">{item.responsibilities}</p>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          <div><span className="text-slate-500">Openings:</span> <span className="font-medium text-slate-900">{item.openings}</span></div>
+                          <div><span className="text-slate-500">Duration:</span> <span className="font-medium text-slate-900">{item.duration_value} {item.duration_unit}</span></div>
+                          <div><span className="text-slate-500">Stipend:</span> <span className="font-medium text-slate-900">{item.paid ? `₹${item.stipend_min}${item.stipend_max ? ' - ₹' + item.stipend_max : ''}/month` : 'Unpaid'}</span></div>
+                          <div><span className="text-slate-500">Posted:</span> <span className="font-medium text-slate-900">{new Date(item.created_at).toLocaleDateString()}</span></div>
+                        </div>
+                        <div className="flex justify-end mt-3 gap-2">
+                          <Button variant="outline" className="border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50 text-slate-700 hover:text-blue-700" onClick={() => router.push(`/student/internships/${item.id}`)}>
+                            View
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    {hasMore && !listLoading && (
+                      <div
+                        ref={(el) => {
+                          if (!el) return
+                          const obs = new IntersectionObserver(([entry]) => {
+                            if (entry.isIntersecting) loadMore()
+                          }, { threshold: 0.2 })
+                          obs.observe(el)
+                          return () => obs.disconnect()
+                        }}
+                        className="text-center py-4 text-sm text-slate-500"
+                      >
+                        Loading more...
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}

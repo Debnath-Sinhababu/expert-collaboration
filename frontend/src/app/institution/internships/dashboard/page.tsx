@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import NotificationBell from '@/components/NotificationBell'
 import ProfileDropdown from '@/components/ProfileDropdown'
 import { Eye, Briefcase } from 'lucide-react'
+import { usePagination } from '@/hooks/usePagination'
 
 export default function CorporateInternshipsDashboard() {
   const [loading, setLoading] = useState(true)
@@ -36,8 +37,10 @@ export default function CorporateInternshipsDashboard() {
           return
         }
         setInstitution(inst)
-        const data = await api.internships.getAll({ page: 1, limit: 20 })
-        setInternships(Array.isArray(data) ? data : (data?.data || []))
+        if ((inst.type || '').toLowerCase() !== 'corporate') {
+          router.push('/institution/home')
+          return
+        }
       } catch (e: any) {
         setError(e.message || 'Failed to load internships')
       } finally {
@@ -46,6 +49,18 @@ export default function CorporateInternshipsDashboard() {
     }
     init()
   }, [router])
+
+  const { data, loading: listLoading, hasMore, loadMore, refresh } = usePagination(
+    async (page: number) => {
+      const res = await api.internships.getAll({ page, limit: 10 })
+      return Array.isArray(res) ? res : (res?.data || [])
+    },
+    []
+  )
+
+  useEffect(() => {
+    setInternships(data as any[])
+  }, [data])
 
   if (loading) {
     return (
@@ -87,7 +102,12 @@ export default function CorporateInternshipsDashboard() {
             <CardDescription className="text-slate-600">Manage your posted internship opportunities</CardDescription>
           </CardHeader>
           <CardContent>
-            {internships.length === 0 ? (
+            {listLoading && internships.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
+                <p className="text-slate-600">Loading internships...</p>
+              </div>
+            ) : internships.length === 0 ? (
               <div className="text-center py-8">
                 <Briefcase className="h-12 w-12 text-slate-400 mx-auto mb-4" />
                 <p className="text-slate-600">No internships posted yet</p>
@@ -136,6 +156,21 @@ export default function CorporateInternshipsDashboard() {
                     </div>
                   </div>
                 ))}
+                {hasMore && !listLoading && (
+                  <div
+                    ref={(el) => {
+                      if (!el) return
+                      const obs = new IntersectionObserver(([entry]) => {
+                        if (entry.isIntersecting) loadMore()
+                      }, { threshold: 0.2 })
+                      obs.observe(el)
+                      return () => obs.disconnect()
+                    }}
+                    className="text-center py-4 text-sm text-slate-500"
+                  >
+                    Loading more internships...
+                  </div>
+                )}
               </div>
             )}
           </CardContent>

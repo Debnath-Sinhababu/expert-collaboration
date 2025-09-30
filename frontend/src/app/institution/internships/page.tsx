@@ -50,8 +50,9 @@ export default function CorporateInternshipsIndexPage() {
           setLoading(false)
           return
         }
-        if (inst.type !== 'Corporate') {
-          setError('Internships are available only for Corporate institutions.')
+        if ((inst.type || '').toLowerCase() !== 'corporate') {
+          router.push('/institution/home')
+          return
         }
         setInstitution(inst)
         // No eager institution list needed; pagination will fetch as user scrolls

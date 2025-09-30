@@ -48,6 +48,7 @@ export default function ProfileDropdown({ user, expert, institution, student, us
 
   const getDashboardUrl = () => {
     if (userType === 'expert') return '/expert/dashboard'
+    if (userType === 'student') return '/student/dashboard'
     // If institution is Corporate and user is in internship context, route to Internship Dashboard
     if ((institution?.type || '').toLowerCase() === 'corporate' && isInternshipContext) {
       return '/institution/internships/dashboard'
@@ -66,7 +67,7 @@ export default function ProfileDropdown({ user, expert, institution, student, us
     ? '/expert/dashboard' 
     : (userType === 'institution' 
         ? (isInternshipContext ? '/institution/internships/dashboard' : '/institution/dashboard')
-        : '/student/home'
+        : '/student/dashboard'
       )
   const homePath = getHomeUrl()
   const isOnDashboard = pathname?.startsWith(dashboardPrefix) ?? false
