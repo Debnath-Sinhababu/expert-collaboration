@@ -172,6 +172,23 @@ export const api = {
       return json
     }
   },
+  internshipApplicationsInstitution: {
+    list: async (id: string, params?: { page?: number; limit?: number; stage?: 'pending' | 'approved' | 'rejected' }) => {
+      const headers = await getAuthHeaders()
+      const query = new URLSearchParams({ ...(params as any), _t: Date.now().toString() }).toString()
+      const res = await fetch(`${API_BASE_URL}/api/internships/${id}/applications/institution${query ? `?${query}` : ''}`, { headers })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to fetch applications')
+      return json
+    },
+    updateStatus: async (applicationId: string, status: 'approved_institution' | 'rejected_institution') => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/internship-applications/${applicationId}/institution-status`, { method: 'PUT', headers, body: JSON.stringify({ status }) })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to update status')
+      return json
+    }
+  },
 
   institutions: {
     getAll: async (params?: { page?: number; limit?: number; search?: string; type?: string; exclude_type?: string }) => {

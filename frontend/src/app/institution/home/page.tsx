@@ -677,6 +677,7 @@ export default function InstitutionHome() {
                 Dashboard
                 <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-blue-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
+            
             </nav>
 
             {/* Right side */}
@@ -689,6 +690,11 @@ export default function InstitutionHome() {
                 institution={institution} 
                 userType="institution" 
               />
+              {institution?.type === 'Corporate' && (
+                <Link href="/institution/internships/create">
+                  <Button className="hidden md:inline-flex bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">Create Internship</Button>
+                </Link>
+              )}
             </div>
           </div>
         </div>

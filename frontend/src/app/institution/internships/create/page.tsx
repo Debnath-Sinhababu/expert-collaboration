@@ -140,9 +140,9 @@ export default function CreateInternshipPage() {
         status: 'open'
       }
 
-      const created = await api.internships.create(payload)
-      toast.success('Internship created successfully')
-      router.push('/institution/internships')
+      // Save draft payload to localStorage and go to selection screen
+      localStorage.setItem('internship_create_payload', JSON.stringify(payload))
+      router.push('/institution/internships/select-institutions')
     } catch (err: any) {
       toast.error(err.message || 'Failed to create internship')
     } finally {

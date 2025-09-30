@@ -139,12 +139,11 @@ export default function CorporateInternshipDetail() {
               <CardHeader>
                 <CardTitle className="text-slate-900">Applications</CardTitle>
                 <CardDescription className="text-slate-600">
-                  {visibility === 'public' ? 'Student applications submitted directly to you' : 'Select an institution to view approved applications'}
+                  {visibility === 'public' ? 'Student applications submitted directly to you' : 'Institution-approved applications appear under Pending. Proceed with interview/selection here.'}
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {visibility === 'public' ? (
-                  <div className="space-y-6">
+                <div className="space-y-6">
                     <Tabs value={activeStage} onValueChange={(v) => {
                       const stage = (v as 'pending' | 'interview' | 'selected' | 'rejected')
                       setActiveStage(stage)
@@ -460,9 +459,6 @@ export default function CorporateInternshipDetail() {
                       </div>
                     )}
                   </div>
-                ) : (
-                  <div className="text-sm text-slate-600">Institution-grouped applications UI will appear here once selective flow is enabled.</div>
-                )}
               </CardContent>
             </Card>
           </>

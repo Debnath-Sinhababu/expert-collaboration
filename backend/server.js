@@ -1090,6 +1090,11 @@ app.post('/api/internships', async (req, res) => {
 
     // Build internship payload
     const body = req.body || {};
+    const selectedInstitutionIds = Array.isArray(body.selected_institution_ids)
+      ? body.selected_institution_ids.filter(Boolean)
+      : [];
+    const visibilityScope = selectedInstitutionIds.length > 0 ? 'restricted' : (body.visibility_scope || 'public');
+
     const internship = {
       corporate_institution_id: inst.id,
       title: body.title,
@@ -1120,7 +1125,7 @@ app.post('/api/internships', async (req, res) => {
       application_deadline: body.application_deadline || null,
       location: body.location || null,
       status: body.status || 'open',
-      visibility_scope: body.visibility_scope || 'public'
+      visibility_scope: visibilityScope
     };
 
     const { data, error } = await supabaseClient
@@ -1130,6 +1135,16 @@ app.post('/api/internships', async (req, res) => {
       .single();
 
     if (error) throw error;
+    // If restricted, insert visibility mappings
+    if (visibilityScope === 'restricted' && selectedInstitutionIds.length > 0) {
+      const rows = selectedInstitutionIds.map((iid) => ({ internship_id: data.id, institution_id: iid }));
+      const { error: visErr } = await supabaseClient
+        .from('internship_visibility')
+        .insert(rows);
+      if (visErr) {
+        console.warn('Failed to insert internship visibility mappings:', visErr.message);
+      }
+    }
     return res.status(201).json(data);
   } catch (error) {
     console.error('Create internship error:', error);
@@ -1202,7 +1217,8 @@ app.get('/api/internships/visible', async (req, res) => {
       max_stipend = '',
       skills = '', // comma-separated
       location = '',
-      exclude_applied = 'false'
+      exclude_applied = 'false',
+      visibility = ''
     } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
@@ -1281,14 +1297,22 @@ app.get('/api/internships/visible', async (req, res) => {
 
     // Post-filter visibility: keep public; if viewerInstitutionId present, include targeted
     let filtered = rows?.filter(r => r.visibility_scope === 'public') || [];
+    let targetedIds = new Set();
     if (viewerInstitutionId) {
-      // fetch targeted internship ids for this institution
       const { data: mappings } = await serviceClient
         .from('internship_visibility')
         .select('internship_id')
         .eq('institution_id', viewerInstitutionId);
-      const targetedIds = new Set((mappings || []).map(m => m.internship_id));
+      targetedIds = new Set((mappings || []).map(m => m.internship_id));
       filtered = rows.filter(r => r.visibility_scope === 'public' || targetedIds.has(r.id));
+    }
+
+    // Optional visibility filter
+    const vis = String(visibility || '').toLowerCase();
+    if (vis === 'public') {
+      filtered = filtered.filter(r => r.visibility_scope === 'public');
+    } else if (vis === 'tagged') {
+      filtered = filtered.filter(r => r.visibility_scope !== 'public' && targetedIds.has(r.id));
     }
 
     // Optionally exclude internships already applied by this student
@@ -1544,7 +1568,9 @@ app.put('/api/students/:id', upload.fields([{ name: 'resume', maxCount: 1 }]), a
     if (currentErr) throw currentErr;
     if (!currentProfile) return res.status(404).json({ error: 'Student profile not found' });
 
-    let resumeUrl = body.resume_url || null;
+    let resumeUrl = (typeof body.resume_url !== 'undefined' && body.resume_url !== null)
+      ? body.resume_url
+      : currentProfile.resume_url || null;
     let resumePublicId = body.resume_public_id || currentProfile.resume_public_id || null;
     // If new resume file uploaded, replace existing
     if (req.files?.resume?.[0]) {
@@ -1880,6 +1906,186 @@ app.put('/api/internship-applications/:id/status', async (req, res) => {
   }
 });
 
+// Institution: list applications for a given internship they are tagged to
+app.get('/api/internships/:id/applications/institution', async (req, res) => {
+  try {
+    const internshipId = req.params.id;
+    const { page = 1, limit = 10, stage = '' } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const token = authHeader.substring(7);
+    const supabaseClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY,
+      { global: { headers: { Authorization: `Bearer ${token}` } } }
+    );
+
+    const { data: userData } = await supabaseClient.auth.getUser();
+    const userId = userData?.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    // Resolve viewer institution (non-corporate)
+    const { data: inst } = await supabaseClient
+      .from('institutions')
+      .select('id, type')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (!inst?.id) return res.status(403).json({ error: 'Institution not found' });
+    if ((inst.type || '').toLowerCase() === 'corporate') {
+      return res.status(403).json({ error: 'Not allowed for Corporate' });
+    }
+
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    // Verify internship is either public or targeted to this institution
+    const { data: internship } = await serviceClient
+      .from('internships')
+      .select('id, visibility_scope')
+      .eq('id', internshipId)
+      .maybeSingle();
+    if (!internship) return res.status(404).json({ error: 'Not found' });
+    if (internship.visibility_scope !== 'public') {
+      const { data: mapping } = await serviceClient
+        .from('internship_visibility')
+        .select('internship_id')
+        .eq('internship_id', internshipId)
+        .eq('institution_id', inst.id)
+        .maybeSingle();
+      if (!mapping) return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    // Stage mapping for institution view
+    const stageMap = {
+      pending: ['pending_institution'],
+      approved: ['approved_institution'],
+      rejected: ['rejected_institution']
+    };
+
+    let listQuery = serviceClient
+      .from('internship_applications')
+      .select(`
+        *,
+        student:student_id (
+          id,
+          name,
+          email,
+          phone,
+          degree,
+          year,
+          specialization,
+          skills,
+          linkedin_url,
+          github_url,
+          portfolio_url,
+          availability,
+          preferred_engagement,
+          preferred_work_mode,
+          city,
+          state,
+          address,
+          education_start_date,
+          education_end_date,
+          currently_studying,
+          resume_url
+        )
+      `)
+      .eq('internship_id', internshipId)
+      .eq('institution_id', inst.id)
+      .order('created_at', { ascending: false });
+
+    const normalizedStage = String(stage || '').toLowerCase();
+    if (normalizedStage && stageMap[normalizedStage]) {
+      listQuery = listQuery.in('status', stageMap[normalizedStage]);
+    }
+
+    listQuery = listQuery.range(offset, offset + parseInt(limit) - 1);
+    const { data: apps, error } = await listQuery;
+    if (error) throw error;
+
+    // Counts
+    const { data: allStatuses, error: countErr } = await serviceClient
+      .from('internship_applications')
+      .select('status')
+      .eq('internship_id', internshipId)
+      .eq('institution_id', inst.id);
+    if (countErr) throw countErr;
+    const counts = { pending: 0, approved: 0, rejected: 0, total: allStatuses?.length || 0 };
+    (allStatuses || []).forEach((row) => {
+      const s = row.status;
+      if (stageMap.pending.includes(s)) counts.pending++;
+      else if (stageMap.approved.includes(s)) counts.approved++;
+      else if (stageMap.rejected.includes(s)) counts.rejected++;
+    });
+
+    return res.json({ data: apps, counts });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Institution approves/rejects an application
+app.put('/api/internship-applications/:id/institution-status', async (req, res) => {
+  try {
+    const applicationId = req.params.id;
+    const { status } = req.body || {};
+    if (!status) return res.status(400).json({ error: 'status required' });
+    if (!['approved_institution', 'rejected_institution'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const token = authHeader.substring(7);
+    const supabaseClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY,
+      { global: { headers: { Authorization: `Bearer ${token}` } } }
+    );
+    const { data: userData } = await supabaseClient.auth.getUser();
+    const userId = userData?.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { data: inst } = await supabaseClient
+      .from('institutions')
+      .select('id, type')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (!inst?.id) return res.status(403).json({ error: 'Institution not found' });
+    if ((inst.type || '').toLowerCase() === 'corporate') return res.status(403).json({ error: 'Not allowed for Corporate' });
+
+    // Confirm application belongs to this institution
+    const { data: appRow } = await supabase
+      .from('internship_applications')
+      .select('id, institution_id, status')
+      .eq('id', applicationId)
+      .maybeSingle();
+    if (!appRow) return res.status(404).json({ error: 'Application not found' });
+    if (appRow.institution_id !== inst.id) return res.status(403).json({ error: 'Forbidden' });
+    if (appRow.status !== 'pending_institution') {
+      return res.status(400).json({ error: 'Only pending applications can be updated by institution' });
+    }
+
+    const { data, error } = await supabaseClient
+      .from('internship_applications')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', applicationId)
+      .select()
+      .maybeSingle();
+    if (error) throw error;
+    res.json(data || { success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Check if current student has applied to a given internship
 app.get('/api/internship-applications/status', async (req, res) => {
   try {
@@ -1955,10 +2161,11 @@ app.get('/api/internship-applications', async (req, res) => {
 
     // Stage to status mapping
     const stageMap = {
-      pending: ['pending_institution', 'approved_institution', 'pending_corporate'],
+      // Student should only see corporate actions
+      pending: ['pending_corporate'],
       interview: ['interview'],
       selected: ['shortlisted_corporate', 'offered', 'hired'],
-      rejected: ['rejected_institution', 'rejected_corporate']
+      rejected: ['rejected_corporate']
     };
 
     let query = supabaseClient

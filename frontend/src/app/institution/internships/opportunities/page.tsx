@@ -27,6 +27,7 @@ export default function InternshipOpportunitiesPage() {
   const [minStipend, setMinStipend] = useState('')
   const [maxStipend, setMaxStipend] = useState('')
   const [skills, setSkills] = useState('')
+  const [visibilityFilter, setVisibilityFilter] = useState<'all' | 'public' | 'tagged'>('all')
   const [location, setLocation] = useState('')
   const router = useRouter()
 
@@ -71,10 +72,11 @@ export default function InternshipOpportunitiesPage() {
       if (maxStipend) params.max_stipend = maxStipend
       if (skills) params.skills = skills
       if (location) params.location = location
+      if (visibilityFilter !== 'all') params.visibility = visibilityFilter
       const data = await api.internships.getVisible(params)
       return Array.isArray(data) ? data : (data?.data || [])
     },
-    [search, workMode, engagement, paid, minStipend, maxStipend, skills, location]
+    [search, workMode, engagement, paid, minStipend, maxStipend, skills, location, visibilityFilter]
   )
 
   // Do not call refresh() here; usePagination already refreshes on dependency change
@@ -148,6 +150,17 @@ export default function InternshipOpportunitiesPage() {
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="true">Paid</SelectItem>
                   <SelectItem value="false">Unpaid</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <div className="text-sm text-slate-700 mb-1">Visibility</div>
+              <Select value={visibilityFilter} onValueChange={(v) => setVisibilityFilter(v as any)}>
+                <SelectTrigger><SelectValue placeholder="All" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="public">Public</SelectItem>
+                  <SelectItem value="tagged">Tagged to me</SelectItem>
                 </SelectContent>
               </Select>
             </div>
