@@ -695,6 +695,11 @@ export default function InstitutionHome() {
                   <Button className="hidden md:inline-flex bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">Create Internship</Button>
                 </Link>
               )}
+              {institution?.type && institution.type !== 'Corporate' && (
+                <Link href="/institution/internships/opportunities">
+                  <Button className="hidden md:inline-flex bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">Browse Internships</Button>
+                </Link>
+              )}
             </div>
           </div>
         </div>

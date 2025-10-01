@@ -16,7 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import NotificationBell from '@/components/NotificationBell'
 import ProfileDropdown from '@/components/ProfileDropdown'
 import { Badge } from '@/components/ui/badge'
-import { Save, Edit, ArrowLeft, FileText, X, Link2, GraduationCap, User, MapPin } from 'lucide-react'
+import { Save, Edit, ArrowLeft, FileText, X, Link2, GraduationCap, User, MapPin, Camera, Upload } from 'lucide-react'
 
 export default function StudentProfilePage() {
   const router = useRouter()
@@ -56,6 +56,9 @@ export default function StudentProfilePage() {
 
   const [resumeFile, setResumeFile] = useState<File | null>(null)
   const [resumeError, setResumeError] = useState('')
+  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string>('')
+  const [photoError, setPhotoError] = useState('')
 
   useEffect(() => {
     const init = async () => {
@@ -114,6 +117,26 @@ export default function StudentProfilePage() {
     e.target.value = ''
   }
 
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const allowed = ['image/jpeg','image/jpg','image/png','image/webp']
+    if (!allowed.includes(file.type)) { setPhotoError('Please select a valid image (JPEG/PNG/WebP)'); return }
+    if (file.size > 5 * 1024 * 1024) { setPhotoError('File size must be less than 5MB'); return }
+    setPhotoError('')
+    setSelectedPhoto(file)
+    const reader = new FileReader()
+    reader.onload = (ev) => setPhotoPreview(ev.target?.result as string)
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
+  const removePhoto = () => {
+    setSelectedPhoto(null)
+    setPhotoPreview('')
+    setPhotoError('')
+  }
+
   const validate = () => {
     if (!form.name.trim()) { setError('Enter name'); return false }
     if (!form.phone.trim()) { setError('Enter phone'); return false }
@@ -138,15 +161,16 @@ export default function StudentProfilePage() {
     if (!validate()) return
     setSaving(true)
     try {
-      if (resumeFile) {
+      if (resumeFile || selectedPhoto) {
         const fd = new FormData()
         Object.entries({
           ...form,
           skills: form.skills,
           currently_studying: String(!!form.currently_studying),
           education_end_date: form.currently_studying ? '' : (form.education_end_date || '')
-        }).forEach(([k, v]) => fd.append(k, v as string))
-        fd.append('resume', resumeFile)
+        }).forEach(([k, v]) => fd.append(k as string, v as string))
+        if (resumeFile) fd.append('resume', resumeFile)
+        if (selectedPhoto) fd.append('profile_photo', selectedPhoto)
         const token = (await supabase.auth.getSession()).data.session?.access_token
         const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
         const res = await fetch(`${API_BASE_URL}/api/students/${student.id}`, {
@@ -173,6 +197,8 @@ export default function StudentProfilePage() {
       setStudent(s)
       setEditing(false)
       setResumeFile(null)
+      setSelectedPhoto(null)
+      setPhotoPreview('')
       setTimeout(() => setSuccess(''), 2000)
     } catch (e: any) {
       setError(e.message || 'Failed to update profile')
@@ -216,7 +242,7 @@ export default function StudentProfilePage() {
             <Card className="bg-white border-2 border-slate-200">
               <CardContent className="p-6 text-center">
                 <Avatar className="w-20 h-20 mx-auto mb-3 border-2 border-slate-200">
-                  <AvatarImage src={''} />
+                  <AvatarImage src={photoPreview || student?.photo_url || ''} />
                   <AvatarFallback className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
                     {form.name?.charAt(0) || 'S'}
                   </AvatarFallback>
@@ -417,6 +443,41 @@ export default function StudentProfilePage() {
                       </div>
                     )}
                   </div>
+
+                  {/* Optional profile photo upload (expert-style) */}
+                  {editing && (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label className="text-slate-700 flex items-center gap-2"><Camera className="h-4 w-4" /> Update Profile Photo</Label>
+                        <p className="text-xs text-slate-500">JPEG/PNG/WebP, max 5MB</p>
+                      </div>
+                      {!photoPreview ? (
+                        <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+                          <input type="file" id="student_profile_photo_edit" accept="image/jpeg,image/jpg,image/png,image/webp" onChange={handlePhotoSelect} className="hidden" />
+                          <label htmlFor="student_profile_photo_edit" className="cursor-pointer">
+                            <div className="space-y-3">
+                              <div className="mx-auto w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center">
+                                <Upload className="h-8 w-8 text-slate-400" />
+                              </div>
+                              <div>
+                                <p className="text-slate-600 font-medium">Click to upload photo</p>
+                                <p className="text-xs text-slate-500">or drag and drop</p>
+                              </div>
+                            </div>
+                          </label>
+                        </div>
+                      ) : (
+                        <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                          <div className="flex items-center justify-between mb-3">
+                            <Avatar className="w-20 h-20 border-4 border-blue-200"><AvatarImage src={photoPreview} /><AvatarFallback className="text-xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">{form.name?.charAt(0) || 'S'}</AvatarFallback></Avatar>
+                            <Button type="button" variant="outline" size="sm" className="text-red-600 border-red-300" onClick={removePhoto}><X className="h-3 w-3 mr-1" />Remove</Button>
+                          </div>
+                          <p className="text-xs text-slate-500 break-all">{selectedPhoto?.name}</p>
+                        </div>
+                      )}
+                      {photoError && <Alert variant="destructive"><AlertDescription>{photoError}</AlertDescription></Alert>}
+                    </div>
+                  )}
 
                   {editing && (
                     <div className="flex justify-end pt-4">

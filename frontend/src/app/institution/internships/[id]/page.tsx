@@ -198,7 +198,7 @@ export default function CorporateInternshipDetail() {
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex items-center gap-3 min-w-0">
                                 <Avatar className="h-10 w-10">
-                                  <AvatarImage src="" />
+                                  <AvatarImage src={app.student?.photo_url} />
                                   <AvatarFallback className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white text-sm">
                                     {initial}
                                   </AvatarFallback>
@@ -245,7 +245,7 @@ export default function CorporateInternshipDetail() {
                                     <div className="space-y-4">
                                       <div className="flex items-center gap-4">
                                         <Avatar className="w-16 h-16 border-2 border-blue-200">
-                                          <AvatarImage src="" />
+                                          <AvatarImage src={app.student?.photo_url} />
                                           <AvatarFallback className="text-xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">{initial}</AvatarFallback>
                                         </Avatar>
                                         <div>

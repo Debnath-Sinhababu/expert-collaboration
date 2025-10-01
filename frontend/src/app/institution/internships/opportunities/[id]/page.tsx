@@ -157,7 +157,7 @@ export default function InternshipDetailPage() {
                           <div key={app.id} className="bg-white border-2 border-slate-200 rounded-xl p-4 md:p-5">
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex items-center gap-3 min-w-0">
-                                <Avatar className="h-10 w-10"><AvatarImage src="" /><AvatarFallback className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white text-sm">{initial}</AvatarFallback></Avatar>
+                                <Avatar className="h-10 w-10"><AvatarImage src={app.student?.photo_url} /><AvatarFallback className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white text-sm">{initial}</AvatarFallback></Avatar>
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-2 min-w-0">
                                     <h4 className="font-semibold text-slate-900 truncate">{name}</h4>
@@ -183,7 +183,7 @@ export default function InternshipDetailPage() {
                                    
                                     <div className="space-y-4">
                                       <div className="flex items-center gap-4">
-                                        <Avatar className="w-16 h-16 border-2 border-blue-200"><AvatarImage src="" /><AvatarFallback className="text-xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">{initial}</AvatarFallback></Avatar>
+                                        <Avatar className="w-16 h-16 border-2 border-blue-200"><AvatarImage src={app.student?.photo_url} /><AvatarFallback className="text-xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">{initial}</AvatarFallback></Avatar>
                                         <div>
                                           <div className="font-semibold text-lg text-slate-900">{name}</div>
                                           <div className="text-sm text-slate-600 flex items-center gap-1"><Mail className="h-3 w-3" /> {email}</div>

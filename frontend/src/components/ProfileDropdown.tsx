@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import Link from 'next/link'
+import Logo from '@/components/Logo'
 
 interface ProfileDropdownProps {
   user: any,
@@ -49,10 +50,7 @@ export default function ProfileDropdown({ user, expert, institution, student, us
   const getDashboardUrl = () => {
     if (userType === 'expert') return '/expert/dashboard'
     if (userType === 'student') return '/student/dashboard'
-    // If institution is Corporate and user is in internship context, route to Internship Dashboard
-    if ((institution?.type || '').toLowerCase() === 'corporate' && isInternshipContext) {
-      return '/institution/internships/dashboard'
-    }
+    // For institutions, always route primary to expert dashboard
     return '/institution/dashboard'
   }
 
@@ -66,7 +64,7 @@ export default function ProfileDropdown({ user, expert, institution, student, us
   const dashboardPrefix = userType === 'expert' 
     ? '/expert/dashboard' 
     : (userType === 'institution' 
-        ? (isInternshipContext ? '/institution/internships/dashboard' : '/institution/dashboard')
+        ? '/institution/dashboard'
         : '/student/dashboard'
       )
   const homePath = getHomeUrl()
@@ -110,7 +108,7 @@ export default function ProfileDropdown({ user, expert, institution, student, us
           className="flex items-center space-x-1 sm:space-x-2 p-1.5 sm:p-2 bg-blue-50 transition-all duration-300 group max-w-48"
         >
           <Avatar className="w-7 h-7 sm:w-8 sm:h-8 border-2 border-slate-300 group-hover:border-blue-500 transition-all duration-300">
-            <AvatarImage src={expert?.photo_url} alt={(expert?.name || institution?.name || student?.name || 'Profile')} />
+            <AvatarImage src={expert?.photo_url || student?.photo_url} alt={(expert?.name || institution?.name || student?.name || 'Profile')} />
             <AvatarFallback className="text-xs sm:text-sm font-medium bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
               {getUserInitials()}
             </AvatarFallback>
@@ -129,9 +127,10 @@ export default function ProfileDropdown({ user, expert, institution, student, us
       >
         {/* Header */}
         <div className="p-3 sm:p-4 border-b border-slate-200">
+         
           <div className="flex items-start space-x-2 sm:space-x-3">
             <Avatar className="w-8 h-8 sm:w-10 sm:h-10 border-2 border-slate-300 flex-shrink-0">
-              <AvatarImage src={expert?.photo_url} alt={(expert?.name || institution?.name || student?.name || 'Profile')} />
+              <AvatarImage src={(expert?.photo_url || student?.photo_url) as string} alt={(expert?.name || institution?.name || student?.name || 'Profile')} />
               <AvatarFallback className="text-xs sm:text-sm font-medium bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
                 {getUserInitials()}
               </AvatarFallback>
@@ -163,6 +162,17 @@ export default function ProfileDropdown({ user, expert, institution, student, us
               </div>
             </Link>
           </DropdownMenuItem>
+
+          {(userType === 'institution' && (institution?.type || '').toLowerCase() === 'corporate' && !isInternshipContext) && (
+            <DropdownMenuItem asChild className="focus:bg-blue-50 focus:text-blue-700 data-[highlighted]:bg-blue-50 data-[highlighted]:text-blue-700">
+              <Link href="/institution/internships/dashboard" className="w-full">
+                <div className="w-full justify-start px-3 sm:px-4 py-2.5 sm:py-3 text-slate-700 flex items-center">
+                  <Settings className="h-4 w-4 mr-2 sm:mr-3 text-blue-600" />
+                  <span className="text-sm sm:text-base">Internship Dashboard</span>
+                </div>
+              </Link>
+            </DropdownMenuItem>
+          )}
 
           {extraItems && extraItems.length > 0 && (
             <>

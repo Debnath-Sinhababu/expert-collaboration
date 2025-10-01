@@ -1462,7 +1462,7 @@ app.get('/api/students/me', async (req, res) => {
 });
 
 // Create student profile
-app.post('/api/students', upload.fields([{ name: 'resume', maxCount: 1 }]), async (req, res) => {
+app.post('/api/students', upload.fields([{ name: 'resume', maxCount: 1 }, { name: 'profile_photo', maxCount: 1 }]), async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -1482,6 +1482,7 @@ app.post('/api/students', upload.fields([{ name: 'resume', maxCount: 1 }]), asyn
     // If multipart, files will be present; handle resume upload
     let resumeUrl = null;
     let resumePublicId = null;
+    let photoData = null;
     if (req.files?.resume?.[0]) {
       const resumeData = await ImageUploadService.uploadPDF(
         req.files.resume[0].buffer,
@@ -1492,6 +1493,17 @@ app.post('/api/students', upload.fields([{ name: 'resume', maxCount: 1 }]), asyn
       }
       resumeUrl = resumeData.url;
       resumePublicId = resumeData.publicId;
+    }
+
+    // Handle optional profile photo upload
+    if (req.files?.profile_photo?.[0]) {
+      photoData = await ImageUploadService.uploadImage(
+        req.files.profile_photo[0].buffer,
+        'student-profiles'
+      );
+      if (!photoData.success) {
+        return res.status(500).json({ error: `Photo upload failed: ${photoData.error}` });
+      }
     }
 
     const payload = {
@@ -1524,6 +1536,10 @@ app.post('/api/students', upload.fields([{ name: 'resume', maxCount: 1 }]), asyn
       linkedin_url: body.linkedin_url || null,
       github_url: body.github_url || null,
       portfolio_url: body.portfolio_url || null,
+      photo_url: photoData?.url || null,
+      profile_photo_public_id: photoData?.publicId || null,
+      profile_photo_thumbnail_url: photoData?.thumbnailUrl || null,
+      profile_photo_small_url: photoData?.smallUrl || null,
     };
 
     const { data, error } = await supabaseClient
@@ -1540,7 +1556,7 @@ app.post('/api/students', upload.fields([{ name: 'resume', maxCount: 1 }]), asyn
 });
 
 // Update student profile
-app.put('/api/students/:id', upload.fields([{ name: 'resume', maxCount: 1 }]), async (req, res) => {
+app.put('/api/students/:id', upload.fields([{ name: 'resume', maxCount: 1 }, { name: 'profile_photo', maxCount: 1 }]), async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -1561,7 +1577,7 @@ app.put('/api/students/:id', upload.fields([{ name: 'resume', maxCount: 1 }]), a
     // Fetch current profile to manage resume replacement if needed
     const { data: currentProfile, error: currentErr } = await supabaseClient
       .from('site_students')
-      .select('id, user_id, resume_public_id')
+      .select('id, user_id, resume_public_id, profile_photo_public_id, photo_url')
       .eq('id', req.params.id)
       .eq('user_id', userId)
       .maybeSingle();
@@ -1572,6 +1588,8 @@ app.put('/api/students/:id', upload.fields([{ name: 'resume', maxCount: 1 }]), a
       ? body.resume_url
       : currentProfile.resume_url || null;
     let resumePublicId = body.resume_public_id || currentProfile.resume_public_id || null;
+    let photoUrl = currentProfile.photo_url || null;
+    let photoPublicId = currentProfile.profile_photo_public_id || null;
     // If new resume file uploaded, replace existing
     if (req.files?.resume?.[0]) {
       if (currentProfile.resume_public_id) {
@@ -1586,6 +1604,24 @@ app.put('/api/students/:id', upload.fields([{ name: 'resume', maxCount: 1 }]), a
       }
       resumeUrl = resumeData.url;
       resumePublicId = resumeData.publicId;
+    }
+
+    // If new profile photo uploaded, replace existing
+    if (req.files?.profile_photo?.[0]) {
+      if (currentProfile.profile_photo_public_id) {
+        try { await ImageUploadService.deleteImage(currentProfile.profile_photo_public_id); } catch (_) {}
+      }
+      const uploaded = await ImageUploadService.uploadImage(
+        req.files.profile_photo[0].buffer,
+        'student-profiles'
+      );
+      if (!uploaded.success) {
+        return res.status(500).json({ error: `Photo upload failed: ${uploaded.error}` });
+      }
+      photoUrl = uploaded.url;
+      photoPublicId = uploaded.publicId;
+      var photoThumb = uploaded.thumbnailUrl;
+      var photoSmall = uploaded.smallUrl;
     }
 
     const updates = {
@@ -1617,6 +1653,10 @@ app.put('/api/students/:id', upload.fields([{ name: 'resume', maxCount: 1 }]), a
       linkedin_url: body.linkedin_url || null,
       github_url: body.github_url || null,
       portfolio_url: body.portfolio_url || null,
+      photo_url: photoUrl,
+      profile_photo_public_id: photoPublicId,
+      profile_photo_thumbnail_url: typeof photoThumb !== 'undefined' ? photoThumb : currentProfile.profile_photo_thumbnail_url,
+      profile_photo_small_url: typeof photoSmall !== 'undefined' ? photoSmall : currentProfile.profile_photo_small_url,
       updated_at: new Date().toISOString()
     };
 
@@ -1784,6 +1824,7 @@ app.get('/api/internships/:id/applications', async (req, res) => {
           github_url,
           portfolio_url,
           date_of_birth,
+          photo_url,
           gender,
           address,
           city,
@@ -1993,7 +2034,8 @@ app.get('/api/internships/:id/applications/institution', async (req, res) => {
           education_start_date,
           education_end_date,
           currently_studying,
-          resume_url
+          resume_url,
+          photo_url
         )
       `)
       .eq('internship_id', internshipId)
