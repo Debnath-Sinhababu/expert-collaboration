@@ -1738,6 +1738,7 @@ app.post('/api/internship-applications', async (req, res) => {
       institution_id: institutionId,
       status,
       cover_letter: body.cover_letter || null,
+      screening_answers: body.screening_answers || null,
       resume_url: body.resume_url || student.resume_url || null
     };
 

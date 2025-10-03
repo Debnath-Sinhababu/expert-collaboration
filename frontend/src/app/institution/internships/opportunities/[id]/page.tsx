@@ -100,6 +100,15 @@ export default function InternshipDetailPage() {
                 <div><span className="text-slate-500">Openings:</span> <span className="font-medium text-slate-900">{internship.openings}</span></div>
                 <div><span className="text-slate-500">Duration:</span> <span className="font-medium text-slate-900">{internship.duration_value} {internship.duration_unit}</span></div>
                 <div><span className="text-slate-500">Stipend:</span> <span className="font-medium text-slate-900">{internship.paid ? `₹${internship.stipend_min}${internship.stipend_max ? ' - ₹' + internship.stipend_max : ''}/month` : 'Unpaid'}</span></div>
+                {internship.start_timing && (
+                  <div><span className="text-slate-500">Start:</span> <span className="font-medium text-slate-900">{String(internship.start_timing).toLowerCase() === 'immediately' ? 'Immediately' : (internship.start_date ? new Date(internship.start_date).toLocaleDateString() : '-')}</span></div>
+                )}
+                {internship.location && (
+                  <div><span className="text-slate-500">Location:</span> <span className="font-medium text-slate-900">{internship.location}</span></div>
+                )}
+                {typeof internship.ppo !== 'undefined' && (
+                  <div><span className="text-slate-500">PPO:</span> <span className="font-medium text-slate-900">{internship.ppo ? 'Yes' : 'No'}</span></div>
+                )}
               </div>
               {Array.isArray(internship.perks) && internship.perks.length > 0 && (
                 <div>

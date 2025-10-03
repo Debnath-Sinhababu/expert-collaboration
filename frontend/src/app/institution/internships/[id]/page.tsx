@@ -14,6 +14,7 @@ import ProfileDropdown from '@/components/ProfileDropdown'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Mail, School, FileText, CalendarDays, Eye } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Drawer } from '@/components/ui/drawer'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Label } from '@/components/ui/label'
 import { DatePicker } from '@/components/ui/date-picker'
@@ -38,6 +39,8 @@ export default function CorporateInternshipDetail() {
   const [error, setError] = useState('')
   const [interviewDate, setInterviewDate] = useState<Date | undefined>(undefined)
   const [interviewTime, setInterviewTime] = useState<string>('')
+  const [appDrawerOpen, setAppDrawerOpen] = useState(false)
+  const [activeApp, setActiveApp] = useState<any>(null)
 
   const statusClass = (status: string) => {
     const s = String(status || '').toLowerCase()
@@ -121,6 +124,16 @@ export default function CorporateInternshipDetail() {
                   <div><span className="text-slate-500">Duration:</span> <span className="font-medium text-slate-900">{internship.duration_value} {internship.duration_unit}</span></div>
                   <div><span className="text-slate-500">Stipend:</span> <span className="font-medium text-slate-900">{internship.paid ? `₹${internship.stipend_min}${internship.stipend_max ? ' - ₹' + internship.stipend_max : ''}/month` : 'Unpaid'}</span></div>
                 </div>
+                {Array.isArray(internship.skills_required) && internship.skills_required.length > 0 && (
+                  <div>
+                    <div className="text-sm text-slate-500">Skills</div>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {internship.skills_required.map((skill: string, idx: number) => (
+                        <Badge key={idx} variant="outline" className="text-xs border-slate-300 text-slate-700">{skill}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {Array.isArray(internship.perks) && internship.perks.length > 0 && (
                   <div>
                     <div className="text-sm text-slate-500">Perks</div>
@@ -133,6 +146,30 @@ export default function CorporateInternshipDetail() {
                 )}
               </CardContent>
             </Card>
+
+        {/* Application Drawer for Screening Answers */}
+        <Drawer open={appDrawerOpen} onOpenChange={setAppDrawerOpen} title="Application Details">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {activeApp?.screening_answers ? (
+                <div>
+                  <h4 className="font-medium mb-1">Screening Answers</h4>
+                  <div className="text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-md p-3 whitespace-pre-wrap">
+                    {activeApp.screening_answers}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-slate-600">No screening answers provided.</div>
+              )}
+              {activeApp?.cover_letter && (
+                <div>
+                  <h4 className="font-medium mb-1">Cover Letter</h4>
+                  <div className="text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-md p-3 whitespace-pre-wrap">
+                    {activeApp.cover_letter}
+                  </div>
+                </div>
+              )}
+          </div>
+        </Drawer>
 
             {/* Applications Section */}
             <Card className="bg-white border-2 border-slate-200">
@@ -320,6 +357,15 @@ export default function CorporateInternshipDetail() {
                                 </Dialog>
                                 {/* Status Actions */}
                                 <div className="flex items-center gap-2">
+                                  {/* Always allow viewing full application */}
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50 text-slate-700 hover:text-blue-700"
+                                    onClick={() => { setActiveApp(app); setAppDrawerOpen(true) }}
+                                  >
+                                    View Application
+                                  </Button>
                                   {String(app.status).startsWith('pending') || String(app.status).startsWith('approved') ? (
                                     <>
                                       <Dialog>

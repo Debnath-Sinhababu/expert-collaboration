@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Drawer } from '@/components/ui/drawer'
 import { Textarea } from '@/components/ui/textarea'
 import { CheckCircle, Send, AlertCircle } from 'lucide-react'
 import NotificationBell from '@/components/NotificationBell'
@@ -27,6 +27,9 @@ export default function StudentInternshipDetail() {
   const [applyStatus, setApplyStatus] = useState<string | null>(null)
   const [coverLetter, setCoverLetter] = useState('')
   const [isApplying, setIsApplying] = useState(false)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [stepIndex, setStepIndex] = useState(0)
+  const [answers, setAnswers] = useState<string[]>([])
 
   useEffect(() => {
     const init = async () => {
@@ -38,6 +41,8 @@ export default function StudentInternshipDetail() {
         const data = await api.internships.getById(id)
         if (data?.error) throw new Error(data.error)
         setInternship(data)
+        const qs = Array.isArray(data?.screening_questions) ? data.screening_questions : []
+        setAnswers(Array.from({ length: qs.length }, () => ''))
         try {
           const st = await api.internshipApplications.status(id)
           setHasApplied(!!st.applied)
@@ -93,6 +98,15 @@ export default function StudentInternshipDetail() {
                 <div><span className="text-slate-500">Openings:</span> <span className="font-medium text-slate-900">{internship.openings}</span></div>
                 <div><span className="text-slate-500">Duration:</span> <span className="font-medium text-slate-900">{internship.duration_value} {internship.duration_unit}</span></div>
                 <div><span className="text-slate-500">Stipend:</span> <span className="font-medium text-slate-900">{internship.paid ? `₹${internship.stipend_min}${internship.stipend_max ? ' - ₹' + internship.stipend_max : ''}/month` : 'Unpaid'}</span></div>
+                {internship.start_timing && (
+                  <div><span className="text-slate-500">Start:</span> <span className="font-medium text-slate-900">{String(internship.start_timing).toLowerCase() === 'immediately' ? 'Immediately' : (internship.start_date ? new Date(internship.start_date).toLocaleDateString() : '-')}</span></div>
+                )}
+                {internship.location && (
+                  <div><span className="text-slate-500">Location:</span> <span className="font-medium text-slate-900">{internship.location}</span></div>
+                )}
+                {typeof internship.ppo !== 'undefined' && (
+                  <div><span className="text-slate-500">PPO:</span> <span className="font-medium text-slate-900">{internship.ppo ? 'Yes' : 'No'}</span></div>
+                )}
               </div>
               {Array.isArray(internship.perks) && internship.perks.length > 0 && (
                 <div>
@@ -100,6 +114,16 @@ export default function StudentInternshipDetail() {
                   <div className="flex flex-wrap gap-2 mt-1">
                     {internship.perks.map((perk: string, idx: number) => (
                       <Badge key={idx} variant="secondary" className="text-xs bg-slate-100 text-slate-700">{perk}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {Array.isArray(internship.skills_required) && internship.skills_required.length > 0 && (
+                <div>
+                  <div className="text-sm text-slate-500">Skills</div>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {internship.skills_required.map((skill: string, idx: number) => (
+                      <Badge key={idx} variant="outline" className="text-xs border-slate-300 text-slate-700">{skill}</Badge>
                     ))}
                   </div>
                 </div>
@@ -113,58 +137,105 @@ export default function StudentInternshipDetail() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="text-center sm:text-left">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">
-                          <Send className="h-4 w-4 mr-2" />
-                          Apply Now
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="sm:max-w-md bg-white border-2 border-slate-200 shadow-xl">
-                        <DialogHeader className="space-y-3">
-                          <DialogTitle className="text-xl font-bold text-slate-900">Apply to Internship</DialogTitle>
-                          <DialogDescription className="text-slate-600">
-                            Submit your application for "{internship.title}". Cover letter is optional.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-6 py-4">
-                          <div className="space-y-2">
-                            <label htmlFor="coverLetter" className="text-sm font-medium text-slate-700">Cover Letter (optional)</label>
-                            <Textarea
-                              id="coverLetter"
-                              placeholder="Share a brief note if you like..."
-                              value={coverLetter}
-                              onChange={(e) => setCoverLetter(e.target.value)}
-                              rows={4}
-                              className="border-2 border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
-                            />
+                  <div className="text-center sm:text-left space-y-2">
+                    <Button size="lg" onClick={() => setDrawerOpen(true)} className="w-full sm:w-auto bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">
+                      <Send className="h-4 w-4 mr-2" />
+                      Apply Now
+                    </Button>
+                    <Drawer open={drawerOpen} onOpenChange={setDrawerOpen} title="Screening Questions">
+                      <div className="flex-1 overflow-y-auto p-4">
+                            {Array.isArray(internship.screening_questions) && internship.screening_questions.length > 0 && stepIndex < internship.screening_questions.length ? (
+                              <div className="space-y-4">
+                                <div className="text-sm text-slate-600">Question {Math.min(stepIndex + 1, internship.screening_questions.length)} of {internship.screening_questions.length}</div>
+                                <div className="text-slate-900 font-medium">{internship.screening_questions[stepIndex]}</div>
+                                <Textarea
+                                  placeholder="Type your answer"
+                                  value={answers[stepIndex] || ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value
+                                    setAnswers(prev => prev.map((a, i) => i === stepIndex ? val : a))
+                                  }}
+                                  rows={5}
+                                  className="border-2 border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                                />
+                              </div>
+                            ) : (
+                              <div className="space-y-3">
+                                <div className="text-slate-900 font-medium">Cover Letter (optional)</div>
+                                <Textarea
+                                  placeholder="Share a brief note if you like..."
+                                  value={coverLetter}
+                                  onChange={(e) => setCoverLetter(e.target.value)}
+                                  rows={6}
+                                  className="border-2 border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                                />
+                              </div>
+                            )}
+                            {error && (
+                              <Alert className="mt-4 border-2 border-red-200 bg-red-50"><AlertDescription className="text-red-700">{error}</AlertDescription></Alert>
+                            )}
+                          <div className="border-t p-4 flex items-center justify-between gap-2">
+                            <div className="text-xs text-slate-500">
+                              {Array.isArray(internship.screening_questions) && internship.screening_questions.length > 0 ? (
+                                <span>Step {Math.min(stepIndex + 1, internship.screening_questions.length + 1)} of {internship.screening_questions.length + 1}</span>
+                              ) : null}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                onClick={() => {
+                                  if (Array.isArray(internship.screening_questions) && internship.screening_questions.length > 0) {
+                                    if (stepIndex > 0) setStepIndex(stepIndex - 1)
+                                    else setDrawerOpen(false)
+                                  } else {
+                                    setDrawerOpen(false)
+                                  }
+                                }}
+                                className="border-2 border-slate-300"
+                              >
+                                Back
+                              </Button>
+                              {Array.isArray(internship.screening_questions) && internship.screening_questions.length > 0 && stepIndex < internship.screening_questions.length ? (
+                                <Button
+                                  onClick={() => {
+                                    if (!(answers[stepIndex] || '').trim()) return
+                                    setStepIndex(stepIndex + 1)
+                                  }}
+                                  disabled={!((answers[stepIndex] || '').trim())}
+                                  className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white"
+                                >
+                                  Next
+                                </Button>
+                              ) : (
+                                <Button
+                                  onClick={async () => {
+                                    try {
+                                      setIsApplying(true)
+                                      let combined = coverLetter || ''
+                                      let screeningCombined: string | undefined = undefined
+                                      if (Array.isArray(internship.screening_questions) && internship.screening_questions.length > 0) {
+                                        const qa = internship.screening_questions.map((q: string, i: number) => `Q${i+1}: ${q}\nA${i+1}: ${answers[i] || ''}`).join("\n\n")
+                                        screeningCombined = qa
+                                      }
+                                      await api.internshipApplications.create({ internship_id: id, cover_letter: combined || undefined, screening_answers: screeningCombined })
+                                      setHasApplied(true)
+                                      setDrawerOpen(false)
+                                    } catch (e: any) {
+                                      setError(e.message || 'Failed to apply')
+                                    } finally {
+                                      setIsApplying(false)
+                                    }
+                                  }}
+                                  className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white"
+                                  disabled={isApplying}
+                                >
+                                  {isApplying ? 'Submitting...' : 'Submit Application'}
+                                </Button>
+                              )}
+                            </div>
                           </div>
-                          {error && (
-                            <Alert variant="destructive" className="border-2 border-red-200 bg-red-50">
-                              <AlertDescription className="text-red-700">{error}</AlertDescription>
-                            </Alert>
-                          )}
-                          <Button 
-                            onClick={async () => {
-                              try {
-                                setIsApplying(true)
-                                await api.internshipApplications.create({ internship_id: id, cover_letter: coverLetter || undefined })
-                                setHasApplied(true)
-                              } catch (e: any) {
-                                setError(e.message || 'Failed to apply')
-                              } finally {
-                                setIsApplying(false)
-                              }
-                            }}
-                            className="w-full bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white"
-                            disabled={isApplying}
-                          >
-                            {isApplying ? 'Submitting...' : 'Submit Application'}
-                          </Button>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
+                      </div>
+                    </Drawer>
                   </div>
                 )}
               </div>

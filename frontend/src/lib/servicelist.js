@@ -129,16 +129,7 @@ export const NAVIGATION = [
         },
       ],
     },
-    {
-      label: "Solutions",
-      type: "dropdown",
-      categories: [
-        { label: "Full Subject Outsourcing", items: [] },
-        { label: "Corporate Training Packages", items: [] },
-        { label: "Campus-to-Corporate Programs", items: [] },
-        { label: "On-Demand Consulting (CA, Lawyers, Trainers)", items: [] },
-      ],
-    },
+   
    
   ];
   

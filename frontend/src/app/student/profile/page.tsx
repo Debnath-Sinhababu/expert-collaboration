@@ -17,6 +17,9 @@ import NotificationBell from '@/components/NotificationBell'
 import ProfileDropdown from '@/components/ProfileDropdown'
 import { Badge } from '@/components/ui/badge'
 import { Save, Edit, ArrowLeft, FileText, X, Link2, GraduationCap, User, MapPin, Camera, Upload } from 'lucide-react'
+import { INDIAN_STATES, INDIAN_DEGREES } from '@/lib/constants'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command'
 
 export default function StudentProfilePage() {
   const router = useRouter()
@@ -56,6 +59,8 @@ export default function StudentProfilePage() {
 
   const [resumeFile, setResumeFile] = useState<File | null>(null)
   const [resumeError, setResumeError] = useState('')
+  const [degreeOpen, setDegreeOpen] = useState(false)
+  const [degreeHighlight, setDegreeHighlight] = useState(0)
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string>('')
   const [photoError, setPhotoError] = useState('')
@@ -321,7 +326,58 @@ export default function StudentProfilePage() {
                     </div>
                     <div>
                       <Label>Degree *</Label>
-                      <Input value={form.degree} onChange={(e) => setForm(prev => ({ ...prev, degree: e.target.value }))} required disabled={!editing} />
+                      {editing ? (
+                        <div className="relative">
+                          <Input
+                            placeholder="Start typing degree..."
+                            value={form.degree}
+                            onChange={(e) => {
+                              const v = e.target.value
+                              setForm(prev => ({ ...prev, degree: v }))
+                              setDegreeOpen(v.length > 0)
+                              setDegreeHighlight(0)
+                            }}
+                            onFocus={() => setDegreeOpen((form.degree || '').length > 0)}
+                            onBlur={() => setTimeout(() => setDegreeOpen(false), 120)}
+                            onKeyDown={(e) => {
+                              const norm = (s: string) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+                              const q = norm(form.degree)
+                              const list = INDIAN_DEGREES.filter(d => q.length === 0 ? true : norm(d).includes(q))
+                              if (!degreeOpen || list.length === 0) return
+                              if (e.key === 'ArrowDown') { e.preventDefault(); setDegreeHighlight((h) => (h + 1) % list.length) }
+                              if (e.key === 'ArrowUp') { e.preventDefault(); setDegreeHighlight((h) => (h - 1 + list.length) % list.length) }
+                              if (e.key === 'Enter') { e.preventDefault(); const chosen = list[degreeHighlight]; if (chosen) { setForm(prev => ({ ...prev, degree: chosen })); setDegreeOpen(false) } }
+                              if (e.key === 'Escape') { setDegreeOpen(false) }
+                            }}
+                            required
+                          />
+                          {degreeOpen && (
+                            <div className="absolute z-50 mt-1 w-full rounded-md border bg-white shadow-md max-h-64 overflow-auto">
+                              {(() => {
+                                const norm = (s: string) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+                                const q = norm(form.degree)
+                                return INDIAN_DEGREES.filter(d => q.length === 0 ? true : norm(d).includes(q))
+                              })().map((d, idx) => (
+                                <button
+                                  key={d}
+                                  type="button"
+                                  onMouseDown={(e) => { e.preventDefault(); setForm(prev => ({ ...prev, degree: d })); setDegreeOpen(false) }}
+                                  className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-100 ${idx === degreeHighlight ? 'bg-slate-100' : ''}`}
+                                >{d}</button>
+                              ))}
+                              {(() => {
+                                const norm = (s: string) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+                                const q = norm(form.degree)
+                                return INDIAN_DEGREES.filter(d => q.length === 0 ? true : norm(d).includes(q)).length === 0
+                              })() && (
+                                <div className="px-3 py-2 text-sm text-slate-500">No degree found</div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <Input value={form.degree} disabled />
+                      )}
                     </div>
                     <div>
                       <Label>Academic Year</Label>
@@ -394,7 +450,18 @@ export default function StudentProfilePage() {
                     </div>
                     <div>
                       <Label>State *</Label>
-                      <Input value={form.state} onChange={(e) => setForm(prev => ({ ...prev, state: e.target.value }))} required disabled={!editing} />
+                      {editing ? (
+                        <Select value={form.state} onValueChange={(v) => setForm(prev => ({ ...prev, state: v }))}>
+                          <SelectTrigger><SelectValue placeholder="Select state" /></SelectTrigger>
+                          <SelectContent>
+                            {INDIAN_STATES.map(s => (
+                              <SelectItem key={s} value={s}>{s}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input value={form.state} disabled />
+                      )}
                     </div>
                     <div className="md:col-span-2">
                       <Label>Address</Label>
