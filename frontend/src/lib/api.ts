@@ -190,6 +190,102 @@ export const api = {
     }
   },
 
+  // Freelancing
+  freelance: {
+    createProject: async (formData: FormData) => {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch(`${API_BASE_URL}/api/freelance/projects`, { method: 'POST', headers: { Authorization: `Bearer ${session?.access_token || ''}` }, body: formData })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to create project')
+      return json
+    },
+    getCorporateProjects: async (params?: { page?: number; limit?: number }) => {
+      const headers = await getAuthHeaders()
+      const query = new URLSearchParams({ ...(params as any), _t: Date.now().toString() }).toString()
+      const res = await fetch(`${API_BASE_URL}/api/freelance/projects${query ? `?${query}` : ''}`, { headers })
+      const json = await res.json().catch(() => ([]))
+      if (!res.ok) throw new Error(json?.error || 'Failed to fetch projects')
+      return json
+    },
+    getVisibleProjects: async () => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/freelance/projects/visible`, { headers })
+      const json = await res.json().catch(() => ([]))
+      if (!res.ok) throw new Error(json?.error || 'Failed to fetch projects')
+      return json
+    },
+    getProjectById: async (id: string) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/freelance/projects/${id}`, { headers })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to fetch project')
+      return json
+    },
+    apply: async (project_id: string, cover_letter?: string) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/freelance/applications`, { method: 'POST', headers, body: JSON.stringify({ project_id, cover_letter }) })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to apply')
+      return json
+    },
+    applicationStatus: async (project_id: string) => {
+      const headers = await getAuthHeaders()
+      const q = new URLSearchParams({ project_id, _t: Date.now().toString() }).toString()
+      const res = await fetch(`${API_BASE_URL}/api/freelance/applications/status?${q}`, { headers })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed')
+      return json as { applied: boolean; status: string | null; application_id?: string | null }
+    },
+    listMyApplications: async (params?: { page?: number; limit?: number; status?: 'pending' | 'shortlisted' | 'rejected' }) => {
+      const headers = await getAuthHeaders()
+      const q = new URLSearchParams({ ...(params as any), _t: Date.now().toString() }).toString()
+      const res = await fetch(`${API_BASE_URL}/api/freelance/my-applications${q ? `?${q}` : ''}`, { headers })
+      const json = await res.json().catch(() => ([]))
+      if (!res.ok) throw new Error(json?.error || 'Failed to fetch applications')
+      return json
+    },
+    listMySubmissions: async (params?: { page?: number; limit?: number }) => {
+      const headers = await getAuthHeaders()
+      const q = new URLSearchParams({ ...(params as any), _t: Date.now().toString() }).toString()
+      const res = await fetch(`${API_BASE_URL}/api/freelance/my-submissions${q ? `?${q}` : ''}`, { headers })
+      const json = await res.json().catch(() => ([]))
+      if (!res.ok) throw new Error(json?.error || 'Failed to fetch submissions')
+      return json
+    },
+    listApplications: async (id: string, params?: { page?: number; limit?: number; status?: 'pending' | 'shortlisted' | 'rejected' }) => {
+      const headers = await getAuthHeaders()
+      const query = new URLSearchParams({ ...(params as any), _t: Date.now().toString() }).toString()
+      const res = await fetch(`${API_BASE_URL}/api/freelance/projects/${id}/applications${query ? `?${query}` : ''}`, { headers })
+      const json = await res.json().catch(() => ([]))
+      if (!res.ok) throw new Error(json?.error || 'Failed to fetch applications')
+      return json
+    },
+    updateApplicationStatus: async (appId: string, status: 'shortlisted' | 'rejected') => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/freelance/applications/${appId}/status`, { method: 'PUT', headers, body: JSON.stringify({ status }) })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to update status')
+      return json
+    },
+    submitWork: async (project_id: string, application_id: string, formData: FormData) => {
+      const { data: { session } } = await supabase.auth.getSession()
+      formData.append('project_id', project_id)
+      formData.append('application_id', application_id)
+      const res = await fetch(`${API_BASE_URL}/api/freelance/submissions`, { method: 'POST', headers: { Authorization: `Bearer ${session?.access_token || ''}` }, body: formData })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to submit')
+      return json
+    },
+    listSubmissions: async (id: string, params?: { page?: number; limit?: number }) => {
+      const headers = await getAuthHeaders()
+      const query = new URLSearchParams({ ...(params as any), _t: Date.now().toString() }).toString()
+      const res = await fetch(`${API_BASE_URL}/api/freelance/projects/${id}/submissions${query ? `?${query}` : ''}`, { headers })
+      const json = await res.json().catch(() => ([]))
+      if (!res.ok) throw new Error(json?.error || 'Failed to fetch submissions')
+      return json
+    }
+  },
+
   institutions: {
     getAll: async (params?: { page?: number; limit?: number; search?: string; type?: string; exclude_type?: string }) => {
       const headers = await getAuthHeaders()
