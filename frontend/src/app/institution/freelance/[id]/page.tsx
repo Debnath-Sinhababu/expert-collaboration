@@ -35,6 +35,15 @@ export default function FreelanceProjectDetail() {
   const loadProject = async () => {
     const p = await api.freelance.getProjectById(id)
     setProject(p)
+    try {
+      const appsRes = await api.freelance.listApplications(id, { page: 1, limit: 10, status: 'pending' })
+      const subsRes = await api.freelance.listSubmissions(id, { page: 1, limit: 10 })
+      const counts = (appsRes && typeof appsRes === 'object' && 'counts' in appsRes) ? (appsRes as any).counts : null
+      const subsCounts = (subsRes && typeof subsRes === 'object' && 'counts' in subsRes) ? (subsRes as any).counts : null
+      if (counts || subsCounts) {
+        setProject((prev: any) => ({ ...(prev || {}), counts: counts || subsCounts }))
+      }
+    } catch {}
   }
 
   useEffect(() => {
@@ -50,19 +59,22 @@ export default function FreelanceProjectDetail() {
         await loadProject()
         // initial pending apps
         const apps = await api.freelance.listApplications(id, { page: 1, limit: 10, status: 'pending' })
-        setPendingList(apps)
+        const appsArr = Array.isArray(apps) ? apps : ((apps as any)?.data || [])
+        setPendingList(appsArr)
         setAppsPagePending(1)
-        setAppsHasMorePending(Array.isArray(apps) && apps.length === 10)
+        setAppsHasMorePending(appsArr.length === 10)
         // initial approved apps
         const appr = await api.freelance.listApplications(id, { page: 1, limit: 10, status: 'shortlisted' })
-        setApprovedList(appr)
+        const apprArr = Array.isArray(appr) ? appr : ((appr as any)?.data || [])
+        setApprovedList(apprArr)
         setAppsPageApproved(1)
-        setAppsHasMoreApproved(Array.isArray(appr) && appr.length === 10)
+        setAppsHasMoreApproved(apprArr.length === 10)
         // initial submissions
         const subs = await api.freelance.listSubmissions(id, { page: 1, limit: 10 })
-        setSubmissions(subs)
+        const subsArr = Array.isArray(subs) ? subs : ((subs as any)?.data || [])
+        setSubmissions(subsArr)
         setSubsPage(1)
-        setSubsHasMore(Array.isArray(subs) && subs.length === 10)
+        setSubsHasMore(subsArr.length === 10)
       } catch (e: any) {
         setError(e.message || 'Failed to load')
       } finally {
@@ -170,19 +182,19 @@ export default function FreelanceProjectDetail() {
                 value="pending"
                 className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
               >
-                Pending ({pendingApps.length})
+                Pending ({(project?.counts?.pending) ?? pendingApps.length})
               </TabsTrigger>
               <TabsTrigger 
                 value="approved"
                 className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
               >
-                Approved ({approvedApps.length})
+                Approved ({(project?.counts?.approved) ?? approvedApps.length})
               </TabsTrigger>
               <TabsTrigger 
                 value="submitted"
                 className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
               >
-                Submitted ({submittedCount})
+                Submitted ({(project?.counts?.submitted) ?? submittedCount})
               </TabsTrigger>
             </TabsList>
           </div>
@@ -318,10 +330,11 @@ export default function FreelanceProjectDetail() {
                         try {
                           const nextPage = appsPagePending + 1
                           const next = await api.freelance.listApplications(id, { page: nextPage, limit: 10, status: 'pending' })
-                          if (Array.isArray(next) && next.length > 0) {
-                            setPendingList(prev => [...prev, ...next])
+                          const nextArr = Array.isArray(next) ? next : ((next as any)?.data || [])
+                          if (nextArr.length > 0) {
+                            setPendingList(prev => [...prev, ...nextArr])
                             setAppsPagePending(nextPage)
-                            if (next.length < 10) setAppsHasMorePending(false)
+                            if (nextArr.length < 10) setAppsHasMorePending(false)
                           } else {
                             setAppsHasMorePending(false)
                           }
@@ -469,10 +482,11 @@ export default function FreelanceProjectDetail() {
                         try {
                           const nextPage = appsPageApproved + 1
                           const next = await api.freelance.listApplications(id, { page: nextPage, limit: 10, status: 'shortlisted' })
-                          if (Array.isArray(next) && next.length > 0) {
-                            setApprovedList(prev => [...prev, ...next])
+                          const nextArr = Array.isArray(next) ? next : ((next as any)?.data || [])
+                          if (nextArr.length > 0) {
+                            setApprovedList(prev => [...prev, ...nextArr])
                             setAppsPageApproved(nextPage)
-                            if (next.length < 10) setAppsHasMoreApproved(false)
+                            if (nextArr.length < 10) setAppsHasMoreApproved(false)
                           } else {
                             setAppsHasMoreApproved(false)
                           }
@@ -606,10 +620,11 @@ export default function FreelanceProjectDetail() {
                         try {
                           const nextPage = subsPage + 1
                           const next = await api.freelance.listSubmissions(id, { page: nextPage, limit: 10 })
-                          if (Array.isArray(next) && next.length > 0) {
-                            setSubmissions(prev => [...prev, ...next])
+                          const nextArr = Array.isArray(next) ? next : ((next as any)?.data || [])
+                          if (nextArr.length > 0) {
+                            setSubmissions(prev => [...prev, ...nextArr])
                             setSubsPage(nextPage)
-                            if (next.length < 10) setSubsHasMore(false)
+                            if (nextArr.length < 10) setSubsHasMore(false)
                           } else {
                             setSubsHasMore(false)
                           }
