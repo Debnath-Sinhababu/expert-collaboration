@@ -101,6 +101,12 @@ export default function StudentHome() {
             </Link>
             <div className="flex items-center gap-2">
               <NotificationBell />
+              <div className="hidden md:flex items-center gap-2">
+                <Link href="/student/freelance" className="hidden md:inline-flex">
+                  <Button className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">Browse Freelance</Button>
+                </Link>
+              
+              </div>
               <ProfileDropdown user={user} student={student} userType="student" />
             </div>
           </div>
@@ -108,6 +114,12 @@ export default function StudentHome() {
       </header>
 
       <div className="container mx-auto px-4 py-8">
+        {/* Mobile-only quick action */}
+        <div className="mb-4 md:hidden">
+          <Link href="/student/freelance">
+            <Button className="w-full bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">Browse Freelance</Button>
+          </Link>
+        </div>
         {error && (
           <Alert variant="destructive" className="mb-6"><AlertDescription>{error}</AlertDescription></Alert>
         )}
@@ -274,6 +286,7 @@ export default function StudentHome() {
           </CardContent>
         </Card>
       </div>
+
     </div>
   )
 }

@@ -78,7 +78,7 @@ export default function CorporateInternshipsDashboard() {
       <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
-            <Link href="/institution/internships" className="flex items-center space-x-2 group">
+            <Link href="/institution/home" className="flex items-center space-x-2 group">
               <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Corporate Internships</span>
             </Link>
             <div className="flex items-center space-x-2">

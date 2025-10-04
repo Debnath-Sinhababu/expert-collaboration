@@ -46,6 +46,9 @@ export default function ProfileDropdown({ user, expert, institution, student, us
   }
 
   const isInternshipContext = pathname?.startsWith('/institution/internships') ?? false
+  const isFreelanceDashboard = pathname?.startsWith('/institution/freelance/dashboard') ?? false
+  const isStudentFreelanceContext = pathname?.startsWith('/student/freelance') ?? false
+  const isStudentFreelanceDashboard = pathname?.startsWith('/student/freelance/dashboard') ?? false
 
   const getDashboardUrl = () => {
     if (userType === 'expert') return '/expert/dashboard'
@@ -61,15 +64,16 @@ export default function ProfileDropdown({ user, expert, institution, student, us
   }
 
   // Determine current location to toggle label and destination dynamically
-  const dashboardPrefix = userType === 'expert' 
-    ? '/expert/dashboard' 
-    : (userType === 'institution' 
-        ? '/institution/dashboard'
-        : '/student/dashboard'
-      )
   const homePath = getHomeUrl()
-  const isOnDashboard = pathname?.startsWith(dashboardPrefix) ?? false
   const isOnHome = pathname === homePath
+  // Consider all dashboard contexts per user type
+  const isOnDashboard = (() => {
+    if (!pathname) return false
+    if (userType === 'expert') return pathname.startsWith('/expert/dashboard')
+    if (userType === 'student') return pathname.startsWith('/student/dashboard') || pathname.startsWith('/student/freelance/dashboard')
+    // institution
+    return pathname.startsWith('/institution/dashboard') || pathname.startsWith('/institution/internships/dashboard') || pathname.startsWith('/institution/freelance/dashboard')
+  })()
   const primaryNavHref = isOnDashboard ? getHomeUrl() : getDashboardUrl()
   const primaryNavLabel = isOnDashboard ? 'Go to Home' : 'Go to Dashboard'
 
@@ -163,6 +167,29 @@ export default function ProfileDropdown({ user, expert, institution, student, us
             </Link>
           </DropdownMenuItem>
 
+          {primaryNavLabel !== 'Go to Home' && (
+            <DropdownMenuItem asChild className="focus:bg-blue-50 focus:text-blue-700 data-[highlighted]:bg-blue-50 data-[highlighted]:text-blue-700">
+              <Link href={getHomeUrl()} className="w-full">
+                <div className="w-full justify-start px-3 sm:px-4 py-2.5 sm:py-3 text-slate-700 flex items-center">
+                  <Settings className="h-4 w-4 mr-2 sm:mr-3 text-blue-600" />
+                  <span className="text-sm sm:text-base">Go to Home</span>
+                </div>
+              </Link>
+            </DropdownMenuItem>
+          )}
+
+          {/* Ensure Go to Dashboard exists when in student freelance dashboard */}
+          {(userType === 'student' && isStudentFreelanceContext && primaryNavLabel === 'Go to Home') && (
+            <DropdownMenuItem asChild className="focus:bg-blue-50 focus:text-blue-700 data-[highlighted]:bg-blue-50 data-[highlighted]:text-blue-700">
+              <Link href="/student/dashboard" className="w-full">
+                <div className="w-full justify-start px-3 sm:px-4 py-2.5 sm:py-3 text-slate-700 flex items-center">
+                  <Settings className="h-4 w-4 mr-2 sm:mr-3 text-blue-600" />
+                  <span className="text-sm sm:text-base">Go to Dashboard</span>
+                </div>
+              </Link>
+            </DropdownMenuItem>
+          )}
+
           {(userType === 'institution' && (institution?.type || '').toLowerCase() === 'corporate' && !isInternshipContext) && (
             <DropdownMenuItem asChild className="focus:bg-blue-50 focus:text-blue-700 data-[highlighted]:bg-blue-50 data-[highlighted]:text-blue-700">
               <Link href="/institution/internships/dashboard" className="w-full">
@@ -173,6 +200,29 @@ export default function ProfileDropdown({ user, expert, institution, student, us
               </Link>
             </DropdownMenuItem>
           )}
+
+          {(userType === 'institution' && (institution?.type || '').toLowerCase() === 'corporate' && !isFreelanceDashboard) && (
+            <DropdownMenuItem asChild className="focus:bg-blue-50 focus:text-blue-700 data-[highlighted]:bg-blue-50 data-[highlighted]:text-blue-700">
+              <Link href="/institution/freelance/dashboard" className="w-full">
+                <div className="w-full justify-start px-3 sm:px-4 py-2.5 sm:py-3 text-slate-700 flex items-center">
+                  <Settings className="h-4 w-4 mr-2 sm:mr-3 text-blue-600" />
+                  <span className="text-sm sm:text-base">Freelance Dashboard</span>
+                </div>
+              </Link>
+            </DropdownMenuItem>
+          )}
+
+          {(userType === 'student' && !isStudentFreelanceDashboard) && (
+            <DropdownMenuItem asChild className="focus:bg-blue-50 focus:text-blue-700 data-[highlighted]:bg-blue-50 data-[highlighted]:text-blue-700">
+              <Link href="/student/freelance/dashboard" className="w-full">
+                <div className="w-full justify-start px-3 sm:px-4 py-2.5 sm:py-3 text-slate-700 flex items-center">
+                  <Settings className="h-4 w-4 mr-2 sm:mr-3 text-blue-600" />
+                  <span className="text-sm sm:text-base">Freelance Dashboard</span>
+                </div>
+              </Link>
+            </DropdownMenuItem>
+          )}
+
 
           {extraItems && extraItems.length > 0 && (
             <>
