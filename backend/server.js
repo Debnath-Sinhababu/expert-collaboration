@@ -2492,7 +2492,37 @@ app.get('/api/freelance/projects/:id/applications', async (req, res) => {
       query = query.eq('status', String(status));
     }
     const { data, error } = await query.range(offset, offset + limitNum - 1);
-    if (error) throw error; res.json(Array.isArray(data) ? data : []);
+    if (error) throw error;
+    let rows = Array.isArray(data) ? data : [];
+    // Exclude already-submitted applications from shortlisted (approved) tab
+    if (String(status) === 'shortlisted' && rows.length > 0) {
+      const appIds = rows.map(r => r.id).filter(Boolean)
+      const { data: subs } = await supabaseClient
+        .from('freelance_submissions')
+        .select('application_id')
+        .in('application_id', appIds)
+      const submittedIds = new Set((subs || []).map(s => s.application_id))
+      rows = rows.filter(r => !submittedIds.has(r.id))
+    }
+
+    // Counts across stages
+    const { count: pendingCount } = await supabaseClient
+      .from('freelance_applications')
+      .select('*', { count: 'exact', head: true })
+      .eq('project_id', projectId)
+      .eq('status', 'pending');
+    const { count: shortlistedCount } = await supabaseClient
+      .from('freelance_applications')
+      .select('*', { count: 'exact', head: true })
+      .eq('project_id', projectId)
+      .eq('status', 'shortlisted');
+    const { count: submittedCount } = await supabaseClient
+      .from('freelance_submissions')
+      .select('*', { count: 'exact', head: true })
+      .eq('project_id', projectId);
+    const approvedCount = Math.max((shortlistedCount || 0) - (submittedCount || 0), 0)
+
+    res.json({ data: rows, counts: { pending: pendingCount || 0, approved: approvedCount, submitted: submittedCount || 0, total: (pendingCount || 0) + approvedCount + (submittedCount || 0) } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -2538,7 +2568,26 @@ app.get('/api/freelance/projects/:id/submissions', async (req, res) => {
       .eq('project_id', projectId)
       .order('created_at', { ascending: false })
       .range(offset, offset + limitNum - 1);
-    if (error) throw error; res.json(Array.isArray(data) ? data : []);
+    if (error) throw error;
+    const rows = Array.isArray(data) ? data : [];
+    // Counts across stages
+    const { count: pendingCount } = await supabaseClient
+      .from('freelance_applications')
+      .select('*', { count: 'exact', head: true })
+      .eq('project_id', projectId)
+      .eq('status', 'pending');
+    const { count: shortlistedCount } = await supabaseClient
+      .from('freelance_applications')
+      .select('*', { count: 'exact', head: true })
+      .eq('project_id', projectId)
+      .eq('status', 'shortlisted');
+    const { count: submittedCount } = await supabaseClient
+      .from('freelance_submissions')
+      .select('*', { count: 'exact', head: true })
+      .eq('project_id', projectId);
+    const approvedCount = Math.max((shortlistedCount || 0) - (submittedCount || 0), 0)
+
+    res.json({ data: rows, counts: { pending: pendingCount || 0, approved: approvedCount, submitted: submittedCount || 0, total: (pendingCount || 0) + approvedCount + (submittedCount || 0) } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 // List internship applications for current student with stage filters and counts
