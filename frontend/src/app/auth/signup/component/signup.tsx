@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Eye, EyeOff, Users, BookOpen, Building, ArrowLeft, Shield, Zap, CheckCircle, Star, Globe, Award, MapPin, Clock, IndianRupee, ArrowRight } from 'lucide-react'
 import Logo from '@/components/Logo'
 import Link from 'next/link'
@@ -25,7 +25,7 @@ export default function Signup() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [activeTab, setActiveTab] = useState('expert')
+  const [selectedRole, setSelectedRole] = useState<'student' | 'expert' | 'institution'>('expert')
   const [topProjects, setTopProjects] = useState<any[]>([])
   const [loadingTop, setLoadingTop] = useState<boolean>(false)
   const desktopScrollRef = useRef<HTMLDivElement>(null)
@@ -57,7 +57,7 @@ export default function Signup() {
         password,
         options: {
           data: {
-            role: activeTab,
+            role: selectedRole,
           },
           emailRedirectTo:`${process.env.NEXT_PUBLIC_FRONTEND_URL}/confirmemail`
         },
@@ -79,8 +79,10 @@ export default function Signup() {
   }
 
   useEffect(() => {
-    const role = searchParam.get('role') || 'expert'  // fallback to 'expert'
-    setActiveTab(role)
+    const roleParam = (searchParam.get('role') || 'expert').toLowerCase()
+    if (roleParam === 'student' || roleParam === 'expert' || roleParam === 'institution') {
+      setSelectedRole(roleParam as any)
+    }
   }, [searchParam])
   
   // Load latest open projects (Top Requirements)
@@ -364,36 +366,39 @@ export default function Signup() {
                     </div>
                   </div>
                 )}
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-                  <TabsList className="grid w-full grid-cols-2 h-12 bg-slate-100 p-1">
-                    <TabsTrigger value="expert" className="flex items-center space-x-2 text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-300 rounded-lg">
-                      <Users className="h-4 w-4" />
-                      <span>Expert</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="institution" className="flex items-center space-x-2 text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-300 rounded-lg">
-                      <BookOpen className="h-4 w-4" />
-                      <span>University</span>
-                    </TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="expert" className="mt-4">
-                    <div className="bg-slate-50 rounded-lg p-4 border-2 border-slate-200 shadow-sm transition-all duration-300">
-                      <h4 className="font-semibold text-slate-900 mb-2">For Experts</h4>
-                      <p className="text-sm text-slate-600">
-                        Share your expertise with leading universities and corporations. Build your brand and unlock flexible opportunities.
-                      </p>
-                    </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="institution" className="mt-4">
-                    <div className="bg-slate-50 rounded-lg p-4 border-2 border-slate-200 shadow-sm transition-all duration-300">
-                      <h4 className="font-semibold text-slate-900 mb-2">For Universities</h4>
-                      <p className="text-sm text-slate-600">
-                        Connect with industry experts to enhance academic excellence and bridge the gap with industry.
-                      </p>
-                    </div>
-                  </TabsContent>
-                </Tabs>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-slate-700">Select Role</Label>
+                  <Select value={selectedRole} onValueChange={(v) => setSelectedRole(v as any)}>
+                    <SelectTrigger className="h-12 border-slate-200">
+                      <SelectValue placeholder="Choose a role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="student">Student</SelectItem>
+                      <SelectItem value="expert">Expert</SelectItem>
+                      <SelectItem value="institution">Institution</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="bg-slate-50 rounded-lg p-4 border-2 border-slate-200 shadow-sm transition-all duration-300 mt-2">
+                    {selectedRole === 'expert' && (
+                      <>
+                        <h4 className="font-semibold text-slate-900 mb-2">For Experts</h4>
+                        <p className="text-sm text-slate-600">Share your expertise with leading universities and corporations. Build your brand and unlock flexible opportunities.</p>
+                      </>
+                    )}
+                    {selectedRole === 'institution' && (
+                      <>
+                        <h4 className="font-semibold text-slate-900 mb-2">For Institutions</h4>
+                        <p className="text-sm text-slate-600">Connect with industry experts to enhance academic excellence and bridge the gap with industry.</p>
+                      </>
+                    )}
+                    {selectedRole === 'student' && (
+                      <>
+                        <h4 className="font-semibold text-slate-900 mb-2">For Students</h4>
+                        <p className="text-sm text-slate-600">Discover internships, connect with corporates and experts, and build your career profile.</p>
+                      </>
+                    )}
+                  </div>
+                </div>
 
                 <form onSubmit={handleSignup} className="space-y-6">
                   {error && (
@@ -467,7 +472,7 @@ export default function Signup() {
                     className="w-full h-12 text-base font-medium bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
                     disabled={loading}
                   >
-                    {loading ? 'Creating account...' : `Create ${activeTab === 'expert' ? 'Expert' : 'University'} Account`}
+                    {loading ? 'Creating account...' : `Create ${selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)} Account`}
                   </Button>
                 </form>
 

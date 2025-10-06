@@ -41,9 +41,12 @@ import Link from 'next/link'
 import Logo from '@/components/Logo'
 import BackgroundBannerCarousel from '@/components/BackgroundBannerCarousel'
 import Autoplay from "embla-carousel-autoplay"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuGroup } from '@/components/ui/dropdown-menu'
+import { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuTrigger, NavigationMenuContent } from '@/components/ui/navigation-menu'
+import { NAVIGATION } from '@/lib/servicelist'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import Image from 'next/image'
+import { motion } from 'framer-motion'
 
 export default function Home() {
   const [user, setUser] = useState<any>(null)
@@ -54,6 +57,11 @@ export default function Home() {
   const [featuredExperts, setFeaturedExperts] = useState<any[]>([])
   const [userRole, setUserRole] = useState<'expert' | 'institution' | null>(null)
   const [showWelcomeDialog, setShowWelcomeDialog] = useState(false)
+  const [exploreActiveIdx, setExploreActiveIdx] = useState(0)
+  const [studentActiveIdx, setStudentActiveIdx] = useState(0)
+
+  const exploreNav: any = (NAVIGATION as any[]).find((s: any) => s.label === 'Explore Experts')
+  const studentNav: any = (NAVIGATION as any[]).find((s: any) => s.label === 'Student Marketplace')
   
   // Intersection observer for statistics animation
   const { ref: statsRef, inView } = useInView({
@@ -61,6 +69,16 @@ export default function Home() {
     triggerOnce: true,
     rootMargin: '-50px 0px'
   });
+
+  // Framer Motion variants
+  const fadeUp = { hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0 } }
+  const slideLeft = { hidden: { opacity: 0, x: -24 }, visible: { opacity: 1, x: 0 } }
+  const slideRight = { hidden: { opacity: 0, x: 24 }, visible: { opacity: 1, x: 0 } }
+  const transition = { duration: 0.6, ease: [0.22, 1, 0.36, 1] }
+  const zoomIn = { hidden: { opacity: 0, scale: 0.92 }, visible: { opacity: 1, scale: 1 } }
+  const rotateIn = { hidden: { opacity: 0, rotate: -2, y: 16 }, visible: { opacity: 1, rotate: 0, y: 0 } }
+  const springTransition = { type: 'spring', stiffness: 180, damping: 18 }
+  const popIn = { hidden: { opacity: 0, scale: 0.85 }, visible: { opacity: 1, scale: 1 } }
 
   useEffect(() => {
     const getUser = async () => {
@@ -223,6 +241,99 @@ export default function Home() {
             
             {/* Navigation & CTA - Desktop */}
             <div className="hidden sm:flex items-center justify-end gap-2">
+              {/* Explore Experts - Mega Menu */}
+              <NavigationMenu className='lg:[&_div.absolute]:-left-[26rem] lg:[&_div.absolute]:top-12'>
+                <NavigationMenuList>
+                  <NavigationMenuItem>
+                    <NavigationMenuTrigger className="font-medium text-white hover:text-blue-100 hover:bg-white/10 border border-transparent hover:border-white/20 transition-all duration-300 px-3 py-2 text-sm sm:text-base bg-transparent">
+                      Explore Experts
+                    </NavigationMenuTrigger>
+                    <NavigationMenuContent
+  
+                    >
+                      <div className="rounded-lg border bg-white text-slate-900 shadow-md p-6 w-[calc(100vw-2rem)] max-w-[1050px] max-h-[75vh]">
+                        <div className="flex">
+                          {/* Left category rail */}
+                          <div className="hidden md:block w-64 border-r p-3">
+                            <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold px-2 mb-2">Categories</div>
+                            <ul className="space-y-1">
+                              {exploreNav?.categories?.map((cat: any, idx: number) => (
+                                <li key={idx}>
+                                  <button onMouseEnter={() => setExploreActiveIdx(idx)} onFocus={() => setExploreActiveIdx(idx)} className={`w-full text-left px-3 py-2 rounded-md text-sm transition ${exploreActiveIdx === idx ? 'bg-slate-100 text-slate-900 font-semibold' : 'text-slate-700 hover:bg-slate-50'}`}>
+                                    {cat.label}
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                          {/* Right grid for active category */}
+                          <div className="flex-1 p-5 overflow-y-auto">
+                            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                              {(exploreNav?.categories?.[exploreActiveIdx]?.subcategories || exploreNav?.categories?.[exploreActiveIdx]?.items || []).map((sub: any, i: number) => (
+                                <div key={i} className="border rounded-lg p-4 hover:shadow-sm transition bg-white">
+                                  <div className="text-slate-900 font-semibold text-sm mb-2 break-all">{sub.label || sub}</div>
+                                  {Array.isArray(sub.items) && sub.items.length > 0 && (
+                                    <div className="flex flex-wrap gap-2">
+                                      {sub.items.map((item: string, ii: number) => (
+                                        <a key={ii} href="#" className="text-xs text-slate-600 hover:text-slate-900 hover:underline">{item}</a>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </NavigationMenuContent>
+                  </NavigationMenuItem>
+                </NavigationMenuList>
+              </NavigationMenu>
+
+              {/* Student Marketplace - Mega Menu */}
+              <NavigationMenu className='lg:[&_div.absolute]:-left-[30rem] lg:[&_div.absolute]:top-12'>
+                <NavigationMenuList>
+                  <NavigationMenuItem>
+                    <NavigationMenuTrigger className="font-medium text-white hover:text-blue-100 hover:bg-white/10 border border-transparent hover:border-white/20 transition-all duration-300 px-3 py-2 text-sm sm:text-base bg-transparent">
+                      Student Marketplace
+                    </NavigationMenuTrigger>
+                    <NavigationMenuContent>
+                      <div className="rounded-lg border bg-white text-slate-900 shadow-md p-6 w-[calc(100vw-2rem)] max-w-[1050px] max-h-[75vh]">
+                        <div className="flex">
+                          <div className="hidden md:block w-64 border-r p-3">
+                            <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold px-2 mb-2">Categories</div>
+                            <ul className="space-y-1">
+                              {studentNav?.categories?.map((cat: any, idx: number) => (
+                                <li key={idx}>
+                                  <button onMouseEnter={() => setStudentActiveIdx(idx)} onFocus={() => setStudentActiveIdx(idx)} className={`w-full text-left px-3 py-2 rounded-md text-sm transition ${studentActiveIdx === idx ? 'bg-slate-100 text-slate-900 font-semibold' : 'text-slate-700 hover:bg-slate-50'}`}>
+                                    {cat.label}
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                          <div className="flex-1 p-5 overflow-y-auto max-h-[65vh]">
+                            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                              {(studentNav?.categories?.[studentActiveIdx]?.subcategories || studentNav?.categories?.[studentActiveIdx]?.items || []).map((sub: any, i: number) => (
+                                <div key={i} className="border rounded-lg p-4 hover:shadow-sm transition bg-white">
+                                  <div className="text-slate-900 font-semibold text-sm mb-2 break-all">{sub.label || sub}</div>
+                                  {Array.isArray(sub.items) && sub.items.length > 0 && (
+                                    <div className="flex flex-wrap gap-2">
+                                      {sub.items.map((item: string, ii: number) => (
+                                        <a key={ii} href="#" className="text-xs text-slate-600 hover:text-slate-900 hover:underline">{item}</a>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </NavigationMenuContent>
+                  </NavigationMenuItem>
+                </NavigationMenuList>
+              </NavigationMenu>
               <Link href="/contact-us">
                 <Button variant="ghost" className="font-medium text-white hover:text-blue-100 hover:bg-white/10 border border-transparent hover:border-white/20 transition-all duration-300 px-3 py-2 text-sm sm:text-base">Contact Us</Button>
               </Link>
@@ -243,7 +354,78 @@ export default function Home() {
                     <span className="sr-only">Open menu</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuContent align="end" className="w-64">
+                  {/* Explore Experts nested mobile menu */}
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className="cursor-pointer">Explore Experts</DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="w-80 max-h-[70vh] overflow-y-auto">
+                      {exploreNav?.categories?.map((cat: any, cIdx: number) => (
+                        <DropdownMenuSub key={cIdx}>
+                          <DropdownMenuSubTrigger className="cursor-pointer">{cat.label}</DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent className="w-72 max-h-[70vh] overflow-y-auto">
+                            {Array.isArray(cat.subcategories) ? (
+                              <div className="p-1">
+                                {cat.subcategories.map((sub: any, subIdx: number) => (
+                                  <div key={subIdx} className="px-2 py-1.5">
+                                    <div className="text-sm font-medium text-slate-800">{sub.label}</div>
+                                    {Array.isArray(sub.items) && sub.items.length > 0 && (
+                                      <div className="mt-1 grid grid-cols-1 gap-1">
+                                        {sub.items.map((item: string, iIdx: number) => (
+                                          <a key={iIdx} href="#" className="text-sm text-slate-600 hover:text-slate-900">{item}</a>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : Array.isArray(cat.items) && cat.items.length > 0 ? (
+                              <div className="p-1">
+                                {cat.items.map((item: string, iIdx: number) => (
+                                  <DropdownMenuItem key={iIdx} className="cursor-pointer">{item}</DropdownMenuItem>
+                                ))}
+                              </div>
+                            ) : null}
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+
+                  {/* Student Marketplace nested mobile menu */}
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className="cursor-pointer">Student Marketplace</DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="w-80 max-h-[70vh] overflow-y-auto">
+                      {studentNav?.categories?.map((cat: any, cIdx: number) => (
+                            <DropdownMenuSub key={cIdx}>
+                              <DropdownMenuSubTrigger className="cursor-pointer">{cat.label}</DropdownMenuSubTrigger>
+                              <DropdownMenuSubContent className="w-72 max-h-[70vh] overflow-y-auto">
+                                {Array.isArray(cat.subcategories) ? (
+                                  <div className="p-1">
+                                    {cat.subcategories.map((sub: any, subIdx: number) => (
+                                      <div key={subIdx} className="px-2 py-1.5">
+                                        <div className="text-sm font-medium text-slate-800">{sub.label}</div>
+                                        {Array.isArray(sub.items) && sub.items.length > 0 && (
+                                          <div className="mt-1 grid grid-cols-1 gap-1">
+                                            {sub.items.map((item: string, iIdx: number) => (
+                                              <a key={iIdx} href="#" className="text-sm text-slate-600 hover:text-slate-900">{item}</a>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : Array.isArray(cat.items) && cat.items.length > 0 ? (
+                                  <div className="p-1">
+                                    {cat.items.map((item: string, iIdx: number) => (
+                                      <DropdownMenuItem key={iIdx} className="cursor-pointer">{item}</DropdownMenuItem>
+                                    ))}
+                                  </div>
+                                ) : null}
+                              </DropdownMenuSubContent>
+                            </DropdownMenuSub>
+                          ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
                   <Link href="/contact-us">
                     <DropdownMenuItem className="cursor-pointer">Contact Us</DropdownMenuItem>
                   </Link>
@@ -292,25 +474,73 @@ export default function Home() {
           <section className="py-12 lg:py-16">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className="max-w-6xl mx-auto text-center">
-                <div className="flex justify-center mb-8">
+                <motion.div
+                  className="flex justify-center mb-8"
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true, amount: 0.3 }}
+                  variants={fadeUp}
+                  transition={transition}
+                >
                   <Logo size="lg" />
-                </div>
+                </motion.div>
                 
-                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-900 mb-6 leading-tight">
+                <motion.h1
+                  className="text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-900 mb-6 leading-tight"
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true, amount: 0.3 }}
+                  variants={zoomIn}
+                  transition={springTransition}
+                >
                   Hire
-                  
-                  <span className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent"> Experts.</span>
+                  <motion.span
+                    className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent inline-block"
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true, amount: 0.3 }}
+                    variants={rotateIn}
+                    transition={transition}
+                  > Experts.</motion.span>
                   <br />
-                  <span className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent">Anytime.</span>
-                  <span className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent"> Anywhere.</span>
-                </h1>
+                  <motion.span
+                    className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent inline-block"
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true, amount: 0.3 }}
+                    variants={fadeUp}
+                    transition={transition}
+                  >Anytime.</motion.span>
+                  <motion.span
+                    className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent inline-block"
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true, amount: 0.3 }}
+                    variants={slideRight}
+                    transition={transition}
+                  > Anywhere.</motion.span>
+                </motion.h1>
                 
-                <p className="text-lg sm:text-xl lg:text-2xl text-slate-600 mb-12 max-w-4xl mx-auto leading-relaxed">
-                  <strong className="text-blue-700">Expert Marketplace</strong>, connecting corporates and universities with verified professionals — from <strong className="text-blue-700">Chartered Accountants and Corporate Lawyers</strong> to <strong className="text-blue-700">Industry Trainers and Technologists</strong>.
-                </p>
+                <motion.p
+                  className="text-lg sm:text-xl lg:text-2xl text-slate-600 mb-12 max-w-4xl mx-auto leading-relaxed"
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true, amount: 0.3 }}
+                  variants={fadeUp}
+                  transition={transition}
+                >
+                  Calxmap is India's leading <strong className="text-blue-700">Expert Marketplace</strong>, connecting corporates and universities with verified professionals — from <strong className="text-blue-700">Chartered Accountants and Corporate Lawyers</strong> to <strong className="text-blue-700">Industry Trainers and Technologists</strong>.
+                </motion.p>
 
                 {/* Problem Statement */}
-                <div className="bg-white border-2 border-slate-200 rounded-2xl p-8 mb-12 shadow-sm">
+                <motion.div
+                  className="bg-white border-2 border-slate-200 rounded-2xl p-8 mb-12 shadow-sm"
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true, amount: 0.2 }}
+                  variants={fadeUp}
+                  transition={transition}
+                >
                   <div className="flex items-center justify-center mb-4">
                     <Target className="h-8 w-8 text-red-500 mr-3" />
                     <h3 className="text-xl font-semibold text-slate-900">Why Calxmap?</h3>
@@ -337,9 +567,16 @@ export default function Home() {
                       <span className="text-sm text-slate-600">Partner with us to boost employability & skill development</span>
                     </div>
                   </div>
-                </div>
+                </motion.div>
 
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <motion.div
+                  className="flex flex-col sm:flex-row gap-4 justify-center"
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true, amount: 0.2 }}
+                  variants={fadeUp}
+                  transition={transition}
+                >
                   <Link href="/auth/signup?role=expert">
                     <Button size="lg" className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-bold text-xl px-8 py-6 shadow-sm hover:shadow-md transition-all duration-300">
                       Hire an Expert
@@ -358,7 +595,7 @@ export default function Home() {
                       <ArrowRight className="ml-2 h-6 w-6" />
                     </Button>
                   </Link>
-                </div>
+                </motion.div>
               </div>
 
               {/* Featured Carousel - Now in Foreground */}
@@ -370,7 +607,14 @@ export default function Home() {
           <section className="py-12 lg:py-16">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className="bg-white border-2 border-slate-200 rounded-2xl p-8 shadow-sm">
-              <div className="text-center mb-16">
+              <motion.div
+                className="text-center mb-16"
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, amount: 0.2 }}
+                variants={fadeUp}
+                transition={transition}
+              >
                   <div className='flex flex-col sm:flex-row gap-x-2 justify-center items-center mb-5'>
                   <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-bold text-slate-900">About Calxmap</h2>
                   <div className='h-10 w-20'>
@@ -401,9 +645,16 @@ export default function Home() {
                     <p className="text-lg text-slate-600 mb-2"><strong className="text-blue-700">Our Mission:</strong> To bridge the gap between academia and industry by delivering expert-driven insights everywhere.</p>
                     <p className="text-lg text-slate-600"><strong className="text-blue-700">Our Vision:</strong> To become the largest on-demand expert marketplace in India, shaping the future of learning and work.</p>
                 </div>
-              </div>
+              </motion.div>
 
               <div className="grid md:grid-cols-3 gap-8">
+                  <motion.div
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true, amount: 0.2 }}
+                    variants={slideLeft}
+                    transition={transition}
+                  >
                   <Card className="bg-white border-2 border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 group hover:border-blue-300">
                   <CardHeader className="text-center pb-4">
                       <div className="w-16 h-16 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
@@ -417,7 +668,15 @@ export default function Home() {
                     </p>
                   </CardContent>
                 </Card>
+                  </motion.div>
 
+                  <motion.div
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true, amount: 0.2 }}
+                    variants={zoomIn}
+                    transition={transition}
+                  >
                   <Card className="bg-white border-2 border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 group hover:border-blue-300">
                   <CardHeader className="text-center pb-4">
                       <div className="w-16 h-16 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
@@ -431,7 +690,15 @@ export default function Home() {
                     </p>
                   </CardContent>
                 </Card>
+                  </motion.div>
 
+                  <motion.div
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true, amount: 0.2 }}
+                    variants={slideRight}
+                    transition={transition}
+                  >
                   <Card className="bg-white border-2 border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 group hover:border-blue-300">
                   <CardHeader className="text-center pb-4">
                       <div className="w-16 h-16 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
@@ -445,6 +712,7 @@ export default function Home() {
                     </p>
                   </CardContent>
                 </Card>
+                  </motion.div>
                 </div>
               </div>
             </div>
@@ -581,15 +849,29 @@ export default function Home() {
           <section id="how-it-works" className="mt-20">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className=" p-8">
-              <div className="text-center mb-16">
+              <motion.div
+                className="text-center mb-16"
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, amount: 0.2 }}
+                variants={fadeUp}
+                transition={transition}
+              >
                   <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-bold text-slate-900 mb-4">How It Works</h2>
                   <p className="text-lg sm:text-xl text-slate-600 max-w-3xl mx-auto">
                   Simple, secure, and streamlined process for connecting expertise with opportunities
                 </p>
-              </div>
+              </motion.div>
 
               <div className="grid md:grid-cols-3 gap-12">
-                <div className="text-center group">
+                <motion.div
+                  className="text-center group"
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true, amount: 0.2 }}
+                  variants={slideLeft}
+                  transition={transition}
+                >
                     <div className="w-20 h-20 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform shadow-sm">
                     <span className="text-2xl font-bold text-white">1</span>
                   </div>
@@ -597,9 +879,16 @@ export default function Home() {
                     <p className="text-slate-600 leading-relaxed">
                     Experts build comprehensive profiles. Universities and corporations post their requirements with clear specifications.
                   </p>
-                </div>
+                </motion.div>
 
-                <div className="text-center group">
+                <motion.div
+                  className="text-center group"
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true, amount: 0.2 }}
+                  variants={zoomIn}
+                  transition={transition}
+                >
                     <div className="w-20 h-20 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform shadow-sm">
                     <span className="text-2xl font-bold text-white">2</span>
                   </div>
@@ -607,9 +896,16 @@ export default function Home() {
                     <p className="text-slate-600 leading-relaxed">
                     Our AI-powered algorithm matches requirements with the most suitable experts based on skills, experience, and availability.
                   </p>
-                </div>
+                </motion.div>
 
-                <div className="text-center group">
+                <motion.div
+                  className="text-center group"
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true, amount: 0.2 }}
+                  variants={slideRight}
+                  transition={transition}
+                >
                     <div className="w-20 h-20 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform shadow-sm">
                     <span className="text-2xl font-bold text-white">3</span>
                   </div>
@@ -617,7 +913,7 @@ export default function Home() {
                     <p className="text-slate-600 leading-relaxed">
                     Seamless booking, secure communication, and professional feedback system for successful long-term collaborations.
                   </p>
-                  </div>
+                  </motion.div>
                 </div>
               </div>
             </div>
@@ -635,8 +931,14 @@ export default function Home() {
               </div>
 
               <div className="grid md:grid-cols-4 gap-8">
-                <div className="text-center group">
-                    <div className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-2 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent group-hover:scale-110 transition-transform">
+                <motion.div
+                  className="text-center group"
+                  initial="hidden"
+                  animate={inView ? 'visible' : 'hidden'}
+                  variants={popIn}
+                  transition={springTransition}
+                >
+                    <motion.div className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-2 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent group-hover:scale-110 transition-transform" initial={{ scale: 0.9, opacity: 0 }} animate={inView ? { scale: 1, opacity: 1 } : {}} transition={springTransition}>
                     {inView ? (
                       <CountUp 
                         start={0} 
@@ -649,12 +951,18 @@ export default function Home() {
                     ) : (
                       "0+"
                     )}
-                  </div>
+                  </motion.div>
                     <div className="text-slate-600 font-medium">Verified Experts</div>
                     <div className="w-2 h-2 bg-blue-500 rounded-full mx-auto mt-3 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                </div>
-                <div className="text-center group">
-                    <div className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-2 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent group-hover:scale-110 transition-transform">
+                </motion.div>
+                <motion.div
+                  className="text-center group"
+                  initial="hidden"
+                  animate={inView ? 'visible' : 'hidden'}
+                  variants={popIn}
+                  transition={springTransition}
+                >
+                    <motion.div className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-2 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent group-hover:scale-110 transition-transform" initial={{ scale: 0.9, opacity: 0 }} animate={inView ? { scale: 1, opacity: 1 } : {}} transition={springTransition}>
                     {inView ? (
                       <CountUp 
                         start={0} 
@@ -667,12 +975,18 @@ export default function Home() {
                     ) : (
                       "0+"
                     )}
-                  </div>
+                  </motion.div>
                     <div className="text-slate-600 font-medium">Universities</div>
                     <div className="w-2 h-2 bg-blue-500 rounded-full mx-auto mt-3 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                </div>
-                <div className="text-center group">
-                    <div className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-2 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent group-hover:scale-110 transition-transform">
+                </motion.div>
+                <motion.div
+                  className="text-center group"
+                  initial="hidden"
+                  animate={inView ? 'visible' : 'hidden'}
+                  variants={popIn}
+                  transition={springTransition}
+                >
+                    <motion.div className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-2 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent group-hover:scale-110 transition-transform" initial={{ scale: 0.9, opacity: 0 }} animate={inView ? { scale: 1, opacity: 1 } : {}} transition={springTransition}>
                     {inView ? (
                       <CountUp 
                         start={0} 
@@ -685,12 +999,18 @@ export default function Home() {
                     ) : (
                       "0+"
                     )}
-                  </div>
+                  </motion.div>
                     <div className="text-slate-600 font-medium">Successful Projects</div>
                     <div className="w-2 h-2 bg-blue-500 rounded-full mx-auto mt-3 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                </div>
-                <div className="text-center group">
-                    <div className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-2 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent group-hover:scale-110 transition-transform">
+                </motion.div>
+                <motion.div
+                  className="text-center group"
+                  initial="hidden"
+                  animate={inView ? 'visible' : 'hidden'}
+                  variants={popIn}
+                  transition={springTransition}
+                >
+                    <motion.div className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-2 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent group-hover:scale-110 transition-transform" initial={{ scale: 0.9, opacity: 0 }} animate={inView ? { scale: 1, opacity: 1 } : {}} transition={springTransition}>
                     {inView ? (
                       <CountUp 
                         start={0} 
@@ -704,10 +1024,10 @@ export default function Home() {
                       "0.0"
                     )}
                     <span className="text-3xl">/5</span>
-                  </div>
+                  </motion.div>
                     <div className="text-slate-600 font-medium">Average Rating</div>
                     <div className="w-2 h-2 bg-blue-500 rounded-full mx-auto mt-3 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                  </div>
+                  </motion.div>
                 </div>
               </div>
             </div>
@@ -921,16 +1241,30 @@ export default function Home() {
           <section className="py-12 lg:py-16">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className="p-4 sm:p-6 lg:p-8">
-              <div className="text-center mb-12 sm:mb-16">
+              <motion.div
+                className="text-center mb-12 sm:mb-16"
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, amount: 0.2 }}
+                variants={fadeUp}
+                transition={transition}
+              >
                   <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-bold text-slate-900 mb-4">Student Feedback & Analytics</h2>
                   <p className="text-lg sm:text-xl text-slate-600 max-w-3xl mx-auto">
                   Empowering students to share their voice and administrators to make data-driven decisions
                 </p>
-              </div>
+              </motion.div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 max-w-6xl mx-auto">
                 {/* Student Feedback Portal */}
-                  <Card className="bg-white border-2 border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 group hover:border-blue-300">
+                  <motion.div
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true, amount: 0.2 }}
+                    variants={slideLeft}
+                    transition={transition}
+                  >
+                  <Card className="bg-white border-2 border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 group hover:border-blue-300 hover:translate-y-[-4px]">
                   <CardHeader className="text-center pb-6">
                       <div className="w-20 h-20 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
                       <BookOpen className="h-10 w-10 text-white" />
@@ -963,9 +1297,17 @@ export default function Home() {
                     </Link>
                   </CardContent>
                 </Card>
+                  </motion.div>
 
                 {/* Analytics Dashboard */}
-                  <Card className="bg-white border-2 border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 group hover:border-blue-300">
+                  <motion.div
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true, amount: 0.2 }}
+                    variants={slideRight}
+                    transition={transition}
+                  >
+                  <Card className="bg-white border-2 border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 group hover:border-blue-300 hover:translate-y-[-4px]">
                   <CardHeader className="text-center pb-6">
                       <div className="w-20 h-20 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
                       <BarChart3 className="h-10 w-10 text-white" />
@@ -998,6 +1340,7 @@ export default function Home() {
                     </Link>
                   </CardContent>
                 </Card>
+                  </motion.div>
                 </div>
               </div>
             </div>
@@ -1006,7 +1349,14 @@ export default function Home() {
           {/* Call-to-Action Section */}
           <section className="py-20">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="bg-white border-2 border-slate-200 rounded-2xl p-8 shadow-sm text-center">
+              <motion.div
+                className="bg-white border-2 border-slate-200 rounded-2xl p-8 shadow-sm text-center"
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, amount: 0.2 }}
+                variants={zoomIn}
+                transition={springTransition}
+              >
                 <h2 className="text-3xl sm:text-4xl lg:text-[40px]  font-bold text-slate-900 mb-6">Ready to hire your next expert?</h2>
                 <p className="text-lg sm:text-xl text-slate-600 mb-12 max-w-4xl mx-auto">
                 Whether you're a corporate seeking on-demand professionals or a university bridging industry knowledge, 
@@ -1032,7 +1382,7 @@ export default function Home() {
                   </Button>
                 </Link>
                 </div>
-              </div>
+              </motion.div>
             </div>
           </section>
         </>

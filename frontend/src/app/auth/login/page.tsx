@@ -66,6 +66,17 @@ export default function LoginPage() {
             console.error('Error checking institution profile:', error)
             router.push('/institution/profile-setup')
           }
+        } else if (role === 'student') {
+          try {
+            const s = await api.students.me()
+            if (s) {
+              router.push('/student/home')
+            } else {
+              router.push('/student/profile-setup')
+            }
+          } catch (error) {
+            router.push('/student/profile-setup')
+          }
         } else {
           router.push('/')
         }

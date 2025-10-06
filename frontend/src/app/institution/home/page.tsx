@@ -659,7 +659,7 @@ export default function InstitutionHome() {
     <div className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       {/* Header */}
       <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
             <Link href="/institution/home" className="flex items-center space-x-2 group">
@@ -668,27 +668,36 @@ export default function InstitutionHome() {
             </Link>
 
             {/* Navigation */}
-            <nav className="hidden md:flex items-center space-x-8">
-              <Link href="/institution/home" className="text-white/90 hover:text-blue-200 font-medium transition-colors duration-200 relative group">
-                Home
-                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-blue-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
-              </Link>
-              <Link href="/institution/dashboard" className="text-white/70 hover:text-blue-200 font-medium transition-colors duration-200 relative group">
-                Dashboard
-                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-blue-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
-              </Link>
-            </nav>
+          
 
             {/* Right side */}
             <div className="flex items-center space-x-4">
-              <div className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors duration-200">
-                <NotificationBell />
-              </div>
-              <ProfileDropdown 
+             
+            
+              {institution?.type === 'Corporate' && (
+                <>
+                  <Link href="/institution/internships/create">
+                    <Button className="hidden md:inline-flex bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">Create Internship</Button>
+                  </Link>
+                  <Link href="/institution/freelance/create">
+                    <Button className="hidden md:inline-flex bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">Create Freelance</Button>
+                  </Link>
+                 
+                </>
+              )}
+              {institution?.type && institution.type !== 'Corporate' && (
+                <Link href="/institution/internships/opportunities">
+                  <Button className="hidden md:inline-flex bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">Browse Internships</Button>
+                </Link>
+              )}
+                <ProfileDropdown 
                 user={user} 
                 institution={institution} 
                 userType="institution" 
               />
+               <div className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors duration-200">
+                <NotificationBell />
+              </div>
             </div>
           </div>
         </div>
@@ -932,7 +941,7 @@ export default function InstitutionHome() {
       </div>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 md:pb-8">
         {/* Welcome Section */}
         <div className="mb-8">
           <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4 leading-tight">
@@ -1768,6 +1777,19 @@ export default function InstitutionHome() {
         </Dialog>
 
       </main>
+
+      {institution?.type === 'Corporate' && (
+        <div className="fixed bottom-4 inset-x-0 px-4 md:hidden z-50">
+          <div className="bg-white/90 backdrop-blur-md border border-slate-200 shadow-xl rounded-xl p-3 flex gap-3">
+            <Link href="/institution/internships/create" className="flex-1">
+              <Button className="w-full bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">Create Internship</Button>
+            </Link>
+            <Link href="/institution/freelance/create" className="flex-1">
+              <Button className="w-full bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">Create Freelance</Button>
+            </Link>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
