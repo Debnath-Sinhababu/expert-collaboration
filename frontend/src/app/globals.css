@@ -92,3 +92,19 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  /* Landing page section utilities */
+  .bg-landing-header { background-color: #008260; }
+  .bg-landing-hero { background-color: #ECF2FF; }
+  .bg-landing-hero-accent { background: linear-gradient(90deg, #000000 0%, #008260 76.19%); }
+  .bg-landing-trusted {
+    background:
+      radial-gradient(60% 60% at 0% 0%, rgba(0,130,96,0.25) 0%, rgba(0,130,96,0) 70%),
+      radial-gradient(40% 40% at 15% 10%, rgba(255,212,59,0.3) 0%, rgba(255,212,59,0) 60%);
+  }
+  .bg-ecf2ff { background-color: #ECF2FF; }
+  .card-green { background-color: #008260; color: #ffffff; }
+  .card-black { background-color: #111111; color: #e5e7eb; }
+  .border-green-008260 { border-color: #008260; }
+}

@@ -46,9 +46,9 @@ export default function BackgroundBannerCarousel({ foreground = false, className
         plugins={[Autoplay({ delay: 4000 })]}
         className="w-full h-full"
       >
-        <CarouselContent className="h-48 sm:h-64 md:h-80 lg:h-96">
+        <CarouselContent className="h-full">
           {banners.map((banner, index) => (
-            <CarouselItem key={index} className="h-48 sm:h-64 md:h-80 lg:h-96">
+            <CarouselItem key={index} className="h-full">
               <div className="relative w-full h-full">
                 <img
                   src={banner.src}

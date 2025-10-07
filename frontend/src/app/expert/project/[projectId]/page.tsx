@@ -265,9 +265,9 @@ export default function ExpertProjectPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      <div className="min-h-screen bg-white">
         <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#008260]"></div>
         </div>
       </div>
     )
@@ -275,13 +275,13 @@ export default function ExpertProjectPage() {
 
   if (error && !project) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      <div className="min-h-screen bg-white">
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Project Not Found</h2>
             <p className="text-gray-600 mb-4">{error}</p>
-            <Button onClick={() => router.push('/expert/home')}>
+            <Button onClick={() => router.push('/expert/home')} className="bg-[#008260] hover:bg-[#006d51]">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Home
             </Button>
@@ -294,46 +294,31 @@ export default function ExpertProjectPage() {
   if (!project) return null
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 overflow-x-hidden">
+    <div className="min-h-screen bg-[#ECF2FF] overflow-x-hidden">
       {/* Header */}
-      <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
+      <header className="bg-[#008260] border-b border-slate-200/20 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            {/* Mobile Layout */}
-            <div className="flex sm:hidden items-center justify-between w-full">
-              <Link href="/expert/home" className="flex items-center space-x-1 group">
-                <ArrowLeft className="h-4 w-4 text-white/70 group-hover:text-blue-200 transition-colors duration-200" />
-                <span className="text-white/70 group-hover:text-blue-200 font-medium transition-colors duration-200 text-sm">Back</span>
-              </Link>
-              <Link href="/expert/home" className="flex items-center group">
-                <span className="text-lg font-bold bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent group-hover:from-blue-200 group-hover:to-white transition-all duration-300">Calxmap</span>
-              </Link>
-              <div className="flex items-center space-x-2">
-                <div className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors duration-200">
-                  <NotificationBell />
-                </div>
-                <ProfileDropdown 
-                  user={user} 
-                  expert={expert} 
-                  userType="expert" 
-                />
-              </div>
-            </div>
+            {/* Logo */}
+            <Link href="/expert/home" className="flex items-center space-x-2 group">
+              <span className="text-xl font-bold text-white group-hover:text-white/90 transition-all duration-300">Calxmap</span>
+            </Link>
 
-            {/* Desktop Layout - Keep original */}
-            <div className="hidden sm:flex items-center space-x-4">
-              <Link href="/expert/home" className="flex items-center space-x-2 group">
-                <ArrowLeft className="h-5 w-5 text-white/70 group-hover:text-blue-200 transition-colors duration-200" />
-                <span className="text-white/70 group-hover:text-blue-200 font-medium transition-colors duration-200">Back to Home</span>
+            {/* Navigation */}
+            <nav className="hidden md:flex items-center space-x-8">
+              <Link href="/expert/home" className="text-white font-medium transition-colors duration-200 relative group">
+                Home
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
-              <div className="h-6 w-px bg-white/20" />
-              <Link href="/expert/home" className="flex items-center space-x-2 group">
-                <span className="text-xl font-bold bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent group-hover:from-blue-200 group-hover:to-white transition-all duration-300">Calxmap</span>
+              <Link href="/expert/dashboard" className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
+                Dashboard
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
-            </div>
+           
+            </nav>
 
-            {/* Desktop Right side */}
-            <div className="hidden sm:flex items-center space-x-4">
+            {/* Right side */}
+            <div className="flex items-center space-x-4">
               <div className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors duration-200">
                 <NotificationBell />
               </div>
@@ -348,161 +333,56 @@ export default function ExpertProjectPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Project Details */}
-        <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-lg transition-all duration-300 mb-8 relative group">
-          <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 opacity-0 group-hover:opacity-5 transition-opacity duration-300 -z-10"></div>
-          <CardHeader className="pb-4">
-            {/* Mobile Layout */}
-            <div className="block sm:hidden">
-              <CardTitle className="text-2xl font-bold text-slate-900 mb-3 tracking-tight text-center">{project.title}</CardTitle>
-              <div className="text-center mb-4">
-                <div className="text-2xl font-bold text-green-600 mb-1">₹{project.hourly_rate}/hour</div>
-                <div className="text-sm text-slate-500">{project.duration_hours} hours</div>
-              </div>
-              <div className="flex flex-col space-y-2 text-slate-600 mb-4">
-                <div className="flex items-center justify-center space-x-1">
-                  <Building className="h-4 w-4" />
-                  <span className="text-sm">{project.institutions.name}</span>
-                </div>
-                <div className="flex items-center justify-center space-x-1">
-                  <MapPin className="h-4 w-4" />
-                  <span className="text-sm">{project?.institutions?.city},{project?.institutions?.state}</span>
-                </div>
-                <div className="flex justify-center">
-                  <Badge variant="outline" className="capitalize text-xs">
-                    {project.type?.replace('_', ' ')}
-                  </Badge>
-                </div>
-              </div>
+        {/* Breadcrumb */}
+      <div className="mb-8 flex justify-between w-full items-center border-b border-[#D6D6D6] pb-6">
+        <div>
+              <h1 className="text-[32px] font-semibold text-black">{project.title}</h1>
+              <div className="">
+          <p className="flex items-center text-[#6A6A6A] hover:text-[#008260] transition-colors">
+            <MapPin className="h-4 w-4 mr-2" />
+            <span className="text-sm font-medium">Gurgaon, Haryana</span>
+          </p>
+        </div>
             </div>
-
-            {/* Desktop Layout - Keep original */}
-            <div className="hidden sm:flex flex-col sm:flex-row items-start justify-between">
-              <div className="flex-1">
-                <CardTitle className="text-4xl font-bold text-slate-900 mb-3 tracking-tight">{project.title}</CardTitle>
-                <div className="flex items-center space-x-4 text-slate-600 mb-4">
-                  {/* <div className="flex items-center space-x-1">
-                    <Building className="h-4 w-4" />
-                    <span>{project.institutions.name}</span>
-                  </div> */}
-                  <div className="flex items-center space-x-1">
-                    <MapPin className="h-4 w-4" />
-                    <span>{project?.institutions?.city},{project?.institutions?.state}</span>
-                  </div>
-                  <Badge variant="outline" className="capitalize">
-                    {project.type?.replace('_', ' ')}
-                  </Badge>
+            <div className="text-center">
+                  <div className="text-[24px] font-bold text-[#008260]">₹{project.hourly_rate}/hour</div>
+                  <div className="text-sm text-[#757575]">Hourly Rate</div>
                 </div>
-              </div>
-              <div className="text-right">
-                <div className="text-3xl font-bold text-green-600">₹{project.hourly_rate}/hour</div>
-                <div className="text-sm text-slate-500 text-left">{project.duration_hours} hours</div>
-              </div>
             </div>
-          </CardHeader>
+        {/* Two Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column - Project Details */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Project Title */}
           
-          <CardContent className="space-y-6">
+
             {/* Project Description */}
             <div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-3">Project Description</h3>
-              <p className="text-slate-700 leading-relaxed whitespace-pre-line">{project.description}</p>
+              <h2 className="text-xl font-semibold text-black mb-4">Project Description</h2>
+              <p className="text-[#6A6A6A] text-base leading-relaxed whitespace-pre-line">{project.description}</p>
             </div>
 
-            {/* Project Details Grid */}
-            {/* Mobile Layout */}
-            <div className="block sm:hidden">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-slate-50 rounded-lg p-3 text-center">
-                  <Calendar className="h-4 w-4 text-slate-500 mx-auto mb-1" />
-                  <p className="text-xs font-medium text-slate-900 mb-1">Start Date</p>
-                  <p className="text-xs text-slate-600">{new Date(project.start_date).toLocaleDateString()}</p>
-                </div>
-                
-                <div className="bg-slate-50 rounded-lg p-3 text-center">
-                  <Calendar className="h-4 w-4 text-slate-500 mx-auto mb-1" />
-                  <p className="text-xs font-medium text-slate-900 mb-1">End Date</p>
-                  <p className="text-xs text-slate-600">{new Date(project.end_date).toLocaleDateString()}</p>
-                </div>
-                
-                <div className="bg-slate-50 rounded-lg p-3 text-center">
-                  <Clock className="h-4 w-4 text-slate-500 mx-auto mb-1" />
-                  <p className="text-xs font-medium text-slate-900 mb-1">Duration</p>
-                  <p className="text-xs text-slate-600">{project.duration_hours} hours</p>
-                </div>
-                
-                <div className="bg-slate-50 rounded-lg p-3 text-center">
-                  <IndianRupee className="h-4 w-4 text-slate-500 mx-auto mb-1" />
-                  <p className="text-xs font-medium text-slate-900 mb-1">Hourly Rate</p>
-                  <p className="text-xs text-slate-600">₹{project.hourly_rate}</p>
+            {/* Project Description (repeated as in image) */}
+            <div>
+              <h2 className="text-xl font-semibold text-black mb-4">Project Description</h2>
+              
+              {/* Expertise Domain */}
+              <div className="mb-6">
+                <h3 className="text-base font-semibold text-black mb-3">Expertise Domain</h3>
+                <div className="inline-block">
+                  <Badge className="bg-[#7BF2D3] text-[#000000] hover:bg-[#7BF2D3] px-4 py-1.5 text-sm font-medium border-0">
+                    {project.domain_expertise}
+                  </Badge>
                 </div>
               </div>
-            </div>
 
-            {/* Desktop Layout - Keep original */}
-            <div className="hidden sm:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="flex items-center space-x-3">
-                <Calendar className="h-5 w-5 text-slate-500" />
-                <div>
-                  <p className="text-sm font-medium text-slate-900">Start Date</p>
-                  <p className="text-sm text-slate-600">{new Date(project.start_date).toLocaleDateString()}</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-3">
-                <Calendar className="h-5 w-5 text-slate-500" />
-                <div>
-                  <p className="text-sm font-medium text-slate-900">End Date</p>
-                  <p className="text-sm text-slate-600">{new Date(project.end_date).toLocaleDateString()}</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-3">
-                <Clock className="h-5 w-5 text-slate-500" />
-                <div>
-                  <p className="text-sm font-medium text-slate-900">Duration</p>
-                  <p className="text-sm text-slate-600">{project.duration_hours} hours</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-3">
-                <IndianRupee className="h-5 w-5 text-slate-500" />
-                <div>
-                  <p className="text-sm font-medium text-slate-900">Hourly Rate</p>
-                  <p className="text-sm text-slate-600">₹{project.hourly_rate}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Skills and Expertise */}
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-lg font-semibold text-slate-900 mb-3">Required Skills</h3>
-                <div className="flex flex-wrap gap-2">
-                  {project.required_expertise?.map((skill, index) => (
-                    <Badge key={index} variant="secondary" className="px-3 py-1">
-                      {skill}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-              
-              <div>
-                <h3 className="text-lg font-semibold text-slate-900 mb-3">Expertise Domain</h3>
-                <div className="flex flex-wrap gap-2">
-                  {project.domain_expertise && (
-                    <Badge variant="outline" className="px-3 py-1">
-                      {project.domain_expertise}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              
+              {/* Sub-skills */}
               {project.subskills && project.subskills.length > 0 && (
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-900 mb-3">Sub-skills</h3>
+                  <h3 className="text-base font-semibold text-black mb-3">Sub-skills</h3>
                   <div className="flex flex-wrap gap-2">
                     {project.subskills.map((skill, index) => (
-                      <Badge key={index} variant="outline" className="px-3 py-1 text-xs">
+                      <Badge key={index} className="bg-[#D8E9FF] text-[#000000] hover:bg-[#D8E9FF] px-3 py-1 text-sm font-normal border border-[#D6D6D6]">
                         {skill}
                       </Badge>
                     ))}
@@ -510,200 +390,154 @@ export default function ExpertProjectPage() {
                 </div>
               )}
             </div>
+          </div>
 
-            {/* Institution Details */}
-            {/* <div className="border-t pt-6">
-              <h3 className="text-lg font-semibold text-slate-900 mb-3">About {project.institutions.name}</h3>
-              <p className="text-slate-700">{project.institutions.description || 'No description available'}</p>
-            </div> */}
+          {/* Right Column - Sidebar Card */}
+          <div className="lg:col-span-1">
+            <Card className="bg-white border-2 border-[#D6D6D6] shadow-sm sticky top-24">
+              <CardContent className="p-0">
+                {/* Hourly Rate */}
 
-            {/* Apply Button */}
-            <div className="border-t pt-6">
-              {hasApplied ? (
-                <div className="text-center sm:text-left">
-                  <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-medium shadow-sm hover:shadow-md transition-all duration-200">
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Applied
-                  </Button>
-                </div>
-              ) : (
-                <div className="text-center sm:text-left">
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-medium shadow-sm hover:shadow-md transition-all duration-200">
-                        <Send className="h-4 w-4 mr-2" />
-                        Apply Now
-                      </Button>
-                    </DialogTrigger>
-                  <DialogContent className="sm:max-w-md bg-white border-2 border-slate-200 shadow-xl">
-                    <DialogHeader className="space-y-3">
-                      <DialogTitle className="text-xl font-bold text-slate-900">Apply to Project</DialogTitle>
-                      <DialogDescription className="text-slate-600">
-                        Submit your application for "{project.title}"
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-6 py-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="coverLetter" className="text-sm font-medium text-slate-700">Cover Letter</Label>
-                        <Textarea
-                          id="coverLetter"
-                          placeholder="Explain why you're the perfect fit for this project..."
-                          value={applicationForm.coverLetter}
-                          onChange={(e) => setApplicationForm({...applicationForm, coverLetter: e.target.value})}
-                          rows={4}
-                          className="border-2 border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="proposedRate" className="text-sm font-medium text-slate-700">Proposed Hourly Rate (₹)</Label>
-                        <input
-                          id="proposedRate"
-                          type="number"
-                          placeholder={project.hourly_rate.toString()}
-                          value={applicationForm.proposedRate}
-                          onChange={(e) => setApplicationForm({...applicationForm, proposedRate: e.target.value})}
-                          className="w-full px-3 py-2 border-2 border-slate-200 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
-                        />
-                      </div>
-                      {error && (
-                        <Alert variant="destructive" className="border-2 border-red-200 bg-red-50">
-                          <AlertCircle className="h-4 w-4" />
-                          <AlertDescription className="text-red-700">{error}</AlertDescription>
-                        </Alert>
-                      )}
-                      {success && (
-                        <Alert className="border-2 border-green-200 bg-green-50">
-                          <CheckCircle className="h-4 w-4" />
-                          <AlertDescription className="text-green-700">{success}</AlertDescription>
-                        </Alert>
-                      )}
-                      <Button 
-                        onClick={handleApplicationSubmit}
-                        className="w-full bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-medium shadow-sm hover:shadow-md transition-all duration-200 py-2.5"
-                        disabled={!applicationForm.coverLetter || isApplying}
-                      >
-                        {isApplying ? 'Submitting...' : 'Submit Application'}
-                      </Button>
+                {/* Date and Duration Info */}
+                <div className="space-y-4 p-6">
+                  {/* Start Date */}
+                  <div className="flex items-start gap-3 p-4 bg-[#E8F4F8] rounded-lg">
+                    <div className="w-12 h-12 bg-[#008260] rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Calendar className="h-6 w-6 text-white" />
                     </div>
-                  </DialogContent>
-                  </Dialog>
+                    <div>
+                      <p className="text-sm font-semibold text-black">Starts Date</p>
+                      <p className="text-base font-medium text-black mt-1">{new Date(project.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                    </div>
+                  </div>
+
+                  {/* End Date */}
+                  <div className="flex items-start gap-3 p-4 bg-[#E8F4F8] rounded-lg">
+                    <div className="w-12 h-12 bg-[#008260] rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Calendar className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-black">End Date</p>
+                      <p className="text-base font-medium text-black mt-1">{new Date(project.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                    </div>
+                  </div>
+
+                  {/* Duration */}
+                  <div className="flex items-start gap-3 p-4 bg-[#E8F4F8] rounded-lg">
+                    <div className="w-12 h-12 bg-[#008260] rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Clock className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-black">Duration</p>
+                      <p className="text-base font-medium text-black mt-1">{project.duration_hours} Hours</p>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
 
-        {/* Similar Projects Carousel */}
+                {/* Apply Button */}
+                <div className="p-6 pt-0">
+                  {hasApplied ? (
+                    <Button size="lg" className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium rounded-lg h-12">
+                      <CheckCircle className="h-5 w-5 mr-2" />
+                      Applied
+                    </Button>
+                  ) : (
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button size="lg" className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium rounded-lg h-12">
+                          Apply Now
+                        </Button>
+                      </DialogTrigger>
+                    <DialogContent className="sm:max-w-md bg-white border-2 border-[#D6D6D6] shadow-xl">
+                      <DialogHeader className="space-y-3">
+                        <DialogTitle className="text-xl font-bold text-black">Apply to Project</DialogTitle>
+                        <DialogDescription className="text-[#6A6A6A]">
+                          Submit your application for "{project.title}"
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-6 py-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="coverLetter" className="text-sm font-medium text-black">Cover Letter</Label>
+                          <Textarea
+                            id="coverLetter"
+                            placeholder="Explain why you're the perfect fit for this project..."
+                            value={applicationForm.coverLetter}
+                            onChange={(e) => setApplicationForm({...applicationForm, coverLetter: e.target.value})}
+                            rows={4}
+                            className="border-2 border-[#D6D6D6] focus:border-[#008260] focus:ring-1 focus:ring-[#008260] transition-all duration-200"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="proposedRate" className="text-sm font-medium text-black">Proposed Hourly Rate (₹)</Label>
+                          <input
+                            id="proposedRate"
+                            type="number"
+                            placeholder={project.hourly_rate.toString()}
+                            value={applicationForm.proposedRate}
+                            onChange={(e) => setApplicationForm({...applicationForm, proposedRate: e.target.value})}
+                            className="w-full px-3 py-2 border-2 border-[#D6D6D6] rounded-md focus:outline-none focus:border-[#008260] focus:ring-1 focus:ring-[#008260] transition-all duration-200"
+                          />
+                        </div>
+                        {error && (
+                          <Alert variant="destructive" className="border-2 border-red-200 bg-red-50">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertDescription className="text-red-700">{error}</AlertDescription>
+                          </Alert>
+                        )}
+                        {success && (
+                          <Alert className="border-2 border-green-200 bg-green-50">
+                            <CheckCircle className="h-4 w-4" />
+                            <AlertDescription className="text-green-700">{success}</AlertDescription>
+                          </Alert>
+                        )}
+                        <Button 
+                          onClick={handleApplicationSubmit}
+                          className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium rounded-lg h-11"
+                          disabled={!applicationForm.coverLetter || isApplying}
+                        >
+                          {isApplying ? 'Submitting...' : 'Submit Application'}
+                        </Button>
+                      </div>
+                    </DialogContent>
+                    </Dialog>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Similar Projects Section */}
         {similarProjects.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-3xl font-bold text-slate-900 mb-6 tracking-tight">Similar Projects</h2>
-            <Carousel
-              opts={{
-                align: "start",
-                containScroll: "trimSnaps"
-              }}
-              plugins={[
-                Autoplay({
-                  delay: 3000,
-                }),
-              ]}
-              className="w-full max-w-7xl mx-auto"
-            >
-              <CarouselContent className="-ml-2">
-                {similarProjects.map((project) => (
-                  <CarouselItem key={project.id} className="pl-2 basis-full sm:basis-1/2 lg:basis-1/3">
-                    <Card className="h-full mx-2 transition-all duration-300 hover:shadow-lg border border-slate-200/50 hover:border-blue-300/50 bg-gradient-to-br from-white to-slate-50/30 shadow-sm hover:shadow-blue-100/20 relative group">
-                      <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 opacity-0 group-hover:opacity-10 transition-opacity duration-300 -z-10"></div>
-                      <CardContent className="p-6">
-                        <div className="flex items-start justify-between mb-4 gap-3">
-                          <h3 className="font-bold text-lg text-slate-900 truncate group-hover:text-blue-600 transition-colors duration-200">{project.title}</h3>
-                          <Badge variant="outline" className="ml-2 capitalize text-xs flex-shrink-0">
-                            {project.type?.replace('_', ' ')}
-                          </Badge>
-                        </div>
-                        <p className="text-slate-600 text-sm mb-4 truncate">{project.description}</p>
-                        <div className="flex items-center justify-between text-sm text-slate-500 mb-4">
-                          {/* <span className="flex items-center">
-                            <Building className="h-4 w-4 mr-1" />
-                            {project.institutions.name}
-                          </span> */}
-                          <span className="flex items-center">
-                            <MapPin className="h-4 w-4 mr-1" />
-                            {project?.institutions?.city},{project?.institutions?.state}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="text-2xl font-bold text-green-600">₹{project.hourly_rate}/hr</div>
-                          <Link href={`/expert/project/${project.id}`}>
-                            <Button size="sm" className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-medium shadow-sm hover:shadow-md transition-all duration-200">View Details</Button>
-                          </Link>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </CarouselItem>
-                ))}
-              </CarouselContent>
-              <CarouselPrevious className="text-slate-600 hover:text-slate-900 hidden sm:block" />
-              <CarouselNext className="text-slate-600 hover:text-slate-900 hidden sm:block" />
-            </Carousel>
+          <div className="mt-12">
+            <h2 className="text-[28px] font-semibold text-black mb-6">Similar Projects</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {similarProjects.slice(0, 2).map((proj) => (
+                <Card key={proj.id} className="bg-white border-2 border-[#D6D6D6] hover:border-[#008260] transition-all duration-300 hover:shadow-lg">
+                  <CardContent className="p-6">
+                    <h3 className="text-xl font-semibold text-black mb-3">{proj.title}</h3>
+                    <p className="text-[#6A6A6A] text-sm mb-4 line-clamp-2">{proj.description}</p>
+                    
+                    <div className="flex items-center text-sm text-[#6A6A6A] mb-4">
+                      <MapPin className="h-4 w-4 mr-1" />
+                      <span>{proj?.institutions?.city}, {proj?.institutions?.state}</span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="text-2xl font-bold text-[#008260]">₹{proj.hourly_rate}/hr</div>
+                      <Link href={`/expert/project/${proj.id}`}>
+                        <Button className="bg-[#008260] hover:bg-[#006d51] text-white rounded-lg w-20">
+                          View
+                        </Button>
+                      </Link>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* Recommended Projects Carousel */}
-        {recommendedProjects.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-3xl font-bold text-slate-900 mb-6 tracking-tight">Recommended Projects</h2>
-            <Carousel
-              opts={{
-                align: "start",
-                containScroll: "trimSnaps"
-              }}
-              plugins={[
-                Autoplay({
-                  delay: 3000,
-                }),
-              ]}
-              className="w-full max-w-7xl mx-auto"
-            >
-              <CarouselContent className="-ml-2">
-                {recommendedProjects.map((project) => (
-                  <CarouselItem key={project.id} className="pl-2 basis-full sm:basis-1/2 lg:basis-1/3">
-                    <Card className="h-full mx-2 transition-all duration-300 hover:shadow-lg border border-slate-200/50 hover:border-blue-300/50 bg-gradient-to-br from-white to-slate-50/30 shadow-sm hover:shadow-blue-100/20 relative group">
-                      <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 opacity-0 group-hover:opacity-10 transition-opacity duration-300 -z-10"></div>
-                      <CardContent className="p-6">
-                        <div className="flex items-start justify-between mb-4">
-                          <h3 className="font-bold text-lg text-slate-900 truncate group-hover:text-blue-600 transition-colors duration-200">{project.title}</h3>
-                          <Badge variant="outline" className="ml-2 capitalize text-xs flex-shrink-0">
-                            {project.type?.replace('_', ' ')}
-                          </Badge>
-                        </div>
-                        <p className="text-slate-600 text-sm mb-4 truncate">{project.description}</p>
-                        <div className="flex items-center justify-between text-sm text-slate-500 mb-4">
-                          {/* <span className="flex items-center">
-                            <Building className="h-4 w-4 mr-1" />
-                            {project.institutions.name}
-                          </span> */}
-                          <span className="flex items-center">
-                            <MapPin className="h-4 w-4 mr-1" />
-                            {project?.institutions?.city},{project?.institutions?.state}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="text-2xl font-bold text-green-600">₹{project.hourly_rate}/hr</div>
-                          <Link href={`/expert/project/${project.id}`}>
-                            <Button size="sm" className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-medium shadow-sm hover:shadow-md transition-all duration-200">View Details</Button>
-                          </Link>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </CarouselItem>
-                ))}
-              </CarouselContent>
-              <CarouselPrevious className="text-slate-600 hover:text-slate-900 hidden sm:block" />
-              <CarouselNext className="text-slate-600 hover:text-slate-900 hidden sm:block" />
-            </Carousel>
-          </div>
-        )}
       </main>
     </div>
   )
