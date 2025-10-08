@@ -33,8 +33,8 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
-      <header className="relative bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm shadow-lg border-b border-blue-200/20">
+    <div className="min-h-screen bg-[#ECF2FF] relative overflow-hidden">
+      <header className="relative bg-[#008260]">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center space-x-3 group">
             <span className="text-2xl font-bold text-white group-hover:text-blue-100 transition-all duration-300">Calxmap</span>
@@ -50,14 +50,14 @@ export default function ForgotPasswordPage() {
 
       <div className="relative flex items-center justify-center min-h-[calc(100vh-80px)] p-4">
         <div className="w-full max-w-2xl mx-auto relative group">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-indigo-500/5 rounded-2xl blur-2xl group-hover:from-blue-500/10 group-hover:to-indigo-500/10 transition-all duration-500"></div>
-          <Card className="border-2 border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-300 relative z-10">
+       
+          <Card className="border-2 border-[#D6D6D6] bg-white">
             <CardHeader className="text-center pb-6">
               <div className="flex justify-center mb-4">
                 <Logo size="lg" />
               </div>
-              <CardTitle className="text-2xl font-bold text-slate-900">Forgot Password</CardTitle>
-              <CardDescription className="text-slate-600">Enter your email to receive a reset link</CardDescription>
+              <CardTitle className="text-[22px] font-bold text-black">Forgot Password</CardTitle>
+              <CardDescription className="font-medium font-base">Enter your email to receive a <span className="text-[#008260]">reset link</span></CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
@@ -71,7 +71,7 @@ export default function ForgotPasswordPage() {
                       placeholder="Enter your email address"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="h-12 text-base pl-10 border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
+                      className="h-12 text-base pl-10 border-slate-300 focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260] transition-all duration-300"
                       required
                     />
                   </div>
@@ -90,7 +90,7 @@ export default function ForgotPasswordPage() {
 
                 <Button 
                   type="submit" 
-                  className="w-full h-12 text-base font-medium bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
+                  className="w-full h-12 text-base font-semibold bg-[#008260] text-white"
                   disabled={loading}
                 >
                   {loading ? 'Sending...' : 'Send Reset Link'}

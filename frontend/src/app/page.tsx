@@ -650,7 +650,7 @@ export default function Home() {
           </section>
 
           {/* Built for Everyone */}
-          <section className="py-16 lg:py-20 bg-white">
+          <section className="py-14 bg-white">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <motion.div
                 className="text-center mb-12"
@@ -781,7 +781,7 @@ export default function Home() {
                 >
                   <Card className="bg-[#F0F7FF] border-2 border-[#008260] rounded-lg shadow-none transition-all duration-300 h-full">
                     <CardContent className="p-8">
-                      <div className="w-14 h-14 bg-[#008260] rounded-xl flex items-center justify-center mb-6">
+                      <div className="w-14 h-14 bg-[#008260] rounded-xl shadow-[-4px_4px_4px_0px_#E2E8F8] flex items-center justify-center mb-6">
                         <Building className="h-7 w-7 text-white" />
                       </div>
                       <h3 className="text-2xl font-bold text-slate-900 mb-2">For Corporates</h3>
@@ -822,7 +822,7 @@ export default function Home() {
           </section>
 
           {/* How It Works Section */}
-          <section id="how-it-works" className="py-16 lg:py-20 bg-white">
+          <section id="how-it-works" className="py-12 bg-white">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <motion.div
                 className="text-center mb-12"
@@ -834,7 +834,7 @@ export default function Home() {
               >
                 {/* Tag pill */}
                 <div className="flex justify-center mb-6">
-                  <div className="px-4 py-2 rounded-full bg-[#DBE5FF] text-[#008260] text-sm font-medium inline-flex items-center gap-2">
+                  <div className="px-4 py-2 rounded-full bg-[#DBE5FF] shadow-[-4px_4px_4px_0px_#E2E8F8] text-[#008260] text-sm font-medium inline-flex items-center gap-2">
                     <Zap className="h-4 w-4" />
                     Simple Process
                   </div>
@@ -971,7 +971,7 @@ export default function Home() {
           </section>
 
           {/* Statistics Section */}
-          <section ref={statsRef} className="mt-20">
+          {/* <section ref={statsRef} className="mt-20">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className="p-8">
               <div className="text-center mb-16">
@@ -1082,13 +1082,13 @@ export default function Home() {
                 </div>
               </div>
             </div>
-          </section>
+          </section> */}
 
           {/* CSR & Initiatives Section */}
        
 
           {/* Featured Universities */}
-          <section className="py-16 lg:py-20 bg-white">
+          <section className="py-10 pb-14 bg-white">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <motion.div
                 className="text-center mb-12"
@@ -1100,7 +1100,7 @@ export default function Home() {
               >
                 {/* Tag pill */}
                 <div className="flex justify-center mb-6">
-                  <div className="px-4 py-2 rounded-full bg-[#DBE5FF] text-[#008260] text-sm font-medium inline-flex items-center gap-2">
+                  <div className="px-4 py-2 rounded-full bg-[#DBE5FF] text-[#008260] shadow-[-4px_4px_4px_0px_#E2E8F8] text-sm font-medium inline-flex items-center gap-2">
                     <Users className="h-4 w-4" />
                     Trusted Partners
                   </div>
@@ -1169,7 +1169,7 @@ export default function Home() {
           </section>
 
           {/* Featured Experts */}
-          <section className="py-16 lg:py-20 bg-[#F0F7FF]">
+          <section className="py-10 bg-[#F0F7FF]">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <motion.div
                 className="text-center mb-12"
@@ -1180,8 +1180,8 @@ export default function Home() {
                 transition={transition}
               >
                 {/* Tag pill */}
-                <div className="flex justify-center mb-6">
-                  <div className="px-4 py-2 rounded-full bg-[#DBE5FF] text-[#008260] text-sm font-medium inline-flex items-center gap-2">
+                <div className="flex justify-center mb-5">
+                  <div className="px-4 py-2 rounded-full bg-[#DBE5FF] text-[#008260] shadow-[-4px_4px_4px_0px_#E2E8F8] text-sm font-medium inline-flex items-center gap-2">
                     <Zap className="h-4 w-4" />
                     Top Experts
                   </div>
@@ -1190,7 +1190,7 @@ export default function Home() {
                   <span className="text-slate-900">Featured </span>
                   <span className="text-[#008260]">Experts</span>
                 </h2>
-                <p className="text-base text-slate-600 max-w-2xl mx-auto">
+                <p className="text-base text-[#000000CC] max-w-2xl mx-auto">
                   Meet our top-rated professionals ready to drive your success forward
                 </p>
               </motion.div>
@@ -1278,7 +1278,13 @@ export default function Home() {
           </section>
 
           {/* Student Feedback & Analytics Section */}
-          <section className="py-12 lg:py-16">
+          <section className="py-10">
+          <div className="flex justify-center">
+                  <div className="px-4 py-2 rounded-full shadow-[-4px_4px_4px_0px_#E2E8F8] bg-[#DBE5FF] text-[#008260] text-sm font-medium inline-flex items-center gap-2">
+                    <Zap className="h-4 w-4" />
+                    Features
+                  </div>
+                </div>
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className="p-4 sm:p-6 lg:p-8">
               <motion.div
@@ -1289,8 +1295,12 @@ export default function Home() {
                 variants={fadeUp}
                 transition={transition}
               >
-                  <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-bold text-slate-900 mb-4">Student Feedback & Analytics</h2>
-                  <p className="text-lg sm:text-xl text-slate-600 max-w-3xl mx-auto">
+                  <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-bold  mb-4 flex flex-col justify-center items-center">
+                    <span className="text-[#000000]">Student 
+                    </span>
+                   <span className='text-[#008260]'> Feedback & Analytics </span>
+                    </h2>
+                  <p className="text-lg sm:text-xl text-[#000000CC] max-w-3xl mx-auto font-medium">
                   Empowering students to share their voice and administrators to make data-driven decisions
                 </p>
               </motion.div>
@@ -1304,33 +1314,33 @@ export default function Home() {
                     variants={slideLeft}
                     transition={transition}
                   >
-                  <Card className="bg-white border-2 border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 group hover:border-blue-300 hover:translate-y-[-4px]">
+                  <Card className="bg-white rounded-[18px] transition-all duration-300">
                   <CardHeader className="text-center pb-6">
-                      <div className="w-20 h-20 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
-                      <BookOpen className="h-10 w-10 text-white" />
+                      <div className="w-14 h-14 bg-[#008260] rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
+                      <Star className="h-6 w-6 text-white" />
                     </div>
-                      <CardTitle className="text-2xl sm:text-3xl font-bold text-slate-900 mb-4">Student Feedback Portal</CardTitle>
-                      <CardDescription className="text-slate-600 text-base sm:text-lg">
+                      <CardTitle className="text-[22px] font-bold text-[#000000] mb-4">Student Feedback Portal</CardTitle>
+                      <CardDescription className="text-[#555555] text-base sm:text-lg">
                       Share your valuable feedback on expert sessions and help improve learning experiences
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="text-center pb-8">
                     <div className="space-y-4 mb-8">
-                        <div className="flex items-center justify-center space-x-3 text-slate-600">
-                          <CheckCircle className="h-5 w-5 text-green-500" />
+                        <div className="flex items-center justify-center space-x-3 text-[#555555] text-base font-medium">
+                          <CheckCircle className="h-5 w-5 text-[#008260]" />
                         <span>Anonymous & Secure Feedback</span>
                       </div>
-                        <div className="flex items-center justify-center space-x-3 text-slate-600">
-                          <CheckCircle className="h-5 w-5 text-green-500" />
+                        <div className="flex items-center justify-center space-x-3 text-[#555555] text-base font-medium">
+                          <CheckCircle className="h-5 w-5 text-[#008260]" />
                         <span>Quick & Easy Submission</span>
                       </div>
-                        <div className="flex items-center justify-center space-x-3 text-slate-600">
-                          <CheckCircle className="h-5 w-5 text-green-500" />
+                        <div className="flex items-center justify-center space-x-3 text-[#555555] text-base font-medium">
+                          <CheckCircle className="h-5 w-5 text-[#008260]" />
                         <span>Help Drive Improvements</span>
                       </div>
                     </div>
                     <Link href="/student-feedback">
-                        <Button size="lg" className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-bold text-base sm:text-lg px-6 sm:px-8 py-4 sm:py-6 shadow-sm hover:shadow-md transition-all duration-300 w-full sm:w-auto">
+                        <Button size="lg" className="bg-[#008260] text-white font-semibold text-[15px] px-6 sm:px-8 py-4 sm:py-6  w-full sm:w-auto rounded-[18px]">
                         Access Feedback Portal
                         <ArrowRight className="ml-2 h-5 w-5" />
                       </Button>
@@ -1347,33 +1357,33 @@ export default function Home() {
                     variants={slideRight}
                     transition={transition}
                   >
-                  <Card className="bg-white border-2 border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 group hover:border-blue-300 hover:translate-y-[-4px]">
+                  <Card className="bg-white rounded-[18px] transition-all duration-300">
                   <CardHeader className="text-center pb-6">
-                      <div className="w-20 h-20 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
-                      <BarChart3 className="h-10 w-10 text-white" />
+                      <div className="w-14 h-14 bg-[#008260] rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
+                      <BarChart3 className="h-6 w-6 text-white" />
                     </div>
-                      <CardTitle className="text-2xl sm:text-3xl font-bold text-slate-900 mb-4">Analytics Dashboard</CardTitle>
-                      <CardDescription className="text-slate-600 text-base sm:text-lg">
+                      <CardTitle className="text-[22px] font-bold text-[#000000] mb-4">Analytics Dashboard</CardTitle>
+                      <CardDescription className="text-[#555555] text-base sm:text-lg">
                       Comprehensive insights and analytics for administrators and educators
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="text-center pb-8">
                     <div className="space-y-4 mb-8">
-                        <div className="flex items-center justify-center space-x-3 text-slate-600">
-                          <CheckCircle className="h-5 w-5 text-green-500" />
+                        <div className="flex items-center justify-center space-x-3 text-[#555555] text-base font-medium">
+                          <CheckCircle className="h-5 w-5 text-[#008260]" />
                         <span>Real-time Feedback Analytics</span>
                       </div>
-                        <div className="flex items-center justify-center space-x-3 text-slate-600">
-                          <CheckCircle className="h-5 w-5 text-green-500" />
+                        <div className="flex items-center justify-center space-x-3 text-[#555555] text-base font-medium">
+                          <CheckCircle className="h-5 w-5 text-[#008260]" />
                         <span>Performance Insights</span>
                       </div>
-                        <div className="flex items-center justify-center space-x-3 text-slate-600">
-                          <CheckCircle className="h-5 w-5 text-green-500" />
+                        <div className="flex items-center justify-center space-x-3 text-[#555555] text-base font-medium">
+                          <CheckCircle className="h-5 w-5 text-[#008260]" />
                         <span>Data-Driven Decisions</span>
                       </div>
                     </div>
                     <Link href="/admin/feedback-analytics">
-                        <Button size="lg" className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-bold text-base sm:text-lg px-6 sm:px-8 py-4 sm:py-6 shadow-sm hover:shadow-md transition-all duration-300 w-full sm:w-auto">
+                        <Button size="lg" className="bg-[#008260] text-white font-semibold text-[15px] px-6 sm:px-8 py-4 sm:py-6  w-full sm:w-auto rounded-[18px]">
                         View Analytics
                         <ArrowRight className="ml-2 h-5 w-5" />
                       </Button>

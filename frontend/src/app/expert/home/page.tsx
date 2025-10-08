@@ -983,14 +983,14 @@ export default function ExpertHome() {
 
         {/* Application Modal */}
         <Dialog open={showApplicationModal} onOpenChange={setShowApplicationModal}>
-          <DialogContent className="sm:max-w-md bg-white border-2 border-slate-200 shadow-xl">
-            <DialogHeader className="space-y-3">
-              <DialogTitle className="text-xl font-bold text-slate-900">Apply to Project</DialogTitle>
-              <DialogDescription className="text-slate-600">
-                Submit your application for "{(projects as Project[]).find(p => p.id === selectedProjectId)?.title || 'this project'}"
+          <DialogContent className="sm:max-w-md bg-white">
+            <DialogHeader className="space-y-1">
+              <DialogTitle className="text-xl font-bold text-[#000000]">Apply to Project</DialogTitle>
+              <DialogDescription className="text-[#000000] text-sm font-normal font-sans">
+                Submit your application for {(projects as Project[]).find(p => p.id === selectedProjectId)?.title || 'this project'}
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-6 py-4">
+            <div className="space-y-6 ">
               <div className="space-y-2">
                 <Label htmlFor="coverLetter" className="text-sm font-medium text-slate-700">Cover Letter</Label>
                 <Textarea
@@ -999,7 +999,7 @@ export default function ExpertHome() {
                   value={applicationForm.coverLetter}
                   onChange={(e) => setApplicationForm({...applicationForm, coverLetter: e.target.value})}
                   rows={4}
-                  className="border-2 border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                  className="border-2 border-slate-200 focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]"
                 />
               </div>
               <div className="space-y-2">
@@ -1010,7 +1010,7 @@ export default function ExpertHome() {
                   placeholder={expert?.hourly_rate?.toString() || "1500"}
                   value={applicationForm.proposedRate}
                   onChange={(e) => setApplicationForm({...applicationForm, proposedRate: e.target.value})}
-                  className="border-2 border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                  className="border-2 border-slate-200 focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]"
                 />
               </div>
               {error && (

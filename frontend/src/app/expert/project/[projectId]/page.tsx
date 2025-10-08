@@ -449,13 +449,13 @@ export default function ExpertProjectPage() {
                         </Button>
                       </DialogTrigger>
                     <DialogContent className="sm:max-w-md bg-white border-2 border-[#D6D6D6] shadow-xl">
-                      <DialogHeader className="space-y-3">
+                      <DialogHeader className="space-y-1">
                         <DialogTitle className="text-xl font-bold text-black">Apply to Project</DialogTitle>
                         <DialogDescription className="text-[#6A6A6A]">
-                          Submit your application for "{project.title}"
+                          Submit your application for {project.title}
                         </DialogDescription>
                       </DialogHeader>
-                      <div className="space-y-6 py-4">
+                      <div className="space-y-6 py-2">
                         <div className="space-y-2">
                           <Label htmlFor="coverLetter" className="text-sm font-medium text-black">Cover Letter</Label>
                           <Textarea
@@ -464,7 +464,7 @@ export default function ExpertProjectPage() {
                             value={applicationForm.coverLetter}
                             onChange={(e) => setApplicationForm({...applicationForm, coverLetter: e.target.value})}
                             rows={4}
-                            className="border-2 border-[#D6D6D6] focus:border-[#008260] focus:ring-1 focus:ring-[#008260] transition-all duration-200"
+                            className="border-2 border-slate-200 focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]"
                           />
                         </div>
                         <div className="space-y-2">
@@ -510,9 +510,9 @@ export default function ExpertProjectPage() {
         {/* Similar Projects Section */}
         {similarProjects.length > 0 && (
           <div className="mt-12">
-            <h2 className="text-[28px] font-semibold text-black mb-6">Similar Projects</h2>
+            <h2 className="text-[22px] font-semibold text-black mb-6">Similar Projects</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {similarProjects.slice(0, 2).map((proj) => (
+              {similarProjects.slice(0, 5).map((proj) => (
                 <Card key={proj.id} className="bg-white border-2 border-[#D6D6D6] hover:border-[#008260] transition-all duration-300 hover:shadow-lg">
                   <CardContent className="p-6">
                     <h3 className="text-xl font-semibold text-black mb-3">{proj.title}</h3>
@@ -537,6 +537,36 @@ export default function ExpertProjectPage() {
             </div>
           </div>
         )}
+         {recommendedProjects.length > 0 && (
+          <div className="mt-12">
+          <h2 className="text-[22px] font-semibold text-black mb-6">Similar Projects</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {recommendedProjects.slice(0, 5).map((proj) => (
+              <Card key={proj.id} className="bg-white border-2 border-[#D6D6D6] hover:border-[#008260] transition-all duration-300 hover:shadow-lg">
+                <CardContent className="p-6">
+                  <h3 className="text-xl font-semibold text-black mb-3">{proj.title}</h3>
+                  <p className="text-[#6A6A6A] text-sm mb-4 line-clamp-2">{proj.description}</p>
+                  
+                  <div className="flex items-center text-sm text-[#6A6A6A] mb-4">
+                    <MapPin className="h-4 w-4 mr-1" />
+                    <span>{proj?.institutions?.city}, {proj?.institutions?.state}</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="text-2xl font-bold text-[#008260]">₹{proj.hourly_rate}/hr</div>
+                    <Link href={`/expert/project/${proj.id}`}>
+                      <Button className="bg-[#008260] hover:bg-[#006d51] text-white rounded-lg w-20">
+                        View
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+        )}
+
 
       </main>
     </div>

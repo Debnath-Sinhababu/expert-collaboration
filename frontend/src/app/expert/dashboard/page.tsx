@@ -495,8 +495,8 @@ export default function ExpertDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
+    <div className="min-h-screen bg-[#ECF2FF]">
+      <header className="bg-[#008260] sticky top-0 z-50 border-b border-slate-200/20">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link href="/expert/home" className="flex items-center space-x-2 group">
@@ -533,13 +533,13 @@ export default function ExpertDashboard() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
-            <CardContent className="p-6">
+          <Card className="border-2 border-[#D6D6D6] bg-white">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-slate-700">Total Applications</p>
-                  <p className="text-2xl font-bold text-slate-900">{applicationCounts.pending + applicationCounts.interview + applicationCounts.rejected + analytics.completedBookings}</p>
-                  <div className="flex space-x-2 text-xs text-slate-500">
+                  <p className="text-sm font-medium text-[#000000]">Total Applications</p>
+                  <p className="text-3xl font-bold text-[#000000] my-1">{applicationCounts.pending + applicationCounts.interview + applicationCounts.rejected + analytics.completedBookings}</p>
+                  <div className="flex space-x-2 text-xs text-[#656565] font-medium my-2">
                     <span>{applicationCounts.pending} pending</span>
                     <span>•</span>
                     <span>{applicationCounts.interview} interview</span>
@@ -547,8 +547,8 @@ export default function ExpertDashboard() {
                     <span>{analytics.completedBookings} completed</span>
                   </div>
                 </div>
-                <div className="p-3 bg-slate-100 rounded-full">
-                  <Briefcase className="h-8 w-8 text-slate-600" />
+                <div className="p-3 bg-[#ECF2FF] rounded-full">
+                  <Briefcase className="h-8 w-8 text-[#008260]" />
                 </div>
               </div>
             </CardContent>
@@ -556,13 +556,13 @@ export default function ExpertDashboard() {
 
         
 
-          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
-            <CardContent className="p-6">
+          <Card className="border-2 border-[#D6D6D6] bg-white">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-slate-700">Success Rate</p>
-                  <p className="text-2xl font-bold text-slate-900">{analytics.successRate.toFixed(1)}%</p>
-                  <div className="flex space-x-2 text-xs text-slate-500">
+                  <p className="text-sm font-medium text-[#000000]">Success Rate</p>
+                  <p className="text-3xl font-bold text-[#000000] my-1">{analytics.successRate.toFixed(1)}%</p>
+                  <div className="flex space-x-2 text-xs text-[#656565] font-medium my-2">
                     <span>{expertAggregate.avg}/5 rating</span>
                     <span>•</span>
                     <span>{expertAggregate.count} reviews</span>
@@ -572,7 +572,7 @@ export default function ExpertDashboard() {
                   {[1, 2, 3, 4, 5].map((star) => (
                     <Star 
                       key={star} 
-                      className={`h-6 w-6 ${star <= Math.round(expertAggregate.avg) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} 
+                      className={`h-6 w-6 ${star <= Math.round(expertAggregate.avg) ? 'text-[#008260] fill-current' : 'text-gray-300'}`} 
                     />
                   ))}
                 </div>
@@ -580,20 +580,20 @@ export default function ExpertDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
-            <CardContent className="p-6">
+          <Card className="border-2 border-[#D6D6D6] bg-white">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-slate-700">This Week</p>
-                  <p className="text-2xl font-bold text-slate-900">{analytics.weeklyApplications}</p>
-                  <div className="flex space-x-2 text-xs text-slate-500">
+                  <p className="text-sm font-medium text-[#000000]">This Week</p>
+                  <p className="text-3xl font-bold text-[#000000] my-1">{analytics.weeklyApplications}</p>
+                  <div className="flex space-x-2 text-xs text-[#656565] font-medium my-2">
                     <span>New applications</span>
                     <span>•</span>
                     <span>₹{analytics.averageProjectValue.toFixed(0)} avg project</span>
                   </div>
                 </div>
-                <div className="p-3 bg-slate-100 rounded-full">
-                  <Calendar className="h-8 w-8 text-slate-600" />
+                <div className="p-3 bg-[#ECF2FF] rounded-full">
+                  <Calendar className="h-8 w-8 text-[#008260]" />
                 </div>
               </div>
             </CardContent>
@@ -602,37 +602,37 @@ export default function ExpertDashboard() {
 
         {/* Additional Analytics Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
-            <CardContent className="p-6">
+          <Card className="border-2 border-[#D6D6D6] bg-white">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-slate-700">Hourly Rate</p>
-                  <p className="text-2xl font-bold text-slate-900">₹{expert?.hourly_rate}</p>
-                  <p className="text-xs text-slate-500">Current rate</p>
+                  <p className="text-sm font-medium text-[#000000]">Hourly Rate</p>
+                  <p className="text-3xl font-bold text-[#000000] my-1">₹{expert?.hourly_rate}</p>
+                  <p className="text-xs text-[#656565] font-medium my-1">Current rate</p>
                 </div>
-                <div className="p-3 bg-slate-100 rounded-full">
-                  <Clock className="h-8 w-8 text-slate-600" />
+                <div className="p-3 bg-[#ECF2FF] rounded-full">
+                  <Clock className="h-8 w-8 text-[#008260]" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
-            <CardContent className="p-6">
+          <Card className="border-2 border-[#D6D6D6] bg-white">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-slate-700">Completed Projects</p>
-                  <p className="text-2xl font-bold text-slate-900">{analytics.completedBookings}</p>
+                  <p className="text-sm font-medium text-[#000000]">Completed Projects</p>
+                  <p className="text-2xl font-bold text-[#000000]">{analytics.completedBookings}</p>
                   {/* <p className="text-xs text-slate-500">{analytics.totalHoursWorked}h total work</p> */}
                 </div>
-                <div className="p-3 bg-slate-100 rounded-full">
-                  <CheckCircle className="h-8 w-8 text-slate-600" />
+                <div className="p-3 bg-[#ECF2FF] rounded-full">
+                  <CheckCircle className="h-8 w-8 text-[#008260]" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
+          {/* <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -653,20 +653,20 @@ export default function ExpertDashboard() {
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
 
-          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
-            <CardContent className="p-6">
+          <Card className="border-2 border-[#D6D6D6] bg-white">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-slate-700">Active Bookings</p>
-                  <p className="text-2xl font-bold text-slate-900">{bookingCounts.in_progress || 0}</p>
+                  <p className="text-sm font-medium text-[#000000]">Active Bookings</p>
+                  <p className="text-2xl font-bold text-[#000000] my-1">{bookingCounts.in_progress || 0}</p>
                   <p className="text-xs text-slate-500">
                     {bookingCounts.completed || 0} completed 
                   </p>
                 </div>
-                <div className="p-3 bg-slate-100 rounded-full">
-                  <BookOpen className="h-8 w-8 text-slate-600" />
+                <div className="p-3 bg-[#ECF2FF] rounded-full">
+                  <BookOpen className="h-8 w-8 text-[#008260]" />
                 </div>
               </div>
             </CardContent>
@@ -682,27 +682,27 @@ export default function ExpertDashboard() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <div className="w-full overflow-x-auto md:overflow-x-visible scrollbar-hide">
               <TabsList ref={tabsListRef} className="flex md:grid w-max md:w-full md:grid-cols-4 gap-2 bg-white border-b border-slate-200 h-12 px-4 md:px-0">
-                <TabsTrigger 
-                  value="pending" 
-                  className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
-                >
-                  Pending ({applicationCounts.pending || 0})
-                </TabsTrigger>
+              <TabsTrigger 
+  value="pending" 
+  className="data-[state=active]:bg-emerald-50 data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-emerald-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
+>
+  Pending ({applicationCounts.pending || 0})
+</TabsTrigger>
                 <TabsTrigger 
                   value="interview" 
-                  className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
+                 className="data-[state=active]:bg-emerald-50 data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-emerald-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
                 >
                   Interview ({applicationCounts.interview || 0})
                 </TabsTrigger>
                 <TabsTrigger 
                   value="bookings" 
-                  className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
+                  className="data-[state=active]:bg-emerald-50 data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-emerald-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
                 >
                   Bookings ({bookingCounts.total || 0})
                 </TabsTrigger>
                 <TabsTrigger 
                   value="rejected" 
-                  className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
+                  className="data-[state=active]:bg-emerald-50 data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-emerald-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
                 >
                   Rejected ({applicationCounts.rejected || 0})
                 </TabsTrigger>
@@ -712,10 +712,10 @@ export default function ExpertDashboard() {
 
             {/* Pending Applications Tab */}
             <TabsContent value="pending" className="space-y-6">
-            <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
+            <Card className="border-2 border-[#D6D6D6]">
               <CardHeader>
-                  <CardTitle className="text-slate-900">Pending Applications</CardTitle>
-                <CardDescription className="text-slate-600">
+                  <CardTitle className="text-[#000000] font-semibold text-[18px]">Pending Applications</CardTitle>
+                <CardDescription className="text-[#000000] font-base font-normal">
                     Applications waiting for review
                 </CardDescription>
               </CardHeader>
@@ -729,9 +729,9 @@ export default function ExpertDashboard() {
                 ) : (
                   <div className="space-y-4">
                       {pagedPendingApplications?.map((application: any) => (
-                      <div key={application.id} className="bg-white border-2 border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all duration-300 group">
+                      <div key={application.id} className="bg-white border border-[#DCDCDC] rounded-lg p-6 hover:border-[#008260] hover:shadow-md transition-all duration-300 group">
                         <div className="flex items-center justify-between mb-2 min-w-0">
-                          <h3 className="font-semibold text-slate-900 group-hover:text-blue-700 truncate pr-2 transition-colors duration-300">{application.projects?.title || 'Project Title'}</h3>
+                          <h3 className="font-semibold text-slate-900 group-hover:text-[#008260] truncate pr-2 transition-colors duration-300">{application.projects?.title || 'Project Title'}</h3>
                           <Badge className={getStatusColor(application.status)}>
                             <div className="flex items-center space-x-1">
                               {getStatusIcon(application.status)}
