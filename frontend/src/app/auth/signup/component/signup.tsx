@@ -430,7 +430,7 @@ export default function Signup() {
 
                 <div className="text-center">
                   <Link href="/auth/login">
-                    <Button className="w-full h-11 text-base font-medium bg-[#008260] text-white shadow-sm hover:shadow-md transition-all duration-300">
+                    <Button className="w-full h-11 text-base font-medium bg-[#008260] hover:bg-[#008260] text-white shadow-sm  transition-all duration-300">
                       Sign In to Your Account
                     </Button>
                   </Link>

@@ -339,37 +339,30 @@ export default function ExpertProfileSetup() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative py-8">
+    <div className="min-h-screen bg-[#ECF2FF] relative">
       {/* Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-blue-500/5 to-indigo-500/5 rounded-full blur-3xl"></div>
-      </div>
-      
-      <div className="container mx-auto px-4 max-w-4xl relative z-10">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center space-x-2 mb-4 group">
-            <Logo size="md" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent group-hover:from-blue-800 group-hover:to-indigo-800 transition-all duration-300">Calxmap</span>
-          </Link>
-          <h1 className="text-4xl font-bold text-slate-900 mb-2 tracking-tight">Complete Your Expert Profile</h1>
-          <p className="text-xl text-slate-600">
-            Tell us about your expertise and start receiving project opportunities
-          </p>
+      <header className="relative bg-[#008260] shadow-sm">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+           
+            <Link href="/contact-us">
+              <Button variant="ghost" className="font-medium text-white hover:text-white hover:bg-white/10 transition-all duration-300 px-4 py-2 text-sm">
+                Contact Us
+              </Button>
+            </Link>
+          </div>
         </div>
-
-        <Card className="bg-white border-2 border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold text-slate-900">Expert Profile Setup</CardTitle>
-            <CardDescription className="text-slate-600">
-              Complete your profile to start connecting with universities and institutions
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {error && (
+      </header>
+      <div className='container mx-auto px-4 relative z-10 flex flex-col items-start gap-y-6 mt-20'>
+      <h2 className='text-[#000000] font-semibold text-[42px]'>Welcome Expert</h2>
+       <div>
+        <p className='text-[#000000] font-semibold text-[20px]'>Let’s complete your profile</p>
+        <p className='text-base font-sans text-[#000000] font-normal'>Tell us about your expertise and start receiving project opportunities</p>
+       </div>
+      </div>
+      <div className="container mx-auto px-4  relative z-10 mt-8 pb-10">
+        {/* Header */}
+        {error && (
                 <Alert variant="destructive">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
@@ -381,8 +374,14 @@ export default function ExpertProfileSetup() {
                 </Alert>
               )}
 
+        <Card className="bg-white">
+        
+          <CardContent>
+            <form className="space-y-6">
+            
+
               {/* Basic Information */}
-              <div className="space-y-4">
+              <div className="space-y-4 pt-4">
                 <h3 className="text-lg font-semibold text-slate-800">Basic Information</h3>
                 
                 <div className="grid md:grid-cols-2 gap-4">
@@ -564,7 +563,18 @@ export default function ExpertProfileSetup() {
               </div>
 
               {/* Professional Details */}
-              <div className="space-y-4">
+            
+
+              {/* Availability */}
+           
+
+             
+            </form>
+          </CardContent>
+        </Card>
+        <Card className="bg-white mt-3">
+         <CardContent>
+         <div className="space-y-4 pt-4">
                 <h3 className="text-lg font-semibold text-slate-800">Professional Details</h3>
                 
                 <div className="grid md:grid-cols-2 gap-4">
@@ -691,27 +701,23 @@ export default function ExpertProfileSetup() {
                   )}
                 </div>
               </div>
-
-              {/* Availability */}
-           
-
-              <div className="flex justify-between pt-6 flex-wrap gap-3">
+         </CardContent>
+        </Card>
+        <div className="flex justify-end pt-6 flex-wrap gap-3">
                 <Link href="/auth/login">
-                  <Button variant="outline" className="border-2 border-slate-300 text-slate-700 transition-all duration-300 hover:text-white hover:border-transparent hover:bg-gradient-to-r hover:from-slate-900 hover:via-blue-900 hover:to-indigo-900 hover:shadow-sm">
-                    Back to Login
+                  <Button variant="outline" className="bg-white rounded-md w-[150px]">
+                    Back 
                   </Button>
                 </Link>
                 <Button
-                  type="submit"
-                  className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
+                  type="button"
+                  className="bg-[#008260] rounded-md w-[150px]"
                   disabled={saving}
+                  onClick={handleSubmit}
                 >
-                  {saving ? 'Creating Profile...' : 'Complete Profile Setup'}
+                  {saving ? 'Saving...' : 'Save'}
                 </Button>
               </div>
-            </form>
-          </CardContent>
-        </Card>
       </div>
     </div>
   )

@@ -40,7 +40,10 @@ import {
   Shield,
   MessageSquare,
   AlertCircle,
-  BookOpen
+  BookOpen,
+  Hourglass,
+  IndianRupee,
+  FileText
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -662,9 +665,9 @@ export default function InstitutionDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-[#ECF2FF]">
       {/* Header */}
-      <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
+      <header className="bg-[#008260]">
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <Link href="/institution/home" className="flex items-center space-x-2 group">
@@ -693,17 +696,17 @@ export default function InstitutionDashboard() {
         {/* Welcome Section */}
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="min-w-0 text-center sm:text-left">
-             <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">
-               Welcome back, {institution?.name}!
+             <h1 className="text-3xl font-semibold text-[#000000] mb-1">
+               Welcome back, <span className='text-[#008260]'>{institution?.name}!</span>
              </h1>
-             <p className="text-lg sm:text-xl text-slate-600">
+             <p className="text-lg text-[#000000CC] font-medium">
                Manage your projects, review applications, and connect with qualified experts.
              </p>
           </div>
           <Dialog open={showProjectForm} onOpenChange={setShowProjectForm}>
               <DialogTrigger asChild>
-                <Button className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300">
-                  <Plus className="h-4 w-4 mr-2" />
+              <Button className="bg-[#008260] hover:bg-[#008260] text-sm font-semibold">
+                  <Plus className="h-3 w-3 mr-1 border border-white rounded-full" />
                   Post Requirement
                 </Button>
               </DialogTrigger>
@@ -1207,71 +1210,71 @@ export default function InstitutionDashboard() {
 
         {/* Stats Cards */}
         <div className="grid md:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
-            <CardContent className="p-6">
+          <Card className="bg-white border-2 border-[#D6D6D6]">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-slate-600">Total Projects</p>
-                  <p className="text-2xl font-bold text-slate-900">{projects.length}</p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-sm font-medium text-[#000000]">Total Projects</p>
+                  <p className="text-3xl font-bold text-[#000000] my-2">{projects.length}</p>
+                  <p className="text-xs text-[#656565]">
                     {projects.filter(p => p.status === 'open').length} open
                   </p>
                 </div>
-                <div className="p-3 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-full">
-                  <Briefcase className="h-8 w-8 text-white" />
+                <div className="p-3 bg-[#ECF2FF] rounded-full">
+                  <Briefcase className="h-8 w-8 text-[#008260]" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
-            <CardContent className="p-6">
+          <Card className="bg-white border-2 border-[#D6D6D6]">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-slate-600">Applications</p>
-                  <p className="text-2xl font-bold text-slate-900">
+                  <p className="text-sm font-medium text-[#000000]">Applications</p>
+                  <p className="text-3xl font-bold text-[#000000] my-2">
                     {projects.reduce((total, project) => total + (project.applicationCounts?.total || 0), 0)}
                   </p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-[#656565]">
                     {projects.reduce((total, project) => total + (project.applicationCounts?.pending || 0), 0)} pending
                   </p>
                 </div>
-                <div className="p-3 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-full">
-                  <Users className="h-8 w-8 text-white" />
+                <div className="p-3 bg-[#ECF2FF] rounded-full">
+                  <Users className="h-8 w-8 text-[#008260]" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
-            <CardContent className="p-6">
+          <Card className="bg-white border-2 border-[#D6D6D6]">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-slate-600">Active Bookings</p>
-                  <p className="text-2xl font-bold text-slate-900">
+                  <p className="text-sm font-medium text-[#000000]">Active Bookings</p>
+                  <p className="text-3xl font-bold text-[#000000] my-2">
                     {bookingCounts.in_progress}
                   </p>
-                  <p className="text-xs text-slate-500">in progress</p>
+                  <p className="text-xs text-[#656565]">in progress</p>
                 </div>
-                <div className="p-3 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-full">
-                  <BookOpen className="h-8 w-8 text-white" />
+                <div className="p-3 bg-[#ECF2FF] rounded-full">
+                  <BookOpen className="h-8 w-8 text-[#008260]" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
-            <CardContent className="p-6">
+          <Card className="bg-white border-2 border-[#D6D6D6]">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-slate-600">Completed</p>
-                  <p className="text-2xl font-bold text-slate-900">
+                  <p className="text-sm font-medium text-[#000000]">Completed</p>
+                  <p className="text-3xl font-bold text-[#000000] my-2">
                     {bookingCounts.completed}
                   </p>
-                  <p className="text-xs text-slate-500">bookings</p>
+                  <p className="text-xs text-[#656565]">bookings</p>
                 </div>
-                <div className="p-3 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-full">
-                  <CheckCircle className="h-8 w-8 text-white" />
+                <div className="p-3 bg-[#ECF2FF] rounded-full">
+                  <CheckCircle className="h-8 w-8 text-[#008260]" />
                 </div>
               </div>
             </CardContent>
@@ -1302,8 +1305,8 @@ export default function InstitutionDashboard() {
         <div className="space-y-6">
           <Card className="bg-white border-2 border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
             <CardHeader>
-              <CardTitle className="text-2xl font-bold text-slate-900">My Projects</CardTitle>
-              <CardDescription className="text-slate-600">
+              <CardTitle className="text-lg font-semibold text-[#000000]">My Projects</CardTitle>
+              <CardDescription className="text-[#000000] font-normal text-base !-mt-[2px]">
                 Manage your posted projects and track their progress
               </CardDescription>
             </CardHeader>
@@ -1320,35 +1323,55 @@ export default function InstitutionDashboard() {
                     {projects.map((project: any) => (
                       <div 
                         key={project.id} 
-                        className="bg-white border-2 border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all duration-300 group"
+                        className="bg-white border border-[#DCDCDC] rounded-lg p-6 transition-all duration-300 group"
                       >
                         <div className="flex items-center justify-between mb-2 min-w-0">
-                          <h3 className="font-semibold text-lg text-slate-900 truncate pr-2">{project.title}</h3>
+                          <h3 className="font-bold text-lg text-[#000000] truncate pr-2">{project.title}</h3>
                           <div className="flex items-center space-x-2 flex-shrink-0">
-                            <Badge variant="outline" className="capitalize border-slate-300 text-slate-700">{project.status}</Badge>
-                            <Badge variant="secondary" className="capitalize bg-slate-100 text-slate-700">{project.type}</Badge>
+                            <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-2 px-4">{project.status}</Badge>
+                            <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-2 px-4">{project.type}</Badge>
                           </div>
                         </div>
-                        <p className="text-sm text-slate-600 mb-3 line-clamp-2">{project.description}</p>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-sm">
-                          <div>
-                            <span className="text-slate-500">Rate:</span>
-                            <p className="font-medium text-slate-900">₹{project.hourly_rate}/hour</p>
+                        <p className="text-sm text-[#6A6A6A] mb-3 line-clamp-2">{project.description}</p>
+                        <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
+                        <div className="flex items-start gap-3">
+    <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+      <Clock className="w-5 h-5" style={{ color: '#008260' }} />
+    </div>
+    <div>
+      <span className="text-[#717171] text-xs">Rate:</span>
+      <p className="font-semibold text-[#008260] text-base">₹{project.hourly_rate}/hour</p>
+    </div>
+  </div>
+                          <div className='flex items-start gap-3'>
+                          <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+      <Hourglass className="w-5 h-5" style={{ color: '#008260' }} />
+    </div>
+                             <div>
+                            <span className="text-[#717171] text-xs">Duration:</span>
+                            <p className="font-medium text-base text-[#1D1D1D]">{project.duration_hours} hours</p>
+                            </div>
                           </div>
-                          <div>
-                            <span className="text-slate-500">Duration:</span>
-                            <p className="font-medium text-slate-900">{project.duration_hours} hours</p>
+                          <div className='flex items-start gap-3'>
+                          <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+      <IndianRupee className="w-5 h-5" style={{ color: '#008260' }} />
+    </div> 
+                         <div>
+                            <span className="text-[#717171] text-xs">Budget:</span>
+                            <p className="font-medium text-base text-[#1D1D1D]">₹{project.total_budget}</p>
+                            </div>
                           </div>
-                          <div>
-                            <span className="text-slate-500">Budget:</span>
-                            <p className="font-medium text-slate-900">₹{project.total_budget}</p>
-                          </div>
-                          <div>
-                            <span className="text-slate-500">Applications:</span>
-                            <p className="font-medium text-slate-900">
-                              {project.applicationCounts?.total}
-                            </p>
-                          </div>
+                          <div className="flex items-start gap-3">
+    <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+      <FileText className="w-5 h-5" style={{ color: '#008260' }} />
+    </div>
+    <div>
+      <span className="text-[#717171] text-xs">Applications:</span>
+      <p className="font-medium text-base text-[#1D1D1D]">
+        {project.applicationCounts?.total}
+      </p>
+    </div>
+  </div>
                         </div>
                         {project.required_expertise && project.required_expertise.length > 0 && (
                           <div className="mb-4">
@@ -1370,20 +1393,20 @@ export default function InstitutionDashboard() {
                             <Button 
                               size="sm" 
                               variant="outline" 
-                              className="flex-1 sm:flex-none border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50 text-slate-700 hover:text-blue-700"
+                              className="flex-1 sm:flex-none bg-[#ECF2FF] rounded-[25px] text-[#1D1D1D] font-medium text-[13px]"
                               onClick={() => handleViewApplications(project)}
                               disabled={!project.applicationCounts?.total}
                             >
-                              <Eye className="h-4 w-4 mr-2" />
+                              <Eye className="h-4 w-4" />
                               View Applications ({project.applicationCounts?.pending || 0})
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => handleEditProject(project)} className="flex-1 sm:flex-none border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50 text-slate-700 hover:text-blue-700">
-                              <Edit className="h-4 w-4 mr-2" />
+                            <Button size="sm" variant="outline" onClick={() => handleEditProject(project)} className="flex-1 sm:flex-none bg-[#ECF2FF] rounded-[25px] text-[#1D1D1D] font-semibold text-[13px]">
+                              <Edit className="h-4 w-4" />
                               Edit
                             </Button>
                             {project.status === 'open' && (
-                              <Button size="sm" variant="outline" onClick={() => handleCloseProject(project.id)} className="flex-1 sm:flex-none border-2 border-slate-300 hover:border-red-400 hover:bg-red-50 text-slate-700 hover:text-red-700">
-                                <XCircle className="h-4 w-4 mr-2" />
+                              <Button size="sm" variant="outline" onClick={() => handleCloseProject(project.id)} className="flex-1 sm:flex-none bg-[#9B0000] hover:bg-[#9B0000] rounded-[25px] text-white hover:text-white font-semibold text-[13px]">
+                                <XCircle className="h-4 w-4" />
                                 Close
                               </Button>
                             )}

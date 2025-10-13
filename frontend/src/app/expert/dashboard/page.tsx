@@ -712,7 +712,7 @@ export default function ExpertDashboard() {
 
             {/* Pending Applications Tab */}
             <TabsContent value="pending" className="space-y-6">
-            <Card className="border-2 border-[#D6D6D6]">
+            <Card className="border-2 border-[#D6D6D6] bg-white">
               <CardHeader>
                   <CardTitle className="text-[#000000] font-semibold text-[18px]">Pending Applications</CardTitle>
                 <CardDescription className="text-[#000000] font-base font-normal">
@@ -721,9 +721,11 @@ export default function ExpertDashboard() {
               </CardHeader>
               <CardContent>
                   {pagedPendingApplications?.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Briefcase className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                      <p className="text-slate-600">No pending applications</p>
+                  <div className="text-center py-8 flex flex-col justify-center items-center gap-3">
+                      <div className="p-3 bg-[#ECF2FF] rounded-full flex justify-center items-center w-16 h-16">
+                  <Briefcase className="h-8 w-8 text-[#008260]" />
+                </div>
+                      <p className="text-slate-600 font-medium">No pending applications</p>
                       <p className="text-sm text-slate-500">Your pending applications will appear here</p>
                   </div>
                 ) : (
@@ -731,31 +733,56 @@ export default function ExpertDashboard() {
                       {pagedPendingApplications?.map((application: any) => (
                       <div key={application.id} className="bg-white border border-[#DCDCDC] rounded-lg p-6 hover:border-[#008260] hover:shadow-md transition-all duration-300 group">
                         <div className="flex items-center justify-between mb-2 min-w-0">
-                          <h3 className="font-semibold text-slate-900 group-hover:text-[#008260] truncate pr-2 transition-colors duration-300">{application.projects?.title || 'Project Title'}</h3>
-                          <Badge className={getStatusColor(application.status)}>
-                            <div className="flex items-center space-x-1">
-                              {getStatusIcon(application.status)}
-                              <span className="capitalize">{application.status}</span>
-                            </div>
+                          <h3 className="font-bold text-lg text-[#000000] group-hover:text-[#008260] truncate pr-2 hover:cursor-pointer transition-colors duration-300"
+                          onClick={()=>router.push(`/expert/project/${application.project_id}`)}
+                          >{application.projects?.title || 'Project Title'}</h3>
+                          <Badge className="capitalize bg-[#FFF1E7] hover:bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-2 px-4 flex-shrink-0">
+                            {new Date(application.applied_at || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </Badge>
                         </div>
-                        <p className="text-sm text-slate-600 mb-2 break-words line-clamp-2">{application.projects?.description || 'Project description'}</p>
-                          <div className="flex items-center justify-between text-sm text-slate-500">
-                          <span>Applied: {new Date(application.applied_at || Date.now()).toLocaleDateString()}</span>
-                          <span className="font-medium text-slate-700">Proposed Rate: ₹{application.proposed_rate}</span>
+                        <p className="text-sm text-[#6A6A6A] mb-3">{application.projects?.description || 'Project description'}</p>
+                        <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+                              <Clock className="w-5 h-5" style={{ color: '#008260' }} />
+                            </div>
+                            <div>
+                              <span className="text-[#717171] text-xs">Rate:</span>
+                              <p className="font-semibold text-[#008260] text-base">₹{application.proposed_rate || application.projects?.hourly_rate}/hrs</p>
+                            </div>
                           </div>
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+                              <IndianRupee className="w-5 h-5" style={{ color: '#008260' }} />
+                            </div>
+                            <div>
+                              <span className="text-[#717171] text-xs">Budget:</span>
+                              <p className="font-medium text-base text-[#1D1D1D]">₹{application.projects?.total_budget || 'N/A'}</p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3">
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="flex-1 sm:flex-none bg-[#ECF2FF] rounded-[25px] text-[#1D1D1D] font-medium text-[13px] hover:bg-[#008260] hover:text-white transition-colors"
+                            onClick={() => router.push(`/expert/project/${application.project_id}`)}
+                          >
+                            View Application
+                          </Button>
+                        </div>
                       </div>
                     ))}
                     
                       {pendingApplicationsLoading && (
                       <div className="text-center py-4">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#008260] mx-auto"></div>
                       </div>
                     )}
                     
                       {hasMorePendingApplications && !pendingApplicationsLoading && (
                         <div ref={pendingScrollRef} className="text-center py-4">
-                        <p className="text-gray-500">Loading more applications...</p>
+                        <p className="text-gray-500 text-sm">Loading more applications...</p>
                       </div>
                     )}
                   </div>
@@ -766,50 +793,101 @@ export default function ExpertDashboard() {
 
             {/* Interview Applications Tab */}
             <TabsContent value="interview" className="space-y-6">
-              <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
+            <Card className="border-2 border-[#D6D6D6]">
               <CardHeader>
-                  <CardTitle className="text-slate-900">Interview Applications</CardTitle>
-                  <CardDescription className="text-slate-600">
+                  <CardTitle className="text-[#000000] font-semibold text-[18px]">Interview Applications</CardTitle>
+                <CardDescription className="text-[#000000] font-base font-normal">
                     Applications selected for interview
                 </CardDescription>
               </CardHeader>
               <CardContent>
                   {pagedInterviewApplications?.length === 0 ? (
-                  <div className="text-center py-8">
-                      <Briefcase className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                      <p className="text-slate-600">No interview applications</p>
-                      <p className="text-sm text-slate-500">Applications selected for interview will appear here</p>
+                  <div className="text-center py-4 flex flex-col justify-center items-center">
+                      <div className="p-3 bg-[#ECF2FF] rounded-full flex justify-center items-center w-16 h-16">
+                  <Briefcase className="h-8 w-8 text-[#008260]" />
+                </div>
+                      <p className="text-[#000000] font-semibold">No interview applications</p>
+                      <p className="text-sm text-[#6A6A6A]">Applications selected for interview will appear here</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
                       {pagedInterviewApplications?.map((application: any) => (
-                        <div key={application.id} className="bg-white border-2 border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all duration-300 group">
-                          <div className="flex items-center justify-between mb-2 min-w-0">
-                            <h3 className="font-semibold text-slate-900 group-hover:text-blue-700 truncate pr-2 transition-colors duration-300">{application.projects?.title || 'Project Title'}</h3>
-                            <Badge className={getStatusColor(application.status)}>
-                              <div className="flex items-center space-x-1">
-                                {getStatusIcon(application.status)}
-                                <span className="capitalize">{application.status}</span>
-                              </div>
-                            </Badge>
+                      <div key={application.id} className="bg-white border border-[#DCDCDC] rounded-lg p-6 hover:border-[#008260] hover:shadow-md transition-all duration-300 group">
+                        
+                        <div className="flex items-center justify-between mb-2 min-w-0">
+                          <h3 className="font-bold text-lg text-[#000000] group-hover:text-[#008260] truncate pr-2 hover:cursor-pointer transition-colors duration-300"
+                          onClick={()=>router.push(`/expert/project/${application.project_id}`)}
+                          >{application.projects?.title || 'Project Title'}</h3>
+                          <Badge className="capitalize bg-[#FFF1E7] hover:bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-2 px-4 flex-shrink-0">
+                            {new Date(application.applied_at || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-[#6A6A6A] mb-3">{application.projects?.description || 'Project description'}</p>
+                        
+                        {/* Interview Date Highlight */}
+                        {application.interview_date && (
+                          <div className="border-l-4 border-[#008260] bg-[#F8F8F8] rounded-r-lg p-3 mb-3">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="w-4 h-4 text-[#008260]" />
+                              <span className="text-xs font-semibold text-[#008260]">Interview Scheduled:</span>
+                              <span className="text-sm font-bold text-[#000000]">
+                                {new Date(application.interview_date).toLocaleDateString('en-US', { 
+                                  month: 'short', 
+                                  day: 'numeric', 
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                            </div>
                           </div>
-                          <p className="text-sm text-slate-600 mb-2 break-words line-clamp-2">{application.projects?.description || 'Project description'}</p>
-                          <div className="flex items-center justify-between text-sm text-slate-500">
-                            <span>Applied: {new Date(application.applied_at || Date.now()).toLocaleDateString()}</span>
-                            <span className="font-medium text-slate-700">Proposed Rate: ₹{application.proposed_rate}</span>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+                              <Clock className="w-5 h-5 text-[#008260]" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-[#717171] text-xs">Rate</div>
+                              <div className="font-semibold text-[#008260] text-base truncate">₹{application.proposed_rate}/hrs</div>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+                              <IndianRupee className="w-5 h-5 text-[#008260]" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-[#717171] text-xs">Budget</div>
+                              <div className="font-semibold text-[#000000] text-base truncate">₹{application.projects?.total_budget || 'N/A'}</div>
+                            </div>
                           </div>
                         </div>
+                        <div className="flex items-center justify-between gap-3 pt-3">
+                          <Badge className="capitalize bg-[#E8F4F8] hover:bg-[#E8F4F8] text-[#008260] border border-[#008260] rounded-full text-xs font-semibold py-1.5 px-3">
+                            Interview
+                          </Badge>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-[#008260] text-[#008260] hover:bg-[#008260] hover:text-white text-xs font-semibold px-4"
+                            onClick={() => router.push(`/expert/project/${application.project_id}`)}
+                          >
+                            View Application
+                          </Button>
+                        </div>
+                      </div>
                       ))}
                       
                       {interviewApplicationsLoading && (
                         <div className="text-center py-4">
-                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#008260] mx-auto"></div>
                         </div>
                       )}
                       
                       {hasMoreInterviewApplications && !interviewApplicationsLoading && (
                         <div ref={interviewScrollRef} className="text-center py-4">
-                          <p className="text-gray-500">Loading more applications...</p>
+                          <p className="text-gray-500 text-sm">Loading more applications...</p>
                         </div>
                       )}
                     </div>
@@ -829,17 +907,19 @@ export default function ExpertDashboard() {
                 </CardHeader>
                 <CardContent>
                   {pagedRejectedApplications?.length === 0 ? (
-                    <div className="text-center py-8">
-                      <Briefcase className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                    <div className="text-center py-4 flex flex-col justify-center items-center gap-y-2">
+                       <div className="p-3 bg-[#ECF2FF] rounded-full flex justify-center items-center w-16 h-16">
+                  <Briefcase className="h-8 w-8 text-[#008260]" />
+                </div>
                       <p className="text-slate-600">No rejected applications</p>
                       <p className="text-sm text-slate-500">Rejected applications will appear here</p>
                     </div>
                   ) : (
                     <div className="space-y-4">
                       {pagedRejectedApplications?.map((application: any) => (
-                        <div key={application.id} className="bg-white border-2 border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all duration-300 group">
+                        <div key={application.id} className="bg-white border border-[#DCDCDC] rounded-lg p-6 hover:border-[#008260] hover:shadow-md transition-all duration-300 group">
                           <div className="flex items-center justify-between mb-2 min-w-0">
-                            <h3 className="font-semibold text-slate-900 group-hover:text-blue-700 truncate pr-2 transition-colors duration-300">{application.projects?.title || 'Project Title'}</h3>
+                            <h3 className="font-semibold text-slate-900 group-hover:text-[#008260] truncate pr-2 transition-colors duration-300">{application.projects?.title || 'Project Title'}</h3>
                             <Badge className={getStatusColor(application.status)}>
                               <div className="flex items-center space-x-1">
                                 {getStatusIcon(application.status)}
@@ -883,19 +963,24 @@ export default function ExpertDashboard() {
                 </CardHeader>
                 <CardContent>
                   {pagedBookings?.length === 0 ? (
-                    <div className="text-center py-8">
-                      <BookOpen className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                    <div className="text-center py-4 flex flex-col justify-center items-center gap-y-2">
+                         <div className="p-3 bg-[#ECF2FF] rounded-full flex justify-center items-center w-16 h-16">
+                  <BookOpen className="h-8 w-8 text-[#008260]" />
+                </div>
+                     
                       <p className="text-slate-600">No bookings yet</p>
                       <p className="text-sm text-slate-500">Accepted applications will appear here</p>
                     </div>
                   ) : (
                     <div className="space-y-4">
                       {pagedBookings?.map((booking: any) => (
-                      <div key={booking.id} className="bg-white border-2 border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all duration-300 group">
+                      <div key={booking.id} className="bg-white border border-[#DCDCDC] rounded-lg p-6 hover:border-[#008260] hover:shadow-md transition-all duration-300 group">
                         <div className="flex items-start justify-between mb-2 min-w-0">
                           <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-slate-900 group-hover:text-blue-700 truncate pr-2 transition-colors duration-300">{booking.project?.title || 'Project'}</h3>
-                              <p className="text-sm text-slate-600 truncate">{booking.expert?.name || 'You'} with {booking.institution?.name || 'Institution'}</p>
+                              <h3 className="font-semibold text-slate-900 group-hover:text-[#008260] truncate pr-2 transition-colors duration-300 hover:cursor-pointer"
+                               onClick={()=>router.push(`/expert/project/${booking.project_id}`)}
+                              >{booking.projects?.title || 'Project'}</h3>
+                              <p className="text-sm text-slate-600 truncate">{booking.expert?.name || 'You'} with {booking.institutions?.name || 'Institution'}</p>
                           </div>
                           <Badge className="capitalize" variant="outline">{booking.status?.replace('_', ' ')}</Badge>
                         </div>
@@ -918,6 +1003,7 @@ export default function ExpertDashboard() {
                             <Button
                               size="sm"
                               variant="outline"
+                              className='bg-[#FFF2F2] rounded-3xl border border-[#9B0000] text-[#9B0000] font-medium'
                               onClick={async () => {
                                 try {
                                   await api.bookings.delete(booking.id)
@@ -928,7 +1014,7 @@ export default function ExpertDashboard() {
                                 }
                               }}
                             >
-                              <XCircle className="h-4 w-4 mr-2" />
+                              <XCircle className="h-4 w-4 mr-1" />
                               Cancel Booking
                             </Button>
                           )}

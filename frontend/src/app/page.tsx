@@ -71,6 +71,28 @@ export default function Home() {
     rootMargin: '-50px 0px'
   });
 
+  const testimonials = [
+    {
+      id: 1,
+      image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop",
+      text: "CalXMap is one of the best services which doesn't only helps but make sure it works. I've been using CalXMap for years and they never disappoint. They also helps experts in a way like never before.",
+      author: "Finance Expert"
+    },
+    {
+      id: 2,
+      image: "/images/universitylogo3.jpeg",
+      text: "CalXMap is one of the best services which doesn't only helps but make sure it works. I've been using CalXMap for years and they never disappoint. They also helps experts in a way like never before.",
+      author: "IMS Noida"
+    },
+    {
+      id: 3,
+      image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop",
+      text: "CalXMap is one of the best services which doesn't only helps but make sure it works. I've been using CalXMap for years and they never disappoint. They also helps experts in a way like never before.",
+      author: "Students"
+    }
+  ];
+  
+
   // Framer Motion variants
   const fadeUp = { hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0 } }
   const slideLeft = { hidden: { opacity: 0, x: -24 }, visible: { opacity: 1, x: 0 } }
@@ -511,7 +533,7 @@ export default function Home() {
 
               {/* CTA Buttons */}
               <motion.div
-                className="flex flex-col sm:flex-row gap-4 justify-center mb-16"
+                className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16"
                 initial="hidden"
                 whileInView="visible"
                 viewport={{ once: true, amount: 0.3 }}
@@ -716,7 +738,7 @@ export default function Home() {
                       </ul>
 
                       <Link href="/auth/signup?role=expert">
-                        <Button className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-semibold py-3 rounded-lg transition-all text-sm">
+                        <Button className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-semibold py-5 rounded-lg transition-all text-sm">
                           Join as Expert →
                         </Button>
                       </Link>
@@ -763,7 +785,7 @@ export default function Home() {
                       </ul>
 
                       <Link href="/auth/signup?role=institution">
-                        <Button className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-semibold py-3 rounded-lg transition-all text-sm">
+                        <Button className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-semibold py-5 rounded-lg transition-all text-sm">
                           Partner with Us →
                         </Button>
                       </Link>
@@ -810,7 +832,7 @@ export default function Home() {
                       </ul>
 
                       <Link href="/coming-soon/corporate">
-                        <Button className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-semibold py-3 rounded-lg transition-all text-sm">
+                        <Button className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-semibold py-5 rounded-lg transition-all text-sm">
                           Hire Expert →
                         </Button>
                       </Link>
@@ -1340,7 +1362,7 @@ export default function Home() {
                       </div>
                     </div>
                     <Link href="/student-feedback">
-                        <Button size="lg" className="bg-[#008260] text-white font-semibold text-[15px] px-6 sm:px-8 py-4 sm:py-6  w-full sm:w-auto rounded-[18px]">
+                        <Button size="lg" className="bg-[#008260] hover:bg-[#008260] text-white font-semibold text-[15px] px-6 sm:px-8 py-4 sm:py-6  w-full sm:w-auto rounded-[18px]">
                         Access Feedback Portal
                         <ArrowRight className="ml-2 h-5 w-5" />
                       </Button>
@@ -1383,7 +1405,7 @@ export default function Home() {
                       </div>
                     </div>
                     <Link href="/admin/feedback-analytics">
-                        <Button size="lg" className="bg-[#008260] text-white font-semibold text-[15px] px-6 sm:px-8 py-4 sm:py-6  w-full sm:w-auto rounded-[18px]">
+                        <Button size="lg" className="bg-[#008260] hover:bg-[#008260] text-white font-semibold text-[15px] px-6 sm:px-8 py-4 sm:py-6  w-full sm:w-auto rounded-[18px]">
                         View Analytics
                         <ArrowRight className="ml-2 h-5 w-5" />
                       </Button>
@@ -1396,45 +1418,77 @@ export default function Home() {
             </div>
           </section>
 
-          {/* Call-to-Action Section */}
-          <section className="py-20">
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-              <motion.div
-                className="bg-white border-2 border-slate-200 rounded-2xl p-8 shadow-sm text-center"
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, amount: 0.2 }}
-                variants={zoomIn}
-                transition={springTransition}
-              >
-                <h2 className="text-3xl sm:text-4xl lg:text-[40px]  font-bold text-slate-900 mb-6">Ready to hire your next expert?</h2>
-                <p className="text-lg sm:text-xl text-slate-600 mb-12 max-w-4xl mx-auto">
-                Whether you're a corporate seeking on-demand professionals or a university bridging industry knowledge, 
-                  <strong className="text-blue-700"> Calxmap is your partner for expert-driven success.</strong>
-              </p>
-              <div className="flex flex-col lg:flex-row gap-6 justify-center">
-                <Link href="/auth/signup?role=institution">
-                    <Button size="lg" className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-bold text-xl px-12 py-6 shadow-sm hover:shadow-md transition-all duration-300">
-                    Hire an Expert
-                    <ArrowRight className="ml-3 h-6 w-6 hidden sm:block" />
-                  </Button>
-                </Link>
-                <Link href="/auth/signup?role=expert">
-                    <Button size="lg" className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-bold text-xl px-12 py-6 shadow-sm hover:shadow-md transition-all duration-300">
-                    Register as Expert
-                    <ArrowRight className="ml-3 h-6 w-6 hidden sm:block" />
-                  </Button>
-                </Link>
-                <Link href="/contact-us">
-                    <Button size="lg" className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-bold text-xl px-12 py-6 shadow-sm hover:shadow-md transition-all duration-300">
-                    Contact Us
-                    <ArrowRight className="ml-3 h-6 w-6 hidden sm:block" />
-                  </Button>
-                </Link>
-                </div>
-              </motion.div>
+          <section className=''>
+           <div className='flex justify-center flex-col bg-white items-center'>
+            <p className='text-[#000000] text-[42px] font-bold text-center'>What Our Clients Say</p>
+            <div className="grid md:grid-cols-3 gap-8 p-10">
+          {testimonials.map((testimonial) => (
+            <div
+              key={testimonial.id}
+              className="bg-[#ECF2FF] rounded-3xl p-8 flex flex-col max-w-[400px]"
+            >
+              {/* Avatar */}
+              <div className="mb-6">
+                <img
+                  src={testimonial.image}
+                  alt={testimonial.author}
+                  className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-md"
+                />
+              </div>
+
+              {/* Testimonial Text */}
+              <div className="flex-grow mb-6">
+                <p className="text-slate-900 text-lg leading-relaxed">
+                  {testimonial.text}
+                </p>
+              </div>
+
+              {/* Author */}
+              <div className="mt-auto">
+                <p className="text-slate-900 font-semibold text-lg">
+                  - {testimonial.author}
+                </p>
+              </div>
             </div>
+          ))}
+        </div>
+           </div>
           </section>
+
+          <div className="w-full px-4 py-16">
+      <div className="container mx-auto max-w-7xl">
+        <div className="bg-[#008260] rounded-3xl px-8 py-16 shadow-lg">
+          <div className="text-center">
+            {/* Heading */}
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+              Ready to Get Started?
+            </h2>
+
+            {/* Subtitle */}
+            <p className="text-white text-lg md:text-xl mb-10 max-w-2xl mx-auto">
+              Join thousands transforming collaboration through our platform
+            </p>
+
+            {/* Buttons */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              {/* Start Hiring Button */}
+              <button className="bg-white text-[#008260] px-8 py-3 rounded-full font-semibold text-lg hover:bg-slate-50 transition-all duration-300 shadow-md hover:shadow-lg flex items-center space-x-2 min-w-[200px] justify-center">
+                <span>Start Hiring</span>
+                <ArrowRight className="h-5 w-5" />
+              </button>
+
+              {/* Become an Expert Button */}
+              <button className="bg-transparent border-2 border-white text-white px-8 py-3 rounded-full font-semibold text-lg transition-all duration-300 min-w-[200px]">
+                Become an Expert
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+          {/* Call-to-Action Section */}
+       
         </>
       
       {/* Professional Footer */}
