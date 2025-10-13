@@ -15,6 +15,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 import NotificationBell from '@/components/NotificationBell'
 import ProfileDropdown from '@/components/ProfileDropdown'
 import Logo from '@/components/Logo'
@@ -954,69 +955,113 @@ export default function ExpertDashboard() {
 
             {/* Bookings Tab */}
             <TabsContent value="bookings" className="space-y-6">
-              <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
+            <Card className="border-2 border-[#D6D6D6]">
                 <CardHeader>
-                  <CardTitle className="text-slate-900">My Bookings</CardTitle>
-                  <CardDescription className="text-slate-600">
+                  <CardTitle className="text-[#000000] font-semibold text-[18px]">My Bookings</CardTitle>
+                <CardDescription className="text-[#000000] font-base font-normal">
                     View and manage your current bookings
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {pagedBookings?.length === 0 ? (
-                    <div className="text-center py-4 flex flex-col justify-center items-center gap-y-2">
+                    <div className="text-center py-4 flex flex-col justify-center items-center">
                          <div className="p-3 bg-[#ECF2FF] rounded-full flex justify-center items-center w-16 h-16">
                   <BookOpen className="h-8 w-8 text-[#008260]" />
                 </div>
                      
-                      <p className="text-slate-600">No bookings yet</p>
-                      <p className="text-sm text-slate-500">Accepted applications will appear here</p>
+                      <p className="text-[#000000] font-semibold">No bookings yet</p>
+                      <p className="text-sm text-[#6A6A6A]">Accepted applications will appear here</p>
                     </div>
                   ) : (
                     <div className="space-y-4">
                       {pagedBookings?.map((booking: any) => (
                       <div key={booking.id} className="bg-white border border-[#DCDCDC] rounded-lg p-6 hover:border-[#008260] hover:shadow-md transition-all duration-300 group">
-                        <div className="flex items-start justify-between mb-2 min-w-0">
-                          <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-slate-900 group-hover:text-[#008260] truncate pr-2 transition-colors duration-300 hover:cursor-pointer"
-                               onClick={()=>router.push(`/expert/project/${booking.project_id}`)}
-                              >{booking.projects?.title || 'Project'}</h3>
-                              <p className="text-sm text-slate-600 truncate">{booking.expert?.name || 'You'} with {booking.institutions?.name || 'Institution'}</p>
-                          </div>
-                          <Badge className="capitalize" variant="outline">{booking.status?.replace('_', ' ')}</Badge>
+                        <div className="flex items-center justify-between mb-2 min-w-0">
+                          <h3 className="font-bold text-lg text-[#000000] group-hover:text-[#008260] truncate pr-2 hover:cursor-pointer transition-colors duration-300"
+                          onClick={()=>router.push(`/expert/project/${booking.project_id}`)}
+                          >{booking.projects?.title || 'Project'}</h3>
+                          <Badge className="capitalize bg-[#E8F4F8] hover:bg-[#E8F4F8] text-[#008260] border border-[#008260] rounded-full text-xs font-semibold py-1.5 px-3">
+                            {booking.status?.replace('_', ' ')}
+                          </Badge>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-slate-600">
-                          <div>
-                            <span className="font-medium text-slate-700">Amount:</span> ₹{booking.amount}
+                        <p className="text-sm text-[#6A6A6A] mb-3">{booking.institutions?.name || 'Institution'}</p>
+                        <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+                              <IndianRupee className="w-5 h-5 text-[#008260]" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-[#717171] text-xs">Amount</div>
+                              <div className="font-semibold text-[#008260] text-base truncate">₹{booking.amount}</div>
+                            </div>
                           </div>
-                          <div>
-                            <span className="font-medium text-slate-700">Hours:</span> {booking.hours_booked}
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+                              <Clock className="w-5 h-5 text-[#008260]" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-[#717171] text-xs">Hours Booked</div>
+                              <div className="font-semibold text-[#000000] text-base truncate">{booking.hours_booked} hrs</div>
+                            </div>
                           </div>
-                          <div>
-                            <span className="font-medium text-slate-700">Start:</span> {new Date(booking.start_date).toLocaleDateString()}
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+                              <Calendar className="w-5 h-5 text-[#008260]" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-[#717171] text-xs">Start Date</div>
+                              <div className="font-semibold text-[#000000] text-base truncate">{new Date(booking.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                            </div>
                           </div>
-                          <div>
-                            <span className="font-medium text-slate-700">End:</span> {new Date(booking.end_date).toLocaleDateString()}
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+                              <Calendar className="w-5 h-5 text-[#008260]" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-[#717171] text-xs">End Date</div>
+                              <div className="font-semibold text-[#000000] text-base truncate">{new Date(booking.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                            </div>
                           </div>
                         </div>
-                        <div className="mt-3 flex justify-end">
+                        <div className="flex justify-end pt-3 border-t border-[#ECECEC]">
                           {booking.status === 'in_progress' && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className='bg-[#FFF2F2] rounded-3xl border border-[#9B0000] text-[#9B0000] font-medium'
-                              onClick={async () => {
-                                try {
-                                  await api.bookings.delete(booking.id)
-                                  await refreshBookings()
-                                } catch (e) {
-                                  console.error('Failed to cancel booking', e)
-                                  setError('Failed to cancel booking')
-                                }
-                              }}
-                            >
-                              <XCircle className="h-4 w-4 mr-1" />
-                              Cancel Booking
-                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className='bg-[#FFF2F2] rounded-3xl border border-[#9B0000] text-[#9B0000] font-medium hover:bg-[#FFE5E5]'
+                                >
+                                  <XCircle className="h-4 w-4 mr-1" />
+                                  Cancel Booking
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Cancel Booking</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to cancel this booking? This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>No, Keep Booking</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    className="bg-[#9B0000] hover:bg-[#7A0000]"
+                                    onClick={async () => {
+                                      try {
+                                        await api.bookings.delete(booking.id)
+                                        await refreshBookings()
+                                      } catch (e) {
+                                        console.error('Failed to cancel booking', e)
+                                        setError('Failed to cancel booking')
+                                      }
+                                    }}
+                                  >
+                                    Yes, Cancel Booking
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           )}
                         </div>
                       </div>

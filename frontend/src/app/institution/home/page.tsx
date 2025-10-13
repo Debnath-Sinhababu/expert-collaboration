@@ -635,10 +635,10 @@ export default function InstitutionHome() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+      <div className="min-h-screen bg-[#ECF2FF] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#008260] mx-auto mb-4"></div>
+          <p className="text-[#6A6A6A]">Loading...</p>
         </div>
       </div>
     )
@@ -718,7 +718,7 @@ export default function InstitutionHome() {
 
             {institutionsLoading ? (
               <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#008260]"></div>
               </div>
             ) : (
               <Carousel
@@ -795,7 +795,7 @@ export default function InstitutionHome() {
           </div>
           {featuredLoading ? (
             <div className="flex justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#008260]"></div>
             </div>
           ) : (
             <Carousel className="w-full"
@@ -1452,7 +1452,7 @@ export default function InstitutionHome() {
               <div ref={expertsListEndRef} />
               {expertsListLoading && (
                 <div className="flex justify-center py-6 text-slate-600">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-2"></div>
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#008260] mr-2"></div>
                   Loading more experts...
                 </div>
               )}
@@ -1473,7 +1473,7 @@ export default function InstitutionHome() {
             <div className="flex-1 overflow-y-auto pr-2">
               {expertsLoading ? (
                 <div className="flex justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#008260]"></div>
                 </div>
               ) : recommendedExperts.length === 0 ? (
                 <div className="text-center py-12">

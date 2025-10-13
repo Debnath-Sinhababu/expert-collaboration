@@ -83,20 +83,20 @@ export default function InternshipOpportunitiesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-[#ECF2FF] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading internships...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#008260] mx-auto mb-4"></div>
+          <p className="text-[#6A6A6A]">Loading internships...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
+    <div className="min-h-screen bg-[#ECF2FF]">
+      <header className="bg-[#008260] backdrop-blur-sm border-b border-white/10 sticky top-0 z-50 shadow-lg">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <Link href="/institution/internships" className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">Internship Opportunities</Link>
+          <Link href="/institution/internships" className="text-xl font-bold text-white">Internship Opportunities</Link>
           <div className="flex items-center gap-2">
             <NotificationBell />
             <ProfileDropdown user={user} institution={institution} userType="institution" />
@@ -104,25 +104,37 @@ export default function InternshipOpportunitiesPage() {
         </div>
       </header>
 
+      
+
       <div className="container mx-auto px-4 py-8">
         {error && (
           <Alert variant="destructive" className="mb-6"><AlertDescription>{error}</AlertDescription></Alert>
         )}
+       
+       <h2 className="text-2xl font-semibold text-[#000000] mb-4 mx-auto">Browse Internships</h2>
 
         {/* Filters */}
-        <div className="bg-white rounded-2xl shadow-sm border-2 border-slate-200 p-6 mb-8">
+        <div className="bg-white rounded-lg shadow-sm border-2 border-[#D6D6D6] p-6 mb-8">
+         
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <div className="text-sm text-slate-700 mb-1">Search</div>
+              <div className="text-sm font-medium text-[#000000] mb-2">Search</div>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
-                <Input className="pl-10" placeholder="Title, responsibilities..." value={search} onChange={(e) => setSearch(e.target.value)} />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#6A6A6A] h-4 w-4" />
+                <Input 
+                  className="pl-10 focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]" 
+                  placeholder="Titles, responsibilities" 
+                  value={search} 
+                  onChange={(e) => setSearch(e.target.value)} 
+                />
               </div>
             </div>
             <div>
-              <div className="text-sm text-slate-700 mb-1">Work Mode</div>
+              <div className="text-sm font-medium text-[#000000] mb-2">Work Mode</div>
               <Select value={workMode} onValueChange={setWorkMode}>
-                <SelectTrigger><SelectValue placeholder="All" /></SelectTrigger>
+                <SelectTrigger className="focus:ring-[#008260] focus:ring-1 focus:ring-offset-0 focus:border-[#008260]">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="In office">In office</SelectItem>
@@ -132,9 +144,11 @@ export default function InternshipOpportunitiesPage() {
               </Select>
             </div>
             <div>
-              <div className="text-sm text-slate-700 mb-1">Engagement</div>
+              <div className="text-sm font-medium text-[#000000] mb-2">Engagement</div>
               <Select value={engagement} onValueChange={setEngagement}>
-                <SelectTrigger><SelectValue placeholder="All" /></SelectTrigger>
+                <SelectTrigger className="focus:ring-[#008260] focus:ring-1 focus:ring-offset-0 focus:border-[#008260]">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="Part-time">Part-time</SelectItem>
@@ -143,9 +157,11 @@ export default function InternshipOpportunitiesPage() {
               </Select>
             </div>
             <div>
-              <div className="text-sm text-slate-700 mb-1">Paid</div>
+              <div className="text-sm font-medium text-[#000000] mb-2">Paid</div>
               <Select value={paid} onValueChange={setPaid}>
-                <SelectTrigger><SelectValue placeholder="All" /></SelectTrigger>
+                <SelectTrigger className="focus:ring-[#008260] focus:ring-1 focus:ring-offset-0 focus:border-[#008260]">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="true">Paid</SelectItem>
@@ -154,9 +170,11 @@ export default function InternshipOpportunitiesPage() {
               </Select>
             </div>
             <div>
-              <div className="text-sm text-slate-700 mb-1">Visibility</div>
+              <div className="text-sm font-medium text-[#000000] mb-2">Visibility</div>
               <Select value={visibilityFilter} onValueChange={(v) => setVisibilityFilter(v as any)}>
-                <SelectTrigger><SelectValue placeholder="All" /></SelectTrigger>
+                <SelectTrigger className="focus:ring-[#008260] focus:ring-1 focus:ring-offset-0 focus:border-[#008260]">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="public">Public</SelectItem>
@@ -165,20 +183,42 @@ export default function InternshipOpportunitiesPage() {
               </Select>
             </div>
             <div>
-              <div className="text-sm text-slate-700 mb-1">Min stipend</div>
-              <Input type="number" value={minStipend} onChange={(e) => setMinStipend(e.target.value)} placeholder="e.g. 5000" />
+              <div className="text-sm font-medium text-[#000000] mb-2">Minimum Stipend (₹)</div>
+              <Input 
+                type="number" 
+                className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]"
+                value={minStipend} 
+                onChange={(e) => setMinStipend(e.target.value)} 
+                placeholder="e.g. 5000" 
+              />
             </div>
             <div>
-              <div className="text-sm text-slate-700 mb-1">Max stipend</div>
-              <Input type="number" value={maxStipend} onChange={(e) => setMaxStipend(e.target.value)} placeholder="e.g. 20000" />
+              <div className="text-sm font-medium text-[#000000] mb-2">Maximum Stipend (₹)</div>
+              <Input 
+                type="number" 
+                className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]"
+                value={maxStipend} 
+                onChange={(e) => setMaxStipend(e.target.value)} 
+                placeholder="e.g. 20000" 
+              />
             </div>
             <div>
-              <div className="text-sm text-slate-700 mb-1">Skills (comma-separated)</div>
-              <Input value={skills} onChange={(e) => setSkills(e.target.value)} placeholder="Java, React" />
+              <div className="text-sm font-medium text-[#000000] mb-2">Skills (comma-separated)</div>
+              <Input 
+                className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]"
+                value={skills} 
+                onChange={(e) => setSkills(e.target.value)} 
+                placeholder="e.g. Java, React" 
+              />
             </div>
             <div>
-              <div className="text-sm text-slate-700 mb-1">Location</div>
-              <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="City or text" />
+              <div className="text-sm font-medium text-[#000000] mb-2">Location</div>
+              <Input 
+                className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]"
+                value={location} 
+                onChange={(e) => setLocation(e.target.value)} 
+                placeholder="City" 
+              />
             </div>
           </div>
         </div>
@@ -186,24 +226,55 @@ export default function InternshipOpportunitiesPage() {
         {/* List */}
         <div className="space-y-4">
           {(listLoading && internships.length === 0) ? (
-            <div className="text-center py-12 text-slate-600">Loading internships...</div>
+            <div className="text-center py-12 text-[#6A6A6A]">Loading internships...</div>
+          ) : internships.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-[#6A6A6A] text-lg">No internships found</p>
+              <p className="text-[#6A6A6A] text-sm mt-2">Try adjusting your filters</p>
+            </div>
           ) : (
             internships.map((item: any) => (
-              <Card key={item.id} className="bg-white border-2 border-slate-200">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2 min-w-0">
-                    <h3 className="font-semibold text-lg text-slate-900 truncate pr-2">{item.title}</h3>
-                    <div className="text-xs text-slate-600 flex-shrink-0">{item.engagement} · {item.work_mode}</div>
+              <Card key={item.id} className="bg-white border border-[#DCDCDC] hover:border-[#008260] hover:shadow-md transition-all duration-300 group">
+                <CardContent className="p-6">
+                  <div className="mb-4">
+                    <h3 className="font-bold text-lg text-[#000000] group-hover:text-[#008260] transition-colors duration-300 mb-2">{item.title}</h3>
+                    <p className="text-sm text-[#6A6A6A] line-clamp-2">{item.responsibilities}</p>
                   </div>
-                  <p className="text-sm text-slate-600 line-clamp-2 mb-2">{item.responsibilities}</p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <div><span className="text-slate-500">Openings:</span> <span className="font-medium text-slate-900">{item.openings}</span></div>
-                    <div><span className="text-slate-500">Duration:</span> <span className="font-medium text-slate-900">{item.duration_value} {item.duration_unit}</span></div>
-                    <div><span className="text-slate-500">Stipend:</span> <span className="font-medium text-slate-900">{item.paid ? `₹${item.stipend_min}${item.stipend_max ? ' - ₹' + item.stipend_max : ''}/month` : 'Unpaid'}</span></div>
-                    <div><span className="text-slate-500">Posted:</span> <span className="font-medium text-slate-900">{new Date(item.created_at).toLocaleDateString()}</span></div>
+                  
+                  <div className="grid grid-cols-2  sm:grid-cols-3 gap-x-8 gap-y-4 mb-4">
+                    <div>
+                      <div className="text-[#717171] text-xs mb-1">Openings:</div>
+                      <div className="font-semibold text-[#000000] text-sm">{item.openings}</div>
+                    </div>
+                    <div>
+                      <div className="text-[#717171] text-xs mb-1">Duration:</div>
+                      <div className="font-semibold text-[#000000] text-sm">{item.duration_value} {item.duration_unit}</div>
+                    </div>
+                    <div>
+                      <div className="text-[#717171] text-xs mb-1">Stipend:</div>
+                      <div className="font-semibold text-[#008260] text-sm">{item.paid ? `₹${item.stipend_min}${item.stipend_max ? '-₹' + item.stipend_max : ''}/month` : 'Unpaid'}</div>
+                    </div>
+                    <div>
+                      <div className="text-[#717171] text-xs mb-1">Engagement:</div>
+                      <div className="font-semibold text-[#000000] text-sm">{item.engagement}</div>
+                    </div>
+                    <div>
+                      <div className="text-[#717171] text-xs mb-1">Work Mode:</div>
+                      <div className="font-semibold text-[#000000] text-sm">{item.work_mode}</div>
+                    </div>
+                    <div>
+                      <div className="text-[#717171] text-xs mb-1">Posted on:</div>
+                      <div className="font-semibold text-[#000000] text-sm">{new Date(item.created_at).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '/')}</div>
+                    </div>
                   </div>
-                  <div className="flex justify-end mt-3">
-                    <Button className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white" onClick={() => router.push(`/institution/internships/opportunities/${item.id}`)}>View</Button>
+                  
+                  <div className="flex justify-end">
+                    <Button 
+                      className="bg-[#008260] hover:bg-[#006B4F] text-white font-medium rounded-full px-8" 
+                      onClick={() => router.push(`/institution/internships/opportunities/${item.id}`)}
+                    >
+                      View
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -219,7 +290,7 @@ export default function InternshipOpportunitiesPage() {
                 obs.observe(el)
                 return () => obs.disconnect()
               }}
-              className="text-center py-4 text-sm text-slate-500"
+              className="text-center py-4 text-sm text-[#6A6A6A]"
             >
               Loading more...
             </div>
