@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
 import { usePagination } from '@/hooks/usePagination'
-import { PROJECT_TYPES } from '@/lib/constants'
+import { PROJECT_TYPES, EXPERTISE_DOMAINS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -64,6 +64,7 @@ export default function ExpertHome() {
     hourly_rate?: number
     duration_hours?: number
     type?: string
+    domain_expertise?: string
     required_expertise?: string[]
     subskills?: string[]
     institutions?: {
@@ -86,6 +87,7 @@ export default function ExpertHome() {
   const [isApplying, setIsApplying] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedType, setSelectedType] = useState('all')
+  const [selectedDomain, setSelectedDomain] = useState('all')
   const [minRate, setMinRate] = useState('')
   const [maxRate, setMaxRate] = useState('')
   const [applicationForm, setApplicationForm] = useState({
@@ -125,12 +127,13 @@ export default function ExpertHome() {
       
       if (searchTerm) params.search = searchTerm
       if (selectedType !== 'all') params.type = selectedType
+      if (selectedDomain !== 'all') params.domain_expertise = selectedDomain
       if (minRate) params.min_hourly_rate = parseFloat(minRate)
       if (maxRate) params.max_hourly_rate = parseFloat(maxRate)
 
       return await api.projects.getAll(params)
     },
-    [expert?.id, searchTerm, selectedType, minRate, maxRate]
+    [expert?.id, searchTerm, selectedType, selectedDomain, minRate, maxRate]
   )
 
   // Reuse existing getUser pattern from dashboard
@@ -748,6 +751,7 @@ export default function ExpertHome() {
             onClick={() => {
               setSearchTerm('')
               setSelectedType('all')
+              setSelectedDomain('all')
               setMinRate('')
               setMaxRate('')
             }}
@@ -759,7 +763,7 @@ export default function ExpertHome() {
 
         {/* Search and Filters */}
         <div className="bg-white rounded-lg shadow-sm border-2 border-[#D6D6D6] p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
               <Label htmlFor="search">Search</Label>
               <div className="relative">
@@ -785,6 +789,23 @@ export default function ExpertHome() {
                   {PROJECT_TYPES.map((type) => (
                     <SelectItem key={type} value={type}>
                       {getProjectTypeLabel(type)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="domain">Expertise Domain</Label>
+              <Select value={selectedDomain} onValueChange={setSelectedDomain}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All domains" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All domains</SelectItem>
+                  {EXPERTISE_DOMAINS.map((domain) => (
+                    <SelectItem key={domain.name} value={domain.name}>
+                      {domain.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -874,21 +895,15 @@ export default function ExpertHome() {
                     {/* Skills and Specializations Section */}
                     <div className="mb-4 space-y-3">
                       {/* Skills */}
-                      {project.required_expertise && project.required_expertise.length > 0 && (
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                          <span className="text-sm font-medium text-slate-700 min-w-fit">Skills:</span>
-                          <div className="flex flex-wrap gap-1">
-                            {project.required_expertise.slice(0, 3).map((skill, index) => (
-                              <Badge key={index} variant="secondary" className="text-xs">
-                                {skill}
-                              </Badge>
-                            ))}
-                            {project.required_expertise.length > 3 && (
-                              <Badge variant="secondary" className="text-xs">
-                                +{project.required_expertise.length - 3}
-                              </Badge>
-                            )}
-                          </div>
+                   
+                      
+                      {/* Expertise Domain */}
+                      {project.domain_expertise && (
+                        <div className="flex flex-col sm:flex-row sm:items-start gap-2">
+                          <span className="text-sm font-semibold min-w-fit text-[#6A6A6A]">Expertise Domain:</span>
+                          <span className="text-[#6A6A6A] font-medium text-sm break-words">
+                            {project.domain_expertise}
+                          </span>
                         </div>
                       )}
                       

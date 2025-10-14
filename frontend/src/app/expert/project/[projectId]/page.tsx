@@ -376,6 +376,16 @@ export default function ExpertProjectPage() {
                 </div>
               </div>
 
+              {/* Required Expertise */}
+              {project.required_expertise && project.required_expertise.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-base font-semibold text-black mb-3">Required Expertise</h3>
+                  <p className="text-[#6A6A6A] text-sm leading-relaxed">
+                    {project.required_expertise.join(', ')}
+                  </p>
+                </div>
+              )}
+
               {/* Sub-skills */}
               {project.subskills && project.subskills.length > 0 && (
                 <div>
@@ -511,59 +521,79 @@ export default function ExpertProjectPage() {
         {similarProjects.length > 0 && (
           <div className="mt-12">
             <h2 className="text-[22px] font-semibold text-black mb-6">Similar Projects</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {similarProjects.slice(0, 5).map((proj) => (
-                <Card key={proj.id} className="bg-white border-2 border-[#D6D6D6] hover:border-[#008260] transition-all duration-300 hover:shadow-lg">
-                  <CardContent className="p-6">
-                    <h3 className="text-xl font-semibold text-black mb-3">{proj.title}</h3>
-                    <p className="text-[#6A6A6A] text-sm mb-4 line-clamp-2">{proj.description}</p>
-                    
-                    <div className="flex items-center text-sm text-[#6A6A6A] mb-4">
-                      <MapPin className="h-4 w-4 mr-1" />
-                      <span>{proj?.institutions?.city}, {proj?.institutions?.state}</span>
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="text-2xl font-bold text-[#008260]">₹{proj.hourly_rate}/hr</div>
-                      <Link href={`/expert/project/${proj.id}`}>
-                        <Button className="bg-[#008260] hover:bg-[#006d51] text-white rounded-lg w-20">
-                          View
-                        </Button>
-                      </Link>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <Carousel
+              opts={{ align: "start", containScroll: "trimSnaps" }}
+              plugins={[Autoplay({ delay: 3500 })]}
+              className="w-full"
+            >
+              <CarouselContent className="-ml-4">
+                {similarProjects.map((proj) => (
+                  <CarouselItem key={proj.id} className="pl-4 basis-full md:basis-1/2 lg:basis-1/2">
+                    <Card className="bg-white border-2 border-[#D6D6D6] hover:border-[#008260] transition-all duration-300 hover:shadow-lg h-full">
+                      <CardContent className="p-6 pb-4">
+                        <h3 className="text-xl font-semibold text-black mb-3">{proj.title}</h3>
+                        <p className="text-[#6A6A6A] text-sm mb-4 truncate">{proj.description}</p>
+                        
+                        <div className="flex items-center text-sm text-[#6A6A6A] mb-4">
+                          <MapPin className="h-4 w-4 mr-1" />
+                          <span>{proj?.institutions?.city}, {proj?.institutions?.state}</span>
+                        </div>
+                        
+                        <div className="flex items-center justify-between">
+                          <div className="text-2xl font-bold text-[#008260]">₹{proj.hourly_rate}/hr</div>
+                          <Link href={`/expert/project/${proj.id}`}>
+                            <Button className="bg-[#008260] hover:bg-[#006d51] text-white rounded-lg w-20">
+                              View
+                            </Button>
+                          </Link>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious className="hidden sm:flex" />
+              <CarouselNext className="hidden sm:flex" />
+            </Carousel>
           </div>
         )}
          {recommendedProjects.length > 0 && (
           <div className="mt-12">
-          <h2 className="text-[22px] font-semibold text-black mb-6">Similar Projects</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {recommendedProjects.slice(0, 5).map((proj) => (
-              <Card key={proj.id} className="bg-white border-2 border-[#D6D6D6] hover:border-[#008260] transition-all duration-300 hover:shadow-lg">
-                <CardContent className="p-6">
-                  <h3 className="text-xl font-semibold text-black mb-3">{proj.title}</h3>
-                  <p className="text-[#6A6A6A] text-sm mb-4 line-clamp-2">{proj.description}</p>
-                  
-                  <div className="flex items-center text-sm text-[#6A6A6A] mb-4">
-                    <MapPin className="h-4 w-4 mr-1" />
-                    <span>{proj?.institutions?.city}, {proj?.institutions?.state}</span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="text-2xl font-bold text-[#008260]">₹{proj.hourly_rate}/hr</div>
-                    <Link href={`/expert/project/${proj.id}`}>
-                      <Button className="bg-[#008260] hover:bg-[#006d51] text-white rounded-lg w-20">
-                        View
-                      </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <h2 className="text-[22px] font-semibold text-black mb-6">Recommended Projects</h2>
+          <Carousel
+            opts={{ align: "start", containScroll: "trimSnaps" }}
+            plugins={[Autoplay({ delay: 3500 })]}
+            className="w-full"
+          >
+            <CarouselContent className="-ml-4">
+              {recommendedProjects.map((proj) => (
+                <CarouselItem key={proj.id} className="pl-4 basis-full md:basis-1/2 lg:basis-1/2">
+                  <Card className="bg-white border-2 border-[#D6D6D6] hover:border-[#008260] transition-all duration-300 hover:shadow-lg h-full">
+                    <CardContent className="p-6 pb-4">
+                      <h3 className="text-xl font-semibold text-black mb-3">{proj.title}</h3>
+                      <p className="text-[#6A6A6A] text-sm mb-4 truncate">{proj.description}</p>
+                      
+                      <div className="flex items-center text-sm text-[#6A6A6A] mb-4">
+                        <MapPin className="h-4 w-4 mr-1" />
+                        <span>{proj?.institutions?.city}, {proj?.institutions?.state}</span>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="text-2xl font-bold text-[#008260]">₹{proj.hourly_rate}/hr</div>
+                        <Link href={`/expert/project/${proj.id}`}>
+                          <Button className="bg-[#008260] hover:bg-[#006d51] text-white rounded-lg w-20">
+                            View
+                          </Button>
+                        </Link>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious className="hidden sm:flex" />
+            <CarouselNext className="hidden sm:flex" />
+          </Carousel>
         </div>
         )}
 

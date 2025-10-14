@@ -187,8 +187,8 @@ export default function InternshipDetailPage() {
               </div>
 
               {internship.visibility_scope !== 'public' && (
-                <div className="pt-6 border-t">
-                  <CardTitle className="text-slate-900 mb-2">Applications</CardTitle>
+                <div className="pt-6 border-t border-[#E5E5E5]">
+                  <h2 className="text-2xl font-bold text-[#000000] mb-6">Applications</h2>
                   <Tabs value={activeStage} onValueChange={async (v) => {
                     const stage = v as 'pending' | 'approved' | 'rejected'
                     setActiveStage(stage)
@@ -197,12 +197,29 @@ export default function InternshipDetailPage() {
                     setAppCounts(res?.counts || { pending: 0, approved: 0, rejected: 0, total: 0 })
                     setAppsPage(1)
                     setAppsHasMore((res?.data || []).length >= 10)
-                  }} className="space-y-4">
-                    <TabsList className="flex w-max md:w-full md:grid md:grid-cols-3 gap-2 bg-white border-b border-slate-200 h-12 px-4 md:px-0">
-                      <TabsTrigger value="pending" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500">Pending ({appCounts.pending})</TabsTrigger>
-                      <TabsTrigger value="approved" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500">Approved ({appCounts.approved})</TabsTrigger>
-                      <TabsTrigger value="rejected" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500">Rejected ({appCounts.rejected})</TabsTrigger>
-                    </TabsList>
+                  }} className="space-y-6">
+                    <div className="w-full overflow-x-auto md:overflow-x-visible scrollbar-hide">
+                      <TabsList className="flex md:grid w-max md:w-full md:grid-cols-3 gap-2 bg-white border-b border-slate-200 h-12 px-4 md:px-0">
+                        <TabsTrigger 
+                          value="pending"
+                          className="data-[state=active]:bg-[#E8F5F1] data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-[#E8F5F1]/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
+                        >
+                          Pending ({appCounts.pending})
+                        </TabsTrigger>
+                        <TabsTrigger 
+                          value="approved"
+                          className="data-[state=active]:bg-[#E8F5F1] data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-[#E8F5F1]/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
+                        >
+                          Approved ({appCounts.approved})
+                        </TabsTrigger>
+                        <TabsTrigger 
+                          value="rejected"
+                          className="data-[state=active]:bg-[#E8F5F1] data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-[#E8F5F1]/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
+                        >
+                          Rejected ({appCounts.rejected})
+                        </TabsTrigger>
+                      </TabsList>
+                    </div>
                     <TabsContent value={activeStage} />
                   </Tabs>
 
@@ -215,75 +232,88 @@ export default function InternshipDetailPage() {
                         const email = app.student?.email || '-'
                         const initial = String(name).charAt(0).toUpperCase()
                         return (
-                          <div key={app.id} className="bg-white border-2 border-slate-200 rounded-xl p-4 md:p-5">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex items-center gap-3 min-w-0">
-                                <Avatar className="h-10 w-10"><AvatarImage src={app.student?.photo_url} /><AvatarFallback className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white text-sm">{initial}</AvatarFallback></Avatar>
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <h4 className="font-semibold text-slate-900 truncate">{name}</h4>
-                                    {app.institution?.name && (
-                                      <span className="inline-flex items-center gap-1 text-xs bg-slate-100 text-slate-700 rounded-full px-2 py-0.5 truncate"><School className="h-3 w-3" /> {app.institution?.name}</span>
-                                    )}
-                                  </div>
-                                  <div className="text-xs text-slate-600 flex items-center gap-2 truncate"><Mail className="h-3 w-3" /><span className="truncate">{email}</span></div>
-                                </div>
+                          <div key={app.id} className="bg-white border border-[#DCDCDC] rounded-lg p-6 relative">
+                            {activeStage === 'rejected' && (
+                              <Badge className="absolute top-4 right-4 rounded-3xl bg-white border border-[#9B0000] text-[#9B0000] hover:bg-white text-[13px] font-medium">
+                                Rejected
+                              </Badge>
+                            )}
+                            <div className="flex items-center gap-3 mb-3">
+                              <Avatar className="h-12 w-12"><AvatarImage src={app.student?.photo_url} /><AvatarFallback className="bg-[#C8E6F5] text-[#008260] text-base font-semibold">{initial}</AvatarFallback></Avatar>
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-semibold text-[#000000] text-base">{name}</h4>
+                                <div className="text-sm text-[#6A6A6A]">{email}</div>
                               </div>
                             </div>
+                            
+                            <div className="mb-4 text-sm text-[#6A6A6A]">
+                              <span className="font-medium">Applied:</span> {new Date(app.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
+                            </div>
+                            
                             {app.cover_letter && (
-                              <div className="mt-3 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-md p-3"><p className="line-clamp-4 whitespace-pre-wrap">{app.cover_letter}</p></div>
+                              <div className="mb-4 text-sm text-[#6A6A6A] leading-relaxed line-clamp-3">{app.cover_letter}</div>
                             )}
-                            <div className="mt-3 flex items-center justify-between">
-                              <div className="text-xs text-slate-600 flex items-center gap-4"><span className="inline-flex items-center gap-1"><CalendarDays className="h-3 w-3" /> Applied: <span className="font-medium text-slate-800">{new Date(app.created_at).toLocaleDateString()}</span></span></div>
-                              <div className="flex items-center gap-2">
+                            
+                            <div className="flex items-center justify-end gap-2">
                                 <Dialog>
                                   <DialogTrigger asChild>
-                                    <Button size="sm" variant="outline" className="border-2 border-slate-300 text-slate-700"><Eye className="h-4 w-4 mr-1" />View Profile</Button>
+                                    <Button size="sm" variant="outline" className="border border-[#008260] text-[#008260] hover:bg-[#008260]/10 rounded-full px-4">View Profile</Button>
                                   </DialogTrigger>
-                                  <DialogContent className="max-w-2xl bg-white border-2 border-slate-200">
-                                   
-                                    <div className="space-y-4">
-                                      <div className="flex items-center gap-4">
-                                        <Avatar className="w-16 h-16 border-2 border-blue-200"><AvatarImage src={app.student?.photo_url} /><AvatarFallback className="text-xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">{initial}</AvatarFallback></Avatar>
+                                  <DialogContent className="max-w-3xl bg-white border border-[#DCDCDC]">
+                                    <DialogHeader>
+                                      <DialogTitle className="text-2xl font-bold text-[#000000]">Student Profile</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="space-y-6">
+                                      {/* Student Info Header */}
+                                      <div className="flex items-center gap-4 pb-4 border-b border-[#E5E5E5]">
+                                        <Avatar className="w-16 h-16 border-2 border-[#008260]"><AvatarImage src={app.student?.photo_url} /><AvatarFallback className="text-xl font-bold bg-[#C8E6F5] text-[#008260]">{initial}</AvatarFallback></Avatar>
                                         <div>
-                                          <div className="font-semibold text-lg text-slate-900">{name}</div>
-                                          <div className="text-sm text-slate-600 flex items-center gap-1"><Mail className="h-3 w-3" /> {email}</div>
-                                          {app.student?.city && (<div className="text-xs text-slate-600">{[app.student.city, app.student.state].filter(Boolean).join(', ')}</div>)}
+                                          <div className="font-bold text-xl text-[#000000]">{name}</div>
+                                          <div className="text-sm text-[#6A6A6A] flex items-center gap-1 mt-1"><Mail className="h-4 w-4" /> {email}</div>
+                                          {app.student?.city && (<div className="text-sm text-[#6A6A6A] mt-1">{[app.student.city, app.student.state].filter(Boolean).join(', ')}</div>)}
                                         </div>
                                       </div>
-                                      <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                          <h4 className="font-medium mb-1">Education</h4>
-                                          <p className="text-sm text-slate-700">{app.student?.degree || '-'} {app.student?.year ? `· ${app.student.year}` : ''}</p>
-                                          <p className="text-xs text-slate-600">{app.student?.education_start_date || '-'} {app.student?.currently_studying ? ' - Present' : (app.student?.education_end_date ? ` - ${app.student.education_end_date}` : '')}</p>
-                                        </div>
-                                        <div>
-                                          <h4 className="font-medium mb-1">Preferences</h4>
-                                          <p className="text-sm text-slate-700">{app.student?.preferred_engagement || '-'} {app.student?.preferred_work_mode ? `· ${app.student.preferred_work_mode}` : ''}</p>
-                                          <p className="text-xs text-slate-600">Availability: {app.student?.availability || '-'}</p>
-                                        </div>
-                                      </div>
-                                      {Array.isArray(app.student?.skills) && app.student.skills.length > 0 && (
-                                        <div>
-                                          <h4 className="font-medium mb-1">Skills</h4>
-                                          <div className="flex flex-wrap gap-2">{app.student.skills.map((s: string, i: number) => (<Badge key={`${s}-${i}`} variant="secondary" className="text-xs bg-slate-100 text-slate-700">{s}</Badge>))}</div>
-                                        </div>
-                                      )}
+                                      
+                                      {/* Cover Letter */}
                                       {app.cover_letter && (
                                         <div>
-                                          <h4 className="font-medium mb-1">Cover Letter</h4>
-                                          <div className="text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-md p-3 whitespace-pre-wrap">{app.cover_letter}</div>
+                                          <h4 className="font-semibold text-[#000000] mb-3 text-base">Cover Letter</h4>
+                                          <div className="text-sm text-[#6A6A6A] leading-relaxed whitespace-pre-wrap">{app.cover_letter}</div>
                                         </div>
                                       )}
-                                      <div className="grid grid-cols-2 gap-4">
+                                      
+                                      {/* Education & Preferences Grid */}
+                                      <div className="grid grid-cols-2 gap-6">
                                         <div>
-                                          <h4 className="font-medium mb-1">Applied On</h4>
-                                          <p className="text-sm text-slate-700">{new Date(app.created_at).toLocaleDateString()}</p>
+                                          <h4 className="font-semibold text-[#000000] mb-2 text-base">Education</h4>
+                                          <p className="text-sm text-[#6A6A6A] mb-1">{app.student?.degree || '-'} {app.student?.year ? `· ${app.student.year}` : ''}</p>
+                                          <p className="text-xs text-[#6A6A6A]">{app.student?.education_start_date || '-'} {app.student?.currently_studying ? ' - Present' : (app.student?.education_end_date ? ` - ${app.student.education_end_date}` : '')}</p>
+                                        </div>
+                                        <div>
+                                          <h4 className="font-semibold text-[#000000] mb-2 text-base">Preferences</h4>
+                                          <p className="text-sm text-[#6A6A6A] mb-1">{app.student?.preferred_engagement || '-'} {app.student?.preferred_work_mode ? `· ${app.student.preferred_work_mode}` : ''}</p>
+                                          <p className="text-xs text-[#6A6A6A]">Availability: {app.student?.availability || '-'}</p>
+                                        </div>
+                                      </div>
+                                      
+                                      {/* Skills */}
+                                      {Array.isArray(app.student?.skills) && app.student.skills.length > 0 && (
+                                        <div>
+                                          <h4 className="font-semibold text-[#000000] mb-3 text-base">Skills</h4>
+                                          <div className="flex flex-wrap gap-2">{app.student.skills.map((s: string, i: number) => (<Badge key={`${s}-${i}`} className="bg-[#D8E9FF] text-[#000000] hover:bg-[#D8E9FF] border-none text-sm font-medium px-3 py-1">{s}</Badge>))}</div>
+                                        </div>
+                                      )}
+                                      
+                                      {/* Applied On & Resume */}
+                                      <div className="grid grid-cols-2 gap-6 pt-4 border-t border-[#E5E5E5]">
+                                        <div>
+                                          <h4 className="font-semibold text-[#000000] mb-2 text-base">Applied On</h4>
+                                          <p className="text-sm text-[#6A6A6A]">{new Date(app.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                                         </div>
                                         {app.resume_url && (
                                           <div>
-                                            <h4 className="font-medium mb-1">Resume</h4>
-                                            <a href={app.resume_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-700 hover:underline text-sm"><FileText className="h-4 w-4" /> Open Resume</a>
+                                            <h4 className="font-semibold text-[#000000] mb-2 text-base">Resume</h4>
+                                            <a href={app.resume_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[#008260] hover:text-[#006B4F] hover:underline text-sm font-medium"><FileText className="h-4 w-4" /> Open Resume</a>
                                           </div>
                                         )}
                                       </div>
@@ -292,26 +322,25 @@ export default function InternshipDetailPage() {
                                 </Dialog>
                                 {activeStage === 'pending' && (
                                   <>
-                                    <Button size="sm" className="bg-green-600 text-white" onClick={async () => {
+                                    <Button size="sm" className="bg-[#008260] hover:bg-[#006B4F] text-white rounded-full px-4" onClick={async () => {
                                       await api.internshipApplicationsInstitution.updateStatus(app.id, 'approved_institution')
                                       const res = await api.internshipApplicationsInstitution.list(id, { page: 1, limit: 10, stage: 'pending' })
                                       setApps(res?.data || [])
                                       setAppCounts(res?.counts || appCounts)
                                       setAppsPage(1)
                                       setAppsHasMore((res?.data || []).length >= 10)
-                                    }}><Check className="h-4 w-4 mr-1" />Approve</Button>
-                                    <Button size="sm" variant="outline" className="text-red-600 border-red-300" onClick={async () => {
+                                    }}>Approve</Button>
+                                    <Button size="sm" variant="outline" className="text-[#C91B1B] border border-[#C91B1B] hover:bg-[#C91B1B]/10 rounded-full px-4" onClick={async () => {
                                       await api.internshipApplicationsInstitution.updateStatus(app.id, 'rejected_institution')
                                       const res = await api.internshipApplicationsInstitution.list(id, { page: 1, limit: 10, stage: 'pending' })
                                       setApps(res?.data || [])
                                       setAppCounts(res?.counts || appCounts)
                                       setAppsPage(1)
                                       setAppsHasMore((res?.data || []).length >= 10)
-                                    }}><X className="h-4 w-4 mr-1" />Reject</Button>
+                                    }}>Reject</Button>
                                   </>
                                 )}
                               </div>
-                            </div>
                           </div>
                         )
                       })
