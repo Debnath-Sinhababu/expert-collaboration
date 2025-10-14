@@ -8,6 +8,7 @@ import { api } from '@/lib/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import NotificationBell from '@/components/NotificationBell'
 import ProfileDropdown from '@/components/ProfileDropdown'
@@ -128,8 +129,8 @@ export default function StudentDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
+    <div className="min-h-screen bg-[#ECF2FF]">
+      <header className="bg-[#008260] sticky top-0 z-50 shadow-lg">
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <Link href="/student/home" className="flex items-center space-x-2 group">
@@ -146,9 +147,11 @@ export default function StudentDashboard() {
       <div className="container mx-auto px-4 py-8">
         {error && <Alert variant="destructive" className="mb-6"><AlertDescription>{error}</AlertDescription></Alert>}
 
+        <h2 className="text-2xl font-semibold text-[#000000] mb-6">Student Dashboard</h2>
+
         <Card className="bg-white border-2 border-slate-200">
           <CardHeader>
-            <CardTitle className="text-slate-900">My Applications</CardTitle>
+            <CardTitle className="text-lg text-[#000000] font-semibold">My Applications</CardTitle>
             <CardDescription className="text-slate-600">Track your internship application stages</CardDescription>
           </CardHeader>
           <CardContent>
@@ -157,25 +160,25 @@ export default function StudentDashboard() {
                 <TabsList className="flex md:grid w-max md:w-full md:grid-cols-4 gap-2 bg-white border-b border-slate-200 h-12 px-4 md:px-0">
                   <TabsTrigger 
                     value="pending"
-                    className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
+                    className="data-[state=active]:bg-[#E8F5F1] data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-[#E8F5F1]/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
                   >
                     Pending ({counts.pending})
                   </TabsTrigger>
                   <TabsTrigger 
                     value="interview"
-                    className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
+                    className="data-[state=active]:bg-[#E8F5F1] data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-[#E8F5F1]/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
                   >
                     Interview ({counts.interview})
                   </TabsTrigger>
                   <TabsTrigger 
                     value="selected"
-                    className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
+                    className="data-[state=active]:bg-[#E8F5F1] data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-[#E8F5F1]/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
                   >
                     Selected ({counts.selected})
                   </TabsTrigger>
                   <TabsTrigger 
                     value="rejected"
-                    className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
+                    className="data-[state=active]:bg-[#E8F5F1] data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-[#E8F5F1]/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
                   >
                     Rejected ({counts.rejected})
                   </TabsTrigger>
@@ -193,20 +196,78 @@ export default function StudentDashboard() {
                 ) : (
                   <div className="space-y-4">
                     {(pendingApps as any[])?.map((app) => (
-                      <div key={app.id} className="bg-white border-2 border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all duration-300">
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="font-semibold text-slate-900 truncate pr-2">{app.internships?.title || 'Internship'}</div>
-                          <div className="text-xs text-slate-600 capitalize">{app.status.replace('_', ' ')}</div>
-                        </div>
-                        <div className="text-sm text-slate-600 grid grid-cols-2 md:grid-cols-3 gap-4">
-                          <div><span className="text-slate-500">Work mode:</span> <span className="font-medium text-slate-900">{app.internships?.work_mode}</span></div>
-                          <div><span className="text-slate-500">Engagement:</span> <span className="font-medium text-slate-900">{app.internships?.engagement}</span></div>
-                          <div><span className="text-slate-500">Applied:</span> <span className="font-medium text-slate-900">{new Date(app.created_at).toLocaleDateString()}</span></div>
-                        </div>
-                        <div className="flex justify-end mt-3">
-                          <Button variant="outline" className="border-2 border-slate-300" onClick={() => router.push(`/student/internships/${app.internship_id}`)}>View</Button>
-                        </div>
-                      </div>
+                      <Card key={app.id} className="bg-white border-2 border-[#D6D6D6] rounded-xl hover:border-[#008260] hover:shadow-md transition-all duration-300">
+                        <CardContent className="p-6">
+                          {/* Header with title and badge */}
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-bold text-base text-[#000000] mb-1">
+                                {app.internships?.title || 'Internship'}
+                              </h3>
+                            </div>
+                            <Badge className="bg-[#FFF2E5] text-[#FF6B00] hover:bg-[#FFE5CC] border-none font-medium shrink-0 ml-3">
+                              Pending
+                            </Badge>
+                          </div>
+
+                          {/* Description */}
+                          {app.internships?.responsibilities && (
+                            <p className="text-sm text-[#6A6A6A] mb-4 line-clamp-2">
+                              {app.internships.responsibilities}
+                            </p>
+                          )}
+
+                          {/* Grid Layout for Details - 2 rows x 3 columns */}
+                          <div className="grid grid-cols-3 gap-x-8 gap-y-4 mb-4">
+                            <div>
+                              <div className="text-[#717171] text-xs mb-1">Deadline:</div>
+                              <div className="font-semibold text-[#000000] text-sm">
+                                {app.internships?.start_date 
+                                  ? new Date(app.internships.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                                  : 'N/A'}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-[#717171] text-xs mb-1">Duration:</div>
+                              <div className="font-semibold text-[#000000] text-sm">
+                                {app.internships?.duration_value} {app.internships?.duration_unit}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-[#717171] text-xs mb-1">Stipend:</div>
+                              <div className="font-semibold text-[#008260] text-sm">
+                                {app.internships?.paid 
+                                  ? `₹${app.internships.stipend_min}${app.internships.stipend_max ? '-₹' + app.internships.stipend_max : ''}/month`
+                                  : 'Unpaid'}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-[#717171] text-xs mb-1">Work Mode:</div>
+                              <div className="font-semibold text-[#000000] text-sm">{app.internships?.work_mode}</div>
+                            </div>
+                            <div>
+                              <div className="text-[#717171] text-xs mb-1">Engagement:</div>
+                              <div className="font-semibold text-[#000000] text-sm">{app.internships?.engagement}</div>
+                            </div>
+                            <div>
+                              <div className="text-[#717171] text-xs mb-1">Posted on:</div>
+                              <div className="font-semibold text-[#000000] text-sm">
+                                {new Date(app.internships?.created_at || app.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* View Button */}
+                          <div className="flex justify-end">
+                            <Button 
+                              className="bg-[#008260] hover:bg-[#006B4F] text-white font-medium rounded-full px-6"
+                              onClick={() => router.push(`/student/internships/${app.internship_id}`)}
+                            >
+                              View
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
                     ))}
                     {hasMorePending && !pendingLoading && (
                       <div
@@ -239,20 +300,78 @@ export default function StudentDashboard() {
                 ) : (
                   <div className="space-y-4">
                     {(interviewApps as any[])?.map((app) => (
-                      <div key={app.id} className="bg-white border-2 border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all duration-300">
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="font-semibold text-slate-900 truncate pr-2">{app.internships?.title || 'Internship'}</div>
-                          <div className="text-xs text-slate-600 capitalize">{app.status.replace('_', ' ')}</div>
-                        </div>
-                        <div className="text-sm text-slate-600 grid grid-cols-2 md:grid-cols-3 gap-4">
-                          <div><span className="text-slate-500">Work mode:</span> <span className="font-medium text-slate-900">{app.internships?.work_mode}</span></div>
-                          <div><span className="text-slate-500">Engagement:</span> <span className="font-medium text-slate-900">{app.internships?.engagement}</span></div>
-                          <div><span className="text-slate-500">Applied:</span> <span className="font-medium text-slate-900">{new Date(app.created_at).toLocaleDateString()}</span></div>
-                        </div>
-                        <div className="flex justify-end mt-3">
-                          <Button variant="outline" className="border-2 border-slate-300" onClick={() => router.push(`/student/internships/${app.internship_id}`)}>View</Button>
-                        </div>
-                      </div>
+                      <Card key={app.id} className="bg-white border-2 border-[#D6D6D6] rounded-xl hover:border-[#008260] hover:shadow-md transition-all duration-300">
+                        <CardContent className="p-6">
+                          {/* Header with title and badge */}
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-bold text-base text-[#000000] mb-1">
+                                {app.internships?.title || 'Internship'}
+                              </h3>
+                            </div>
+                            <Badge className="bg-[#FFF2E5] text-[#FF6B00] hover:bg-[#FFE5CC] border-none font-medium shrink-0 ml-3">
+                              Interview
+                            </Badge>
+                          </div>
+
+                          {/* Description */}
+                          {app.internships?.responsibilities && (
+                            <p className="text-sm text-[#6A6A6A] mb-4 line-clamp-2">
+                              {app.internships.responsibilities}
+                            </p>
+                          )}
+
+                          {/* Grid Layout for Details - 2 rows x 3 columns */}
+                          <div className="grid grid-cols-3 gap-x-8 gap-y-4 mb-4">
+                            <div>
+                              <div className="text-[#717171] text-xs mb-1">Deadline:</div>
+                              <div className="font-semibold text-[#000000] text-sm">
+                                {app.internships?.start_date 
+                                  ? new Date(app.internships.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                                  : 'N/A'}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-[#717171] text-xs mb-1">Duration:</div>
+                              <div className="font-semibold text-[#000000] text-sm">
+                                {app.internships?.duration_value} {app.internships?.duration_unit}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-[#717171] text-xs mb-1">Stipend:</div>
+                              <div className="font-semibold text-[#008260] text-sm">
+                                {app.internships?.paid 
+                                  ? `₹${app.internships.stipend_min}${app.internships.stipend_max ? '-₹' + app.internships.stipend_max : ''}/month`
+                                  : 'Unpaid'}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-[#717171] text-xs mb-1">Work Mode:</div>
+                              <div className="font-semibold text-[#000000] text-sm">{app.internships?.work_mode}</div>
+                            </div>
+                            <div>
+                              <div className="text-[#717171] text-xs mb-1">Engagement:</div>
+                              <div className="font-semibold text-[#000000] text-sm">{app.internships?.engagement}</div>
+                            </div>
+                            <div>
+                              <div className="text-[#717171] text-xs mb-1">Posted on:</div>
+                              <div className="font-semibold text-[#000000] text-sm">
+                                {new Date(app.internships?.created_at || app.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* View Button */}
+                          <div className="flex justify-end">
+                            <Button 
+                              className="bg-[#008260] hover:bg-[#006B4F] text-white font-medium rounded-full px-6"
+                              onClick={() => router.push(`/student/internships/${app.internship_id}`)}
+                            >
+                              View
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
                     ))}
                     {hasMoreInterview && !interviewLoading && (
                       <div
@@ -285,20 +404,78 @@ export default function StudentDashboard() {
                 ) : (
                   <div className="space-y-4">
                     {(selectedApps as any[])?.map((app) => (
-                      <div key={app.id} className="bg-white border-2 border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all duration-300">
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="font-semibold text-slate-900 truncate pr-2">{app.internships?.title || 'Internship'}</div>
-                          <div className="text-xs text-slate-600 capitalize">{app.status.replace('_', ' ')}</div>
-                        </div>
-                        <div className="text-sm text-slate-600 grid grid-cols-2 md:grid-cols-3 gap-4">
-                          <div><span className="text-slate-500">Work mode:</span> <span className="font-medium text-slate-900">{app.internships?.work_mode}</span></div>
-                          <div><span className="text-slate-500">Engagement:</span> <span className="font-medium text-slate-900">{app.internships?.engagement}</span></div>
-                          <div><span className="text-slate-500">Applied:</span> <span className="font-medium text-slate-900">{new Date(app.created_at).toLocaleDateString()}</span></div>
-                        </div>
-                        <div className="flex justify-end mt-3">
-                          <Button variant="outline" className="border-2 border-slate-300" onClick={() => router.push(`/student/internships/${app.internship_id}`)}>View</Button>
-                        </div>
-                      </div>
+                      <Card key={app.id} className="bg-white border-2 border-[#D6D6D6] rounded-xl hover:border-[#008260] hover:shadow-md transition-all duration-300">
+                        <CardContent className="p-6">
+                          {/* Header with title and badge */}
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-bold text-base text-[#000000] mb-1">
+                                {app.internships?.title || 'Internship'}
+                              </h3>
+                            </div>
+                            <Badge className="bg-[#FFF2E5] text-[#FF6B00] hover:bg-[#FFE5CC] border-none font-medium shrink-0 ml-3">
+                              Selected
+                            </Badge>
+                          </div>
+
+                          {/* Description */}
+                          {app.internships?.responsibilities && (
+                            <p className="text-sm text-[#6A6A6A] mb-4 line-clamp-2">
+                              {app.internships.responsibilities}
+                            </p>
+                          )}
+
+                          {/* Grid Layout for Details - 2 rows x 3 columns */}
+                          <div className="grid grid-cols-3 gap-x-8 gap-y-4 mb-4">
+                            <div>
+                              <div className="text-[#717171] text-xs mb-1">Deadline:</div>
+                              <div className="font-semibold text-[#000000] text-sm">
+                                {app.internships?.start_date 
+                                  ? new Date(app.internships.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                                  : 'N/A'}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-[#717171] text-xs mb-1">Duration:</div>
+                              <div className="font-semibold text-[#000000] text-sm">
+                                {app.internships?.duration_value} {app.internships?.duration_unit}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-[#717171] text-xs mb-1">Stipend:</div>
+                              <div className="font-semibold text-[#008260] text-sm">
+                                {app.internships?.paid 
+                                  ? `₹${app.internships.stipend_min}${app.internships.stipend_max ? '-₹' + app.internships.stipend_max : ''}/month`
+                                  : 'Unpaid'}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-[#717171] text-xs mb-1">Work Mode:</div>
+                              <div className="font-semibold text-[#000000] text-sm">{app.internships?.work_mode}</div>
+                            </div>
+                            <div>
+                              <div className="text-[#717171] text-xs mb-1">Engagement:</div>
+                              <div className="font-semibold text-[#000000] text-sm">{app.internships?.engagement}</div>
+                            </div>
+                            <div>
+                              <div className="text-[#717171] text-xs mb-1">Posted on:</div>
+                              <div className="font-semibold text-[#000000] text-sm">
+                                {new Date(app.internships?.created_at || app.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* View Button */}
+                          <div className="flex justify-end">
+                            <Button 
+                              className="bg-[#008260] hover:bg-[#006B4F] text-white font-medium rounded-full px-6"
+                              onClick={() => router.push(`/student/internships/${app.internship_id}`)}
+                            >
+                              View
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
                     ))}
                     {hasMoreSelected && !selectedLoading && (
                       <div
@@ -331,20 +508,78 @@ export default function StudentDashboard() {
                 ) : (
                   <div className="space-y-4">
                     {(rejectedApps as any[])?.map((app) => (
-                      <div key={app.id} className="bg-white border-2 border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all duration-300">
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="font-semibold text-slate-900 truncate pr-2">{app.internships?.title || 'Internship'}</div>
-                          <div className="text-xs text-slate-600 capitalize">{app.status.replace('_', ' ')}</div>
-                        </div>
-                        <div className="text-sm text-slate-600 grid grid-cols-2 md:grid-cols-3 gap-4">
-                          <div><span className="text-slate-500">Work mode:</span> <span className="font-medium text-slate-900">{app.internships?.work_mode}</span></div>
-                          <div><span className="text-slate-500">Engagement:</span> <span className="font-medium text-slate-900">{app.internships?.engagement}</span></div>
-                          <div><span className="text-slate-500">Applied:</span> <span className="font-medium text-slate-900">{new Date(app.created_at).toLocaleDateString()}</span></div>
-                        </div>
-                        <div className="flex justify-end mt-3">
-                          <Button variant="outline" className="border-2 border-slate-300" onClick={() => router.push(`/student/internships/${app.internship_id}`)}>View</Button>
-                        </div>
-                      </div>
+                      <Card key={app.id} className="bg-white border-2 border-[#D6D6D6] rounded-xl hover:border-[#008260] hover:shadow-md transition-all duration-300">
+                        <CardContent className="p-6">
+                          {/* Header with title and badge */}
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-bold text-base text-[#000000] mb-1">
+                                {app.internships?.title || 'Internship'}
+                              </h3>
+                            </div>
+                            <Badge className="bg-[#FFF1E7] text-[#9B0000] hover:bg-[#FFF1E7] border-none font-medium shrink-0 ml-3 text-xs">
+                              Rejected
+                            </Badge>
+                          </div>
+
+                          {/* Description */}
+                          {app.internships?.responsibilities && (
+                            <p className="text-sm text-[#6A6A6A] mb-4 line-clamp-2">
+                              {app.internships.responsibilities}
+                            </p>
+                          )}
+
+                          {/* Grid Layout for Details - 2 rows x 3 columns */}
+                          <div className="grid grid-cols-3 gap-x-8 gap-y-4 mb-4">
+                            <div>
+                              <div className="text-[#717171] text-xs mb-1">Deadline:</div>
+                              <div className="font-semibold text-[#000000] text-sm">
+                                {app.internships?.start_date 
+                                  ? new Date(app.internships.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                                  : 'N/A'}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-[#717171] text-xs mb-1">Duration:</div>
+                              <div className="font-semibold text-[#000000] text-sm">
+                                {app.internships?.duration_value} {app.internships?.duration_unit}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-[#717171] text-xs mb-1">Stipend:</div>
+                              <div className="font-semibold text-[#008260] text-sm">
+                                {app.internships?.paid 
+                                  ? `₹${app.internships.stipend_min}${app.internships.stipend_max ? '-₹' + app.internships.stipend_max : ''}/month`
+                                  : 'Unpaid'}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-[#717171] text-xs mb-1">Work Mode:</div>
+                              <div className="font-semibold text-[#000000] text-sm">{app.internships?.work_mode}</div>
+                            </div>
+                            <div>
+                              <div className="text-[#717171] text-xs mb-1">Engagement:</div>
+                              <div className="font-semibold text-[#000000] text-sm">{app.internships?.engagement}</div>
+                            </div>
+                            <div>
+                              <div className="text-[#717171] text-xs mb-1">Posted on:</div>
+                              <div className="font-semibold text-[#000000] text-sm">
+                                {new Date(app.internships?.created_at || app.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* View Button */}
+                          <div className="flex justify-end">
+                            <Button 
+                              className="bg-[#008260] hover:bg-[#006B4F] text-white font-medium rounded-full px-6"
+                              onClick={() => router.push(`/student/internships/${app.internship_id}`)}
+                            >
+                              View
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
                     ))}
                     {hasMoreRejected && !rejectedLoading && (
                       <div
