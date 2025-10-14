@@ -673,23 +673,12 @@ export default function InstitutionHome() {
             {/* Right side */}
             <div className="flex items-center space-x-4">
              
-            
-              {institution?.type === 'Corporate' && (
-                <>
-                  <Link href="/institution/internships/create">
-                    <Button className="hidden md:inline-flex bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">Create Internship</Button>
-                  </Link>
-                  <Link href="/institution/freelance/create">
-                    <Button className="hidden md:inline-flex bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">Create Freelance</Button>
-                  </Link>
-                 
-                </>
-              )}
-              {institution?.type && institution.type !== 'Corporate' && (
+            {institution?.type && institution.type !== 'Corporate' && (
                 <Link href="/institution/internships/opportunities">
                   <p className="hidden md:inline-flex text-white text-[15px] font-medium">Browse Internships</p>
                 </Link>
               )}
+          
                 <ProfileDropdown 
                 user={user} 
                 institution={institution} 
@@ -963,18 +952,17 @@ export default function InstitutionHome() {
                 Create opportunities for experts to collaborate with your institution
               </p>
             </div>
-            <Dialog open={showProjectForm} onOpenChange={setShowProjectForm}>
+            <Dialog open={false}>
               <DialogTrigger asChild>
-                <Button className="bg-[#008260] hover:bg-[#008260] text-sm font-semibold">
+                <Button className="bg-[#008260] hover:bg-[#008260] text-sm font-semibold" onClick={() => router.push('/institution/post-requirement')}>
                   <Plus className="h-3 w-3 mr-1 border border-white rounded-full" />
                   Post Requirement
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+              <DialogContent className="hidden">
                 <DialogHeader className="flex-shrink-0">
-                  <DialogTitle>Create New Project</DialogTitle>
+                  <DialogTitle></DialogTitle>
                   <DialogDescription>
-                    Fill in the details to post a new requirement for experts
                   </DialogDescription>
                 </DialogHeader>
                 <div className="overflow-y-auto flex-1 pr-2">

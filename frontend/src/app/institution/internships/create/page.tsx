@@ -77,6 +77,40 @@ export default function CreateInternshipPage() {
           setError('Only Corporate institutions can create internships.')
         }
         setInstitution(inst)
+
+        // Load from localStorage if exists (when coming back from institution selection)
+        const savedPayload = localStorage.getItem('internship_create_payload')
+        if (savedPayload) {
+          try {
+            const payload = JSON.parse(savedPayload)
+            // Convert payload back to form state
+            setForm({
+              title: payload.title || '',
+              skills: (payload.skills_required || []).join(', '),
+              work_mode: payload.work_mode || '',
+              engagement: payload.engagement || 'Full-time',
+              openings: payload.openings?.toString() || '',
+              start_timing: payload.start_timing || 'immediately',
+              start_date: payload.start_date || '',
+              duration_value: payload.duration_value?.toString() || '',
+              duration_unit: payload.duration_unit || 'months',
+              responsibilities: payload.responsibilities || '',
+              paid: payload.paid ? 'Paid' : 'Unpaid',
+              stipend_min: payload.stipend_min?.toString() || '',
+              stipend_max: payload.stipend_max?.toString() || '',
+              stipend_unit: payload.stipend_unit || 'month',
+              incentives_min: payload.incentives_min?.toString() || '',
+              incentives_max: payload.incentives_max?.toString() || '',
+              incentives_unit: payload.incentives_unit || 'month',
+              ppo: payload.ppo ? 'true' : 'false',
+              perks: payload.perks || [],
+              screening_questions: payload.screening_questions || ['Please confirm your availability for this internship. If not available immediately, how early would you be able to join?'],
+              alt_phone: payload.alt_phone || '',
+            })
+          } catch (e) {
+            console.error('Failed to parse localStorage data:', e)
+          }
+        }
       } catch (e: any) {
         setError(e.message || 'Failed to load institution')
       } finally {
@@ -103,7 +137,8 @@ export default function CreateInternshipPage() {
       const min = parseInt(form.stipend_min || '0')
       const max = parseInt(form.stipend_max || '0')
       if (!min) { toast.error('Enter minimum stipend'); return false }
-      if (max && max < min) { toast.error('Max stipend cannot be less than Min'); return false }
+      if (!max) { toast.error('Enter maximum stipend'); return false }
+      if (max < min) { toast.error('Max stipend cannot be less than Min'); return false }
     }
     if (form.alt_phone && !/^\d{10}$/.test(form.alt_phone)) { toast.error('Alternate mobile must be 10 digits'); return false }
     return true
@@ -150,26 +185,16 @@ export default function CreateInternshipPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading...</p>
-        </div>
-      </div>
-    )
-  }
+
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-8">
-      <div className="container mx-auto px-4 max-w-5xl">
-        <div className="flex items-center justify-between mb-8">
-          <div className="inline-flex items-center space-x-2">
-            <Logo size="md" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent">Post an Internship</span>
-          </div>
-        </div>
+    <div className="">
+      <div>
+      <h2 className="text-2xl font-bold text-[#000000] mb-1">Create an Internship</h2>
+      <p className="text-[#6A6A6A] mb-6">Provide complete information to attract better students</p>
+      </div>
+      <div className="container mx-auto w-full">
+      
 
         {error && (
           <Alert variant="destructive" className="mb-6">
@@ -177,13 +202,10 @@ export default function CreateInternshipPage() {
           </Alert>
         )}
 
-        <Card className="bg-white border-2 border-slate-200 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-slate-900">Internship details</CardTitle>
-            <CardDescription className="text-slate-600">Provide complete information to attract better applicants</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
+        <Card className="">
+        
+          <CardContent className='p-6'>
+            <form className="space-y-6">
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>Internship profile *</Label>
@@ -350,13 +372,14 @@ export default function CreateInternshipPage() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4">
-                <Button type="button" variant="outline" onClick={() => router.push('/institution/internships')}>Cancel</Button>
-                <Button type="submit" disabled={saving} className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">{saving ? 'Saving...' : 'Save & Continue'}</Button>
-              </div>
+            
             </form>
           </CardContent>
         </Card>
+        <div className="flex justify-end gap-3 pt-4">
+        <Button variant="outline" onClick={() => router.back()} className="border-[#DCDCDC] text-[#000000] hover:bg-slate-50 px-8">Back</Button>
+                <Button type="button" onClick={handleSubmit} disabled={saving} className="bg-[#008260] hover:bg-[#008260] text-white rounded-md px-8">{saving ? 'Saving...' : 'Create Internship'}</Button>
+              </div>
       </div>
     </div>
   )

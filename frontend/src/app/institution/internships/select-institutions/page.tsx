@@ -80,24 +80,27 @@ export default function SelectInstitutionsForInternship() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-[#E8F3F1] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#008260] mx-auto mb-4"></div>
+          <p className="text-[#6A6A6A]">Loading...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 min-h-screen">
-      <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
+    <div className="bg-[#E8F3F1] min-h-screen">
+      <header className="bg-[#008260] backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <Link href="/institution/home" className="flex items-center space-x-2 group">
-              <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Select Institutions</span>
+              <span className="text-xl font-bold text-white">CalXMap</span>
             </Link>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-6">
+              <Link href="/institution/home" className="text-white hover:text-white/80 transition-colors">Home</Link>
+            
+          
               <NotificationBell />
               <ProfileDropdown user={user} institution={institution} userType="institution" />
             </div>
@@ -106,22 +109,24 @@ export default function SelectInstitutionsForInternship() {
       </header>
 
       <div className="container mx-auto px-4 max-w-6xl py-8">
+        <h1 className="text-3xl font-bold text-[#000000] mb-6">Choose Institution</h1>
+        
         {error && <Alert variant="destructive" className="mb-6"><AlertDescription>{error}</AlertDescription></Alert>}
 
         {/* Search & Filters */}
-        <div className="bg-white rounded-2xl shadow-sm border-2 border-slate-200 p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-[#DCDCDC] p-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <div className="text-sm text-slate-700 mb-1">Search Institutions</div>
+              <label className="text-sm font-medium text-[#000000] mb-2 block">Search Institutions</label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
-                <Input className="pl-10" placeholder="Name, city, state" value={search} onChange={(e) => setSearch(e.target.value)} />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6A6A6A] h-4 w-4" />
+                <Input className="pl-10 border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:border-[#008260]" placeholder="Titles, responsibilities" value={search} onChange={(e) => setSearch(e.target.value)} />
               </div>
             </div>
             <div>
-              <div className="text-sm text-slate-700 mb-1">Institution Type</div>
+              <label className="text-sm font-medium text-[#000000] mb-2 block">Institution Type</label>
               <Select value={selectedType} onValueChange={setSelectedType}>
-                <SelectTrigger><SelectValue placeholder="All" /></SelectTrigger>
+                <SelectTrigger className="border-[#DCDCDC] focus:ring-[#008260] focus:border-[#008260]"><SelectValue placeholder="All" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
                   {['University','College','Research Institute','Technical Institute','Business School','Medical College','Engineering College','Arts & Science College','Community College','Training Institute','Other'].map((t) => (
@@ -130,9 +135,9 @@ export default function SelectInstitutionsForInternship() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-end justify-end gap-2">
-              <Button variant="outline" onClick={() => { setSelectedInstitutionIds([]) }}>Clear Selection</Button>
-              <Button className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white" onClick={finish}>
+            <div className="flex items-end justify-end gap-3">
+              <Button variant="outline" onClick={() => { setSelectedInstitutionIds([]) }} className="border-[#DCDCDC] text-[#000000] hover:bg-slate-50">Clear Selection</Button>
+              <Button className="bg-[#008260] hover:bg-[#006B4F] text-white" onClick={finish}>
                 {selectedInstitutionIds.length > 0 
                   ? `Publish (${selectedInstitutionIds.length})` 
                   : 'Publish All'}
@@ -142,34 +147,41 @@ export default function SelectInstitutionsForInternship() {
         </div>
 
         {/* Institutions List */}
-        <div className="space-y-3">
+        <div className="space-y-4">
           {listLoading && institutions.length === 0 ? (
-            <div className="text-center py-12 text-slate-600">Loading institutions...</div>
+            <div className="text-center py-12 text-[#6A6A6A]">Loading institutions...</div>
           ) : (
             institutions.map((inst: any) => {
               const selected = selectedInstitutionIds.includes(inst.id)
               return (
-                <Card key={inst.id} className={`hover:shadow-md transition-all duration-300 border-2 ${selected ? 'border-blue-400 bg-blue-50/40' : 'border-slate-200'} bg-white`}>
-                  <CardContent className="p-4 flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Avatar className="h-10 w-10 flex-shrink-0">
+                <div key={inst.id} className={`bg-white rounded-2xl border transition-all duration-300 ${selected ? 'border-[#008260] shadow-sm' : 'border-[#DCDCDC]'} p-5 hover:shadow-md`}>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-4 min-w-0 flex-1">
+                      <Avatar className="h-14 w-14 flex-shrink-0 bg-[#E0E0E0]">
                         <AvatarImage src={inst.logo_url || ''} />
-                        <AvatarFallback>{(inst.name || 'I').charAt(0)}</AvatarFallback>
+                        <AvatarFallback className="bg-[#E0E0E0] text-[#6A6A6A] text-lg">{(inst.name || 'I').charAt(0)}</AvatarFallback>
                       </Avatar>
-                      <div className="min-w-0">
-                        <div className="font-semibold text-slate-900 truncate">{inst.name}</div>
-                        <div className="text-sm text-slate-600 truncate">{inst.type} · {inst.city}{inst.state ? `, ${inst.state}` : ''}</div>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold text-[#000000] text-lg mb-1">{inst.name}</div>
+                        <div className="text-sm text-[#6A6A6A]">{inst.type} • {inst.city}{inst.state ? `, ${inst.state}` : ''}</div>
                       </div>
                     </div>
-                    <Button
-                      variant={selected ? 'default' : 'outline'}
-                      className={selected ? '' : 'border-slate-300'}
+                    <button
                       onClick={() => toggleSelect(inst.id)}
+                      className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                        selected 
+                          ? 'border-[#008260] bg-[#008260]' 
+                          : 'border-[#DCDCDC] bg-white hover:border-[#008260]'
+                      }`}
                     >
-                      {selected ? 'Selected' : 'Select'}
-                    </Button>
-                  </CardContent>
-                </Card>
+                      {selected && (
+                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
               )
             })
           )}
@@ -183,7 +195,7 @@ export default function SelectInstitutionsForInternship() {
                 obs.observe(el)
                 return () => obs.disconnect()
               }}
-              className="text-center py-4 text-sm text-slate-500"
+              className="text-center py-4 text-sm text-[#6A6A6A]"
             >
               Loading more...
             </div>

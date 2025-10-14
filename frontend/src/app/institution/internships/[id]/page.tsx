@@ -83,67 +83,79 @@ export default function CorporateInternshipDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-[#ECF2FF] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading internship...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#008260] mx-auto mb-4"></div>
+          <p className="text-[#6A6A6A]">Loading internship...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
+    <div className="min-h-screen bg-[#ECF2FF]">
+      <header className="bg-[#008260] backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">Corporate Internship</div>
-          <div className="flex items-center gap-2">
+          <div className="text-xl font-bold text-white">CalXMap</div>
+          <div className="flex items-center space-x-6">
+        
+          
             <NotificationBell />
             <ProfileDropdown user={user} institution={institution} userType="institution" />
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        <h1 className="text-3xl font-bold text-[#000000] mb-6">Profile</h1>
+        
         {error && <Alert variant="destructive" className="mb-6"><AlertDescription>{error}</AlertDescription></Alert>}
         {!internship ? (
-          <div className="text-center text-slate-600">Internship not found</div>
+          <div className="text-center text-[#6A6A6A]">Internship not found</div>
         ) : (
           <>
-            <Card className="bg-white border-2 border-slate-200 mb-8">
-              <CardHeader>
-                <CardTitle className="text-slate-900">{internship.title}</CardTitle>
-                <CardDescription className="text-slate-600">{internship.corporate?.name}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="text-sm text-slate-700">{internship.responsibilities}</div>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                  <div><span className="text-slate-500">Work mode:</span> <span className="font-medium text-slate-900">{internship.work_mode}</span></div>
-                  <div><span className="text-slate-500">Engagement:</span> <span className="font-medium text-slate-900">{internship.engagement}</span></div>
-                  <div><span className="text-slate-500">Openings:</span> <span className="font-medium text-slate-900">{internship.openings}</span></div>
-                  <div><span className="text-slate-500">Duration:</span> <span className="font-medium text-slate-900">{internship.duration_value} {internship.duration_unit}</span></div>
-                  <div><span className="text-slate-500">Stipend:</span> <span className="font-medium text-slate-900">{internship.paid ? `₹${internship.stipend_min}${internship.stipend_max ? ' - ₹' + internship.stipend_max : ''}/month` : 'Unpaid'}</span></div>
+            <Card className="bg-white border border-[#E0E0E0] rounded-xl mb-6">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between mb-3">
+                  <h2 className="font-semibold text-xl text-[#000000]">{internship.title}</h2>
+                  <Badge className={`capitalize ml-2 flex-shrink-0 ${internship.status === 'open' ? 'bg-[#FFF5E6] text-[#FF8A00] border border-[#FF8A00]' : 'bg-[#F5F5F5] text-[#6A6A6A] border border-[#DCDCDC]'}`}>
+                    {internship.status === 'open' ? 'Open' : 'Closed'}
+                  </Badge>
                 </div>
-                {Array.isArray(internship.skills_required) && internship.skills_required.length > 0 && (
+                <p className="text-sm text-[#6A6A6A] mb-4">{internship.responsibilities}</p>
+                
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   <div>
-                    <div className="text-sm text-slate-500">Skills</div>
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      {internship.skills_required.map((skill: string, idx: number) => (
-                        <Badge key={idx} variant="outline" className="text-xs border-slate-300 text-slate-700">{skill}</Badge>
-                      ))}
-                    </div>
+                    <p className="text-xs text-[#6A6A6A] mb-1">Deadline:</p>
+                    <p className="text-sm font-medium text-[#000000]">
+                      {internship.start_timing === 'immediately' ? 'Immediately' : new Date(internship.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </p>
                   </div>
-                )}
-                {Array.isArray(internship.perks) && internship.perks.length > 0 && (
                   <div>
-                    <div className="text-sm text-slate-500">Perks</div>
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      {internship.perks.map((perk: string, idx: number) => (
-                        <Badge key={idx} variant="secondary" className="text-xs bg-slate-100 text-slate-700">{perk}</Badge>
-                      ))}
-                    </div>
+                    <p className="text-xs text-[#6A6A6A] mb-1">Duration:</p>
+                    <p className="text-sm font-medium text-[#000000]">{internship.duration_value} {internship.duration_unit}</p>
                   </div>
-                )}
+                  <div>
+                    <p className="text-xs text-[#6A6A6A] mb-1">Stipend:</p>
+                    <p className="text-sm font-medium text-[#000000]">
+                      {internship.paid ? `₹${internship.stipend_min}-₹${internship.stipend_max}/${internship.stipend_unit}` : 'Unpaid'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[#6A6A6A] mb-1">Work Mode:</p>
+                    <p className="text-sm font-medium text-[#000000]">{internship.work_mode}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[#6A6A6A] mb-1">Engagement:</p>
+                    <p className="text-sm font-medium text-[#000000]">{internship.engagement}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[#6A6A6A] mb-1">Posted on:</p>
+                    <p className="text-sm font-medium text-[#000000]">{new Date(internship.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                  </div>
+                </div>
+
+               
               </CardContent>
             </Card>
 
@@ -172,14 +184,8 @@ export default function CorporateInternshipDetail() {
         </Drawer>
 
             {/* Applications Section */}
-            <Card className="bg-white border-2 border-slate-200">
-              <CardHeader>
-                <CardTitle className="text-slate-900">Applications</CardTitle>
-                <CardDescription className="text-slate-600">
-                  {visibility === 'public' ? 'Student applications submitted directly to you' : 'Institution-approved applications appear under Pending. Proceed with interview/selection here.'}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+            <Card className="bg-white border border-[#DCDCDC] rounded-2xl">
+              <CardContent className="p-6">
                 <div className="space-y-6">
                     <Tabs value={activeStage} onValueChange={(v) => {
                       const stage = (v as 'pending' | 'interview' | 'selected' | 'rejected')
@@ -198,7 +204,7 @@ export default function CorporateInternshipDetail() {
                       })()
                     }} className="space-y-4">
                       <div className="w-full overflow-x-auto md:overflow-x-visible scrollbar-hide">
-                        <TabsList className="flex md:grid w-max md:w-full md:grid-cols-4 gap-2 bg-white border-b border-slate-200 h-12 px-4 md:px-0">
+                        <TabsList className="flex md:grid w-max md:w-full md:grid-cols-4 gap-2 bg-white border-b border-[#DCDCDC] h-12 px-4 md:px-0">
                           {[
                             { key: 'pending', label: 'Pending' },
                             { key: 'interview', label: 'Interview' },
@@ -208,7 +214,7 @@ export default function CorporateInternshipDetail() {
                             <TabsTrigger
                               key={key}
                               value={key}
-                              className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
+                              className="data-[state=active]:bg-[#E8F5F1] data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-[#E8F5F1]/50 transition-all duration-200 font-medium text-[#6A6A6A] flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
                             >
                               {label} ({stageCounts[key as keyof typeof stageCounts] || 0})
                             </TabsTrigger>
@@ -220,66 +226,105 @@ export default function CorporateInternshipDetail() {
                       <TabsContent value="selected" />
                       <TabsContent value="rejected" />
                     </Tabs>
+                    
+                    <div className="mb-4">
+                      <h3 className="text-xl font-semibold text-[#000000]">Applications</h3>
+                      <p className="text-sm text-[#6A6A6A]">
+                        {visibility === 'public' ? 'Institution-approved applications appear under Pending. Proceed with interview/selection here.' : 'Institution-approved applications appear under Pending. Proceed with interview/selection here.'}
+                      </p>
+                    </div>
+
                     {stageLoading && applications.length === 0 && (
-                      <div className="text-center py-8 text-slate-600">Loading applications...</div>
+                      <div className="text-center py-8 text-[#6A6A6A]">Loading applications...</div>
                     )}
                     {applications.length === 0 ? (
-                      <div className="text-center py-8 text-slate-600">No applications yet</div>
+                      <div className="text-center py-8 text-[#6A6A6A]">No applications yet</div>
                     ) : (
                       applications.map((app) => {
                         const name = app.student?.name || 'Student'
                         const email = app.student?.email || '-'
                         const initial = String(name).charAt(0).toUpperCase()
+                        
+                        // Parse screening answers
+                        const parseScreeningAnswers = (text: string | null | undefined): Array<{question: string, answer: string}> => {
+                          if (!text) return []
+                          const qaBlocks = text.split('\n\n')
+                          return qaBlocks.map(block => {
+                            const lines = block.split('\n')
+                            const qLine = lines.find(l => l.startsWith('Q'))
+                            const aLine = lines.find(l => l.startsWith('A'))
+                            return {
+                              question: qLine ? qLine.substring(qLine.indexOf(':') + 1).trim() : '',
+                              answer: aLine ? aLine.substring(aLine.indexOf(':') + 1).trim() : ''
+                            }
+                          }).filter(qa => qa.question || qa.answer)
+                        }
+                        
+                        const screeningQA = parseScreeningAnswers(app.screening_answers)
+                        
+                        // Get badge text based on active stage
+                        const getBadgeText = () => {
+                          if (activeStage === 'pending') return 'Pending'
+                          if (activeStage === 'interview') return 'Interview'
+                          if (activeStage === 'selected') return 'Selected'
+                          if (activeStage === 'rejected') return 'Rejected'
+                          return 'Pending'
+                        }
+                        
                         return (
-                          <div key={app.id} className="bg-white border-2 border-slate-200 rounded-xl p-4 md:p-5 hover:border-blue-300 hover:shadow-md transition-all duration-300">
-                            <div className="flex items-start justify-between gap-3">
+                          <div key={app.id} className="bg-white border border-[#E0E0E0] rounded-xl p-5 hover:border-[#008260] hover:shadow-md transition-all duration-300">
+                            <div className="flex items-start justify-between gap-3 mb-3">
                               <div className="flex items-center gap-3 min-w-0">
-                                <Avatar className="h-10 w-10">
+                                <Avatar className="h-12 w-12">
                                   <AvatarImage src={app.student?.photo_url} />
-                                  <AvatarFallback className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white text-sm">
+                                  <AvatarFallback className="bg-[#E0E0E0] text-[#6A6A6A] text-lg">
                                     {initial}
                                   </AvatarFallback>
                                 </Avatar>
                                 <div className="min-w-0">
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <h4 className="font-semibold text-slate-900 truncate">{name}</h4>
-                                    {app.institution?.name && (
-                                      <span className="inline-flex items-center gap-1 text-xs bg-slate-100 text-slate-700 rounded-full px-2 py-0.5 truncate">
-                                        <School className="h-3 w-3" /> {app.institution?.name}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="text-xs text-slate-600 flex items-center gap-2 truncate">
-                                    <Mail className="h-3 w-3" />
-                                    <span className="truncate">{email}</span>
-                                  </div>
+                                  <h4 className="font-semibold text-[#000000] truncate">{name}</h4>
+                                  <div className="text-sm text-[#6A6A6A] truncate">{email}</div>
                                 </div>
                               </div>
-                              <Badge className={statusClass(app.status)}>
-                                <span className="capitalize">{String(app.status || '').replaceAll('_', ' ')}</span>
+                              <Badge className="bg-[#FFF5E6] text-[#FF8A00] border border-[#FF8A00] flex-shrink-0">
+                                {getBadgeText()}
                               </Badge>
                             </div>
 
-                            {app.cover_letter && (
-                              <div className="mt-3 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-md p-3">
-                                <p className="line-clamp-4 whitespace-pre-wrap">{app.cover_letter}</p>
+                            {app.institution?.name && (
+                              <div className="mb-3">
+                                <p className="text-xs text-[#6A6A6A]">Institution:</p>
+                                <p className="text-sm font-medium text-[#000000]">{app.institution.name}</p>
                               </div>
                             )}
 
-                            <div className="mt-3 flex items-center justify-between">
-                              <div className="text-xs text-slate-600 flex items-center gap-4">
-                                <span className="inline-flex items-center gap-1"><CalendarDays className="h-3 w-3" /> Applied: <span className="font-medium text-slate-800">{new Date(app.created_at).toLocaleDateString()}</span></span>
+                            {screeningQA.length > 0 && screeningQA.map((qa, idx) => (
+                              <div key={idx} className="mb-3">
+                                <p className="text-xs text-[#6A6A6A] mb-1">{qa.question}</p>
+                                <p className="text-sm text-[#000000]">{qa.answer}</p>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <Dialog>
-                                  <DialogTrigger asChild>
-                                    <Button size="sm" variant="outline" className="border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50 text-slate-700 hover:text-blue-700 flex items-center gap-1">
-                                      <Eye className="h-4 w-4" /> View Profile
-                                    </Button>
-                                  </DialogTrigger>
-                                  <DialogContent className="max-w-2xl bg-white border-2 border-slate-200">
-                                 
-                                    <div className="space-y-4">
+                            ))}
+
+                            {app.cover_letter && (
+                              <div className="mb-3">
+                                <p className="text-xs text-[#6A6A6A] mb-1">Cover letter (optional)</p>
+                                <p className="text-sm text-[#000000] line-clamp-3">{app.cover_letter}</p>
+                              </div>
+                            )}
+
+                            <div className="mb-4">
+                              <p className="text-xs text-[#6A6A6A]">Applied: <span className="font-medium text-[#000000]">{new Date(app.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span></p>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-2">
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button size="sm" variant="outline" className="border border-[#DCDCDC] hover:border-[#008260] hover:bg-[#E8F5F1] text-[#000000] hover:text-[#008260]">
+                                    View Profile
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-2xl bg-white border-2 border-slate-200">
+                                  <div className="space-y-4">
                                       <div className="flex items-center gap-4">
                                         <Avatar className="w-16 h-16 border-2 border-blue-200">
                                           <AvatarImage src={app.student?.photo_url} />
@@ -355,23 +400,27 @@ export default function CorporateInternshipDetail() {
                                     </div>
                                   </DialogContent>
                                 </Dialog>
-                                {/* Status Actions */}
-                                <div className="flex items-center gap-2">
-                                  {/* Always allow viewing full application */}
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50 text-slate-700 hover:text-blue-700"
-                                    onClick={() => { setActiveApp(app); setAppDrawerOpen(true) }}
-                                  >
-                                    View Application
-                                  </Button>
-                                  {String(app.status).startsWith('pending') || String(app.status).startsWith('approved') ? (
-                                    <>
-                                      <Dialog>
-                                        <DialogTrigger asChild>
-                                          <Button size="sm" className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">Proceed to Interview</Button>
-                                        </DialogTrigger>
+
+                              <div className="flex items-center gap-2">
+                                {String(app.status).startsWith('pending') || String(app.status).startsWith('approved') ? (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="border border-[#9B0000] text-[#9B0000] hover:bg-[#9B0000] hover:text-white rounded-3xl w-[100px]"
+                                      onClick={async () => {
+                                        try {
+                                          await api.internships.updateApplicationStatus(app.id, 'rejected_corporate')
+                                          setApplications(prev => prev.map(a => a.id === app.id ? { ...a, status: 'rejected_corporate' } : a))
+                                        } catch {}
+                                      }}
+                                    >
+                                      Reject
+                                    </Button>
+                                    <Dialog>
+                                      <DialogTrigger asChild>
+                                        <Button size="sm" className="bg-[#008260] hover:bg-[#006B4F] text-white">Proceed to Interview</Button>
+                                      </DialogTrigger>
                                         <DialogContent className="max-w-md">
                                           <DialogHeader>
                                             <DialogTitle>Schedule Interview</DialogTitle>
@@ -408,7 +457,7 @@ export default function CorporateInternshipDetail() {
                                                     if (res?.counts) setStageCounts(res.counts)
                                                   } catch {}
                                                 }}
-                                                className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white"
+                                                className="bg-[#008260] hover:bg-[#006B4F] text-white"
                                               >
                                                 Proceed
                                               </Button>
@@ -416,19 +465,6 @@ export default function CorporateInternshipDetail() {
                                           </div>
                                         </DialogContent>
                                       </Dialog>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="text-red-600 border-red-300 hover:bg-red-50"
-                                        onClick={async () => {
-                                          try {
-                                            await api.internships.updateApplicationStatus(app.id, 'rejected_corporate')
-                                            setApplications(prev => prev.map(a => a.id === app.id ? { ...a, status: 'rejected_corporate' } : a))
-                                          } catch {}
-                                        }}
-                                      >
-                                        Reject
-                                      </Button>
                                     </>
                                   ) : String(app.status).startsWith('interview') ? (
                                     <>
@@ -446,13 +482,14 @@ export default function CorporateInternshipDetail() {
                                             if (res?.counts) setStageCounts(res.counts)
                                           } catch {}
                                         }}
+                                        className='bg-[#008260] hover:bg-[#006B4F] text-white w-[100px] rounded-3xl'
                                       >
                                         Select
                                       </Button>
                                       <Button
                                         size="sm"
                                         variant="outline"
-                                        className="text-red-600 border-red-300 hover:bg-red-50"
+                                          className="border border-[#9B0000] text-[#9B0000] hover:bg-[#9B0000] hover:text-white rounded-3xl w-[100px]"
                                         onClick={async () => {
                                           try {
                                             await api.internships.updateApplicationStatus(app.id, 'rejected_corporate')
@@ -470,7 +507,6 @@ export default function CorporateInternshipDetail() {
                                     </>
                                   ) : null}
                                 </div>
-                              </div>
                             </div>
                           </div>
                         )

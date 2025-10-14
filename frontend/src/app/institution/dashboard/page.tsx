@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { MultiSelect } from '@/components/ui/multi-select'
 import { Drawer } from '@/components/ui/drawer'
 import ProfileDropdown from '@/components/ProfileDropdown'
@@ -88,6 +89,8 @@ export default function InstitutionDashboard() {
   const [recommendedExperts, setRecommendedExperts] = useState<any[]>([])
   const [showExpertSelectionModal, setShowExpertSelectionModal] = useState(false)
   const [selectedExperts, setSelectedExperts] = useState<string[]>([])
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false)
+  const [projectToClose, setProjectToClose] = useState<string | null>(null)
   const router = useRouter()
   
   const handleDomainChange = (domain: string) => {
@@ -637,16 +640,27 @@ export default function InstitutionDashboard() {
     }
   }
 
-  const handleCloseProject = async (projectId: string) => {
+  const handleCloseProjectClick = (projectId: string) => {
+    setProjectToClose(projectId)
+    setShowCloseConfirm(true)
+  }
+
+  const confirmCloseProject = async () => {
+    if (!projectToClose) return
+    
     try {
-      const result = await api.projects.update(projectId, { status: 'closed' })
+      const result = await api.projects.update(projectToClose, { status: 'closed' })
       console.log('Project closed successfully:', result)
-     
+      toast.success('Project closed successfully!')
       refreshProjects()
       setError('')
+      setShowCloseConfirm(false)
+      setProjectToClose(null)
     } catch (error: any) {
       console.error('Project close error:', error)
-      setError(`Failed to close project: ${error.message}`)
+      toast.error(`Failed to close project: ${error.message}`)
+      setShowCloseConfirm(false)
+      setProjectToClose(null)
     }
   }
 
@@ -655,9 +669,9 @@ export default function InstitutionDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-[#ECF2FF] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#008260] mx-auto mb-4"></div>
           <p className="text-slate-300">Loading dashboard...</p>
         </div>
       </div>
@@ -703,18 +717,17 @@ export default function InstitutionDashboard() {
                Manage your projects, review applications, and connect with qualified experts.
              </p>
           </div>
-          <Dialog open={showProjectForm} onOpenChange={setShowProjectForm}>
+          <Dialog open={false}>
               <DialogTrigger asChild>
-              <Button className="bg-[#008260] hover:bg-[#008260] text-sm font-semibold">
+              <Button className="bg-[#008260] hover:bg-[#008260] text-sm font-semibold" onClick={() => router.push('/institution/post-requirement')}>
                   <Plus className="h-3 w-3 mr-1 border border-white rounded-full" />
                   Post Requirement
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+              <DialogContent className="hidden">
                 <DialogHeader className="flex-shrink-0">
-                  <DialogTitle>Create New Project</DialogTitle>
+                  <DialogTitle></DialogTitle>
                   <DialogDescription>
-                    Fill in the details to post a new requirement for experts
                   </DialogDescription>
                 </DialogHeader>
                 <div className="overflow-y-auto flex-1 pr-2">
@@ -1047,29 +1060,30 @@ export default function InstitutionDashboard() {
 
           {/* Edit Project Dialog */}
           <Dialog open={showEditForm} onOpenChange={setShowEditForm}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogContent className="max-w-3xl max-h-[90vh]  flex flex-col">
               <DialogHeader className="flex-shrink-0">
-                <DialogTitle>Edit Project</DialogTitle>
-                <DialogDescription>
+                <DialogTitle className="text-2xl font-bold text-[#000000]">Edit Project</DialogTitle>
+                <DialogDescription className="text-[#6A6A6A]">
                   Update your project details
                 </DialogDescription>
               </DialogHeader>
-              <div className="overflow-y-auto flex-1 pr-2">
+              <div className="overflow-y-auto flex-1 pr-2 p-2">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="title">Project Title *</Label>
+                    <Label htmlFor="title" className="text-[#000000] font-medium mb-2 block">Project Title *</Label>
                     <Input
                       id="title"
                       value={projectForm.title}
                       onChange={(e) => setProjectForm({...projectForm, title: e.target.value})}
                       placeholder="e.g., Guest Lecture on AI"
+                      className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:border-[#008260]"
                       required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="type">Project Type *</Label>
+                    <Label htmlFor="type" className="text-[#000000] font-medium mb-2 block">Project Type *</Label>
                     <Select value={projectForm.type} onValueChange={(value) => setProjectForm({...projectForm, type: value})}>
-                      <SelectTrigger>
+                      <SelectTrigger className="border-[#DCDCDC] focus:ring-[#008260] focus:border-[#008260]">
                         <SelectValue placeholder="Select type" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1085,7 +1099,7 @@ export default function InstitutionDashboard() {
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="hourly_rate">Hourly Rate (₹) *</Label>
+                    <Label htmlFor="hourly_rate" className="text-[#000000] font-medium mb-2 block">Hourly Rate (₹) *</Label>
                     <Input
                       id="hourly_rate"
                       type="number"
@@ -1093,11 +1107,12 @@ export default function InstitutionDashboard() {
                       value={projectForm.hourly_rate}
                       onChange={(e) => setProjectForm({...projectForm, hourly_rate: e.target.value})}
                       placeholder="1000"
+                      className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:border-[#008260]"
                       required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="total_budget">Total Budget (₹) *</Label>
+                    <Label htmlFor="total_budget" className="text-[#000000] font-medium mb-2 block">Total Budget (₹) *</Label>
                     <Input
                       id="total_budget"
                       type="number"
@@ -1105,31 +1120,34 @@ export default function InstitutionDashboard() {
                       value={projectForm.total_budget}
                       onChange={(e) => setProjectForm({...projectForm, total_budget: e.target.value})}
                       placeholder="50000"
+                      className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:border-[#008260]"
                       required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="start_date">Start Date *</Label>
+                    <Label htmlFor="start_date" className="text-[#000000] font-medium mb-2 block">Start Date *</Label>
                     <Input
                       id="start_date"
                       type="date"
                       value={projectForm.start_date}
                       onChange={(e) => setProjectForm({...projectForm, start_date: e.target.value})}
+                      className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:border-[#008260]"
                       required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="end_date">End Date *</Label>
+                    <Label htmlFor="end_date" className="text-[#000000] font-medium mb-2 block">End Date *</Label>
                     <Input
                       id="end_date"
                       type="date"
                       value={projectForm.end_date}
                       onChange={(e) => setProjectForm({...projectForm, end_date: e.target.value})}
+                      className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:border-[#008260]"
                       required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="duration_hours">Duration (Hours) *</Label>
+                    <Label htmlFor="duration_hours" className="text-[#000000] font-medium mb-2 block">Duration (Hours) *</Label>
                     <Input
                       id="duration_hours"
                       type="number"
@@ -1137,13 +1155,14 @@ export default function InstitutionDashboard() {
                       value={projectForm.duration_hours}
                       onChange={(e) => setProjectForm({...projectForm, duration_hours: e.target.value})}
                       placeholder="40"
+                      className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:border-[#008260]"
                       required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="domain_expertise">Domain Expertise *</Label>
+                    <Label htmlFor="domain_expertise" className="text-[#000000] font-medium mb-2 block">Domain Expertise *</Label>
                     <Select value={projectForm.domain_expertise} onValueChange={handleDomainChange}>
-                      <SelectTrigger>
+                      <SelectTrigger className="border-[#DCDCDC] focus:ring-[#008260] focus:border-[#008260]">
                         <SelectValue placeholder="Select required domain" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1155,21 +1174,22 @@ export default function InstitutionDashboard() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div>
-                    <Label htmlFor="required_expertise">Additional Skills (comma-separated)</Label>
+                  <div className="md:col-span-2">
+                    <Label htmlFor="required_expertise" className="text-[#000000] font-medium mb-2 block">Additional Skills (comma-separated)</Label>
                     <Input
                       id="required_expertise"
                       value={projectForm.required_expertise}
                       onChange={(e) => setProjectForm({...projectForm, required_expertise: e.target.value})}
                       placeholder="AI, Machine Learning, Data Science"
+                      className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:border-[#008260]"
                     />
                   </div>
                 </div>
                 
                 {/* Subskills Multi-Select */}
                 {projectForm.domain_expertise && availableSubskills.length > 0 && (
-                  <div className='my-3' onClick={(e) => e.stopPropagation()}>
-                    <Label className="text-slate-700" htmlFor="required_specialization">Required Specializations *</Label>
+                  <div className='my-4' onClick={(e) => e.stopPropagation()}>
+                    <Label className="text-[#000000] font-medium mb-2 block" htmlFor="required_specialization">Required Specializations *</Label>
                     <MultiSelect
                       options={availableSubskills}
                       selected={selectedSubskills}
@@ -1180,26 +1200,27 @@ export default function InstitutionDashboard() {
                   </div>
                 )}
                 
-                <div>
-                  <Label htmlFor="description">Description *</Label>
+                <div className="mt-4">
+                  <Label htmlFor="description" className="text-[#000000] font-medium mb-2 block">Description *</Label>
                   <Textarea
                     id="description"
                     value={projectForm.description}
                     onChange={(e) => setProjectForm({...projectForm, description: e.target.value})}
                     placeholder="Describe the project requirements..."
                     rows={4}
+                    className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:border-[#008260]"
                     required
                   />
                 </div>
                 </div>
-                <div className="flex-shrink-0 flex justify-end space-x-2 pt-4 border-t border-slate-200">
-                  <Button variant="outline" onClick={() => setShowEditForm(false)}>
+                <div className="flex-shrink-0 flex justify-end space-x-3 pt-4 border-t border-[#DCDCDC]">
+                  <Button variant="outline" onClick={() => setShowEditForm(false)} className="border-[#DCDCDC] text-[#000000] hover:bg-slate-50">
                     Cancel
                   </Button>
                   <Button 
                     onClick={handleUpdateProject}
                     disabled={submittingProject}
-                    className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
+                    className="bg-[#008260] hover:bg-[#006B4F] text-white"
                   >
                     {submittingProject ? 'Updating...' : 'Update Project'}
                   </Button>
@@ -1405,7 +1426,7 @@ export default function InstitutionDashboard() {
                               Edit
                             </Button>
                             {project.status === 'open' && (
-                              <Button size="sm" variant="outline" onClick={() => handleCloseProject(project.id)} className="flex-1 sm:flex-none bg-[#9B0000] hover:bg-[#9B0000] rounded-[25px] text-white hover:text-white font-semibold text-[13px]">
+                              <Button size="sm" variant="outline" onClick={() => handleCloseProjectClick(project.id)} className="flex-1 sm:flex-none bg-[#9B0000] hover:bg-[#9B0000] rounded-[25px] text-white hover:text-white font-semibold text-[13px]">
                                 <XCircle className="h-4 w-4" />
                                 Close
                               </Button>
@@ -1439,7 +1460,24 @@ export default function InstitutionDashboard() {
           </Card>
         </div>
         </div>
+
+        {/* Close Project Confirmation */}
+        <AlertDialog open={showCloseConfirm} onOpenChange={setShowCloseConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Close Project?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to close this project? This action will mark the project as closed and it will no longer be visible to experts.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmCloseProject} className="bg-[#9B0000] hover:bg-[#800000]">
+                Yes, Close Project
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
-    
-  )
-}
+    )
+  }
