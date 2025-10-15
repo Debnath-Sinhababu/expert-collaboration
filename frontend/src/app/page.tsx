@@ -61,6 +61,7 @@ export default function Home() {
   const [showWelcomeDialog, setShowWelcomeDialog] = useState(false)
   const [exploreActiveIdx, setExploreActiveIdx] = useState(0)
   const [studentActiveIdx, setStudentActiveIdx] = useState(0)
+  const [associatedStudents, setAssociatedStudents] = useState<any[]>([])
 
   const exploreNav: any = (NAVIGATION as any[]).find((s: any) => s.label === 'Explore Experts')
   const studentNav: any = (NAVIGATION as any[]).find((s: any) => s.label === 'Student Marketplace')
@@ -241,6 +242,22 @@ export default function Home() {
     loadExperts()
   }, [])
 
+  // Load associated students
+  useEffect(() => {
+    const loadStudents = async () => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/students/featured?limit=8`)
+        if (response.ok) {
+          const data = await response.json()
+          setAssociatedStudents(Array.isArray(data) ? data : [])
+        }
+      } catch (error) {
+        console.error('Error loading students:', error)
+      }
+    }
+    loadStudents()
+  }, [])
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#ECF2FF]">
@@ -316,16 +333,28 @@ export default function Home() {
 
       {user && userRole && (
         <Dialog open={showWelcomeDialog} onOpenChange={setShowWelcomeDialog}>
-          <DialogContent className="sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent">Welcome back to Calxmap</DialogTitle>
-              <DialogDescription className="text-slate-600">Continue to your {userRole === 'expert' ? 'Expert' : 'Institution'} home page.</DialogDescription>
+          <DialogContent className="sm:max-w-lg border border-[#E0E0E0] rounded-xl bg-white shadow-lg">
+            <DialogHeader className="space-y-3 pb-2">
+              <DialogTitle className="text-3xl font-bold text-[#000000]">
+                Welcome Back! 👋
+              </DialogTitle>
+              <DialogDescription className="text-[#6A6A6A] text-base">
+                Continue to your {userRole === 'expert' ? 'Expert' : 'Institution'} dashboard to manage your activities.
+              </DialogDescription>
             </DialogHeader>
-            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Link href={userRole === 'expert' ? '/expert/home' : '/institution/home'}>
-                <Button className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white w-full">Go to {userRole === 'expert' ? 'Expert' : 'Institution'} Home</Button>
+            <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Link href={userRole === 'expert' ? '/expert/home' : '/institution/home'} className="w-full">
+                <Button className="bg-[#008260] hover:bg-[#006d51] text-white w-full h-11 text-base font-semibold shadow-sm hover:shadow-md transition-all duration-200 rounded-lg">
+                  Go to {userRole === 'expert' ? 'Expert' : 'Institution'} Home
+                </Button>
               </Link>
-              <Button variant="outline" onClick={() => setShowWelcomeDialog(false)} className="w-full">Maybe later</Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowWelcomeDialog(false)} 
+                className="w-full h-11 text-base font-medium border-[#DCDCDC] hover:bg-[#ECF2FF] text-[#000000] transition-all duration-200 rounded-lg"
+              >
+                Stay Here
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -1257,6 +1286,90 @@ export default function Home() {
               </div>
             </div>
           </section>
+
+          {/* Associated Students Section */}
+          {associatedStudents.length > 5 && (
+            <section className="py-16">
+              <div className="container mx-auto px-4">
+                <div className="text-center mb-12">
+                  <div className="inline-flex items-center gap-2 bg-[#E8F5F1] px-6 py-2 rounded-full mb-4">
+                    <svg className="w-5 h-5 text-[#008260]" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
+                    </svg>
+                    <span className="text-[#008260] font-semibold">Students</span>
+                  </div>
+                  <h2 className="text-4xl font-bold text-[#000000] mb-3">
+                    Associated <span className="text-[#008260]">Students</span>
+                  </h2>
+                  <p className="text-[#6A6A6A] text-lg">
+                    Meet our students, ready to drive your success forward
+                  </p>
+                </div>
+
+                <Carousel
+                  opts={{ align: "start", loop: true }}
+                  plugins={[Autoplay({ delay: 3500 })]}
+                  className="w-full"
+                >
+                  <CarouselContent className="-ml-4">
+                    {associatedStudents.map((student) => (
+                      <CarouselItem key={student.id} className="pl-4 md:basis-1/2 lg:basis-1/4">
+                        <Card className="bg-white border border-[#E0E0E0] rounded-3xl hover:shadow-xl transition-all h-full">
+                          <CardContent className="p-6">
+                            {/* Student Image */}
+                            <div className="relative w-full aspect-square overflow-hidden rounded-2xl mb-4">
+                              <img
+                                src={student.profile_photo_small_url || student.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(student.name)}&size=400&background=008260&color=fff`}
+                                alt={student.name}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+
+                            {/* Student Info */}
+                            <div>
+                              <h3 className="text-xl font-bold text-[#000000] mb-2">{student.name}</h3>
+                              
+                              <p className="text-[#6A6A6A] text-sm mb-3 line-clamp-2">
+                                {student.degree && student.specialization ? (
+                                  <>
+                                    {student.degree === 'B.Tech' && 'A B.Tech '}
+                                    {student.degree === 'M.Tech' && 'An M.Tech '}
+                                    {student.degree === 'BCA' && 'A BCA '}
+                                    {student.degree === 'MCA' && 'An MCA '}
+                                    {student.degree === 'B.Sc' && 'A B.Sc. '}
+                                    {student.degree === 'M.Sc' && 'An M.Sc. '}
+                                    {student.degree === 'MBA' && 'An MBA '}
+                                    {student.degree === 'BBA' && 'A BBA '}
+                                    {!['B.Tech', 'M.Tech', 'BCA', 'MCA', 'B.Sc', 'M.Sc', 'MBA', 'BBA'].includes(student.degree) && `A ${student.degree} `}
+                                    Student {student.specialization && `in ${student.specialization}`}
+                                  </>
+                                ) : student.degree ? (
+                                  `${student.degree} Student`
+                                ) : (
+                                  'Student'
+                                )}
+                                {student.skills && student.skills.length > 0 && (
+                                  <>, skilled in {student.skills.slice(0, 2).join(', ')}</>
+                                )}
+                              </p>
+
+                              {student.institutions?.name && (
+                                <p className="text-[#000000] text-sm font-medium">
+                                  {student.institutions.name}
+                                </p>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                  <CarouselPrevious className="hidden md:flex" />
+                  <CarouselNext className="hidden md:flex" />
+                </Carousel>
+              </div>
+            </section>
+          )}
 
           <section className=''>
            <div className='flex justify-center flex-col bg-white items-center'>

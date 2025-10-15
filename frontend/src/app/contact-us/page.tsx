@@ -142,7 +142,7 @@ export default function ContactUs() {
             <Logo size="header" />
           </Link>
           <div className="flex items-center gap-6">
-            <Link href="/" className="text-sm hover:text-white/80 transition-colors">
+            <Link href="/auth/login" className="text-sm hover:text-white/80 transition-colors">
               Sign In
             </Link>
             <Link href="/auth/signup">

@@ -63,14 +63,14 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
-      <header className="relative bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm shadow-lg border-b border-blue-200/20">
+    <div className="min-h-screen bg-[#ECF2FF] relative overflow-hidden">
+      <header className="relative bg-[#008260] shadow-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center group">
             <Logo size="header" />
           </Link>
           <Link href="/auth/login">
-            <Button variant="ghost" className="font-medium text-white hover:text-blue-100 hover:bg-white/10 border border-transparent hover:border-white/20 transition-all duration-300">
+            <Button variant="ghost" className="font-medium text-white hover:text-white hover:bg-white/10 transition-all duration-300">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Login
             </Button>
@@ -79,45 +79,41 @@ export default function ResetPasswordPage() {
       </header>
 
       <div className="relative flex items-center justify-center min-h-[calc(100vh-80px)] p-4">
-        <div className="w-full max-w-md mx-auto relative group">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-indigo-500/5 rounded-2xl blur-2xl group-hover:from-blue-500/10 group-hover:to-indigo-500/10 transition-all duration-500"></div>
-          <Card className="border-2 border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-300 relative z-10">
-            <CardHeader className="text-center pb-6">
-              <div className="flex justify-center mb-4">
-                <Logo size="lg" />
-              </div>
-              <CardTitle className="text-2xl font-bold text-slate-900">Reset Password</CardTitle>
-              <CardDescription className="text-slate-600">Create your new password</CardDescription>
+        <div className="w-full max-w-xl mx-auto">
+          <Card className="border border-[#E0E0E0] rounded-xl bg-white shadow-sm">
+            <CardHeader className="text-center pb-6 pt-8">
+              <CardTitle className="text-3xl font-bold text-[#000000] mb-2">Reset Password</CardTitle>
+              <CardDescription className="text-[#6A6A6A] text-base">Create your new password to continue</CardDescription>
             </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
+            <CardContent className="px-6 pb-8">
+              <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="password" className="text-sm font-medium text-slate-700">New Password</Label>
+                  <Label htmlFor="password" className="text-sm font-medium text-[#000000]">New Password</Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[#6A6A6A]" />
                     <Input
                       id="password"
                       type="password"
-                      placeholder="Enter new password"
+                      placeholder="Enter new password (min. 6 characters)"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="h-12 text-base pl-10 border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
+                      className="h-12 text-base pl-10 border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260] transition-all duration-200"
                       required
                       disabled={!ready}
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword" className="text-sm font-medium text-slate-700">Confirm Password</Label>
+                  <Label htmlFor="confirmPassword" className="text-sm font-medium text-[#000000]">Confirm Password</Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[#6A6A6A]" />
                     <Input
                       id="confirmPassword"
                       type={showConfirm ? 'text' : 'password'}
-                      placeholder="Confirm new password"
+                      placeholder="Re-enter your new password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="h-12 text-base pl-10 pr-12 border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
+                      className="h-12 text-base pl-10 pr-12 border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260] transition-all duration-200"
                       required
                       disabled={!ready}
                     />
@@ -125,14 +121,14 @@ export default function ResetPasswordPage() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="absolute right-0 top-0 h-12 px-3 hover:bg-slate-100 transition-colors duration-300"
+                      className="absolute right-0 top-0 h-12 px-3 hover:bg-[#ECF2FF] transition-colors duration-200"
                       onClick={() => setShowConfirm(!showConfirm)}
                       disabled={!ready}
                     >
                       {showConfirm ? (
-                        <EyeOff className="h-5 w-5 text-slate-400" />
+                        <EyeOff className="h-5 w-5 text-[#6A6A6A]" />
                       ) : (
-                        <Eye className="h-5 w-5 text-slate-400" />
+                        <Eye className="h-5 w-5 text-[#6A6A6A]" />
                       )}
                     </Button>
                   </div>
@@ -151,10 +147,10 @@ export default function ResetPasswordPage() {
 
                 <Button 
                   type="submit" 
-                  className="w-full h-12 text-base font-medium bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
+                  className="w-full h-12 text-base font-semibold bg-[#008260] hover:bg-[#006d51] text-white shadow-sm hover:shadow-md transition-all duration-200 rounded-lg mt-6"
                   disabled={loading || !ready}
                 >
-                  {loading ? 'Updating...' : 'Update Password'}
+                  {loading ? 'Updating Password...' : 'Update Password'}
                 </Button>
               </form>
             </CardContent>

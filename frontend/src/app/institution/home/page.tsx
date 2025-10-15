@@ -109,6 +109,7 @@ export default function InstitutionHome() {
   const [availableSubskills, setAvailableSubskills] = useState<string[]>([])
   const [partneredInstitutions, setPartneredInstitutions] = useState<any[]>([])
   const [institutionsLoading, setInstitutionsLoading] = useState(true)
+  const [associatedStudents, setAssociatedStudents] = useState<any[]>([])
   // Featured experts (top-rated, independent of filters)
   const [featuredExperts, setFeaturedExperts] = useState<Expert[]>([])
   const [featuredLoading, setFeaturedLoading] = useState(false)
@@ -284,8 +285,21 @@ export default function InstitutionHome() {
       loadPartneredInstitutions()
       loadInstitutionProjects()
       loadFeaturedExperts()
+      loadAssociatedStudents()
     }
   }, [institution])
+
+  const loadAssociatedStudents = async () => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/students/featured?limit=8`)
+      if (response.ok) {
+        const data = await response.json()
+        setAssociatedStudents(Array.isArray(data) ? data : [])
+      }
+    } catch (error) {
+      console.error('Error loading students:', error)
+    }
+  }
 
   useEffect(() => {
     // Refresh only the infinite list when filters change
@@ -929,6 +943,90 @@ export default function InstitutionHome() {
           )}
         </div>
       </div>
+
+      {/* Associated Students Section */}
+      {associatedStudents.length > 4 && (
+        <div className="bg-gradient-to-r from-slate-50 via-blue-50 to-indigo-100 py-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center gap-2 bg-[#E8F5F1] px-6 py-2 rounded-full mb-4">
+                <svg className="w-5 h-5 text-[#008260]" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
+                </svg>
+                <span className="text-[#008260] font-semibold">Students</span>
+              </div>
+              <h2 className="text-2xl sm:text-[28px] font-semibold text-[#000000] mb-1">
+                Associated <span className="text-[#008260]">Students</span>
+              </h2>
+              <p className="text-[#000000CC] text-base font-normal">
+                Meet our students, ready to drive your success forward
+              </p>
+            </div>
+
+            <Carousel
+              opts={{ align: "start", loop: true }}
+              plugins={[Autoplay({ delay: 3500 })]}
+              className="w-full"
+            >
+              <CarouselContent className="-ml-2 md:-ml-4">
+                {associatedStudents.map((student) => (
+                  <CarouselItem key={student.id} className="pl-2 md:pl-4 basis-full sm:basis-1/2 lg:basis-1/4">
+                    <Card className="bg-white border border-[#E0E0E0] rounded-3xl hover:shadow-xl transition-all h-full">
+                      <CardContent className="p-6">
+                        {/* Student Image */}
+                        <div className="relative w-full aspect-square overflow-hidden rounded-2xl mb-4">
+                          <img
+                            src={student.profile_photo_small_url || student.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(student.name)}&size=400&background=008260&color=fff`}
+                            alt={student.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+
+                        {/* Student Info */}
+                        <div>
+                          <h3 className="text-xl font-bold text-[#000000] mb-2">{student.name}</h3>
+                          
+                          <p className="text-[#6A6A6A] text-sm mb-3 line-clamp-2">
+                            {student.degree && student.specialization ? (
+                              <>
+                                {student.degree === 'B.Tech' && 'A B.Tech '}
+                                {student.degree === 'M.Tech' && 'An M.Tech '}
+                                {student.degree === 'BCA' && 'A BCA '}
+                                {student.degree === 'MCA' && 'An MCA '}
+                                {student.degree === 'B.Sc' && 'A B.Sc. '}
+                                {student.degree === 'M.Sc' && 'An M.Sc. '}
+                                {student.degree === 'MBA' && 'An MBA '}
+                                {student.degree === 'BBA' && 'A BBA '}
+                                {!['B.Tech', 'M.Tech', 'BCA', 'MCA', 'B.Sc', 'M.Sc', 'MBA', 'BBA'].includes(student.degree) && `A ${student.degree} `}
+                                Student {student.specialization && `in ${student.specialization}`}
+                              </>
+                            ) : student.degree ? (
+                              `${student.degree} Student`
+                            ) : (
+                              'Student'
+                            )}
+                            {student.skills && student.skills.length > 0 && (
+                              <>, skilled in {student.skills.slice(0, 2).join(', ')}</>
+                            )}
+                          </p>
+
+                          {student.institutions?.name && (
+                            <p className="text-[#000000] text-sm font-medium">
+                              {student.institutions.name}
+                            </p>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious className="text-slate-600 hover:text-slate-900 hidden sm:block" />
+              <CarouselNext className="text-slate-600 hover:text-slate-900 hidden sm:block" />
+            </Carousel>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 md:pb-8">

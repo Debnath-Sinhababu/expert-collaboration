@@ -1675,6 +1675,45 @@ app.put('/api/students/:id', upload.fields([{ name: 'resume', maxCount: 1 }, { n
   }
 });
 
+// Get featured/public students for showcase (no auth required)
+app.get('/api/students/featured', async (req, res) => {
+  try {
+    const { limit = 8 } = req.query;
+    const limitNum = Math.min(parseInt(limit, 10) || 8, 20);
+
+    const { data, error } = await supabase
+      .from('site_students')
+      .select(`
+        id,
+        name,
+        degree,
+        specialization,
+        skills,
+        photo_url,
+        profile_photo_small_url,
+        city,
+        state,
+        institution_id,
+        institutions:institution_id (
+          id,
+          name,
+          city,
+          state
+        )
+      `)
+      .not('photo_url', 'is', null)
+      .not('name', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(limitNum);
+
+    if (error) throw error;
+    res.json(Array.isArray(data) ? data : []);
+  } catch (error) {
+    console.error('Featured students error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Student applies to internship
 app.post('/api/internship-applications', async (req, res) => {
   try {
@@ -2240,13 +2279,22 @@ app.get('/api/freelance/projects', async (req, res) => {
 // Visible freelance projects (students), only open
 app.get('/api/freelance/projects/visible', async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
-    const token = authHeader.substring(7);
-    const supabaseClient = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, { global: { headers: { Authorization: `Bearer ${token}` } } });
-    const { data, error } = await supabaseClient.from('freelance_projects').select('*, corporate:corporate_institution_id ( id, name, city, state )').eq('status','open').order('created_at', { ascending: false });
-    if (error) throw error; res.json(Array.isArray(data) ? data : []);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+    const { limit = 50 } = req.query;
+    const limitNum = Math.min(parseInt(limit, 10) || 50, 100);
+    
+    // Public endpoint - no auth required for browsing
+    const { data, error } = await supabase
+      .from('freelance_projects')
+      .select('*, corporate:corporate_institution_id ( id, name, city, state )')
+      .eq('status','open')
+      .order('created_at', { ascending: false })
+      .limit(limitNum);
+    
+    if (error) throw error; 
+    res.json(Array.isArray(data) ? data : []);
+  } catch (e) { 
+    res.status(500).json({ error: e.message }); 
+  }
 });
 
 // Student apply to project
