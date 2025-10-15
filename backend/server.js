@@ -4346,6 +4346,137 @@ app.get('/api/admin/feedback-analytics', async (req, res) => {
 // ========================================
 
 // ========================================
+// ADMIN PROFILE MANAGEMENT ROUTES
+// ========================================
+
+// Admin: Get all experts with pagination and search
+app.get('/api/admin/profiles/experts', async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 12, 
+      search = '', 
+      domain_expertise = '', 
+      min_hourly_rate = '', 
+      max_hourly_rate = '' 
+    } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    // Use service role to bypass RLS
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    let query = serviceClient
+      .from('experts')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + parseInt(limit) - 1);
+
+    // General search filter
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,bio.ilike.%${search}%`);
+    }
+
+    // Domain expertise filter
+    if (domain_expertise && domain_expertise !== 'all') {
+      query = query.contains('domain_expertise', [domain_expertise]);
+    }
+
+    // Min hourly rate filter
+    if (min_hourly_rate && !isNaN(parseFloat(min_hourly_rate))) {
+      query = query.gte('hourly_rate', parseFloat(min_hourly_rate));
+    }
+
+    // Max hourly rate filter
+    if (max_hourly_rate && !isNaN(parseFloat(max_hourly_rate))) {
+      query = query.lte('hourly_rate', parseFloat(max_hourly_rate));
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json(Array.isArray(data) ? data : []);
+  } catch (error) {
+    console.error('Admin get experts error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: Get all institutions with pagination and search
+app.get('/api/admin/profiles/institutions', async (req, res) => {
+  try {
+    const { page = 1, limit = 12, search = '' } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    // Use service role to bypass RLS
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    let query = serviceClient
+      .from('institutions')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + parseInt(limit) - 1);
+
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,type.ilike.%${search}%`);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json(Array.isArray(data) ? data : []);
+  } catch (error) {
+    console.error('Admin get institutions error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: Get all students with pagination and search
+app.get('/api/admin/profiles/students', async (req, res) => {
+  try {
+    const { page = 1, limit = 12, search = '' } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    // Use service role to bypass RLS
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    let query = serviceClient
+      .from('site_students')
+      .select(`
+        *,
+        institutions:institution_id (
+          id,
+          name,
+          city,
+          state
+        )
+      `)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + parseInt(limit) - 1);
+
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,degree.ilike.%${search}%`);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json(Array.isArray(data) ? data : []);
+  } catch (error) {
+    console.error('Admin get students error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========================================
 // CONTACT FORM ROUTES
 // ========================================
 setupContactRoutes(app);
