@@ -13,6 +13,7 @@ import NotificationBell from '@/components/NotificationBell'
 import ProfileDropdown from '@/components/ProfileDropdown'
 import { Eye, Briefcase } from 'lucide-react'
 import { usePagination } from '@/hooks/usePagination'
+import Logo from '@/components/Logo'
 
 export default function CorporateInternshipsDashboard() {
   const [loading, setLoading] = useState(true)
@@ -78,21 +79,12 @@ export default function CorporateInternshipsDashboard() {
       <header className="bg-[#008260] backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
-            <Link href="/institution/home" className="flex items-center space-x-2 group">
-              <span className="text-xl font-bold text-white">CalXMap</span>
+            <Link href="/institution/home" className="flex items-center group">
+              <Logo size="header" />
             </Link>
             <div className="flex items-center space-x-6">
-              <Link href="/institution/home" className="text-white hover:text-white/80 transition-colors">Home</Link>
-              <div className="relative group">
-                <button className="text-white hover:text-white/80 transition-colors flex items-center gap-1">
-                  Dashboard
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-              </div>
-              <Link href="/institution/profile" className="text-white hover:text-white/80 transition-colors">Profile</Link>
-              <Link href="/contact" className="text-white hover:text-white/80 transition-colors">Contact Us</Link>
+             
+         
               <NotificationBell />
               <ProfileDropdown user={user} institution={institution} userType="institution" />
             </div>

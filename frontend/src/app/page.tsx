@@ -256,14 +256,9 @@ export default function Home() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             {/* Logo & Brand */}
-            <div className="flex items-center space-x-4 group">
-             
-              <div className="relative">
-                <span className="text-xl sm:text-2xl font-bold text-white group-hover:text-blue-100 transition-all duration-300">
-                 Calxmap
-                </span>
-                <p className="text-xs text-blue-100 font-medium group-hover:text-white transition-colors duration-300 hidden sm:block">knowledge sharing networking platform</p>
-              </div>
+            <div className="flex flex-col space-y-1 group">
+              <Logo size="header" />
+              <p className="text-xs text-blue-100 font-medium group-hover:text-white transition-colors duration-300 hidden sm:block">knowledge sharing networking platform</p>
             </div>
             
             {/* Navigation & CTA - Desktop */}
@@ -1344,9 +1339,8 @@ export default function Home() {
           <div className="grid md:grid-cols-4 gap-12 mb-12">
             {/* Brand Section */}
             <div>
-              <div className="flex items-center space-x-2 mb-4">
-                <Logo size="sm" />
-                <span className="text-2xl font-bold">Cal<span className="text-[#FFD700]">X</span>Map</span>
+              <div className="mb-4">
+                <Logo size="md" />
               </div>
               <p className="text-white/90 leading-relaxed text-sm mb-6">
                 We're on a mission to make mentorship accessible to everyone!

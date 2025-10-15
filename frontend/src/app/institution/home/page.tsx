@@ -662,9 +662,8 @@ export default function InstitutionHome() {
         <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
-            <Link href="/institution/home" className="flex items-center space-x-2 group">
-              {/* <Logo size="md" /> */}
-              <span className="text-xl font-bold text-white group-hover:text-blue-100 transition-all duration-300">Calxmap</span>
+            <Link href="/institution/home" className="flex items-center group">
+              <Logo size="header" />
             </Link>
 
             {/* Navigation */}

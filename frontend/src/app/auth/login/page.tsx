@@ -94,7 +94,9 @@ export default function LoginPage() {
       <header className="relative bg-[#008260] shadow-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-           
+            <Link href="/" className="flex items-center">
+              <Logo size="header" />
+            </Link>
             <Link href="/contact-us">
               <Button variant="ghost" className="font-medium text-white hover:text-white hover:bg-white/10 transition-all duration-300 px-4 py-2 text-sm">
                 Contact Us
@@ -153,9 +155,7 @@ export default function LoginPage() {
             <div className="w-full px-4 sm:px-6 lg:px-12">
               <div className="py-12">
                 <div className="text-center mb-8">
-                  <div className="flex justify-center mb-6 lg:hidden">
-                    <Logo size="lg" />
-                  </div>
+                  
                   <h2 className="text-2xl font-bold text-slate-900 mb-2">Sign in to continue</h2>
                 </div>
                 <div className="space-y-6">

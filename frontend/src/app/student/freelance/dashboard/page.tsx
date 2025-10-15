@@ -14,6 +14,7 @@ import NotificationBell from '@/components/NotificationBell'
 import ProfileDropdown from '@/components/ProfileDropdown'
 import { Briefcase, FileText } from 'lucide-react'
 import { usePagination } from '@/hooks/usePagination'
+import Logo from '@/components/Logo'
 
 export default function StudentFreelanceDashboard() {
   const [user, setUser] = useState<any>(null)
@@ -87,8 +88,8 @@ export default function StudentFreelanceDashboard() {
       <header className="bg-[#008260] sticky top-0 z-50 shadow-lg">
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
-            <Link href="/student/home" className="flex items-center space-x-2 group">
-              <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Freelancing</span>
+            <Link href="/student/home" className="flex items-center group">
+              <Logo size="header" />
             </Link>
             <div className="flex items-center gap-2">
               <NotificationBell />

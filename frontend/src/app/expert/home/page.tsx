@@ -333,9 +333,8 @@ export default function ExpertHome() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
-            <Link href="/expert/home" className="flex items-center space-x-2 group">
-              {/* <Logo size="md" /> */}
-              <span className="text-xl font-bold text-white group-hover:text-white/90 transition-all duration-300">Calxmap</span>
+            <Link href="/expert/home" className="flex items-center group">
+              <Logo size="header" />
             </Link>
 
             {/* Navigation */}
@@ -379,24 +378,17 @@ export default function ExpertHome() {
 
         {/* Recommended for You Section */}
         {recommendedProjects.length > 0 && (
-          <div className="mb-8">
+          <div className="mb-12">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="mb-6">
-          <div className="bg-white rounded-lg p-4 shadow-sm border-2 border-[#008260]">
-            <div className="flex items-center mb-2">
-              <div className="w-8 h-8 bg-[#008260] rounded-full flex items-center justify-center mr-3">
-                <Star className="h-4 w-4 text-white" />
+              <div className="text-center mb-6">
+                <h2 className="text-[28px] font-bold text-black mb-1 tracking-tight">
+                  🎯 Recommended for You
+                </h2>
+                <p className="text-black text-base">
+                  Based on your expertise in <strong>{expert?.domain_expertise || 'your field'}</strong> - 
+                  {recommendedProjects.length} matching {recommendedProjects.length === 1 ? 'project' : 'projects'}
+                </p>
               </div>
-              <h3 className="text-lg font-semibold text-slate-900">
-                🎯 Recommended for You
-              </h3>
-            </div>
-            <p className="text-slate-600 text-sm font-normal">
-              Based on your expertise in <strong>{expert?.domain_expertise || 'your field'}</strong>, 
-              we found <strong>{recommendedProjects.length} matching projects</strong> below
-            </p>
-          </div>
-        </div>
 
               {loadingRecommendations ? (
                 <div className="flex justify-center py-12">
@@ -415,10 +407,10 @@ export default function ExpertHome() {
                   ]}
                   className="w-full max-w-7xl mx-auto"
                 >
-                  <CarouselContent className="-ml-2">
+                  <CarouselContent className="-ml-2 pb-2">
                     {recommendedProjects.map((project) => (
-                      <CarouselItem key={project.id} className="pl-2 basis-full sm:basis-1/2 lg:basis-1/3">
-                        <Card className="h-full mx-2 transition-all duration-300 hover:shadow-lg border-2 border-[#008260] bg-white shadow-sm relative group">
+                      <CarouselItem key={project.id} className="pl-2 pt-2 pb-4 basis-full sm:basis-1/2 lg:basis-1/3">
+                        <Card className="h-full mx-2 transition-all duration-300 hover:shadow-lg border border-[#E0E0E0] bg-white shadow-sm relative group">
                           <div className="absolute inset-0 rounded-lg bg-[#008260] opacity-0 group-hover:opacity-5 transition-opacity duration-300 -z-10"></div>
                           <CardContent className="p-4 sm:p-6">
                             {/* Header Section */}

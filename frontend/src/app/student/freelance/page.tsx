@@ -12,6 +12,8 @@ import { Badge } from '@/components/ui/badge'
 import NotificationBell from '@/components/NotificationBell'
 import ProfileDropdown from '@/components/ProfileDropdown'
 import { Search } from 'lucide-react'
+import Logo from '@/components/Logo'
+import Link from 'next/link'
 
 export default function StudentFreelanceList() {
   const router = useRouter()
@@ -64,7 +66,9 @@ export default function StudentFreelanceList() {
     <div className="min-h-screen bg-[#ECF2FF]">
       <header className="bg-[#008260] backdrop-blur-sm sticky top-0 z-50 shadow-lg">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="text-xl font-bold text-white">Browse Freelance</div>
+          <Link href="/student/home" className="flex items-center">
+            <Logo size="header" />
+          </Link>
           <div className="flex items-center gap-2">
             <NotificationBell />
             <ProfileDropdown user={user} student={student} userType="student" />

@@ -11,6 +11,7 @@ import NotificationBell from '@/components/NotificationBell'
 import ProfileDropdown from '@/components/ProfileDropdown'
 import { Briefcase } from 'lucide-react'
 import { usePagination } from '@/hooks/usePagination'
+import Logo from '@/components/Logo'
 
 type FreelanceProject = {
   id: string
@@ -85,7 +86,7 @@ export default function FreelanceDashboard() {
     <div className="min-h-screen bg-[#ECF2FF]">
       <header className="bg-[#008260] backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="text-xl font-bold text-white">CalXMap</div>
+          <Logo size="header" />
           <div className="flex items-center space-x-6">
             <NotificationBell />
             <ProfileDropdown user={user} institution={institution} userType="institution" />

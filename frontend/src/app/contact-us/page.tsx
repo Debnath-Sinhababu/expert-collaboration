@@ -138,9 +138,8 @@ export default function ContactUs() {
       {/* Header */}
       <header className="bg-[#008260] text-white py-4 px-6 shadow-md">
         <div className="container mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2">
-            <Logo size="sm" />
-            <h1 className="text-2xl font-bold">CalXMap</h1>
+          <Link href="/" className="flex items-center">
+            <Logo size="header" />
           </Link>
           <div className="flex items-center gap-6">
             <Link href="/" className="text-sm hover:text-white/80 transition-colors">

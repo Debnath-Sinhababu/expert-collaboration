@@ -15,6 +15,7 @@ import ProfileDropdown from '@/components/ProfileDropdown'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { usePagination } from '@/hooks/usePagination'
 import { Search } from 'lucide-react'
+import Logo from '@/components/Logo'
 
 export default function SelectInstitutionsForInternship() {
   const [user, setUser] = useState<any>(null)
@@ -94,8 +95,8 @@ export default function SelectInstitutionsForInternship() {
       <header className="bg-[#008260] backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
-            <Link href="/institution/home" className="flex items-center space-x-2 group">
-              <span className="text-xl font-bold text-white">CalXMap</span>
+            <Link href="/institution/home" className="flex items-center group">
+              <Logo size="header" />
             </Link>
             <div className="flex items-center space-x-6">
               <Link href="/institution/home" className="text-white hover:text-white/80 transition-colors">Home</Link>

@@ -81,10 +81,7 @@ export default function FeedbackCompletePage() {
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center space-x-3 group">
-              <Logo size="md" />
-              <span className="text-2xl font-bold text-slate-900 group-hover:text-blue-700 transition-colors">
-                Calxmap
-              </span>
+              <Logo size="lg" />
             </Link>
             <Link href="/" className="text-slate-600 hover:text-slate-900 transition-colors">
               ← Back to Home

@@ -18,6 +18,7 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import Autoplay from 'embla-carousel-autoplay'
 import { usePagination } from '@/hooks/usePagination'
 import { Search, MapPin, IndianRupee, Briefcase, Star, Calendar, Clock } from 'lucide-react'
+import Logo from '@/components/Logo'
 
 export default function StudentHome() {
   const [user, setUser] = useState<any>(null)
@@ -144,8 +145,8 @@ export default function StudentHome() {
         <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
-            <Link href="/student/home" className="flex items-center space-x-2 group">
-              <span className="text-xl font-bold text-white group-hover:text-white/90 transition-all duration-300">CalXMap</span>
+            <Link href="/student/home" className="flex items-center group">
+              <Logo size="header" />
             </Link>
 
             {/* Navigation */}

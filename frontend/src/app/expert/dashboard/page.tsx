@@ -500,8 +500,8 @@ export default function ExpertDashboard() {
       <header className="bg-[#008260] sticky top-0 z-50 border-b border-slate-200/20">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <Link href="/expert/home" className="flex items-center space-x-2 group">
-              <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Calxmap</span>
+            <Link href="/expert/home" className="flex items-center group">
+              <Logo size="header" />
             </Link>
             
             <div className="flex items-center space-x-4">

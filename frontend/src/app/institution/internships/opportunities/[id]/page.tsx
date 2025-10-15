@@ -14,6 +14,8 @@ import { Mail, School, FileText, CalendarDays, Eye, Check, X } from 'lucide-reac
 import NotificationBell from '@/components/NotificationBell'
 import ProfileDropdown from '@/components/ProfileDropdown'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import Logo from '@/components/Logo'
+import Link from 'next/link'
 
 export default function InternshipDetailPage() {
   const params = useParams()
@@ -74,7 +76,9 @@ export default function InternshipDetailPage() {
     <div className="min-h-screen bg-[#ECF2FF]">
       <header className="bg-[#008260] backdrop-blur-sm border-b border-white/10 sticky top-0 z-50 shadow-lg">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="text-xl font-bold text-white">Internship Details</div>
+          <Link href="/institution/home" className="flex items-center">
+            <Logo size="header" />
+          </Link>
           <div className="flex items-center gap-2">
             <NotificationBell />
             <ProfileDropdown user={user} institution={institution} userType="institution" />

@@ -15,6 +15,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { toast } from 'sonner'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Upload, X, Camera } from 'lucide-react'
+import Logo from '@/components/Logo'
 
 export default function StudentProfileSetup() {
   const [loading, setLoading] = useState(true)
@@ -175,7 +176,7 @@ export default function StudentProfileSetup() {
       {/* Header */}
       <header className="bg-[#008260] text-white py-4 px-6 shadow-md">
         <div className="container mx-auto flex items-center justify-between">
-          <h1 className="text-2xl font-bold">CalXMap</h1>
+          <Logo size="header" />
           <div className="flex items-center gap-4">
             <span className="text-sm">Contact Us</span>
           </div>

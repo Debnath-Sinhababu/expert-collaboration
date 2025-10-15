@@ -300,8 +300,8 @@ export default function ExpertProjectPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
-            <Link href="/expert/home" className="flex items-center space-x-2 group">
-              <span className="text-xl font-bold text-white group-hover:text-white/90 transition-all duration-300">Calxmap</span>
+            <Link href="/expert/home" className="flex items-center group">
+              <Logo size="header" />
             </Link>
 
             {/* Navigation */}

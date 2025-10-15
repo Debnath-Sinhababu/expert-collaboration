@@ -19,6 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Label } from '@/components/ui/label'
 import { DatePicker } from '@/components/ui/date-picker'
 import { TimePicker } from '@/components/ui/time-picker'
+import Logo from '@/components/Logo'
 
 export default function CorporateInternshipDetail() {
   const params = useParams()
@@ -96,7 +97,7 @@ export default function CorporateInternshipDetail() {
     <div className="min-h-screen bg-[#ECF2FF]">
       <header className="bg-[#008260] backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="text-xl font-bold text-white">CalXMap</div>
+          <Logo size="header" />
           <div className="flex items-center space-x-6">
         
           

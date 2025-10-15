@@ -14,6 +14,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Search } from 'lucide-react'
 import Link from 'next/link'
 import { usePagination } from '@/hooks/usePagination'
+import Logo from '@/components/Logo'
 
 export default function InternshipOpportunitiesPage() {
   const [loading, setLoading] = useState(true)
@@ -96,7 +97,9 @@ export default function InternshipOpportunitiesPage() {
     <div className="min-h-screen bg-[#ECF2FF]">
       <header className="bg-[#008260] backdrop-blur-sm border-b border-white/10 sticky top-0 z-50 shadow-lg">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <Link href="/institution/internships" className="text-xl font-bold text-white">Internship Opportunities</Link>
+          <Link href="/institution/home" className="flex items-center">
+            <Logo size="header" />
+          </Link>
           <div className="flex items-center gap-2">
             <NotificationBell />
             <ProfileDropdown user={user} institution={institution} userType="institution" />

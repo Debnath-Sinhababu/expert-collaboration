@@ -66,8 +66,8 @@ export default function ResetPasswordPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
       <header className="relative bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm shadow-lg border-b border-blue-200/20">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center space-x-3 group">
-            <span className="text-2xl font-bold text-white group-hover:text-blue-100 transition-all duration-300">Calxmap</span>
+          <Link href="/" className="flex items-center group">
+            <Logo size="header" />
           </Link>
           <Link href="/auth/login">
             <Button variant="ghost" className="font-medium text-white hover:text-blue-100 hover:bg-white/10 border border-transparent hover:border-white/20 transition-all duration-300">

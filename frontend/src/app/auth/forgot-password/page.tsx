@@ -36,8 +36,8 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen bg-[#ECF2FF] relative overflow-hidden">
       <header className="relative bg-[#008260]">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center space-x-3 group">
-            <span className="text-2xl font-bold text-white group-hover:text-blue-100 transition-all duration-300">Calxmap</span>
+          <Link href="/" className="flex items-center group">
+            <Logo size="header" />
           </Link>
           <Link href="/auth/login">
             <Button variant="ghost" className="font-medium text-white hover:text-blue-100 hover:bg-white/10 border border-transparent hover:border-white/20 transition-all duration-300">
@@ -53,9 +53,7 @@ export default function ForgotPasswordPage() {
        
           <Card className="border-2 border-[#D6D6D6] bg-white">
             <CardHeader className="text-center pb-6">
-              <div className="flex justify-center mb-4">
-                <Logo size="lg" />
-              </div>
+             
               <CardTitle className="text-[22px] font-bold text-black">Forgot Password</CardTitle>
               <CardDescription className="font-medium font-base">Enter your email to receive a <span className="text-[#008260]">reset link</span></CardDescription>
             </CardHeader>

@@ -20,6 +20,7 @@ import { Save, Edit, ArrowLeft, FileText, X, Link2, GraduationCap, User, MapPin,
 import { INDIAN_STATES, INDIAN_DEGREES } from '@/lib/constants'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command'
+import Logo from '@/components/Logo'
 
 export default function StudentProfilePage() {
   const router = useRouter()
@@ -227,7 +228,9 @@ export default function StudentProfilePage() {
     <div className="min-h-screen bg-[#ECF2FF]">
       <header className="bg-[#008260] backdrop-blur-sm border-b border-white/10 sticky top-0 z-50 shadow-lg">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="text-xl font-bold text-white">Profile</div>
+          <Link href="/student/home" className="flex items-center">
+            <Logo size="header" />
+          </Link>
           <div className="flex items-center gap-2">
             <NotificationBell />
             <ProfileDropdown user={user} student={student} userType="student" />

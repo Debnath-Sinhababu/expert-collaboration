@@ -86,7 +86,7 @@ export default function PublicExpertProfile() {
       {/* Simple public header */}
       <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 border-b border-blue-200/20 sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link href="/" className="text-white/90 hover:text-white font-semibold">Calxmap</Link>
+          <Link href="/" className="flex items-center"><Logo size="header" /></Link>
           <Link href="/contact-us" className="text-white/80 hover:text-white text-sm">Contact Us</Link>
         </div>
       </header>
