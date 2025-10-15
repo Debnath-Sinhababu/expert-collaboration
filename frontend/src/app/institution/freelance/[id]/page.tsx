@@ -107,6 +107,7 @@ export default function FreelanceProjectDetail() {
 
     try {
       await api.freelance.updateApplicationStatus(appId, status)
+       loadProject()
     } catch (e: any) {
       reverted = true
       // Revert
@@ -123,10 +124,10 @@ export default function FreelanceProjectDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-[#ECF2FF] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#008260] mx-auto mb-4"></div>
+          <p className="text-[#6A6A6A]">Loading...</p>
         </div>
       </div>
     )
@@ -134,7 +135,7 @@ export default function FreelanceProjectDetail() {
 
   if (!project) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-slate-600">Not found</div>
+      <div className="min-h-screen bg-[#ECF2FF] flex items-center justify-center text-[#6A6A6A]">Not found</div>
     )
   }
 
@@ -144,169 +145,222 @@ export default function FreelanceProjectDetail() {
   const submittedCount = submissions.length
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
+    <div className="min-h-screen bg-[#ECF2FF]">
+      <header className="bg-[#008260] backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">Freelance Project</div>
-          <div className="flex items-center gap-2">
+          <div className="text-xl font-bold text-white">CalXMap</div>
+          <div className="flex items-center space-x-6">
             <NotificationBell />
             <ProfileDropdown user={user} institution={institution} userType="institution" />
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
-        <Card className="bg-white border-2 border-slate-200 mb-6">
-          <CardHeader>
-            <CardTitle className="text-slate-900">{project.title}</CardTitle>
-            <CardDescription className="text-slate-600">{project.description}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex flex-wrap gap-2">
-              {(project.required_skills || []).map((s: string, idx: number) => (
-                <span key={idx} className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs border border-blue-200">{s}</span>
-              ))}
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        <h1 className="text-3xl font-bold text-[#000000] mb-6">View Project</h1>
+        
+        <Card className="bg-white border border-[#E0E0E0] rounded-xl mb-6">
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between mb-3">
+              <h2 className="font-semibold text-lg text-[#000000]">{project.title}</h2>
+              {project.status && <span className="capitalize text-xs px-3 py-1 rounded-full flex-shrink-0 bg-[#FFF5E6] text-[#FF8A00] border border-[#FF8A00]">{project.status}</span>}
             </div>
-            <div className="text-sm text-slate-600 flex flex-wrap gap-4">
-              {project.deadline && <span>Deadline: {new Date(project.deadline).toLocaleDateString()}</span>}
-              {(project.budget_min || project.budget_max) && <span>Budget: ₹{project.budget_min || '—'} - ₹{project.budget_max || '—'}</span>}
-              {project.status && <span className="uppercase text-xs tracking-wide px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">{project.status}</span>}
+            <p className="text-sm text-[#6A6A6A] mb-4">{project.description}</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              {project.deadline && (
+                <div>
+                  <p className="text-xs text-[#9B0000] mb-1">Deadline:</p>
+                  <p className="text-sm font-medium text-[#000000]">{new Date(project.deadline).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
+                </div>
+              )}
+              {(project.budget_min || project.budget_max) && (
+                <div>
+                  <p className="text-xs text-[#6A6A6A] mb-1">Budget:</p>
+                  <p className="text-sm font-medium text-[#000000]">₹{project.budget_min || '5000'}-₹{project.budget_max || '8000'}/month</p>
+                </div>
+              )}
+              {project.created_at && (
+                <div>
+                  <p className="text-xs text-[#6A6A6A] mb-1">Posted on:</p>
+                  <p className="text-sm font-medium text-[#000000]">{new Date(project.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
+                </div>
+              )}
             </div>
+
+            {(project.required_skills || []).length > 0 && (
+              <div className="mb-2">
+                <p className="text-xs text-[#6A6A6A] mb-2">Required Skills:</p>
+                <div className="text-sm font-medium text-[#000000]">{(project.required_skills || []).join(', ')}</div>
+              </div>
+            )}
+
+            {project.draft_attachments && (
+              <div>
+                <p className="text-xs text-[#6A6A6A] mb-1">Draft Attachements:</p>
+                <a href={project.draft_attachments} target="_blank" rel="noreferrer" className="text-sm text-[#008260] hover:text-[#006B4F] hover:underline">Design-system.pdf</a>
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        <Tabs defaultValue="pending" className="w-full">
-          <div className="w-full overflow-x-auto md:overflow-x-visible scrollbar-hide mb-4">
-            <TabsList className="flex md:grid w-max md:w-full md:grid-cols-3 gap-2 bg-white border-b border-slate-200 h-12 px-4 md:px-0">
-              <TabsTrigger 
-                value="pending"
-                className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
-              >
-                Pending ({(project?.counts?.pending) ?? pendingApps.length})
-              </TabsTrigger>
-              <TabsTrigger 
-                value="approved"
-                className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
-              >
-                Approved ({(project?.counts?.approved) ?? approvedApps.length})
-              </TabsTrigger>
-              <TabsTrigger 
-                value="submitted"
-                className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
-              >
-                Submitted ({(project?.counts?.submitted) ?? submittedCount})
-              </TabsTrigger>
-            </TabsList>
-          </div>
+        <Card className="bg-white border border-[#E0E0E0] rounded-xl">
+          <CardContent className="p-6">
+            <Tabs defaultValue="pending" className="w-full">
+              <div className="w-full overflow-x-auto md:overflow-x-visible scrollbar-hide">
+                <TabsList className="flex md:grid w-max md:w-full md:grid-cols-3 gap-2 bg-white border-b border-[#DCDCDC] h-12 px-4 md:px-0 mb-6">
+                  <TabsTrigger 
+                    value="pending"
+                    className="data-[state=active]:bg-[#008260] data-[state=active]:text-white hover:bg-[#E8F5F1]/50 transition-all duration-200 font-medium text-[#6A6A6A] flex items-center justify-center h-full px-4 rounded-md shrink-0 whitespace-nowrap min-w-max"
+                  >
+                    Pending ({(project?.counts?.pending) ?? pendingApps.length})
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="approved"
+                    className="data-[state=active]:bg-[#008260] data-[state=active]:text-white hover:bg-[#E8F5F1]/50 transition-all duration-200 font-medium text-[#6A6A6A] flex items-center justify-center h-full px-4 rounded-md shrink-0 whitespace-nowrap min-w-max"
+                  >
+                    Approved ({(project?.counts?.approved) ?? approvedApps.length})
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="submitted"
+                    className="data-[state=active]:bg-[#008260] data-[state=active]:text-white hover:bg-[#E8F5F1]/50 transition-all duration-200 font-medium text-[#6A6A6A] flex items-center justify-center h-full px-4 rounded-md shrink-0 whitespace-nowrap min-w-max"
+                  >
+                    Submitted ({(project?.counts?.submitted) ?? submittedCount})
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              <div className="mb-4">
+                <h3 className="text-xl font-semibold text-[#000000] mb-1">Applications</h3>
+                <p className="text-sm text-[#6A6A6A]">Track your applications here</p>
+              </div>
 
           <TabsContent value="pending">
             <div className="space-y-4">
               {pendingApps.length === 0 && (
                 <div className="text-center py-12">
-                  <Briefcase className="h-12 w-12 text-slate-400 mx-auto mb-3" />
-                  <p className="text-slate-700 font-medium">No applications in this stage</p>
+                  <Briefcase className="h-12 w-12 text-[#6A6A6A] mx-auto mb-3" />
+                  <p className="text-[#000000] font-medium">No Pending Applications</p>
                 </div>
               )}
-              {pendingApps.map((a) => (
-                <Card key={a.id} className="bg-white border-2 border-slate-200 rounded-lg hover:border-blue-300 hover:shadow-md transition-all duration-300">
-                  <CardContent className="p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-semibold text-slate-900">{a.student?.name || 'Student'}</div>
-                        <div className="text-xs text-slate-600">{a.student?.email}</div>
+              {pendingApps.map((a) => {
+                const name = a.student?.name || 'Student'
+                const email = a.student?.email || '-'
+                const initial = String(name).charAt(0).toUpperCase()
+                
+                return (
+                <div key={a.id} className="bg-white border border-[#E0E0E0] rounded-xl p-5 hover:border-[#008260] hover:shadow-md transition-all duration-300">
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={a.student?.photo_url} />
+                        <AvatarFallback className="bg-[#E0E0E0] text-[#6A6A6A] text-lg">
+                          {initial}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <h4 className="font-semibold text-[#000000] truncate">{name}</h4>
+                        <div className="text-sm text-[#6A6A6A] truncate">{email}</div>
                       </div>
-                      <div className="uppercase text-xs tracking-wide px-2 py-0.5 rounded bg-yellow-50 text-yellow-800 border border-yellow-200">Pending</div>
                     </div>
-                    {Array.isArray(a.student?.skills) && a.student.skills.length > 0 && (
+                    <span className="text-xs px-3 py-1 rounded-full flex-shrink-0 bg-[#FFF5E6] text-[#FF8A00] border border-[#FF8A00]">Pending</span>
+                  </div>
+
+                  {a.institution?.name && (
+                    <div className="mb-3">
+                      <p className="text-xs text-[#6A6A6A]">Institution:</p>
+                      <p className="text-sm font-medium text-[#000000]">{a.institution.name}</p>
+                    </div>
+                  )}
+
+                  {Array.isArray(a.student?.skills) && a.student.skills.length > 0 && (
+                    <div className="mb-3">
+                      <p className="text-xs text-[#6A6A6A] mb-2">Skills:</p>
                       <div className="flex flex-wrap gap-2">
-                        {a.student.skills.slice(0,6).map((s: string, idx: number) => (
-                          <span key={idx} className="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-xs border border-indigo-200">{s}</span>
+                        {a.student.skills.map((s: string, idx: number) => (
+                          <span key={idx} className="px-3 py-1 text-xs rounded-full bg-[#E8F5F1] text-[#008260] border border-[#008260]">{s}</span>
                         ))}
                       </div>
-                    )}
-                    {a.cover_letter && (
-                      <div className="text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-3 whitespace-pre-wrap">{a.cover_letter}</div>
-                    )}
-                    <div className="flex gap-2 justify-between items-center pt-2">
+                    </div>
+                  )}
+
+                  {a.cover_letter && (
+                    <div className="mb-3">
+                      <p className="text-xs text-[#6A6A6A] mb-1">Cover letter (optional)</p>
+                      <p className="text-sm text-[#000000] line-clamp-3">{a.cover_letter}</p>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between gap-2">
                       <Dialog>
                         <DialogTrigger asChild>
-                          <Button size="sm" variant="outline" className="border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50 text-slate-700 hover:text-blue-700">View Profile</Button>
+                          <Button size="sm" variant="outline" className="border border-[#DCDCDC] hover:border-[#008260] hover:bg-[#E8F5F1] text-[#000000] hover:text-[#008260]">View Profile</Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-2xl bg-white border-2 border-slate-200">
-                          <DialogHeader>
-                            <DialogTitle>Student Profile</DialogTitle>
-                            <DialogDescription>Full details</DialogDescription>
-                          </DialogHeader>
+                        <DialogContent className="max-w-2xl bg-white border border-[#E0E0E0]">
                           <div className="space-y-4">
                             <div className="flex items-center gap-4">
-                              <Avatar className="w-16 h-16 border-2 border-blue-200">
+                              <Avatar className="w-16 h-16">
                                 <AvatarImage src={a.student?.photo_url} />
-                                <AvatarFallback className="text-xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">{String(a.student?.name || 'S').charAt(0)}</AvatarFallback>
+                                <AvatarFallback className="text-xl font-bold bg-[#E0E0E0] text-[#6A6A6A]">{initial}</AvatarFallback>
                               </Avatar>
                               <div>
-                                <div className="font-semibold text-lg text-slate-900">{a.student?.name}</div>
+                                <div className="font-semibold text-lg text-[#000000]">{name}</div>
                                 {a.institution?.name && (
-                                  <div className="text-sm text-slate-600 flex items-center gap-1"><School className="h-3 w-3" /> {a.institution?.name}</div>
+                                  <div className="text-sm text-[#6A6A6A] flex items-center gap-1"><School className="h-3 w-3" /> {a.institution?.name}</div>
                                 )}
-                                <div className="text-sm text-slate-600 flex items-center gap-1"><Mail className="h-3 w-3" /> {a.student?.email}</div>
+                                <div className="text-sm text-[#6A6A6A] flex items-center gap-1"><Mail className="h-3 w-3" /> {email}</div>
                               </div>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div>
-                                <h4 className="font-medium mb-1">Basic Info</h4>
-                                <div className="text-sm text-slate-700 space-y-1">
-                                  {a.student?.degree && <p><span className="text-slate-500">Degree:</span> {a.student.degree}</p>}
-                                  {a.student?.specialization && <p><span className="text-slate-500">Specialization:</span> {a.student.specialization}</p>}
-                                  {a.student?.year && <p><span className="text-slate-500">Year:</span> {a.student.year}</p>}
-                                  {a.student?.availability && <p><span className="text-slate-500">Availability:</span> {a.student.availability}</p>}
+                                <h4 className="font-semibold text-[#000000] mb-2">Basic Info</h4>
+                                <div className="text-sm text-[#000000] space-y-1">
+                                  {a.student?.degree && <p><span className="text-[#6A6A6A]">Degree:</span> {a.student.degree}</p>}
+                                  {a.student?.specialization && <p><span className="text-[#6A6A6A]">Specialization:</span> {a.student.specialization}</p>}
+                                  {a.student?.year && <p><span className="text-[#6A6A6A]">Year:</span> {a.student.year}</p>}
+                                  {a.student?.availability && <p><span className="text-[#6A6A6A]">Availability:</span> {a.student.availability}</p>}
                                   {(a.student?.preferred_engagement || a.student?.preferred_work_mode) && (
-                                    <p><span className="text-slate-500">Preference:</span> {a.student?.preferred_engagement || '-'} · {a.student?.preferred_work_mode || '-'}</p>
+                                    <p><span className="text-[#6A6A6A]">Preference:</span> {a.student?.preferred_engagement || '-'} · {a.student?.preferred_work_mode || '-'}</p>
                                   )}
                                 </div>
                               </div>
                               <div>
-                                <h4 className="font-medium mb-1">Location</h4>
-                                <div className="text-sm text-slate-700 space-y-1">
-                                  {(a.student?.city || a.student?.state) && <p><span className="text-slate-500">City/State:</span> {a.student?.city || '-'}{a.student?.state ? `, ${a.student.state}` : ''}</p>}
-                                  {a.student?.address && <p className="line-clamp-2"><span className="text-slate-500">Address:</span> {a.student.address}</p>}
+                                <h4 className="font-semibold text-[#000000] mb-2">Location</h4>
+                                <div className="text-sm text-[#000000] space-y-1">
+                                  {(a.student?.city || a.student?.state) && <p><span className="text-[#6A6A6A]">City/State:</span> {a.student?.city || '-'}{a.student?.state ? `, ${a.student.state}` : ''}</p>}
+                                  {a.student?.address && <p className="line-clamp-2"><span className="text-[#6A6A6A]">Address:</span> {a.student.address}</p>}
                                 </div>
                               </div>
                             </div>
                             {(Array.isArray(a.student?.skills) && a.student.skills.length > 0) && (
                               <div>
-                                <h4 className="font-medium mb-1">Skills</h4>
+                                <h4 className="font-semibold text-[#000000] mb-2">Skills</h4>
                                 <div className="flex flex-wrap gap-2">
                                   {a.student.skills.map((s: string, i: number) => (
-                                    <span key={`${s}-${i}`} className="px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-700 border border-slate-200">{s}</span>
+                                    <span key={`${s}-${i}`} className="px-3 py-1 text-xs rounded-full bg-[#E8F5F1] text-[#008260] border border-[#008260]">{s}</span>
                                   ))}
                                 </div>
                               </div>
                             )}
-                            {a.cover_letter && (
-                              <div>
-                                <h4 className="font-medium mb-1">Cover Letter</h4>
-                                <div className="text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-md p-3 whitespace-pre-wrap">{a.cover_letter}</div>
-                              </div>
-                            )}
                             <div className="grid grid-cols-2 gap-4">
                               <div>
-                                <h4 className="font-medium mb-1">Applied On</h4>
-                                <p className="text-sm text-slate-700">{new Date(a.created_at).toLocaleDateString()}</p>
+                                <h4 className="font-semibold text-[#000000] mb-2">Applied On</h4>
+                                <p className="text-sm text-[#000000]">{new Date(a.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                               </div>
                               {a.student?.resume_url && (
                                 <div>
-                                  <h4 className="font-medium mb-1">Resume</h4>
-                                  <a href={a.student.resume_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-700 hover:underline text-sm"><FileText className="h-4 w-4" /> Open Resume</a>
+                                  <h4 className="font-semibold text-[#000000] mb-2">Resume</h4>
+                                  <a href={a.student.resume_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[#008260] hover:text-[#006B4F] hover:underline text-sm"><FileText className="h-4 w-4" /> Open Resume</a>
                                 </div>
                               )}
                             </div>
                             {(a.student?.linkedin_url || a.student?.github_url || a.student?.portfolio_url) && (
                               <div>
-                                <h4 className="font-medium mb-1">Links</h4>
+                                <h4 className="font-semibold text-[#000000] mb-2">Links</h4>
                                 <div className="flex flex-wrap gap-3 text-sm">
-                                  {a.student?.linkedin_url && <a href={a.student.linkedin_url} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">LinkedIn</a>}
-                                  {a.student?.github_url && <a href={a.student.github_url} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">GitHub</a>}
-                                  {a.student?.portfolio_url && <a href={a.student.portfolio_url} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">Portfolio</a>}
+                                  {a.student?.linkedin_url && <a href={a.student.linkedin_url} target="_blank" rel="noreferrer" className="text-[#008260] hover:text-[#006B4F] hover:underline">LinkedIn</a>}
+                                  {a.student?.github_url && <a href={a.student.github_url} target="_blank" rel="noreferrer" className="text-[#008260] hover:text-[#006B4F] hover:underline">GitHub</a>}
+                                  {a.student?.portfolio_url && <a href={a.student.portfolio_url} target="_blank" rel="noreferrer" className="text-[#008260] hover:text-[#006B4F] hover:underline">Portfolio</a>}
                                 </div>
                               </div>
                             )}
@@ -314,13 +368,12 @@ export default function FreelanceProjectDetail() {
                         </DialogContent>
                       </Dialog>
                       <div className="flex gap-2">
-                        <Button onClick={() => updateStatus(a.id, 'shortlisted')} className="bg-blue-600 text-white">Shortlist</Button>
-                        <Button variant="secondary" onClick={() => updateStatus(a.id, 'rejected')}>Reject</Button>
+                        <Button size="sm" onClick={() => updateStatus(a.id, 'shortlisted')} className="bg-[#008260] hover:bg-[#006B4F] text-white rounded-3xl w-[100px]">Select</Button>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
+                  </div>
+                )
+              })}
               {appsHasMorePending && (
                 <div
                   ref={(el) => {
@@ -346,7 +399,7 @@ export default function FreelanceProjectDetail() {
                     obs.observe(el)
                     return () => obs.disconnect()
                   }}
-                  className="text-center py-4 text-sm text-slate-500"
+                  className="text-center py-4 text-sm text-[#6A6A6A]"
                 >
                   Loading more applications...
                 </div>
@@ -358,121 +411,138 @@ export default function FreelanceProjectDetail() {
             <div className="space-y-4">
               {approvedApps.length === 0 && (
                 <div className="text-center py-12">
-                  <Briefcase className="h-12 w-12 text-slate-400 mx-auto mb-3" />
-                  <p className="text-slate-700 font-medium">No applications in this stage</p>
+                  <Briefcase className="h-12 w-12 text-[#6A6A6A] mx-auto mb-3" />
+                  <p className="text-[#000000] font-medium">No Approved Applications</p>
                 </div>
               )}
-              {approvedApps.map((a) => (
-                <Card key={a.id} className="bg-white border-2 border-slate-200 rounded-lg hover:border-blue-300 hover:shadow-md transition-all duration-300">
-                  <CardContent className="p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-semibold text-slate-900">{a.student?.name || 'Student'}</div>
-                        <div className="text-xs text-slate-600">{a.student?.email}</div>
+              {approvedApps.map((a) => {
+                const name = a.student?.name || 'Student'
+                const email = a.student?.email || '-'
+                const initial = String(name).charAt(0).toUpperCase()
+                
+                return (
+                <div key={a.id} className="bg-white border border-[#E0E0E0] rounded-xl p-5 hover:border-[#008260] hover:shadow-md transition-all duration-300">
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={a.student?.photo_url} />
+                        <AvatarFallback className="bg-[#E0E0E0] text-[#6A6A6A] text-lg">
+                          {initial}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <h4 className="font-semibold text-[#000000] truncate">{name}</h4>
+                        <div className="text-sm text-[#6A6A6A] truncate">{email}</div>
                       </div>
-                      <div className="uppercase text-xs tracking-wide px-2 py-0.5 rounded bg-green-50 text-green-800 border border-green-200">Approved</div>
                     </div>
-                    {Array.isArray(a.student?.skills) && a.student.skills.length > 0 && (
+                    <span className="text-xs px-3 py-1 rounded-full flex-shrink-0 bg-[#FFF5E6] text-[#FF8A00] border border-[#FF8A00]">Pending</span>
+                  </div>
+
+                  {a.institution?.name && (
+                    <div className="mb-3">
+                      <p className="text-xs text-[#6A6A6A]">Institution:</p>
+                      <p className="text-sm font-medium text-[#000000]">{a.institution.name}</p>
+                    </div>
+                  )}
+
+                  {Array.isArray(a.student?.skills) && a.student.skills.length > 0 && (
+                    <div className="mb-3">
+                      <p className="text-xs text-[#6A6A6A] mb-2">Skills:</p>
                       <div className="flex flex-wrap gap-2">
-                        {a.student.skills.slice(0,6).map((s: string, idx: number) => (
-                          <span key={idx} className="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-xs border border-indigo-200">{s}</span>
+                        {a.student.skills.map((s: string, idx: number) => (
+                          <span key={idx} className="px-3 py-1 text-xs rounded-full bg-[#E8F5F1] text-[#008260] border border-[#008260]">{s}</span>
                         ))}
                       </div>
-                    )}
-                    {a.cover_letter && (
-                      <div className="text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-3 whitespace-pre-wrap">{a.cover_letter}</div>
-                    )}
-                    <div className="flex gap-2 justify-between items-center pt-2">
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button size="sm" variant="outline" className="border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50 text-slate-700 hover:text-blue-700">View Profile</Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl bg-white border-2 border-slate-200">
-                          <DialogHeader>
-                            <DialogTitle>Student Profile</DialogTitle>
-                            <DialogDescription>Full details</DialogDescription>
-                          </DialogHeader>
+                    </div>
+                  )}
+
+                  {a.cover_letter && (
+                    <div className="mb-3">
+                      <p className="text-xs text-[#6A6A6A] mb-1">Cover letter (optional)</p>
+                      <p className="text-sm text-[#000000] line-clamp-3">{a.cover_letter}</p>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-end gap-2">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button size="sm" variant="outline" className="border border-[#DCDCDC] hover:border-[#008260] hover:bg-[#E8F5F1] text-[#000000] hover:text-[#008260]">View Profile</Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-2xl bg-white border border-[#E0E0E0]">
                           <div className="space-y-4">
                             <div className="flex items-center gap-4">
-                              <Avatar className="w-16 h-16 border-2 border-blue-200">
+                              <Avatar className="w-16 h-16">
                                 <AvatarImage src={a.student?.photo_url} />
-                                <AvatarFallback className="text-xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">{String(a.student?.name || 'S').charAt(0)}</AvatarFallback>
+                                <AvatarFallback className="text-xl font-bold bg-[#E0E0E0] text-[#6A6A6A]">{initial}</AvatarFallback>
                               </Avatar>
                               <div>
-                                <div className="font-semibold text-lg text-slate-900">{a.student?.name}</div>
+                                <div className="font-semibold text-lg text-[#000000]">{name}</div>
                                 {a.institution?.name && (
-                                  <div className="text-sm text-slate-600 flex items-center gap-1"><School className="h-3 w-3" /> {a.institution?.name}</div>
+                                  <div className="text-sm text-[#6A6A6A] flex items-center gap-1"><School className="h-3 w-3" /> {a.institution?.name}</div>
                                 )}
-                                <div className="text-sm text-slate-600 flex items-center gap-1"><Mail className="h-3 w-3" /> {a.student?.email}</div>
+                                <div className="text-sm text-[#6A6A6A] flex items-center gap-1"><Mail className="h-3 w-3" /> {email}</div>
                               </div>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div>
-                                <h4 className="font-medium mb-1">Basic Info</h4>
-                                <div className="text-sm text-slate-700 space-y-1">
-                                  {a.student?.degree && <p><span className="text-slate-500">Degree:</span> {a.student.degree}</p>}
-                                  {a.student?.specialization && <p><span className="text-slate-500">Specialization:</span> {a.student.specialization}</p>}
-                                  {a.student?.year && <p><span className="text-slate-500">Year:</span> {a.student.year}</p>}
-                                  {a.student?.availability && <p><span className="text-slate-500">Availability:</span> {a.student.availability}</p>}
+                                <h4 className="font-semibold text-[#000000] mb-2">Basic Info</h4>
+                                <div className="text-sm text-[#000000] space-y-1">
+                                  {a.student?.degree && <p><span className="text-[#6A6A6A]">Degree:</span> {a.student.degree}</p>}
+                                  {a.student?.specialization && <p><span className="text-[#6A6A6A]">Specialization:</span> {a.student.specialization}</p>}
+                                  {a.student?.year && <p><span className="text-[#6A6A6A]">Year:</span> {a.student.year}</p>}
+                                  {a.student?.availability && <p><span className="text-[#6A6A6A]">Availability:</span> {a.student.availability}</p>}
                                   {(a.student?.preferred_engagement || a.student?.preferred_work_mode) && (
-                                    <p><span className="text-slate-500">Preference:</span> {a.student?.preferred_engagement || '-'} · {a.student?.preferred_work_mode || '-'}</p>
+                                    <p><span className="text-[#6A6A6A]">Preference:</span> {a.student?.preferred_engagement || '-'} · {a.student?.preferred_work_mode || '-'}</p>
                                   )}
                                 </div>
                               </div>
                               <div>
-                                <h4 className="font-medium mb-1">Location</h4>
-                                <div className="text-sm text-slate-700 space-y-1">
-                                  {(a.student?.city || a.student?.state) && <p><span className="text-slate-500">City/State:</span> {a.student?.city || '-'}{a.student?.state ? `, ${a.student.state}` : ''}</p>}
-                                  {a.student?.address && <p className="line-clamp-2"><span className="text-slate-500">Address:</span> {a.student.address}</p>}
+                                <h4 className="font-semibold text-[#000000] mb-2">Location</h4>
+                                <div className="text-sm text-[#000000] space-y-1">
+                                  {(a.student?.city || a.student?.state) && <p><span className="text-[#6A6A6A]">City/State:</span> {a.student?.city || '-'}{a.student?.state ? `, ${a.student.state}` : ''}</p>}
+                                  {a.student?.address && <p className="line-clamp-2"><span className="text-[#6A6A6A]">Address:</span> {a.student.address}</p>}
                                 </div>
                               </div>
                             </div>
                             {(Array.isArray(a.student?.skills) && a.student.skills.length > 0) && (
                               <div>
-                                <h4 className="font-medium mb-1">Skills</h4>
+                                <h4 className="font-semibold text-[#000000] mb-2">Skills</h4>
                                 <div className="flex flex-wrap gap-2">
                                   {a.student.skills.map((s: string, i: number) => (
-                                    <span key={`${s}-${i}`} className="px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-700 border border-slate-200">{s}</span>
+                                    <span key={`${s}-${i}`} className="px-3 py-1 text-xs rounded-full bg-[#E8F5F1] text-[#008260] border border-[#008260]">{s}</span>
                                   ))}
                                 </div>
                               </div>
                             )}
-                            {a.cover_letter && (
-                              <div>
-                                <h4 className="font-medium mb-1">Cover Letter</h4>
-                                <div className="text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-md p-3 whitespace-pre-wrap">{a.cover_letter}</div>
-                              </div>
-                            )}
                             <div className="grid grid-cols-2 gap-4">
                               <div>
-                                <h4 className="font-medium mb-1">Applied On</h4>
-                                <p className="text-sm text-slate-700">{new Date(a.created_at).toLocaleDateString()}</p>
+                                <h4 className="font-semibold text-[#000000] mb-2">Applied On</h4>
+                                <p className="text-sm text-[#000000]">{new Date(a.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                               </div>
                               {a.student?.resume_url && (
                                 <div>
-                                  <h4 className="font-medium mb-1">Resume</h4>
-                                  <a href={a.student.resume_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-700 hover:underline text-sm"><FileText className="h-4 w-4" /> Open Resume</a>
+                                  <h4 className="font-semibold text-[#000000] mb-2">Resume</h4>
+                                  <a href={a.student.resume_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[#008260] hover:text-[#006B4F] hover:underline text-sm"><FileText className="h-4 w-4" /> Open Resume</a>
                                 </div>
                               )}
                             </div>
                             {(a.student?.linkedin_url || a.student?.github_url || a.student?.portfolio_url) && (
                               <div>
-                                <h4 className="font-medium mb-1">Links</h4>
+                                <h4 className="font-semibold text-[#000000] mb-2">Links</h4>
                                 <div className="flex flex-wrap gap-3 text-sm">
-                                  {a.student?.linkedin_url && <a href={a.student.linkedin_url} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">LinkedIn</a>}
-                                  {a.student?.github_url && <a href={a.student.github_url} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">GitHub</a>}
-                                  {a.student?.portfolio_url && <a href={a.student.portfolio_url} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">Portfolio</a>}
+                                  {a.student?.linkedin_url && <a href={a.student.linkedin_url} target="_blank" rel="noreferrer" className="text-[#008260] hover:text-[#006B4F] hover:underline">LinkedIn</a>}
+                                  {a.student?.github_url && <a href={a.student.github_url} target="_blank" rel="noreferrer" className="text-[#008260] hover:text-[#006B4F] hover:underline">GitHub</a>}
+                                  {a.student?.portfolio_url && <a href={a.student.portfolio_url} target="_blank" rel="noreferrer" className="text-[#008260] hover:text-[#006B4F] hover:underline">Portfolio</a>}
                                 </div>
                               </div>
                             )}
                           </div>
                         </DialogContent>
                       </Dialog>
-                    
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
+                  </div>
+                )
+              })}
               {appsHasMoreApproved && (
                 <div
                   ref={(el) => {
@@ -498,7 +568,7 @@ export default function FreelanceProjectDetail() {
                     obs.observe(el)
                     return () => obs.disconnect()
                   }}
-                  className="text-center py-4 text-sm text-slate-500"
+                  className="text-center py-4 text-sm text-[#6A6A6A]"
                 >
                   Loading more applications...
                 </div>
@@ -510,97 +580,132 @@ export default function FreelanceProjectDetail() {
             <div className="space-y-4">
               {submissions.length === 0 && (
                 <div className="text-center py-12">
-                  <Briefcase className="h-12 w-12 text-slate-400 mx-auto mb-3" />
-                  <p className="text-slate-700 font-medium">No submissions yet</p>
+                  <Briefcase className="h-12 w-12 text-[#6A6A6A] mx-auto mb-3" />
+                  <p className="text-[#000000] font-medium">No submissions yet</p>
                 </div>
               )}
-              {submissions.map((s) => (
-                <Card key={s.id} className="bg-white border-2 border-slate-200 rounded-lg hover:border-blue-300 hover:shadow-md transition-all duration-300">
-                  <CardContent className="p-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-semibold text-slate-900">{s.student?.name || 'Student'}</div>
-                        <div className="text-xs text-slate-600">{s.student?.email}</div>
+              {submissions.map((s) => {
+                const name = s.student?.name || 'Student'
+                const email = s.student?.email || '-'
+                const initial = String(name).charAt(0).toUpperCase()
+                
+                return (
+                <div key={s.id} className="bg-white border border-[#E0E0E0] rounded-xl p-5 hover:border-[#008260] hover:shadow-md transition-all duration-300">
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={s.student?.photo_url} />
+                        <AvatarFallback className="bg-[#E0E0E0] text-[#6A6A6A] text-lg">
+                          {initial}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <h4 className="font-semibold text-[#000000] truncate">{name}</h4>
+                        <div className="text-sm text-[#6A6A6A] truncate">{email}</div>
                       </div>
-                      <div className="text-xs text-slate-600">{new Date(s.created_at).toLocaleString()}</div>
                     </div>
-                    {s.note && (
-                      <div className="text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-3 whitespace-pre-wrap">{s.note}</div>
-                    )}
-                {s.attachment_url && (
-                      <a href={s.attachment_url} target="_blank" rel="noreferrer" className="text-blue-600 underline text-sm">View Attachment</a>
-                    )}
-                    <div className="pt-2">
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button size="sm" variant="outline" className="border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50 text-slate-700 hover:text-blue-700">View Profile</Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl bg-white border-2 border-slate-200">
-                          <DialogHeader>
-                            <DialogTitle>Student Profile</DialogTitle>
-                            <DialogDescription>Full details</DialogDescription>
-                          </DialogHeader>
+                    <span className="text-xs px-3 py-1 rounded-full flex-shrink-0 bg-[#FFF5E6] text-[#FF8A00] border border-[#FF8A00]">Submitted</span>
+                  </div>
+
+                  {s.institution?.name && (
+                    <div className="mb-3">
+                      <p className="text-xs text-[#6A6A6A]">Institution:</p>
+                      <p className="text-sm font-medium text-[#000000]">{s.institution.name}</p>
+                    </div>
+                  )}
+
+                  {Array.isArray(s.student?.skills) && s.student.skills.length > 0 && (
+                    <div className="mb-3">
+                      <p className="text-xs text-[#6A6A6A] mb-2">Skills:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {s.student.skills.map((sk: string, idx: number) => (
+                          <span key={idx} className="px-3 py-1 text-xs rounded-full bg-[#E8F5F1] text-[#008260] border border-[#008260]">{sk}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {s.attachment_url && (
+                    <div className="mb-3">
+                      <p className="text-xs text-[#6A6A6A] mb-1">Attachments:</p>
+                      <a href={s.attachment_url} target="_blank" rel="noreferrer" className="text-sm text-[#008260] hover:text-[#006B4F] hover:underline">View Attachment</a>
+                    </div>
+                  )}
+
+                  {s.note && (
+                    <div className="mb-3">
+                      <p className="text-xs text-[#6A6A6A] mb-1">Note (optional)</p>
+                      <p className="text-sm text-[#000000]">{s.note}</p>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-end gap-2">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button size="sm" variant="outline" className="border border-[#DCDCDC] hover:border-[#008260] hover:bg-[#E8F5F1] text-[#000000] hover:text-[#008260]">View Profile</Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-2xl bg-white border border-[#E0E0E0]">
                           <div className="space-y-4">
                             <div className="flex items-center gap-4">
-                              <Avatar className="w-16 h-16 border-2 border-blue-200">
+                              <Avatar className="w-16 h-16">
                                 <AvatarImage src={s.student?.photo_url} />
-                                <AvatarFallback className="text-xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">{String(s.student?.name || 'S').charAt(0)}</AvatarFallback>
+                                <AvatarFallback className="text-xl font-bold bg-[#E0E0E0] text-[#6A6A6A]">{initial}</AvatarFallback>
                               </Avatar>
                               <div>
-                                <div className="font-semibold text-lg text-slate-900">{s.student?.name}</div>
-                                <div className="text-sm text-slate-600 flex items-center gap-1"><Mail className="h-3 w-3" /> {s.student?.email}</div>
+                                <div className="font-semibold text-lg text-[#000000]">{name}</div>
+                                <div className="text-sm text-[#6A6A6A] flex items-center gap-1"><Mail className="h-3 w-3" /> {email}</div>
                               </div>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div>
-                                <h4 className="font-medium mb-1">Basic Info</h4>
-                                <div className="text-sm text-slate-700 space-y-1">
-                                  {s.student?.degree && <p><span className="text-slate-500">Degree:</span> {s.student.degree}</p>}
-                                  {s.student?.specialization && <p><span className="text-slate-500">Specialization:</span> {s.student.specialization}</p>}
-                                  {s.student?.year && <p><span className="text-slate-500">Year:</span> {s.student.year}</p>}
-                                  {s.student?.availability && <p><span className="text-slate-500">Availability:</span> {s.student.availability}</p>}
+                                <h4 className="font-semibold text-[#000000] mb-2">Basic Info</h4>
+                                <div className="text-sm text-[#000000] space-y-1">
+                                  {s.student?.degree && <p><span className="text-[#6A6A6A]">Degree:</span> {s.student.degree}</p>}
+                                  {s.student?.specialization && <p><span className="text-[#6A6A6A]">Specialization:</span> {s.student.specialization}</p>}
+                                  {s.student?.year && <p><span className="text-[#6A6A6A]">Year:</span> {s.student.year}</p>}
+                                  {s.student?.availability && <p><span className="text-[#6A6A6A]">Availability:</span> {s.student.availability}</p>}
                                   {(s.student?.preferred_engagement || s.student?.preferred_work_mode) && (
-                                    <p><span className="text-slate-500">Preference:</span> {s.student?.preferred_engagement || '-'} · {s.student?.preferred_work_mode || '-'}</p>
+                                    <p><span className="text-[#6A6A6A]">Preference:</span> {s.student?.preferred_engagement || '-'} · {s.student?.preferred_work_mode || '-'}</p>
                                   )}
                                 </div>
                               </div>
                               <div>
-                                <h4 className="font-medium mb-1">Location</h4>
-                                <div className="text-sm text-slate-700 space-y-1">
-                                  {(s.student?.city || s.student?.state) && <p><span className="text-slate-500">City/State:</span> {s.student?.city || '-'}{s.student?.state ? `, ${s.student.state}` : ''}</p>}
-                                  {s.student?.address && <p className="line-clamp-2"><span className="text-slate-500">Address:</span> {s.student.address}</p>}
+                                <h4 className="font-semibold text-[#000000] mb-2">Location</h4>
+                                <div className="text-sm text-[#000000] space-y-1">
+                                  {(s.student?.city || s.student?.state) && <p><span className="text-[#6A6A6A]">City/State:</span> {s.student?.city || '-'}{s.student?.state ? `, ${s.student.state}` : ''}</p>}
+                                  {s.student?.address && <p className="line-clamp-2"><span className="text-[#6A6A6A]">Address:</span> {s.student.address}</p>}
                                 </div>
                               </div>
                             </div>
                             {(Array.isArray(s.student?.skills) && s.student.skills.length > 0) && (
                               <div>
-                                <h4 className="font-medium mb-1">Skills</h4>
+                                <h4 className="font-semibold text-[#000000] mb-2">Skills</h4>
                                 <div className="flex flex-wrap gap-2">
                                   {s.student.skills.map((sk: string, i: number) => (
-                                    <span key={`${sk}-${i}`} className="px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-700 border border-slate-200">{sk}</span>
+                                    <span key={`${sk}-${i}`} className="px-3 py-1 text-xs rounded-full bg-[#E8F5F1] text-[#008260] border border-[#008260]">{sk}</span>
                                   ))}
                                 </div>
                               </div>
                             )}
                             <div className="grid grid-cols-2 gap-4">
                               <div>
-                                <h4 className="font-medium mb-1">Submitted On</h4>
-                                <p className="text-sm text-slate-700">{new Date(s.created_at).toLocaleDateString()}</p>
+                                <h4 className="font-semibold text-[#000000] mb-2">Submitted On</h4>
+                                <p className="text-sm text-[#000000]">{new Date(s.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                               </div>
                               {s.student?.resume_url && (
                                 <div>
-                                  <h4 className="font-medium mb-1">Resume</h4>
-                                  <a href={s.student.resume_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-700 hover:underline text-sm"><FileText className="h-4 w-4" /> Open Resume</a>
+                                  <h4 className="font-semibold text-[#000000] mb-2">Resume</h4>
+                                  <a href={s.student.resume_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[#008260] hover:text-[#006B4F] hover:underline text-sm"><FileText className="h-4 w-4" /> Open Resume</a>
                                 </div>
                               )}
                             </div>
                             {(s.student?.linkedin_url || s.student?.github_url || s.student?.portfolio_url) && (
                               <div>
-                                <h4 className="font-medium mb-1">Links</h4>
+                                <h4 className="font-semibold text-[#000000] mb-2">Links</h4>
                                 <div className="flex flex-wrap gap-3 text-sm">
-                                  {s.student?.linkedin_url && <a href={s.student.linkedin_url} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">LinkedIn</a>}
-                                  {s.student?.github_url && <a href={s.student.github_url} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">GitHub</a>}
-                                  {s.student?.portfolio_url && <a href={s.student.portfolio_url} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">Portfolio</a>}
+                                  {s.student?.linkedin_url && <a href={s.student.linkedin_url} target="_blank" rel="noreferrer" className="text-[#008260] hover:text-[#006B4F] hover:underline">LinkedIn</a>}
+                                  {s.student?.github_url && <a href={s.student.github_url} target="_blank" rel="noreferrer" className="text-[#008260] hover:text-[#006B4F] hover:underline">GitHub</a>}
+                                  {s.student?.portfolio_url && <a href={s.student.portfolio_url} target="_blank" rel="noreferrer" className="text-[#008260] hover:text-[#006B4F] hover:underline">Portfolio</a>}
                                 </div>
                               </div>
                             )}
@@ -608,9 +713,9 @@ export default function FreelanceProjectDetail() {
                         </DialogContent>
                       </Dialog>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
+                  </div>
+                )
+              })}
               {subsHasMore && (
                 <div
                   ref={(el) => {
@@ -636,7 +741,7 @@ export default function FreelanceProjectDetail() {
                     obs.observe(el)
                     return () => obs.disconnect()
                   }}
-                  className="text-center py-4 text-sm text-slate-500"
+                  className="text-center py-4 text-sm text-[#6A6A6A]"
                 >
                   Loading more submissions...
                 </div>
@@ -644,6 +749,8 @@ export default function FreelanceProjectDetail() {
             </div>
           </TabsContent>
         </Tabs>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

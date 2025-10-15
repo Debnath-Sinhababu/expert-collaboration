@@ -176,9 +176,7 @@ export default function Signup() {
       <header className="relative bg-[#008260] shadow-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center space-x-3">
-              <Logo size="md" />
-            </Link>
+           
             <Link href="/contact-us">
               <Button variant="ghost" className="font-medium text-white hover:text-white hover:bg-white/10 transition-all duration-300 px-4 py-2 text-sm">
                 Contact Us
@@ -191,7 +189,7 @@ export default function Signup() {
       <div className="relative flex items-center justify-center min-h-[calc(100vh-80px)] bg-[#ECF2FF]">
         <div className="w-full h-full flex">
           {/* Left Side - Branding + Top Requirements */}
-          <div className="hidden lg:flex lg:w-1/2 flex-col justify-center px-12 py-12">
+          <div className="hidden lg:flex lg:w-1/2 flex-col justify-start px-12 py-12">
             <div className="space-y-6 mb-8">
               <h1 className="text-4xl font-bold text-slate-900 leading-tight">
                 Join the Future of<br />
@@ -202,42 +200,7 @@ export default function Signup() {
           
 
 
-            {/* Top Requirements - Desktop */}
-            {topProjects.length > 0 ? (
-              <div className="mt-8">
-                <h3 className="text-xl font-semibold text-slate-900 mb-3">Current Requirements</h3>
-                <div ref={desktopScrollRef} className="space-y-3 max-h-[360px] overflow-y-auto pr-1 rounded-lg scrollbar-hide">
-                  {topProjects.slice(0,5).map((p) => (
-                    <div key={p.id}>
-                      <div className="group rounded-lg border-2 border-slate-200 bg-white p-4 hover:border-blue-300 hover:shadow-md transition-all duration-300 cursor-pointer"
-                        onClick={() => toast.warning('Pls create your account or login to view the project')}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h4 className="font-semibold text-slate-900 truncate group-hover:text-blue-700">{p.title}</h4>
-                              <span className="text-xs text-slate-500">{formatTimeAgo(p.created_at)}</span>
-                            </div>
-                            <div className="flex items-center text-slate-600 text-xs gap-3">
-                              {p.hourly_rate && (
-                                <span className="flex items-center"><IndianRupee className="h-3 w-3 mr-1" />{p.hourly_rate}/hr</span>
-                              )}
-                              {p.institutions?.city && (
-                                <span className="flex items-center"><MapPin className="h-3 w-3 mr-1" />{p.institutions.city}{p.institutions?.state ? `, ${p.institutions.state}` : ''}</span>
-                              )}
-                            </div>
-                          </div>
-                          <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-blue-600 flex-shrink-0 cursor-pointer"
-                            onClick={() => toast.warning('Pls create your account or login to view the project')}
-                           
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ):
+           
             <div className="flex flex-wrap gap-4">
               <div className="border-2 border-[#008260] rounded-2xl p-5 bg-white w-[288px] flex-shrink-0">
                 <div className="w-12 h-12 bg-[#008260] rounded-xl flex items-center justify-center mb-3">
@@ -264,7 +227,7 @@ export default function Signup() {
               </div>
             </div>
           
-          }
+          
           </div>
 
           {/* Right Side - Signup Form */}
@@ -280,35 +243,7 @@ export default function Signup() {
                 </div>
                 <div className="space-y-6">
                 {/* Top Requirements - Mobile */}
-                {topProjects.length > 0 && (
-                  <div className="lg:hidden -mt-4 mb-2">
-                    <h3 className="text-base font-semibold text-slate-900 mb-2">Current Requirements</h3>
-                    <div ref={mobileScrollRef} className="space-y-2 max-h-72 overflow-y-auto -mr-1 pr-1 rounded-lg scrollbar-hide">
-                      {topProjects.slice(0,5).map((p) => (
-                        <div key={p.id} >
-                          <div className="rounded-lg border-2 border-slate-200 bg-white p-3 hover:border-blue-300 hover:shadow-sm transition-all duration-300 cursor-pointer"
-                            onClick={() => toast.warning('Pls create your account or login to view the project')}
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0">
-                                <h4 className="font-medium text-slate-900 truncate">{p.title}</h4>
-                                <div className="flex items-center text-slate-600 text-xs gap-2 mt-1">
-                                  {p.hourly_rate && (
-                                    <span className="flex items-center"><IndianRupee className="h-3 w-3 mr-1" />{p.hourly_rate}/hr</span>
-                                  )}
-                                  <span className="flex items-center"><Clock className="h-3 w-3 mr-1" />{formatTimeAgo(p.created_at)}</span>
-                                </div>
-                              </div>
-                              <ArrowRight className="h-3 w-3 text-slate-400 flex-shrink-0 cursor-pointer" 
-                             
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+              
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-slate-700">Select Role</Label>
                   <Select value={selectedRole} onValueChange={(v) => setSelectedRole(v as any)}>

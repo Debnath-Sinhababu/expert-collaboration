@@ -2349,7 +2349,7 @@ app.get('/api/freelance/my-applications', async (req, res) => {
 
     let query = supabaseClient
       .from('freelance_applications')
-      .select('*, project:project_id ( id, title, description, deadline )')
+      .select('*, project:project_id ( id, title, description, deadline, budget_min, budget_max )')
       .eq('student_id', student.id)
       .order('created_at', { ascending: false });
     if (status && ['pending','shortlisted','rejected'].includes(String(status))) {
@@ -2634,7 +2634,7 @@ app.get('/api/internship-applications', async (req, res) => {
       .select(`
         *,
         internships:internship_id (
-          id, title, work_mode, engagement, openings, duration_value, duration_unit, paid, stipend_min, stipend_max, created_at
+          id, title, work_mode, engagement, openings, duration_value, duration_unit, paid, stipend_min, stipend_max, created_at, start_date, responsibilities
         )
       `)
       .eq('student_id', student.id)

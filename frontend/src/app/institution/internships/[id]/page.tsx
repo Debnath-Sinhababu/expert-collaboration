@@ -323,77 +323,77 @@ export default function CorporateInternshipDetail() {
                                     View Profile
                                   </Button>
                                 </DialogTrigger>
-                                <DialogContent className="max-w-2xl bg-white border-2 border-slate-200">
+                                <DialogContent className="max-w-2xl bg-white border border-[#E0E0E0]">
                                   <div className="space-y-4">
                                       <div className="flex items-center gap-4">
-                                        <Avatar className="w-16 h-16 border-2 border-blue-200">
+                                        <Avatar className="w-16 h-16">
                                           <AvatarImage src={app.student?.photo_url} />
-                                          <AvatarFallback className="text-xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">{initial}</AvatarFallback>
+                                          <AvatarFallback className="text-xl font-bold bg-[#E0E0E0] text-[#6A6A6A]">{initial}</AvatarFallback>
                                         </Avatar>
                                         <div>
-                                          <div className="font-semibold text-lg text-slate-900">{name}</div>
+                                          <div className="font-semibold text-lg text-[#000000]">{name}</div>
                                           {app.institution?.name && (
-                                            <div className="text-sm text-slate-600 flex items-center gap-1"><School className="h-3 w-3" /> {app.institution?.name}</div>
+                                            <div className="text-sm text-[#6A6A6A] flex items-center gap-1"><School className="h-3 w-3" /> {app.institution?.name}</div>
                                           )}
-                                          <div className="text-sm text-slate-600 flex items-center gap-1"><Mail className="h-3 w-3" /> {email}</div>
+                                          <div className="text-sm text-[#6A6A6A] flex items-center gap-1"><Mail className="h-3 w-3" /> {email}</div>
                                         </div>
                                       </div>
                                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                          <h4 className="font-medium mb-1">Basic Info</h4>
-                                          <div className="text-sm text-slate-700 space-y-1">
-                                            {app.student?.degree && <p><span className="text-slate-500">Degree:</span> {app.student.degree}</p>}
-                                            {app.student?.specialization && <p><span className="text-slate-500">Specialization:</span> {app.student.specialization}</p>}
-                                            {app.student?.year && <p><span className="text-slate-500">Year:</span> {app.student.year}</p>}
-                                            {app.student?.availability && <p><span className="text-slate-500">Availability:</span> {app.student.availability}</p>}
+                                          <h4 className="font-semibold text-[#000000] mb-2">Basic Info</h4>
+                                          <div className="text-sm text-[#000000] space-y-1">
+                                            {app.student?.degree && <p><span className="text-[#6A6A6A]">Degree:</span> {app.student.degree}</p>}
+                                            {app.student?.specialization && <p><span className="text-[#6A6A6A]">Specialization:</span> {app.student.specialization}</p>}
+                                            {app.student?.year && <p><span className="text-[#6A6A6A]">Year:</span> {app.student.year}</p>}
+                                            {app.student?.availability && <p><span className="text-[#6A6A6A]">Availability:</span> {app.student.availability}</p>}
                                             {(app.student?.preferred_engagement || app.student?.preferred_work_mode) && (
-                                              <p><span className="text-slate-500">Preference:</span> {app.student?.preferred_engagement || '-'} · {app.student?.preferred_work_mode || '-'}</p>
+                                              <p><span className="text-[#6A6A6A]">Preference:</span> {app.student?.preferred_engagement || '-'} · {app.student?.preferred_work_mode || '-'}</p>
                                             )}
                                           </div>
                                         </div>
                                         <div>
-                                          <h4 className="font-medium mb-1">Location</h4>
-                                          <div className="text-sm text-slate-700 space-y-1">
-                                            {(app.student?.city || app.student?.state) && <p><span className="text-slate-500">City/State:</span> {app.student?.city || '-'}{app.student?.state ? `, ${app.student.state}` : ''}</p>}
-                                            {app.student?.address && <p className="line-clamp-2"><span className="text-slate-500">Address:</span> {app.student.address}</p>}
+                                          <h4 className="font-semibold text-[#000000] mb-2">Location</h4>
+                                          <div className="text-sm text-[#000000] space-y-1">
+                                            {(app.student?.city || app.student?.state) && <p><span className="text-[#6A6A6A]">City/State:</span> {app.student?.city || '-'}{app.student?.state ? `, ${app.student.state}` : ''}</p>}
+                                            {app.student?.address && <p className="line-clamp-2"><span className="text-[#6A6A6A]">Address:</span> {app.student.address}</p>}
                                           </div>
                                         </div>
                                       </div>
                                       {(Array.isArray(app.student?.skills) && app.student.skills.length > 0) && (
                                         <div>
-                                          <h4 className="font-medium mb-1">Skills</h4>
+                                          <h4 className="font-semibold text-[#000000] mb-2">Skills</h4>
                                           <div className="flex flex-wrap gap-2">
                                             {app.student.skills.map((s: string, i: number) => (
-                                              <span key={`${s}-${i}`} className="px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-700 border border-slate-200">{s}</span>
+                                              <span key={`${s}-${i}`} className="px-3 py-1 text-xs rounded-full bg-[#E8F5F1] text-[#008260] border border-[#008260]">{s}</span>
                                             ))}
                                           </div>
                                         </div>
                                       )}
                                       {app.cover_letter && (
                                         <div>
-                                          <h4 className="font-medium mb-1">Cover Letter</h4>
-                                          <div className="text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-md p-3 whitespace-pre-wrap">{app.cover_letter}</div>
+                                          <h4 className="font-semibold text-[#000000] mb-2">Cover Letter</h4>
+                                          <div className="text-sm text-[#000000] whitespace-pre-wrap">{app.cover_letter}</div>
                                         </div>
                                       )}
                                       <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                          <h4 className="font-medium mb-1">Applied On</h4>
-                                          <p className="text-sm text-slate-700">{new Date(app.created_at).toLocaleDateString()}</p>
+                                          <h4 className="font-semibold text-[#000000] mb-2">Applied On</h4>
+                                          <p className="text-sm text-[#000000]">{new Date(app.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                                         </div>
                                         {app.resume_url && (
                                           <div>
-                                            <h4 className="font-medium mb-1">Resume</h4>
-                                            <a href={app.resume_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-700 hover:underline text-sm"><FileText className="h-4 w-4" /> Open Resume</a>
+                                            <h4 className="font-semibold text-[#000000] mb-2">Resume</h4>
+                                            <a href={app.resume_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[#008260] hover:text-[#006B4F] hover:underline text-sm"><FileText className="h-4 w-4" /> Open Resume</a>
                                           </div>
                                         )}
                                       </div>
                                       {(app.student?.linkedin_url || app.student?.github_url || app.student?.portfolio_url) && (
                                         <div>
-                                          <h4 className="font-medium mb-1">Links</h4>
+                                          <h4 className="font-semibold text-[#000000] mb-2">Links</h4>
                                           <div className="flex flex-wrap gap-3 text-sm">
-                                            {app.student?.linkedin_url && <a href={app.student.linkedin_url} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">LinkedIn</a>}
-                                            {app.student?.github_url && <a href={app.student.github_url} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">GitHub</a>}
-                                            {app.student?.portfolio_url && <a href={app.student.portfolio_url} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">Portfolio</a>}
+                                            {app.student?.linkedin_url && <a href={app.student.linkedin_url} target="_blank" rel="noreferrer" className="text-[#008260] hover:text-[#006B4F] hover:underline">LinkedIn</a>}
+                                            {app.student?.github_url && <a href={app.student.github_url} target="_blank" rel="noreferrer" className="text-[#008260] hover:text-[#006B4F] hover:underline">GitHub</a>}
+                                            {app.student?.portfolio_url && <a href={app.student.portfolio_url} target="_blank" rel="noreferrer" className="text-[#008260] hover:text-[#006B4F] hover:underline">Portfolio</a>}
                                           </div>
                                         </div>
                                       )}

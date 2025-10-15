@@ -1630,40 +1630,40 @@ export default function InstitutionHome() {
             setQuickSelectExpert(null)
           }
         }}>
-          <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-hidden flex flex-col bg-white border border-[#E0E0E0]">
             <DialogHeader className="flex-shrink-0">
-              <DialogTitle>Notify Expert</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="text-xl font-bold text-[#000000]">Notify Expert</DialogTitle>
+              <DialogDescription className="text-sm text-[#6A6A6A]">
                 Select one of your projects to notify {quickSelectExpert?.name}
               </DialogDescription>
             </DialogHeader>
 
             <div className="flex-1 overflow-y-auto pr-2 space-y-3">
               {institutionProjects.length === 0 ? (
-                <div className="text-center py-8 text-slate-600">
+                <div className="text-center py-8 text-[#6A6A6A]">
                   No projects found. Create a project first.
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {institutionProjects.map((proj) => {
                     const isSelected = quickSelectedProjectId === proj.id
                     return (
-                      <label key={proj.id} className={`block rounded-xl ${isSelected ? 'bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-600 p-[1.5px]' : ''}`}>
+                      <label key={proj.id} className="block">
                         <div
-                          className={`flex items-start gap-3 p-4 rounded-xl border bg-white transition-all duration-200 ${isSelected ? 'border-transparent shadow-md' : 'border-slate-200 hover:border-blue-300 hover:shadow-sm'}`}
+                          className={`flex items-start gap-3 p-4 rounded-xl border bg-white transition-all duration-200 cursor-pointer ${isSelected ? 'border-[#008260] bg-[#E8F5F1] shadow-md' : 'border-[#E0E0E0] hover:border-[#008260] hover:shadow-sm'}`}
                           onClick={() => setQuickSelectedProjectId(isSelected ? null : proj.id)}
                         >
                           <Checkbox
                             checked={isSelected}
                             onCheckedChange={(checked) => setQuickSelectedProjectId(checked ? proj.id : null)}
-                            className="mt-1 border-2 rounded-md border-slate-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                            className="mt-1 border-2 rounded-md border-[#DCDCDC] data-[state=checked]:bg-[#008260] data-[state=checked]:border-[#008260]"
                           />
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <h4 className="font-medium text-slate-900 truncate">{proj.title}</h4>
-                              <Badge variant="secondary" className="capitalize text-xs">{proj.type}</Badge>
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <h4 className="font-semibold text-[#000000] truncate">{proj.title}</h4>
+                              {proj.type && <Badge className="capitalize text-xs flex-shrink-0 bg-[#E8F5F1] text-[#008260] border border-[#008260]">{proj.type}</Badge>}
                             </div>
-                            <p className="text-sm text-slate-600 line-clamp-2">{proj.description}</p>
+                            <p className="text-sm text-[#6A6A6A] line-clamp-2">{proj.description}</p>
                           </div>
                         </div>
                       </label>
@@ -1673,11 +1673,11 @@ export default function InstitutionHome() {
               )}
             </div>
 
-            <div className="flex-shrink-0 flex justify-end gap-2 pt-4 border-t border-slate-200">
-              <Button variant="outline" onClick={() => setShowQuickSelectModal(false)}>Cancel</Button>
+            <div className="flex-shrink-0 flex justify-end gap-2 pt-4 border-t border-[#DCDCDC]">
+              <Button variant="outline" onClick={() => setShowQuickSelectModal(false)} className="border border-[#DCDCDC] hover:border-[#008260] hover:bg-[#E8F5F1] text-[#000000] hover:text-[#008260]">Cancel</Button>
               <Button
                 disabled={!quickSelectedProjectId || sendingQuickMessage}
-                className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
+                className="bg-[#008260] hover:bg-[#006B4F] text-white disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={async () => {
                   if (!quickSelectExpert || !quickSelectedProjectId || !institution?.id) return
                   try {

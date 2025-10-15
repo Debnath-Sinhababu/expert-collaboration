@@ -33,12 +33,8 @@ export default function FreelanceDashboard() {
   const [error, setError] = useState('')
 
   const statusClass = (status?: string) => {
-    const s = String(status || '').toLowerCase()
-    if (s === 'open') return 'bg-blue-50 text-blue-700 border border-blue-200'
-    if (s === 'ongoing') return 'bg-purple-50 text-purple-700 border border-purple-200'
-    if (s === 'completed') return 'bg-green-50 text-green-700 border border-green-200'
-    if (s === 'closed') return 'bg-slate-100 text-slate-700 border border-slate-200'
-    return 'bg-slate-100 text-slate-700 border border-slate-200'
+    // All statuses use the same orange color scheme as shown in the image
+    return 'bg-[#FFF5E6] text-[#FF8A00] border border-[#FF8A00]'
   }
 
   const { data, loading: listLoading, hasMore, loadMore } = usePagination(
@@ -76,71 +72,91 @@ export default function FreelanceDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-[#ECF2FF] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#008260] mx-auto mb-4"></div>
+          <p className="text-[#6A6A6A]">Loading...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
+    <div className="min-h-screen bg-[#ECF2FF]">
+      <header className="bg-[#008260] backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">Freelancing Dashboard</div>
-          <div className="flex items-center gap-2">
+          <div className="text-xl font-bold text-white">CalXMap</div>
+          <div className="flex items-center space-x-6">
             <NotificationBell />
             <ProfileDropdown user={user} institution={institution} userType="institution" />
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-semibold text-slate-900">Your Projects</h2>
-          <Link href="/institution/freelance/create">
-            <Button className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">Create Project</Button>
+          <h1 className="text-3xl font-bold text-[#000000]">Freelance Dashboard</h1>
+          <Link href="/institution/post-requirement">
+            <Button className="bg-[#008260] hover:bg-[#006B4F] text-white rounded-md px-6">+ Post Requirement</Button>
           </Link>
         </div>
 
         {error && (
-          <div className="mb-4 text-red-600 text-sm">{error}</div>
+          <div className="mb-4 text-[#9B0000] text-sm">{error}</div>
         )}
 
-        <Card className="bg-white border-2 border-slate-200">
-          <CardHeader>
-            <CardTitle className="text-slate-900">Projects</CardTitle>
-            <CardDescription className="text-slate-600">Manage your freelance postings</CardDescription>
+        <Card className="bg-white border border-[#E0E0E0] rounded-xl">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-xl font-semibold text-[#000000]">Projects</CardTitle>
+            <CardDescription className="text-sm text-[#6A6A6A]">Manage your freelance postings</CardDescription>
           </CardHeader>
           <CardContent>
             {listLoading && projects.length === 0 ? (
               <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
-                <p className="text-slate-600">Loading projects...</p>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#008260] mx-auto mb-3"></div>
+                <p className="text-[#6A6A6A]">Loading projects...</p>
               </div>
             ) : projects.length === 0 ? (
               <div className="text-center py-12">
-                <Briefcase className="h-12 w-12 text-slate-400 mx-auto mb-3" />
-                <p className="text-slate-700 font-medium">No projects yet</p>
+                <Briefcase className="h-12 w-12 text-[#6A6A6A] mx-auto mb-3" />
+                <p className="text-[#000000] font-medium">No projects yet</p>
               </div>
             ) : (
               <div className="space-y-4">
                 {projects.map((p) => (
-                  <div key={p.id} className="bg-white border-2 border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all duration-300 group">
-                    <div className="flex items-center justify-between mb-2 min-w-0">
-                      <h3 className="font-semibold text-lg text-slate-900 truncate pr-2">{p.title}</h3>
-                      {p.status && <span className={`capitalize text-xs px-2 py-0.5 rounded ${statusClass(p.status)}`}>{p.status}</span>}
+                  <div key={p.id} className="bg-white border border-[#E0E0E0] rounded-xl p-5 hover:border-[#008260] hover:shadow-md transition-all duration-300">
+                    <div className="flex items-start justify-between mb-3 gap-3">
+                      <h3 className="font-semibold text-lg text-[#000000]">{p.title}</h3>
+                      {p.status && <span className={`capitalize text-xs px-3 py-1 rounded-full flex-shrink-0 ${statusClass(p.status)}`}>{p.status}</span>}
                     </div>
-                    <p className="text-sm text-slate-600 mb-3 line-clamp-2">{p.description}</p>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4 text-sm">
-                      {p.deadline && <div><span className="text-slate-500">Deadline:</span> <span className="font-medium text-slate-900">{new Date(p.deadline).toLocaleDateString()}</span></div>}
-                      {(p.budget_min || p.budget_max) && <div><span className="text-slate-500">Budget:</span> <span className="font-medium text-slate-900">₹{p.budget_min || '—'} - ₹{p.budget_max || '—'}</span></div>}
-                      <div className="truncate"><span className="text-slate-500">Skills:</span> <span className="font-medium text-slate-900">{(p.required_skills || []).slice(0,4).join(', ')}{(p.required_skills || []).length > 4 ? '…' : ''}</span></div>
+                    <p className="text-sm text-[#6A6A6A] mb-4 line-clamp-2">{p.description}</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      {p.deadline && (
+                        <div>
+                          <p className="text-xs text-[#9B0000] mb-1">Deadline:</p>
+                          <p className="text-sm font-medium text-[#000000]">{new Date(p.deadline).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
+                        </div>
+                      )}
+                      {(p.budget_min || p.budget_max) && (
+                        <div>
+                          <p className="text-xs text-[#6A6A6A] mb-1">Budget:</p>
+                          <p className="text-sm font-medium text-[#000000]">₹{p.budget_min || '5000'}-₹{p.budget_max || '8000'}/month</p>
+                        </div>
+                      )}
                     </div>
+                    {p.required_skills && p.required_skills.length > 0 && (
+                      <div className="mb-4">
+                        <div className="flex flex-wrap gap-2">
+                          {p.required_skills.map((skill: string, idx: number) => (
+                            <span key={idx} className="px-3 py-1 text-xs rounded-full bg-[#E8F5F1] text-[#008260] border border-[#008260]">
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <div className="flex justify-end">
-                      <Button size="sm" variant="outline" className="border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50 text-slate-700 hover:text-blue-700" onClick={() => router.push(`/institution/freelance/${p.id}`)}>View</Button>
+                      <Button size="sm" className="bg-[#008260] hover:bg-[#006B4F] text-white rounded-md px-6" onClick={() => router.push(`/institution/freelance/${p.id}`)}>View</Button>
                     </div>
                   </div>
                 ))}
@@ -154,7 +170,7 @@ export default function FreelanceDashboard() {
                       obs.observe(el)
                       return () => obs.disconnect()
                     }}
-                    className="text-center py-4 text-sm text-slate-500"
+                    className="text-center py-4 text-sm text-[#6A6A6A]"
                   >
                     Loading more projects...
                   </div>
