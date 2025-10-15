@@ -91,10 +91,10 @@ export default function StudentInternshipDetail() {
         ) : (
           <div>
             {/* Title and Location */}
-            <div className="mb-6 pb-6 border-b border-[#C5C5C5]">
-              <div className="flex items-center justify-between">
-              <h1 className="text-3xl font-bold text-[#000000] mb-3">{internship.title}</h1>
-              <div className=" border-t border-[#ECECEC]">
+            <div className="mb-4 sm:mb-6 pb-4 sm:pb-6 border-b border-[#C5C5C5]">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+              <h1 className="text-2xl sm:text-3xl font-bold text-[#000000]">{internship.title}</h1>
+              <div className="border-t border-[#ECECEC]">
                 {hasApplied ? (
                   <div className="text-center sm:text-left">
                     <Button size="lg" className="w-full sm:w-auto bg-[#008260] hover:bg-[#008260] text-white font-medium rounded-full px-8" disabled>
@@ -221,58 +221,58 @@ export default function StudentInternshipDetail() {
             </div>
 
             {/* Internship Description */}
-            <div className="mb-8">
-              <h2 className="text-xl font-bold text-[#000000] mb-3">Internship Description</h2>
-              <p className="text-[#6A6A6A] text-base leading-relaxed">{internship.responsibilities}</p>
+            <div className="mb-6 sm:mb-8">
+              <h2 className="text-lg sm:text-xl font-bold text-[#000000] mb-2 sm:mb-3">Internship Description</h2>
+              <p className="text-[#6A6A6A] text-sm sm:text-base leading-relaxed">{internship.responsibilities}</p>
             </div>
 
             {/* Details Grid */}
-            <div className="grid grid-cols-3 gap-x-16 gap-y-6 mb-8">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 sm:gap-x-16 gap-y-4 sm:gap-y-6 mb-6 sm:mb-8">
               <div>
-                <div className="text-[#6A6A6A] text-sm mb-1">Openings:</div>
-                <div className="font-semibold text-[#000000] text-base">{internship.openings}</div>
+                <div className="text-[#6A6A6A] text-xs sm:text-sm mb-1">Openings:</div>
+                <div className="font-semibold text-[#000000] text-sm sm:text-base truncate">{internship.openings}</div>
               </div>
               <div>
-                <div className="text-[#6A6A6A] text-sm mb-1">Duration:</div>
-                <div className="font-semibold text-[#000000] text-base">{internship.duration_value} {internship.duration_unit}</div>
+                <div className="text-[#6A6A6A] text-xs sm:text-sm mb-1">Duration:</div>
+                <div className="font-semibold text-[#000000] text-sm sm:text-base truncate">{internship.duration_value} {internship.duration_unit}</div>
               </div>
               <div>
-                <div className="text-[#6A6A6A] text-sm mb-1">Stipend:</div>
-                <div className="font-semibold text-[#000000] text-base">{internship.paid ? `₹${internship.stipend_min}${internship.stipend_max ? '-₹' + internship.stipend_max : ''}/month` : 'Unpaid'}</div>
+                <div className="text-[#6A6A6A] text-xs sm:text-sm mb-1">Stipend:</div>
+                <div className="font-semibold text-[#000000] text-sm sm:text-base truncate">{internship.paid ? `₹${internship.stipend_min}${internship.stipend_max ? '-₹' + internship.stipend_max : ''}/month` : 'Unpaid'}</div>
               </div>
               <div>
-                <div className="text-[#6A6A6A] text-sm mb-1">Work Mode:</div>
-                <div className="font-semibold text-[#000000] text-base">{internship.work_mode}</div>
+                <div className="text-[#6A6A6A] text-xs sm:text-sm mb-1">Work Mode:</div>
+                <div className="font-semibold text-[#000000] text-sm sm:text-base truncate">{internship.work_mode}</div>
               </div>
               <div>
-                <div className="text-[#6A6A6A] text-sm mb-1">Engagement:</div>
-                <div className="font-semibold text-[#000000] text-base">{internship.engagement}</div>
+                <div className="text-[#6A6A6A] text-xs sm:text-sm mb-1">Engagement:</div>
+                <div className="font-semibold text-[#000000] text-sm sm:text-base truncate">{internship.engagement}</div>
               </div>
               <div>
-                <div className="text-[#6A6A6A] text-sm mb-1">Start:</div>
-                <div className="font-semibold text-[#000000] text-base">
+                <div className="text-[#6A6A6A] text-xs sm:text-sm mb-1">Start:</div>
+                <div className="font-semibold text-[#000000] text-sm sm:text-base truncate">
                   {String(internship.start_timing).toLowerCase() === 'immediately' ? 'Immediately' : (internship.start_date ? new Date(internship.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-')}
                 </div>
               </div>
               <div>
-                <div className="text-[#6A6A6A] text-sm mb-1">Posted on:</div>
-                <div className="font-semibold text-[#000000] text-base">{new Date(internship.created_at).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
+                <div className="text-[#6A6A6A] text-xs sm:text-sm mb-1">Posted on:</div>
+                <div className="font-semibold text-[#000000] text-sm sm:text-base truncate">{new Date(internship.created_at).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
               </div>
               {typeof internship.ppo !== 'undefined' && (
                 <div>
-                  <div className="text-[#6A6A6A] text-sm mb-1">Pre-Placement Offer:</div>
-                  <div className="font-semibold text-[#000000] text-base">{internship.ppo ? 'Yes' : 'No'}</div>
+                  <div className="text-[#6A6A6A] text-xs sm:text-sm mb-1">Pre-Placement Offer:</div>
+                  <div className="font-semibold text-[#000000] text-sm sm:text-base truncate">{internship.ppo ? 'Yes' : 'No'}</div>
                 </div>
               )}
             </div>
 
             {/* Perks */}
             {Array.isArray(internship.perks) && internship.perks.length > 0 && (
-              <div className="mb-8">
-                <h3 className="text-lg font-bold text-[#000000] mb-3">Perks</h3>
-                <div className="flex flex-wrap gap-3">
+              <div className="mb-6 sm:mb-8">
+                <h3 className="text-base sm:text-lg font-bold text-[#000000] mb-2 sm:mb-3">Perks</h3>
+                <div className="flex flex-wrap gap-2 sm:gap-3">
                   {internship.perks.map((perk: string, idx: number) => (
-                    <Badge key={idx} className="bg-[#D8E9FF] text-[#000000] hover:bg-[#D8E9FF] border-none text-sm rounded-lg font-medium px-4 py-2">{perk}</Badge>
+                    <Badge key={idx} className="bg-[#D8E9FF] text-[#000000] hover:bg-[#D8E9FF] border-none text-xs sm:text-sm rounded-lg font-medium px-3 sm:px-4 py-1.5 sm:py-2">{perk}</Badge>
                   ))}
                 </div>
               </div>
@@ -280,11 +280,11 @@ export default function StudentInternshipDetail() {
 
             {/* Skills */}
             {Array.isArray(internship.skills_required) && internship.skills_required.length > 0 && (
-              <div className="mb-8">
-                <h3 className="text-lg font-bold text-[#000000] mb-3">Skills Required</h3>
-                <div className="flex flex-wrap gap-3">
+              <div className="mb-6 sm:mb-8">
+                <h3 className="text-base sm:text-lg font-bold text-[#000000] mb-2 sm:mb-3">Skills Required</h3>
+                <div className="flex flex-wrap gap-2 sm:gap-3">
                   {internship.skills_required.map((skill: string, idx: number) => (
-                    <Badge key={idx} className="bg-[#D8E9FF] text-[#000000] hover:bg-[#D8E9FF] rounded-lg border-none text-sm font-medium px-4 py-2">{skill}</Badge>
+                    <Badge key={idx} className="bg-[#D8E9FF] text-[#000000] hover:bg-[#D8E9FF] rounded-lg border-none text-xs sm:text-sm font-medium px-3 sm:px-4 py-1.5 sm:py-2">{skill}</Badge>
                   ))}
                 </div>
               </div>

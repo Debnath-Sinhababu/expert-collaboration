@@ -334,9 +334,9 @@ export default function ExpertProjectPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
-      <div className="mb-8 flex justify-between w-full items-center border-b border-[#D6D6D6] pb-6">
-        <div>
-              <h1 className="text-[32px] font-semibold text-black">{project.title}</h1>
+      <div className="mb-8 flex flex-col sm:flex-row sm:justify-between w-full items-start sm:items-center border-b border-[#D6D6D6] pb-6 gap-4">
+        <div className="min-w-0 flex-1">
+              <h1 className="text-xl sm:text-2xl md:text-[32px] font-semibold text-black truncate">{project.title}</h1>
               <div className="">
           <p className="flex items-center text-[#6A6A6A] hover:text-[#008260] transition-colors">
             <MapPin className="h-4 w-4 mr-2" />
@@ -344,8 +344,8 @@ export default function ExpertProjectPage() {
           </p>
         </div>
             </div>
-            <div className="text-center">
-                  <div className="text-[24px] font-bold text-[#008260]">₹{project.hourly_rate}/hour</div>
+            <div className="text-left sm:text-center flex-shrink-0">
+                  <div className="text-lg sm:text-xl md:text-[24px] font-bold text-[#008260]">₹{project.hourly_rate}/hour</div>
                   <div className="text-sm text-[#757575]">Hourly Rate</div>
                 </div>
             </div>
@@ -358,13 +358,13 @@ export default function ExpertProjectPage() {
 
             {/* Project Description */}
             <div>
-              <h2 className="text-xl font-semibold text-black mb-4">Project Description</h2>
-              <p className="text-[#6A6A6A] text-base leading-relaxed whitespace-pre-line">{project.description}</p>
+              <h2 className="text-lg sm:text-xl font-semibold text-black mb-4">Project Description</h2>
+              <p className="text-[#6A6A6A] text-sm sm:text-base leading-relaxed whitespace-pre-line">{project.description}</p>
             </div>
 
             {/* Project Description (repeated as in image) */}
             <div>
-              <h2 className="text-xl font-semibold text-black mb-4">Project Description</h2>
+              <h2 className="text-lg sm:text-xl font-semibold text-black mb-4">Project Description</h2>
               
               {/* Expertise Domain */}
               <div className="mb-6">
@@ -409,7 +409,7 @@ export default function ExpertProjectPage() {
                 {/* Hourly Rate */}
 
                 {/* Date and Duration Info */}
-                <div className="space-y-4 p-6">
+                <div className="space-y-4 p-4 sm:p-6">
                   {/* Start Date */}
                   <div className="flex items-start gap-3 p-4 bg-[#E8F4F8] rounded-lg">
                     <div className="w-12 h-12 bg-[#008260] rounded-lg flex items-center justify-center flex-shrink-0">
@@ -445,7 +445,7 @@ export default function ExpertProjectPage() {
                 </div>
 
                 {/* Apply Button */}
-                <div className="p-6 pt-0">
+                <div className="p-4 sm:p-6 pt-0">
                   {hasApplied ? (
                     <Button size="lg" className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium rounded-lg h-12">
                       <CheckCircle className="h-5 w-5 mr-2" />
@@ -530,7 +530,7 @@ export default function ExpertProjectPage() {
                 {similarProjects.map((proj) => (
                   <CarouselItem key={proj.id} className="pl-4 basis-full md:basis-1/2 lg:basis-1/2">
                     <Card className="bg-white border-2 border-[#D6D6D6] hover:border-[#008260] transition-all duration-300 hover:shadow-lg h-full">
-                      <CardContent className="p-6 pb-4">
+                      <CardContent className="p-4 sm:p-6 pb-4">
                         <h3 className="text-xl font-semibold text-black mb-3">{proj.title}</h3>
                         <p className="text-[#6A6A6A] text-sm mb-4 truncate">{proj.description}</p>
                         

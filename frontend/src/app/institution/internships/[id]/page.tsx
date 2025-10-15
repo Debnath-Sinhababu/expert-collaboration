@@ -116,16 +116,16 @@ export default function CorporateInternshipDetail() {
         ) : (
           <>
             <Card className="bg-white border border-[#E0E0E0] rounded-xl mb-6">
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <h2 className="font-semibold text-xl text-[#000000]">{internship.title}</h2>
-                  <Badge className={`capitalize ml-2 flex-shrink-0 ${internship.status === 'open' ? 'bg-[#FFF5E6] text-[#FF8A00] border border-[#FF8A00]' : 'bg-[#F5F5F5] text-[#6A6A6A] border border-[#DCDCDC]'}`}>
+              <CardContent className="p-4 sm:p-5">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3">
+                  <h2 className="font-semibold text-lg sm:text-xl text-[#000000]">{internship.title}</h2>
+                  <Badge className={`capitalize flex-shrink-0 self-start ${internship.status === 'open' ? 'bg-[#FFF5E6] text-[#FF8A00] border border-[#FF8A00]' : 'bg-[#F5F5F5] text-[#6A6A6A] border border-[#DCDCDC]'}`}>
                     {internship.status === 'open' ? 'Open' : 'Closed'}
                   </Badge>
                 </div>
-                <p className="text-sm text-[#6A6A6A] mb-4">{internship.responsibilities}</p>
+                <p className="text-xs sm:text-sm text-[#6A6A6A] mb-4">{internship.responsibilities}</p>
                 
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                   <div>
                     <p className="text-xs text-[#6A6A6A] mb-1">Deadline:</p>
                     <p className="text-sm font-medium text-[#000000]">
@@ -273,21 +273,21 @@ export default function CorporateInternshipDetail() {
                         }
                         
                         return (
-                          <div key={app.id} className="bg-white border border-[#E0E0E0] rounded-xl p-5 hover:border-[#008260] hover:shadow-md transition-all duration-300">
-                            <div className="flex items-start justify-between gap-3 mb-3">
+                          <div key={app.id} className="bg-white border border-[#E0E0E0] rounded-xl p-4 sm:p-5 hover:border-[#008260] hover:shadow-md transition-all duration-300">
+                            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3 mb-3">
                               <div className="flex items-center gap-3 min-w-0">
-                                <Avatar className="h-12 w-12">
+                                <Avatar className="h-10 w-10 sm:h-12 sm:w-12">
                                   <AvatarImage src={app.student?.photo_url} />
-                                  <AvatarFallback className="bg-[#E0E0E0] text-[#6A6A6A] text-lg">
+                                  <AvatarFallback className="bg-[#E0E0E0] text-[#6A6A6A] text-base sm:text-lg">
                                     {initial}
                                   </AvatarFallback>
                                 </Avatar>
                                 <div className="min-w-0">
-                                  <h4 className="font-semibold text-[#000000] truncate">{name}</h4>
-                                  <div className="text-sm text-[#6A6A6A] truncate">{email}</div>
+                                  <h4 className="font-semibold text-sm sm:text-base text-[#000000] truncate">{name}</h4>
+                                  <div className="text-xs sm:text-sm text-[#6A6A6A] truncate">{email}</div>
                                 </div>
                               </div>
-                              <Badge className="bg-[#FFF5E6] text-[#FF8A00] border border-[#FF8A00] flex-shrink-0">
+                              <Badge className="bg-[#FFF5E6] text-[#FF8A00] border border-[#FF8A00] flex-shrink-0 self-start sm:self-auto">
                                 {getBadgeText()}
                               </Badge>
                             </div>
@@ -317,14 +317,14 @@ export default function CorporateInternshipDetail() {
                               <p className="text-xs text-[#6A6A6A]">Applied: <span className="font-medium text-[#000000]">{new Date(app.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span></p>
                             </div>
 
-                            <div className="flex items-center justify-between gap-2">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                               <Dialog>
                                 <DialogTrigger asChild>
-                                  <Button size="sm" variant="outline" className="border border-[#DCDCDC] hover:border-[#008260] hover:bg-[#E8F5F1] text-[#000000] hover:text-[#008260]">
+                                  <Button size="sm" variant="outline" className="border border-[#DCDCDC] hover:border-[#008260] hover:bg-[#E8F5F1] text-[#000000] hover:text-[#008260] w-full sm:w-auto">
                                     View Profile
                                   </Button>
                                 </DialogTrigger>
-                                <DialogContent className="max-w-2xl bg-white border border-[#E0E0E0]">
+                                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white border border-[#E0E0E0]">
                                   <div className="space-y-4">
                                       <div className="flex items-center gap-4">
                                         <Avatar className="w-16 h-16">
@@ -376,7 +376,7 @@ export default function CorporateInternshipDetail() {
                                           <div className="text-sm text-[#000000] whitespace-pre-wrap">{app.cover_letter}</div>
                                         </div>
                                       )}
-                                      <div className="grid grid-cols-2 gap-4">
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div>
                                           <h4 className="font-semibold text-[#000000] mb-2">Applied On</h4>
                                           <p className="text-sm text-[#000000]">{new Date(app.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
@@ -402,13 +402,13 @@ export default function CorporateInternshipDetail() {
                                   </DialogContent>
                                 </Dialog>
 
-                              <div className="flex items-center gap-2">
+                              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                                 {String(app.status).startsWith('pending') || String(app.status).startsWith('approved') ? (
                                   <>
                                     <Button
                                       size="sm"
                                       variant="outline"
-                                      className="border border-[#9B0000] text-[#9B0000] hover:bg-[#9B0000] hover:text-white rounded-3xl w-[100px]"
+                                      className="border border-[#9B0000] text-[#9B0000] hover:bg-[#9B0000] hover:text-white rounded-3xl w-full sm:w-[100px]"
                                       onClick={async () => {
                                         try {
                                           await api.internships.updateApplicationStatus(app.id, 'rejected_corporate')
@@ -420,7 +420,7 @@ export default function CorporateInternshipDetail() {
                                     </Button>
                                     <Dialog>
                                       <DialogTrigger asChild>
-                                        <Button size="sm" className="bg-[#008260] hover:bg-[#006B4F] text-white">Proceed to Interview</Button>
+                                        <Button size="sm" className="bg-[#008260] hover:bg-[#006B4F] text-white w-full sm:w-auto">Proceed to Interview</Button>
                                       </DialogTrigger>
                                         <DialogContent className="max-w-md">
                                           <DialogHeader>

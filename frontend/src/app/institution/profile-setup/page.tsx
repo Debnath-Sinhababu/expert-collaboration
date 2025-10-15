@@ -240,20 +240,20 @@ export default function InstitutionProfileSetup() {
           <Link href="/" className="inline-flex items-center mb-4 group">
             <Logo size="lg" />
           </Link>
-          <h1 className="text-4xl font-bold text-slate-900 mb-2 tracking-tight">Complete Your Institution Profile</h1>
-          <p className="text-xl text-slate-600">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-2 tracking-tight">Complete Your Institution Profile</h1>
+          <p className="text-base sm:text-lg md:text-xl text-slate-600">
             Set up your institution profile to start posting projects and finding experts
           </p>
         </div>
 
         <Card className="bg-white border-2 border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold text-slate-900">Institution Profile Setup</CardTitle>
-            <CardDescription className="text-slate-600">
+          <CardHeader className="px-4 sm:px-6">
+            <CardTitle className="text-xl sm:text-2xl font-bold text-slate-900">Institution Profile Setup</CardTitle>
+            <CardDescription className="text-sm sm:text-base text-slate-600">
               Complete your institution profile to start connecting with qualified experts
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 sm:px-6">
             <form onSubmit={handleSubmit} className="space-y-6">
               {error && (
                 <Alert variant="destructive">

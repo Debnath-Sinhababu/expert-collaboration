@@ -1343,55 +1343,55 @@ export default function InstitutionDashboard() {
                     {projects.map((project: any) => (
                       <div 
                         key={project.id} 
-                        className="bg-white border border-[#DCDCDC] rounded-lg p-6 transition-all duration-300 group"
+                        className="bg-white border border-[#DCDCDC] rounded-lg p-4 sm:p-6 transition-all duration-300 group"
                       >
-                        <div className="flex items-center justify-between mb-2 min-w-0">
-                          <h3 className="font-bold text-lg text-[#000000] truncate pr-2">{project.title}</h3>
-                          <div className="flex items-center space-x-2 flex-shrink-0">
-                            <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-2 px-4">{project.status}</Badge>
-                            <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-2 px-4">{project.type}</Badge>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                          <h3 className="font-bold text-base sm:text-lg text-[#000000]">{project.title}</h3>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 px-3 sm:py-2 sm:px-4">{project.status}</Badge>
+                            <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 px-3 sm:py-2 sm:px-4">{project.type}</Badge>
                           </div>
                         </div>
                         <p className="text-sm text-[#6A6A6A] mb-3 line-clamp-2">{project.description}</p>
-                        <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
-                        <div className="flex items-start gap-3">
-    <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
-      <Clock className="w-5 h-5" style={{ color: '#008260' }} />
-    </div>
-    <div>
-      <span className="text-[#717171] text-xs">Rate:</span>
-      <p className="font-semibold text-[#008260] text-base">₹{project.hourly_rate}/hour</p>
-    </div>
-  </div>
-                          <div className='flex items-start gap-3'>
-                          <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
-      <Hourglass className="w-5 h-5" style={{ color: '#008260' }} />
-    </div>
-                             <div>
-                            <span className="text-[#717171] text-xs">Duration:</span>
-                            <p className="font-medium text-base text-[#1D1D1D]">{project.duration_hours} hours</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 text-sm">
+                          <div className="flex items-start gap-2.5 sm:gap-3">
+                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+                              <Clock className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[#717171] text-xs">Rate:</span>
+                              <p className="font-semibold text-[#008260] text-sm sm:text-base truncate">₹{project.hourly_rate}/hour</p>
                             </div>
                           </div>
-                          <div className='flex items-start gap-3'>
-                          <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
-      <IndianRupee className="w-5 h-5" style={{ color: '#008260' }} />
-    </div> 
-                         <div>
-                            <span className="text-[#717171] text-xs">Budget:</span>
-                            <p className="font-medium text-base text-[#1D1D1D]">₹{project.total_budget}</p>
+                          <div className='flex items-start gap-2.5 sm:gap-3'>
+                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+                              <Hourglass className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[#717171] text-xs">Duration:</span>
+                              <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">{project.duration_hours} hours</p>
                             </div>
                           </div>
-                          <div className="flex items-start gap-3">
-    <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
-      <FileText className="w-5 h-5" style={{ color: '#008260' }} />
-    </div>
-    <div>
-      <span className="text-[#717171] text-xs">Applications:</span>
-      <p className="font-medium text-base text-[#1D1D1D]">
-        {project.applicationCounts?.total}
-      </p>
-    </div>
-  </div>
+                          <div className='flex items-start gap-2.5 sm:gap-3'>
+                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+                              <IndianRupee className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
+                            </div> 
+                            <div className="min-w-0">
+                              <span className="text-[#717171] text-xs">Budget:</span>
+                              <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">₹{project.total_budget}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-2.5 sm:gap-3">
+                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+                              <FileText className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[#717171] text-xs">Applications:</span>
+                              <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">
+                                {project.applicationCounts?.total}
+                              </p>
+                            </div>
+                          </div>
                         </div>
                         {project.required_expertise && project.required_expertise.length > 0 && (
                           <div className="mb-4">

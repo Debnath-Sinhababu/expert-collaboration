@@ -705,6 +705,18 @@ export default function InstitutionHome() {
         </div>
       </header>
 
+      {/* Mobile Browse Internships Button */}
+      {institution?.type && institution.type !== 'Corporate' && (
+        <div className="md:hidden bg-[#ECF2FF] px-4 py-3">
+          <Link href="/institution/internships/opportunities">
+            <Button className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium rounded-lg py-3 flex items-center justify-center gap-2">
+              <Briefcase className="h-5 w-5" />
+              Browse Internships
+            </Button>
+          </Link>
+        </div>
+      )}
+
       {/* Partnered Institutions Banner */}
       {partneredInstitutions.length > 0 && (
         <div className="bg-gradient-to-r from-slate-50 via-blue-50 to-indigo-100 py-8">
@@ -853,12 +865,12 @@ export default function InstitutionHome() {
                                 <Eye className="h-4 w-4 text-[#008260]" />
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className="max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
-                              <DialogHeader className="flex-shrink-0">
+                            <DialogContent className="max-w-lg w-full max-h-[90vh] overflow-y-auto">
+                              <DialogHeader>
                                 <DialogTitle>{expert.name}</DialogTitle>
                                 <DialogDescription>Complete Expert Profile</DialogDescription>
                               </DialogHeader>
-                              <div className="space-y-4 overflow-y-auto flex-1 pr-2">
+                              <div className="space-y-4">
                                 <div className="flex items-center space-x-4 mb-4">
                                   <Avatar className="w-16 h-16 border-2 border-blue-200 flex-shrink-0">
                                     <AvatarImage src={expert.photo_url} />
@@ -1324,7 +1336,7 @@ export default function InstitutionHome() {
                       {/* Buttons - Select stretched, Eye in corner */}
                       <div className="flex gap-2 mt-4">
                         <Button 
-                          className="flex-1 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white" 
+                          className="flex-1 bg-[#008260] hover:bg-[#006d51] text-white" 
                           onClick={() => { setQuickSelectExpert(expert); setShowQuickSelectModal(true); }}
                         >
                           <UserCheck className="h-4 w-4 mr-2" />
@@ -1336,12 +1348,12 @@ export default function InstitutionHome() {
                               <Eye className="h-4 w-4" />
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
-                            <DialogHeader className="flex-shrink-0">
+                          <DialogContent className="max-w-lg w-full max-h-[90vh] overflow-y-auto">
+                            <DialogHeader>
                               <DialogTitle>{expert.name}</DialogTitle>
                               <DialogDescription>Complete Expert Profile</DialogDescription>
                             </DialogHeader>
-                            <div className="space-y-4 overflow-y-auto flex-1 pr-2">
+                            <div className="space-y-4">
                               <div className="flex items-center space-x-4 mb-4">
                                 <Avatar className="w-16 h-16 border-2 border-blue-200 flex-shrink-0">
                                   <AvatarImage src={expert.photo_url} />
@@ -1449,12 +1461,12 @@ export default function InstitutionHome() {
                                 <Eye className="h-4 w-4 text-[#008260]" />
                               </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
-                            <DialogHeader className="flex-shrink-0">
+                          <DialogContent className="max-w-lg w-full max-h-[90vh] overflow-y-auto">
+                            <DialogHeader>
                               <DialogTitle>{expert.name}</DialogTitle>
                               <DialogDescription>Complete Expert Profile</DialogDescription>
                             </DialogHeader>
-                            <div className="space-y-4 overflow-y-auto flex-1 pr-2">
+                            <div className="space-y-4">
                               <div className="flex items-center space-x-4 mb-4">
                                 <Avatar className="w-16 h-16 border-2 border-blue-200 flex-shrink-0">
                                   <AvatarImage src={expert.photo_url} />
@@ -1867,18 +1879,7 @@ export default function InstitutionHome() {
 
       </main>
 
-      {institution?.type === 'Corporate' && (
-        <div className="fixed bottom-4 inset-x-0 px-4 md:hidden z-50">
-          <div className="bg-white/90 backdrop-blur-md border border-slate-200 shadow-xl rounded-xl p-3 flex gap-3">
-            <Link href="/institution/internships/create" className="flex-1">
-              <Button className="w-full bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">Create Internship</Button>
-            </Link>
-            <Link href="/institution/freelance/create" className="flex-1">
-              <Button className="w-full bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">Create Freelance</Button>
-            </Link>
-          </div>
-        </div>
-      )}
+    
     </div>
   )
 }

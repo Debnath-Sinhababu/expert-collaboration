@@ -754,7 +754,7 @@ export default function ExpertHome() {
         </div>
 
         {/* Search and Filters */}
-        <div className="bg-white rounded-lg shadow-sm border-2 border-[#D6D6D6] p-6 mb-8">
+        <div className="bg-white rounded-lg shadow-sm border-2 border-[#D6D6D6] p-4 sm:p-6 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
               <Label htmlFor="search">Search</Label>

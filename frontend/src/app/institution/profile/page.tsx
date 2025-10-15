@@ -311,43 +311,43 @@ export default function InstitutionProfile() {
         </div>
       </header>
       
-      <div className="container mx-auto px-4 max-w-6xl py-8">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl py-6 sm:py-8">
         {/* Page Title */}
-        <h1 className="text-2xl font-bold text-[#000000] mb-6">Profile</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-[#000000] mb-4 sm:mb-6">Profile</h1>
 
         {/* Profile Header - Centered */}
         <div className="flex flex-col items-center mb-6">
           <div className="relative mb-4">
-            <Avatar className="w-32 h-32 border-4 border-white shadow-lg">
+            <Avatar className="w-24 h-24 sm:w-32 sm:h-32 border-4 border-white shadow-lg">
               <AvatarImage src={institution?.logo_url} />
-              <AvatarFallback className="text-4xl font-bold bg-[#C8E6F5] text-[#008260]">
+              <AvatarFallback className="text-3xl sm:text-4xl font-bold bg-[#C8E6F5] text-[#008260]">
                 {institution?.name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'I'}
               </AvatarFallback>
             </Avatar>
           </div>
           
-          <h2 className="text-2xl font-bold text-[#000000] mb-1">
+          <h2 className="text-xl sm:text-2xl font-bold text-[#000000] mb-1 text-center px-4">
             {institution?.name || 'Institution'}
           </h2>
           
-          <p className="text-base text-[#6A6A6A] mb-3">
+          <p className="text-sm sm:text-base text-[#6A6A6A] mb-3 text-center">
             {institution?.type || 'Educational Institution'}
           </p>
           
           {/* Verified Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1 bg-[#8FFFA7] rounded-full border border-[#008260]">
-            <div className="w-5 h-5 rounded-full bg-[#008260] flex items-center justify-center">
-              <Shield className="h-3 w-3 text-white" />
+          <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1 bg-[#8FFFA7] rounded-full border border-[#008260]">
+            <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-[#008260] flex items-center justify-center">
+              <Shield className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-white" />
             </div>
-            <span className="text-[12px] text-[#008260] font-medium">Verified</span>
+            <span className="text-[11px] sm:text-[12px] text-[#008260] font-medium">Verified</span>
           </div>
         </div>
 
         {/* Main Card */}
         <Card className="bg-white border border-[#DCDCDC] rounded-lg shadow-sm mb-8">
-          <CardContent className="p-8">
-            {/* Two Column Grid */}
-            <div className="grid grid-cols-2 gap-8">
+          <CardContent className="p-4 sm:p-6 lg:p-8">
+            {/* Responsive Grid - Stack on mobile, 2 columns on desktop */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
               {/* ABOUT Section */}
               <div>
                 <h3 className="text-xs font-semibold text-[#6A6A6A] uppercase tracking-wider mb-4">
@@ -386,24 +386,24 @@ export default function InstitutionProfile() {
                 
                 <div className="space-y-3 mb-6">
                   <div className="flex items-center gap-3 p-3 bg-[#ECF2FF] rounded-xl">
-                    <div className="w-10 h-10 bg-[#008260] rounded-full flex items-center justify-center">
+                    <div className="w-10 h-10 bg-[#008260] rounded-full flex items-center justify-center flex-shrink-0">
                       <Calendar className="h-5 w-5 text-white" />
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <p className="text-sm text-[#6A6A6A]">Established</p>
-                      <p className="text-base font-bold text-[#000000]">
+                      <p className="text-base font-bold text-[#000000] truncate">
                         {institution?.established_year ? `${institution.established_year} years` : 'N/A'}
                       </p>
                     </div>
                   </div>
                   
                   <div className="flex items-center gap-3 p-3 bg-[#ECF2FF] rounded-xl">
-                    <div className="w-10 h-10 bg-[#008260] rounded-full flex items-center justify-center">
+                    <div className="w-10 h-10 bg-[#008260] rounded-full flex items-center justify-center flex-shrink-0">
                       <Users className="h-5 w-5 text-white" />
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <p className="text-sm text-[#6A6A6A]">Students</p>
-                      <p className="text-base font-bold text-[#000000]">
+                      <p className="text-base font-bold text-[#000000] truncate">
                         {institution?.student_count ? `${institution.student_count} Lakhs +` : 'N/A'}
                       </p>
                     </div>
@@ -419,7 +419,7 @@ export default function InstitutionProfile() {
                         loadInstitutionData(user.id)
                       }
                     }}
-                    className="w-full bg-[#008260] hover:bg-[#006b4f] text-white rounded-xl py-5 font-medium shadow-sm transition-all duration-200"
+                    className="w-full bg-[#008260] hover:bg-[#006b4f] text-white rounded-xl py-4 sm:py-5 font-medium shadow-sm transition-all duration-200"
                   >
                     <Edit className="h-4 w-4 mr-2" />
                     {editing ? 'Cancel Editing' : 'Edit Profile'}
@@ -431,7 +431,7 @@ export default function InstitutionProfile() {
                       navigator.clipboard.writeText(`${window.location.origin}/institutions/${institution?.id || ''}`)
                       toast.success('Profile link copied!')
                     }}
-                    className="w-full bg-[#008260] hover:bg-[#006b4f] text-white rounded-xl py-5 font-medium shadow-sm transition-all duration-200"
+                    className="w-full bg-[#008260] hover:bg-[#006b4f] text-white rounded-xl py-4 sm:py-5 font-medium shadow-sm transition-all duration-200"
                   >
                     <Globe className="h-4 w-4 mr-2" />
                     Copy Profile Link

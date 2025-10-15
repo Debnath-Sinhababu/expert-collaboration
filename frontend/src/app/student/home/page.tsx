@@ -439,17 +439,17 @@ export default function StudentHome() {
         )}
 
         {/* Welcome Section */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-semibold text-black mb-2 leading-tight">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-semibold text-black mb-2 leading-tight">
             Welcome back, <span className='text-[#008260]'>{student?.name || 'Student'}!</span>
           </h1>
-          <p className="text-lg text-[#000000CC] font-medium leading-relaxed">
+          <p className="text-base sm:text-lg text-[#000000CC] font-medium leading-relaxed">
             Connect with top experts and create impactful learning experiences
           </p>
         </div>
 
         {/* Search and Filters */}
-        <div className="bg-white rounded-lg shadow-sm border-2 border-[#D6D6D6] p-6 mb-8">
+        <div className="bg-white rounded-lg shadow-sm border-2 border-[#D6D6D6] p-4 sm:p-6 mb-6 sm:mb-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <div className="text-sm font-medium text-[#000000] mb-2">Search</div>
@@ -545,10 +545,10 @@ export default function StudentHome() {
         </div>
 
         {/* Internship Opportunities Section */}
-        <div className="mb-8">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-[#000000] mb-1">Internship Opportunities</h2>
-            <p className="text-[#6A6A6A] text-base font-normal">Browse internships from corporates</p>
+        <div className="mb-6 sm:mb-8">
+          <div className="mb-4 sm:mb-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-[#000000] mb-1">Internship Opportunities</h2>
+            <p className="text-[#6A6A6A] text-sm sm:text-base font-normal">Browse internships from corporates</p>
           </div>
 
           {listLoading && internships.length === 0 ? (
@@ -573,56 +573,56 @@ export default function StudentHome() {
                 
                 return (
                   <Card key={item.id} className="bg-white border-2 border-[#D6D6D6] rounded-xl hover:border-[#008260] hover:shadow-md transition-all duration-300 group">
-                    <CardContent className="p-6">
+                    <CardContent className="p-4 sm:p-6">
                       {/* Header with title and date */}
-                      <div className="flex items-start justify-between mb-4">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3 sm:mb-4">
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-lg text-[#000000] mb-1 group-hover:text-[#008260] transition-colors duration-200">
+                          <h3 className="font-bold text-base sm:text-lg text-[#000000] mb-1 group-hover:text-[#008260] transition-colors duration-200 break-words">
                             {item.title}
                           </h3>
-                          <p className="text-sm text-[#6A6A6A] mb-1">{item.corporate?.name || 'Corporate'}</p>
+                          <p className="text-xs sm:text-sm text-[#6A6A6A] mb-1">{item.corporate?.name || 'Corporate'}</p>
                         </div>
-                        <Badge className="bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-2 px-4 flex-shrink-0 ml-3">
+                        <Badge className="bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 sm:py-2 px-3 sm:px-4 flex-shrink-0 self-start">
                           {formattedDate}
                         </Badge>
                       </div>
 
                       {/* Description */}
-                      <p className="text-sm text-[#6A6A6A] mb-4 line-clamp-2">
+                      <p className="text-xs sm:text-sm text-[#6A6A6A] mb-3 sm:mb-4 line-clamp-2">
                         {item.responsibilities}
                       </p>
 
                       {/* Grid Layout for Details */}
-                      <div className="grid grid-cols-3 gap-x-8 gap-y-4 mb-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 sm:gap-x-8 gap-y-3 sm:gap-y-4 mb-4">
                         <div>
                           <div className="text-[#717171] text-xs mb-1">Deadline:</div>
-                          <div className="font-semibold text-[#000000] text-sm">
+                          <div className="font-semibold text-[#000000] text-xs sm:text-sm truncate">
                             {item.start_date ? new Date(item.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
                           </div>
                         </div>
                         <div>
                           <div className="text-[#717171] text-xs mb-1">Duration:</div>
-                          <div className="font-semibold text-[#000000] text-sm">
+                          <div className="font-semibold text-[#000000] text-xs sm:text-sm truncate">
                             {item.duration_value} {item.duration_unit}
                           </div>
                         </div>
                         <div>
                           <div className="text-[#717171] text-xs mb-1">Stipend:</div>
-                          <div className="font-semibold text-[#008260] text-sm">
+                          <div className="font-semibold text-[#008260] text-xs sm:text-sm truncate">
                             {item.paid ? `₹${item.stipend_min}${item.stipend_max ? '-₹' + item.stipend_max : ''}/month` : 'Unpaid'}
                           </div>
                         </div>
                         <div>
                           <div className="text-[#717171] text-xs mb-1">Work Mode:</div>
-                          <div className="font-semibold text-[#000000] text-sm">{item.work_mode}</div>
+                          <div className="font-semibold text-[#000000] text-xs sm:text-sm truncate">{item.work_mode}</div>
                         </div>
                         <div>
                           <div className="text-[#717171] text-xs mb-1">Engagement:</div>
-                          <div className="font-semibold text-[#000000] text-sm">{item.engagement}</div>
+                          <div className="font-semibold text-[#000000] text-xs sm:text-sm truncate">{item.engagement}</div>
                         </div>
                         <div>
                           <div className="text-[#717171] text-xs mb-1">Posted on:</div>
-                          <div className="font-semibold text-[#000000] text-sm">
+                          <div className="font-semibold text-[#000000] text-xs sm:text-sm truncate">
                             {new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </div>
                         </div>
@@ -631,7 +631,7 @@ export default function StudentHome() {
                       {/* View Button */}
                       <div className="flex justify-end">
                         <Button 
-                          className="bg-[#008260] hover:bg-[#006B4F] text-white font-medium rounded-full px-6"
+                          className="bg-[#008260] hover:bg-[#006B4F] text-white font-medium rounded-full px-6 w-full sm:w-auto"
                           onClick={() => router.push(`/student/internships/${item.id}`)}
                         >
                           View

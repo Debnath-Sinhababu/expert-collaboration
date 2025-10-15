@@ -632,51 +632,51 @@ export default function ProjectDetailsPage() {
         {/* Project Info Section */}
         <div 
                         key={project.id} 
-                        className="bg-white border border-[#DCDCDC] rounded-lg p-6 transition-all duration-300 group"
+                        className="bg-white border border-[#DCDCDC] rounded-lg p-4 sm:p-6 transition-all duration-300 group"
                       >
-                        <div className="flex items-center justify-between mb-2 min-w-0">
-                          <h3 className="font-bold text-lg text-[#000000] truncate pr-2">{project.title}</h3>
-                          <div className="flex items-center space-x-2 flex-shrink-0">
-                            <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-2 px-4">{project.status}</Badge>
-                            <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-2 px-4">{project.type}</Badge>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3 min-w-0">
+                          <h3 className="font-bold text-base sm:text-lg text-[#000000] truncate pr-2">{project.title}</h3>
+                          <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
+                            <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 px-3 sm:py-2 sm:px-4">{project.status}</Badge>
+                            <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 px-3 sm:py-2 sm:px-4">{project.type}</Badge>
                           </div>
                         </div>
                         <p className="text-sm text-[#6A6A6A] mb-3">{project.description}</p>
-                        <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
-                        <div className="flex items-start gap-3">
-    <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
-      <Clock className="w-5 h-5" style={{ color: '#008260' }} />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 text-sm">
+                        <div className="flex items-start gap-3 min-w-0">
+    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+      <Clock className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
     </div>
-    <div>
+    <div className="min-w-0">
       <span className="text-[#717171] text-xs">Rate:</span>
-      <p className="font-semibold text-[#008260] text-base">₹{project.hourly_rate}/hour</p>
+      <p className="font-semibold text-[#008260] text-sm sm:text-base truncate">₹{project.hourly_rate}/hour</p>
     </div>
   </div>
-                          <div className='flex items-start gap-3'>
-                          <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
-      <Hourglass className="w-5 h-5" style={{ color: '#008260' }} />
+                          <div className='flex items-start gap-3 min-w-0'>
+                          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+      <Hourglass className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
     </div>
-                             <div>
+                             <div className="min-w-0">
                             <span className="text-[#717171] text-xs">Duration:</span>
-                            <p className="font-medium text-base text-[#1D1D1D]">{project.duration_hours} hours</p>
+                            <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">{project.duration_hours} hours</p>
                             </div>
                           </div>
-                          <div className='flex items-start gap-3'>
-                          <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
-      <IndianRupee className="w-5 h-5" style={{ color: '#008260' }} />
+                          <div className='flex items-start gap-3 min-w-0'>
+                          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+      <IndianRupee className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
     </div> 
-                         <div>
+                         <div className="min-w-0">
                             <span className="text-[#717171] text-xs">Budget:</span>
-                            <p className="font-medium text-base text-[#1D1D1D]">₹{project.total_budget}</p>
+                            <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">₹{project.total_budget}</p>
                             </div>
                           </div>
-                          <div className="flex items-start gap-3">
-    <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
-      <Calendar className="w-5 h-5" style={{ color: '#008260' }} />
+                          <div className="flex items-start gap-3 min-w-0">
+    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+      <Calendar className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
     </div>
-    <div>
+    <div className="min-w-0">
       <span className="text-[#717171] text-xs">Posted:</span>
-      <p className="font-medium text-base text-[#1D1D1D]">
+      <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">
        {new Date(project.created_at).toLocaleDateString()}
       </p>
     </div>
@@ -746,22 +746,22 @@ export default function ProjectDetailsPage() {
                 ) : (
                   <div className="space-y-4">
                     {pendingApplications?.map((application: any) => (
-                      <Card key={application.id} className="bg-white border border-[#DCDCDC] p-4">
+                      <Card key={application.id} className="bg-white border border-[#DCDCDC] p-4 sm:p-5">
                         <CardContent className="p-0">
-                          <div className="flex items-center justify-between mb-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                             <div className="flex items-center space-x-3">
-                              <Avatar className="w-10 h-10 border-2 border-[#008260]/40">
+                              <Avatar className="w-10 h-10 sm:w-12 sm:h-12 border-2 border-[#008260]/40">
                                 <AvatarImage src={application.experts?.photo_url} />
                                 <AvatarFallback className="text-lg font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
                                   {application.experts?.name?.charAt(0) || 'E'}
                                 </AvatarFallback>
                               </Avatar>
-                              <div>
-                                <h3 className="font-semibold text-black text-base">{application.experts?.name || 'Unknown Expert'}</h3>
-                                <p className="text-sm text-black">₹{application.experts?.hourly_rate || 0}/hr</p>
+                              <div className="min-w-0">
+                                <h3 className="font-semibold text-black text-sm sm:text-base truncate">{application.experts?.name || 'Unknown Expert'}</h3>
+                                <p className="text-xs sm:text-sm text-black">₹{application.experts?.hourly_rate || 0}/hr</p>
                               </div>
                             </div>
-                            <Badge className='bg-[#FFF6D3] text-xs font-semibold text-[#967800]'>
+                            <Badge className='bg-[#FFF6D3] text-xs font-semibold text-[#967800] flex-shrink-0'>
                               <div className="flex items-center space-x-1">
                                 {getStatusIcon(application.status)}
                                 <span className="capitalize">{application.status}</span>
@@ -769,10 +769,10 @@ export default function ProjectDetailsPage() {
                             </Badge>
                           </div>
                           
-                          <p className="text-sm text-[#000000] mb-4">{application.experts?.bio || 'No bio available'}</p>
+                          <p className="text-xs sm:text-sm text-[#000000] mb-4">{application.experts?.bio || 'No bio available'}</p>
                           
                           {/* Expert Details */}
-                          <div className="grid grid-cols-2 gap-3 text-sm mb-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-4">
                             <div>
                               <span className="text-[#666666] font-medium text-sm">Experience:</span>
                               <p className="font-medium text-[#000000] text-sm">{application.experts?.experience_years || 0} years</p>
@@ -817,17 +817,17 @@ export default function ProjectDetailsPage() {
                             </div>
                           )}
                           
-                          <div className="flex items-center justify-between">
-                            <div className="text-[#666666] font-medium text-sm">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <div className="text-[#666666] font-medium text-xs sm:text-sm">
                               Applied: {new Date(application.applied_at).toLocaleDateString()}
                             </div>
-                            <div className="flex items-center space-x-2">
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                               <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleRejectApplication(application.id)}
                                 disabled={processingApplications[application.id]}
-                                className="border border-[#FF0000] text-[13px] font-medium text-[#FF0000] rounded-[25px] bg-white hover:bg-white hover:text-[#FF0000]"
+                                className="border border-[#FF0000] text-[13px] font-medium text-[#FF0000] rounded-[25px] bg-white hover:bg-white hover:text-[#FF0000] w-full sm:w-auto"
                               >
                                 <XCircle className="h-4 w-4" />
                                 {processingApplications[application.id] ? 'Processing...' : 'Reject'}
@@ -836,7 +836,7 @@ export default function ProjectDetailsPage() {
                                 size="sm"
                                 onClick={() => handleProceedToInterview(application.id)}
                                 disabled={processingApplications[application.id]}
-                                className="bg-[#008260] hover:bg-[#008260] text-white hover:text-white rounded-[25px] text-[13px]"
+                                className="bg-[#008260] hover:bg-[#008260] text-white hover:text-white rounded-[25px] text-[13px] w-full sm:w-auto"
                               >
                                 <Calendar className="h-4 w-4" />
                                 {processingApplications[application.id] ? 'Processing...' : 'Proceed for Interview'}
@@ -883,22 +883,22 @@ export default function ProjectDetailsPage() {
       ) : (
         <div className="space-y-4">
           {interviewApplications?.map((application: any) => (
-            <Card key={application.id} className="bg-white border border-[#DCDCDC] p-4">
+            <Card key={application.id} className="bg-white border border-[#DCDCDC] p-4 sm:p-5">
               <CardContent className="p-0">
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                   <div className="flex items-center space-x-3">
-                    <Avatar className="w-10 h-10 border-2 border-[#008260]/40">
+                    <Avatar className="w-10 h-10 sm:w-12 sm:h-12 border-2 border-[#008260]/40">
                       <AvatarImage src={application.experts?.photo_url} />
                       <AvatarFallback className="text-lg font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
                         {application.experts?.name?.charAt(0) || 'E'}
                       </AvatarFallback>
                     </Avatar>
-                    <div>
-                      <h3 className="font-semibold text-black text-base">{application.experts?.name || 'Unknown Expert'}</h3>
-                      <p className="text-sm text-black">₹{application.experts?.hourly_rate || 0}/hr</p>
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-black text-sm sm:text-base truncate">{application.experts?.name || 'Unknown Expert'}</h3>
+                      <p className="text-xs sm:text-sm text-black">₹{application.experts?.hourly_rate || 0}/hr</p>
                     </div>
                   </div>
-                  <Badge className='bg-[#FFF6D3] text-xs font-semibold text-[#967800]'>
+                  <Badge className='bg-[#FFF6D3] text-xs font-semibold text-[#967800] flex-shrink-0'>
                     <div className="flex items-center space-x-1">
                       {getStatusIcon(application.status)}
                       <span className="capitalize">{application.status}</span>
@@ -906,10 +906,10 @@ export default function ProjectDetailsPage() {
                   </Badge>
                 </div>
                 
-                <p className="text-sm text-[#000000] mb-4">{application.experts?.bio || 'No bio available'}</p>
+                <p className="text-xs sm:text-sm text-[#000000] mb-4">{application.experts?.bio || 'No bio available'}</p>
                 
                 {/* Expert Details */}
-                <div className="grid grid-cols-2 gap-3 text-sm mb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-4">
                   <div>
                     <span className="text-[#666666] font-medium text-sm">Experience:</span>
                     <p className="font-medium text-[#000000] text-sm">{application.experts?.experience_years || 0} years</p>
@@ -955,17 +955,17 @@ export default function ProjectDetailsPage() {
                   </div>
                 )}
                 
-                <div className="flex items-center justify-between">
-                  <div className="text-[#666666] font-medium text-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div className="text-[#666666] font-medium text-xs sm:text-sm">
                     Applied: {new Date(application.applied_at).toLocaleDateString()}
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleRejectApplication(application.id)}
                       disabled={processingApplications[application.id]}
-                      className="border border-[#FF0000] text-[13px] font-medium text-[#FF0000] rounded-[25px] bg-white hover:bg-white hover:text-[#FF0000]"
+                      className="border border-[#FF0000] text-[13px] font-medium text-[#FF0000] rounded-[25px] bg-white hover:bg-white hover:text-[#FF0000] w-full sm:w-auto"
                     >
                       <XCircle className="h-4 w-4" />
                       {processingApplications[application.id] ? 'Processing...' : 'Reject'}
@@ -974,7 +974,7 @@ export default function ProjectDetailsPage() {
                       size="sm"
                       onClick={() => handleProceedToBooking(application.id)}
                       disabled={processingApplications[application.id]}
-                      className="bg-[#008260] hover:bg-[#008260] text-white hover:text-white rounded-[25px] text-[13px]"
+                      className="bg-[#008260] hover:bg-[#008260] text-white hover:text-white rounded-[25px] text-[13px] w-full sm:w-auto"
                     >
                       <CheckCircle className="h-4 w-4" />
                       {processingApplications[application.id] ? 'Processing...' : 'Proceed for Booking'}
@@ -1021,22 +1021,22 @@ export default function ProjectDetailsPage() {
       ) : (
         <div className="space-y-4">
           {rejectedApplications?.map((application: any) => (
-            <Card key={application.id} className="bg-white border border-[#DCDCDC] p-4">
+            <Card key={application.id} className="bg-white border border-[#DCDCDC] p-4 sm:p-5">
               <CardContent className="p-0">
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                   <div className="flex items-center space-x-3">
-                    <Avatar className="w-10 h-10 border-2 border-[#008260]/40">
+                    <Avatar className="w-10 h-10 sm:w-12 sm:h-12 border-2 border-[#008260]/40">
                       <AvatarImage src={application.experts?.photo_url} />
                       <AvatarFallback className="text-lg font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
                         {application.experts?.name?.charAt(0) || 'E'}
                       </AvatarFallback>
                     </Avatar>
-                    <div>
-                      <h3 className="font-semibold text-black text-base">{application.experts?.name || 'Unknown Expert'}</h3>
-                      <p className="text-sm text-black">₹{application.experts?.hourly_rate || 0}/hr</p>
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-black text-sm sm:text-base truncate">{application.experts?.name || 'Unknown Expert'}</h3>
+                      <p className="text-xs sm:text-sm text-black">₹{application.experts?.hourly_rate || 0}/hr</p>
                     </div>
                   </div>
-                  <Badge className={getStatusColor(application.status)}>
+                  <Badge className={`${getStatusColor(application.status)} flex-shrink-0`}>
                     <div className="flex items-center space-x-1">
                       {getStatusIcon(application.status)}
                       <span className="capitalize">{application.status}</span>
@@ -1044,10 +1044,10 @@ export default function ProjectDetailsPage() {
                   </Badge>
                 </div>
                 
-                <p className="text-sm text-[#000000] mb-4">{application.experts?.bio || 'No bio available'}</p>
+                <p className="text-xs sm:text-sm text-[#000000] mb-4">{application.experts?.bio || 'No bio available'}</p>
                 
                 {/* Expert Details */}
-                <div className="grid grid-cols-2 gap-3 text-sm mb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-4">
                   <div>
                     <span className="text-[#666666] font-medium text-sm">Experience:</span>
                     <p className="font-medium text-[#000000] text-sm">{application.experts?.experience_years || 0} years</p>

@@ -158,17 +158,17 @@ export default function FreelanceProjectDetail() {
       </header>
 
       <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <h1 className="text-3xl font-bold text-[#000000] mb-6">View Project</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-[#000000] mb-6">View Project</h1>
         
         <Card className="bg-white border border-[#E0E0E0] rounded-xl mb-6">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between mb-3">
-              <h2 className="font-semibold text-lg text-[#000000]">{project.title}</h2>
-              {project.status && <span className="capitalize text-xs px-3 py-1 rounded-full flex-shrink-0 bg-[#FFF5E6] text-[#FF8A00] border border-[#FF8A00]">{project.status}</span>}
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3">
+              <h2 className="font-semibold text-base sm:text-lg text-[#000000] pr-2">{project.title}</h2>
+              {project.status && <span className="capitalize text-xs px-3 py-1 rounded-full flex-shrink-0 self-start bg-[#FFF5E6] text-[#FF8A00] border border-[#FF8A00]">{project.status}</span>}
             </div>
-            <p className="text-sm text-[#6A6A6A] mb-4">{project.description}</p>
+            <p className="text-xs sm:text-sm text-[#6A6A6A] mb-4">{project.description}</p>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4">
               {project.deadline && (
                 <div>
                   <p className="text-xs text-[#9B0000] mb-1">Deadline:</p>
@@ -250,21 +250,21 @@ export default function FreelanceProjectDetail() {
                 const initial = String(name).charAt(0).toUpperCase()
                 
                 return (
-                <div key={a.id} className="bg-white border border-[#E0E0E0] rounded-xl p-5 hover:border-[#008260] hover:shadow-md transition-all duration-300">
-                  <div className="flex items-start justify-between gap-3 mb-3">
+                <div key={a.id} className="bg-white border border-[#E0E0E0] rounded-xl p-4 sm:p-5 hover:border-[#008260] hover:shadow-md transition-all duration-300">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3 mb-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <Avatar className="h-12 w-12">
+                      <Avatar className="h-10 w-10 sm:h-12 sm:w-12">
                         <AvatarImage src={a.student?.photo_url} />
-                        <AvatarFallback className="bg-[#E0E0E0] text-[#6A6A6A] text-lg">
+                        <AvatarFallback className="bg-[#E0E0E0] text-[#6A6A6A] text-base sm:text-lg">
                           {initial}
                         </AvatarFallback>
                       </Avatar>
                       <div className="min-w-0">
-                        <h4 className="font-semibold text-[#000000] truncate">{name}</h4>
-                        <div className="text-sm text-[#6A6A6A] truncate">{email}</div>
+                        <h4 className="font-semibold text-sm sm:text-base text-[#000000] truncate">{name}</h4>
+                        <div className="text-xs sm:text-sm text-[#6A6A6A] truncate">{email}</div>
                       </div>
                     </div>
-                    <span className="text-xs px-3 py-1 rounded-full flex-shrink-0 bg-[#FFF5E6] text-[#FF8A00] border border-[#FF8A00]">Pending</span>
+                    <span className="text-xs px-3 py-1 rounded-full flex-shrink-0 self-start bg-[#FFF5E6] text-[#FF8A00] border border-[#FF8A00]">Pending</span>
                   </div>
 
                   {a.institution?.name && (
@@ -292,12 +292,12 @@ export default function FreelanceProjectDetail() {
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                       <Dialog>
                         <DialogTrigger asChild>
-                          <Button size="sm" variant="outline" className="border border-[#DCDCDC] hover:border-[#008260] hover:bg-[#E8F5F1] text-[#000000] hover:text-[#008260]">View Profile</Button>
+                          <Button size="sm" variant="outline" className="border border-[#DCDCDC] hover:border-[#008260] hover:bg-[#E8F5F1] text-[#000000] hover:text-[#008260] w-full sm:w-auto">View Profile</Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-2xl bg-white border border-[#E0E0E0]">
+                        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white border border-[#E0E0E0]">
                           <div className="space-y-4">
                             <div className="flex items-center gap-4">
                               <Avatar className="w-16 h-16">
@@ -343,7 +343,7 @@ export default function FreelanceProjectDetail() {
                                 </div>
                               </div>
                             )}
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <div>
                                 <h4 className="font-semibold text-[#000000] mb-2">Applied On</h4>
                                 <p className="text-sm text-[#000000]">{new Date(a.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
@@ -422,21 +422,21 @@ export default function FreelanceProjectDetail() {
                 const initial = String(name).charAt(0).toUpperCase()
                 
                 return (
-                <div key={a.id} className="bg-white border border-[#E0E0E0] rounded-xl p-5 hover:border-[#008260] hover:shadow-md transition-all duration-300">
-                  <div className="flex items-start justify-between gap-3 mb-3">
+                <div key={a.id} className="bg-white border border-[#E0E0E0] rounded-xl p-4 sm:p-5 hover:border-[#008260] hover:shadow-md transition-all duration-300">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3 mb-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <Avatar className="h-12 w-12">
+                      <Avatar className="h-10 w-10 sm:h-12 sm:w-12">
                         <AvatarImage src={a.student?.photo_url} />
-                        <AvatarFallback className="bg-[#E0E0E0] text-[#6A6A6A] text-lg">
+                        <AvatarFallback className="bg-[#E0E0E0] text-[#6A6A6A] text-base sm:text-lg">
                           {initial}
                         </AvatarFallback>
                       </Avatar>
                       <div className="min-w-0">
-                        <h4 className="font-semibold text-[#000000] truncate">{name}</h4>
-                        <div className="text-sm text-[#6A6A6A] truncate">{email}</div>
+                        <h4 className="font-semibold text-sm sm:text-base text-[#000000] truncate">{name}</h4>
+                        <div className="text-xs sm:text-sm text-[#6A6A6A] truncate">{email}</div>
                       </div>
                     </div>
-                    <span className="text-xs px-3 py-1 rounded-full flex-shrink-0 bg-[#FFF5E6] text-[#FF8A00] border border-[#FF8A00]">Pending</span>
+                    <span className="text-xs px-3 py-1 rounded-full flex-shrink-0 self-start bg-[#FFF5E6] text-[#FF8A00] border border-[#FF8A00]">Pending</span>
                   </div>
 
                   {a.institution?.name && (
@@ -469,7 +469,7 @@ export default function FreelanceProjectDetail() {
                       <DialogTrigger asChild>
                         <Button size="sm" variant="outline" className="border border-[#DCDCDC] hover:border-[#008260] hover:bg-[#E8F5F1] text-[#000000] hover:text-[#008260]">View Profile</Button>
                       </DialogTrigger>
-                      <DialogContent className="max-w-2xl bg-white border border-[#E0E0E0]">
+                      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white border border-[#E0E0E0]">
                           <div className="space-y-4">
                             <div className="flex items-center gap-4">
                               <Avatar className="w-16 h-16">
@@ -515,7 +515,7 @@ export default function FreelanceProjectDetail() {
                                 </div>
                               </div>
                             )}
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <div>
                                 <h4 className="font-semibold text-[#000000] mb-2">Applied On</h4>
                                 <p className="text-sm text-[#000000]">{new Date(a.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
@@ -592,17 +592,17 @@ export default function FreelanceProjectDetail() {
                 
                 return (
                 <div key={s.id} className="bg-white border border-[#E0E0E0] rounded-xl p-5 hover:border-[#008260] hover:shadow-md transition-all duration-300">
-                  <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3 mb-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <Avatar className="h-12 w-12">
+                      <Avatar className="h-10 w-10 sm:h-12 sm:w-12">
                         <AvatarImage src={s.student?.photo_url} />
-                        <AvatarFallback className="bg-[#E0E0E0] text-[#6A6A6A] text-lg">
+                        <AvatarFallback className="bg-[#E0E0E0] text-[#6A6A6A] text-base sm:text-lg">
                           {initial}
                         </AvatarFallback>
                       </Avatar>
                       <div className="min-w-0">
-                        <h4 className="font-semibold text-[#000000] truncate">{name}</h4>
-                        <div className="text-sm text-[#6A6A6A] truncate">{email}</div>
+                        <h4 className="font-semibold text-sm sm:text-base text-[#000000] truncate">{name}</h4>
+                        <div className="text-xs sm:text-sm text-[#6A6A6A] truncate">{email}</div>
                       </div>
                     </div>
                     <span className="text-xs px-3 py-1 rounded-full flex-shrink-0 bg-[#FFF5E6] text-[#FF8A00] border border-[#FF8A00]">Submitted</span>
@@ -645,7 +645,7 @@ export default function FreelanceProjectDetail() {
                       <DialogTrigger asChild>
                         <Button size="sm" variant="outline" className="border border-[#DCDCDC] hover:border-[#008260] hover:bg-[#E8F5F1] text-[#000000] hover:text-[#008260]">View Profile</Button>
                       </DialogTrigger>
-                      <DialogContent className="max-w-2xl bg-white border border-[#E0E0E0]">
+                      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white border border-[#E0E0E0]">
                           <div className="space-y-4">
                             <div className="flex items-center gap-4">
                               <Avatar className="w-16 h-16">
@@ -688,7 +688,7 @@ export default function FreelanceProjectDetail() {
                                 </div>
                               </div>
                             )}
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <div>
                                 <h4 className="font-semibold text-[#000000] mb-2">Submitted On</h4>
                                 <p className="text-sm text-[#000000]">{new Date(s.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>

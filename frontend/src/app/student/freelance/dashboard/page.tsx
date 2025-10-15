@@ -277,7 +277,7 @@ export default function StudentFreelanceDashboard() {
                       {s.note && (
                         <div className="mb-4">
                           <div className="text-xs text-[#717171] font-medium mb-1">Note:</div>
-                          <p className="text-sm text-[#000000] leading-relaxed whitespace-pre-wrap">{s.note}</p>
+                          <p className="text-sm text-[#000000] leading-relaxed break-all">{s.note}</p>
                         </div>
                       )}
 

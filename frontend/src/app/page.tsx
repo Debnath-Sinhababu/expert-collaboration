@@ -281,7 +281,9 @@ export default function Home() {
             {/* Navigation & CTA - Desktop */}
             <div className="hidden sm:flex items-center justify-end gap-2">
               {/* Explore Experts - Mega Menu */}
-             
+              <Link href="/requirements">
+                <Button variant="ghost" className="font-medium text-white/90 hover:text-white hover:bg-white/10 transition-all duration-300 px-3 py-2 text-sm">Requirements</Button>
+              </Link>
               <Link href="/contact-us">
                 <Button variant="ghost" className="font-medium text-white/90 hover:text-white hover:bg-white/10 transition-all duration-300 px-3 py-2 text-sm">Contact Us</Button>
               </Link>
@@ -305,7 +307,9 @@ export default function Home() {
                 <DropdownMenuContent align="end" className="w-64">
                   {/* Explore Experts nested mobile menu */}
                 
-
+                  <Link href="/requirements">
+                  <DropdownMenuItem className="cursor-pointer">Requirements</DropdownMenuItem>
+              </Link>
                   <Link href="/contact-us">
                     <DropdownMenuItem className="cursor-pointer">Contact Us</DropdownMenuItem>
                   </Link>

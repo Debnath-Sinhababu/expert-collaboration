@@ -169,14 +169,14 @@ export default function RequirementsPage() {
               <p className="text-[#6A6A6A] text-lg mb-8">
                 Connect with leading organizations looking for expert knowledge. These are live opportunities.updated daily.
               </p>
-              <div className="flex gap-4">
-                <Link href="/auth/signup">
-                  <Button className="bg-[#008260] hover:bg-[#006d51] text-white px-8 py-6 text-base font-semibold rounded-3xl">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Link href="/auth/signup" className="w-full sm:w-auto">
+                  <Button className="bg-[#008260] hover:bg-[#006d51] text-white px-8 py-6 text-base font-semibold rounded-3xl w-full sm:w-auto">
                     Find Requirements
                   </Button>
                 </Link>
-                <Link href="/auth/signup?role=institution">
-                  <Button variant="outline" className="border-[#008260] text-[#008260] bg-[] px-8 py-6 text-base font-semibold rounded-3xl">
+                <Link href="/auth/signup?role=institution" className="w-full sm:w-auto">
+                  <Button variant="outline" className="border-[#008260] text-[#008260] bg-[] px-8 py-6 text-base font-semibold rounded-3xl w-full sm:w-auto">
                     + Post a Requirement
                   </Button>
                 </Link>

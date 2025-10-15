@@ -473,9 +473,9 @@ export default function ExpertProfile() {
 
   {/* Main Card */}
   <Card className="bg-white border border-slate-200 rounded-2xl shadow-sm">
-    <CardContent className="p-8">
+    <CardContent className="p-4 sm:p-6 lg:p-8">
       {/* Main Content Grid */}
-      <div className="grid grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
         {/* ABOUT Section */}
         <div>
           <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
@@ -677,7 +677,7 @@ export default function ExpertProfile() {
                       <Label htmlFor="qualifications_pdf" className="text-slate-700">Qualifications Documents (PDF)</Label>
                       {editing ? (
                         <>
-                          <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center transition-all duration-300">
+                          <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center transition-all duration-300">
                             <input
                               type="file"
                               id="qualifications_pdf"
@@ -759,7 +759,7 @@ export default function ExpertProfile() {
                         {/* Photo Upload Area */}
                         <div className="space-y-4">
                           {!photoPreview ? (
-                            <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center">
+                            <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center">
                               <input
                                 type="file"
                                 id="profile_photo"
@@ -911,7 +911,7 @@ export default function ExpertProfile() {
                       <Label htmlFor="resume" className="text-slate-700">Resume/CV (PDF)</Label>
                       {editing ? (
                         <>
-                          <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center transition-all duration-300">
+                          <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center transition-all duration-300">
                             <input
                               type="file"
                               id="resume"

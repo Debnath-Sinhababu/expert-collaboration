@@ -95,10 +95,10 @@ export default function FreelanceDashboard() {
       </header>
 
       <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-[#000000]">Freelance Dashboard</h1>
-          <Link href="/institution/post-requirement">
-            <Button className="bg-[#008260] hover:bg-[#006B4F] text-white rounded-md px-6">+ Post Requirement</Button>
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4 mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#000000]">Freelance Dashboard</h1>
+          <Link href="/institution/post-requirement" className="w-full sm:w-auto">
+            <Button className="bg-[#008260] hover:bg-[#006B4F] text-white rounded-md px-6 w-full sm:w-auto">+ Post Requirement</Button>
           </Link>
         </div>
 
@@ -125,13 +125,13 @@ export default function FreelanceDashboard() {
             ) : (
               <div className="space-y-4">
                 {projects.map((p) => (
-                  <div key={p.id} className="bg-white border border-[#E0E0E0] rounded-xl p-5 hover:border-[#008260] hover:shadow-md transition-all duration-300">
-                    <div className="flex items-start justify-between mb-3 gap-3">
-                      <h3 className="font-semibold text-lg text-[#000000]">{p.title}</h3>
-                      {p.status && <span className={`capitalize text-xs px-3 py-1 rounded-full flex-shrink-0 ${statusClass(p.status)}`}>{p.status}</span>}
+                  <div key={p.id} className="bg-white border border-[#E0E0E0] rounded-xl p-4 sm:p-5 hover:border-[#008260] hover:shadow-md transition-all duration-300">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3 mb-3">
+                      <h3 className="font-semibold text-base sm:text-lg text-[#000000] pr-2">{p.title}</h3>
+                      {p.status && <span className={`capitalize text-xs px-3 py-1 rounded-full flex-shrink-0 self-start ${statusClass(p.status)}`}>{p.status}</span>}
                     </div>
-                    <p className="text-sm text-[#6A6A6A] mb-4 line-clamp-2">{p.description}</p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <p className="text-xs sm:text-sm text-[#6A6A6A] mb-4 line-clamp-2">{p.description}</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4">
                       {p.deadline && (
                         <div>
                           <p className="text-xs text-[#9B0000] mb-1">Deadline:</p>
@@ -157,7 +157,7 @@ export default function FreelanceDashboard() {
                       </div>
                     )}
                     <div className="flex justify-end">
-                      <Button size="sm" className="bg-[#008260] hover:bg-[#006B4F] text-white rounded-md px-6" onClick={() => router.push(`/institution/freelance/${p.id}`)}>View</Button>
+                      <Button size="sm" className="bg-[#008260] hover:bg-[#006B4F] text-white rounded-md px-6 w-full sm:w-auto" onClick={() => router.push(`/institution/freelance/${p.id}`)}>View</Button>
                     </div>
                   </div>
                 ))}

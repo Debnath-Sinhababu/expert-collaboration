@@ -109,12 +109,12 @@ export default function InternshipDetailPage() {
 
               {/* Internship Description */}
               <div className="mb-8">
-                <h2 className="text-xl font-bold text-[#000000] mb-3">Internship Description</h2>
-                <p className="text-[#6A6A6A] text-base leading-relaxed">{internship.responsibilities}</p>
+                <h2 className="text-lg sm:text-xl font-bold text-[#000000] mb-3">Internship Description</h2>
+                <p className="text-[#6A6A6A] text-sm sm:text-base leading-relaxed">{internship.responsibilities}</p>
               </div>
 
               {/* Details Grid */}
-              <div className="grid grid-cols-3 gap-x-16 gap-y-6 mb-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 sm:gap-x-16 gap-y-6 mb-8">
                 <div>
                   <div className="text-[#6A6A6A] text-sm mb-1">Openings:</div>
                   <div className="font-semibold text-[#000000] text-base">{internship.openings}</div>
@@ -236,7 +236,7 @@ export default function InternshipDetailPage() {
                         const email = app.student?.email || '-'
                         const initial = String(name).charAt(0).toUpperCase()
                         return (
-                          <div key={app.id} className="bg-white border border-[#DCDCDC] rounded-lg p-6 relative">
+                          <div key={app.id} className="bg-white border border-[#DCDCDC] rounded-lg p-4 sm:p-6 relative">
                             {activeStage === 'rejected' && (
                               <Badge className="absolute top-4 right-4 rounded-3xl bg-white border border-[#9B0000] text-[#9B0000] hover:bg-white text-[13px] font-medium">
                                 Rejected
@@ -263,7 +263,7 @@ export default function InternshipDetailPage() {
                                   <DialogTrigger asChild>
                                     <Button size="sm" variant="outline" className="border border-[#008260] text-[#008260] hover:bg-[#008260]/10 rounded-full px-4">View Profile</Button>
                                   </DialogTrigger>
-                                  <DialogContent className="max-w-3xl bg-white border border-[#DCDCDC]">
+                                  <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white border border-[#DCDCDC]">
                                     <DialogHeader>
                                       <DialogTitle className="text-2xl font-bold text-[#000000]">Student Profile</DialogTitle>
                                     </DialogHeader>
@@ -287,7 +287,7 @@ export default function InternshipDetailPage() {
                                       )}
                                       
                                       {/* Education & Preferences Grid */}
-                                      <div className="grid grid-cols-2 gap-6">
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                                         <div>
                                           <h4 className="font-semibold text-[#000000] mb-2 text-base">Education</h4>
                                           <p className="text-sm text-[#6A6A6A] mb-1">{app.student?.degree || '-'} {app.student?.year ? `· ${app.student.year}` : ''}</p>

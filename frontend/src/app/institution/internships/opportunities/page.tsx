@@ -114,10 +114,10 @@ export default function InternshipOpportunitiesPage() {
           <Alert variant="destructive" className="mb-6"><AlertDescription>{error}</AlertDescription></Alert>
         )}
        
-       <h2 className="text-2xl font-semibold text-[#000000] mb-4 mx-auto">Browse Internships</h2>
+       <h2 className="text-xl sm:text-2xl font-semibold text-[#000000] mb-4 mx-auto">Browse Internships</h2>
 
         {/* Filters */}
-        <div className="bg-white rounded-lg shadow-sm border-2 border-[#D6D6D6] p-6 mb-8">
+        <div className="bg-white rounded-lg shadow-sm border-2 border-[#D6D6D6] p-4 sm:p-6 mb-8">
          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
@@ -238,13 +238,13 @@ export default function InternshipOpportunitiesPage() {
           ) : (
             internships.map((item: any) => (
               <Card key={item.id} className="bg-white border border-[#DCDCDC] hover:border-[#008260] hover:shadow-md transition-all duration-300 group">
-                <CardContent className="p-6">
+                <CardContent className="p-4 sm:p-6">
                   <div className="mb-4">
-                    <h3 className="font-bold text-lg text-[#000000] group-hover:text-[#008260] transition-colors duration-300 mb-2">{item.title}</h3>
-                    <p className="text-sm text-[#6A6A6A] line-clamp-2">{item.responsibilities}</p>
+                    <h3 className="font-bold text-base sm:text-lg text-[#000000] group-hover:text-[#008260] transition-colors duration-300 mb-2">{item.title}</h3>
+                    <p className="text-xs sm:text-sm text-[#6A6A6A] line-clamp-2">{item.responsibilities}</p>
                   </div>
                   
-                  <div className="grid grid-cols-2  sm:grid-cols-3 gap-x-8 gap-y-4 mb-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-4 sm:gap-x-8 gap-y-4 mb-4">
                     <div>
                       <div className="text-[#717171] text-xs mb-1">Openings:</div>
                       <div className="font-semibold text-[#000000] text-sm">{item.openings}</div>
@@ -273,7 +273,7 @@ export default function InternshipOpportunitiesPage() {
                   
                   <div className="flex justify-end">
                     <Button 
-                      className="bg-[#008260] hover:bg-[#006B4F] text-white font-medium rounded-full px-8" 
+                      className="bg-[#008260] hover:bg-[#006B4F] text-white font-medium rounded-full px-8 w-full sm:w-auto" 
                       onClick={() => router.push(`/institution/internships/opportunities/${item.id}`)}
                     >
                       View

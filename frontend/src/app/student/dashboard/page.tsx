@@ -198,31 +198,31 @@ export default function StudentDashboard() {
                   <div className="space-y-4">
                     {(pendingApps as any[])?.map((app) => (
                       <Card key={app.id} className="bg-white border-2 border-[#D6D6D6] rounded-xl hover:border-[#008260] hover:shadow-md transition-all duration-300">
-                        <CardContent className="p-6">
+                        <CardContent className="p-4 sm:p-6">
                           {/* Header with title and badge */}
-                          <div className="flex items-start justify-between mb-4">
+                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3 sm:mb-4">
                             <div className="flex-1 min-w-0">
-                              <h3 className="font-bold text-base text-[#000000] mb-1">
+                              <h3 className="font-bold text-sm sm:text-base text-[#000000] mb-1 break-words">
                                 {app.internships?.title || 'Internship'}
                               </h3>
                             </div>
-                            <Badge className="bg-[#FFF2E5] text-[#FF6B00] hover:bg-[#FFE5CC] border-none font-medium shrink-0 ml-3">
+                            <Badge className="bg-[#FFF2E5] text-[#FF6B00] hover:bg-[#FFE5CC] border-none font-medium shrink-0 self-start">
                               Pending
                             </Badge>
                           </div>
 
                           {/* Description */}
                           {app.internships?.responsibilities && (
-                            <p className="text-sm text-[#6A6A6A] mb-4 line-clamp-2">
+                            <p className="text-xs sm:text-sm text-[#6A6A6A] mb-3 sm:mb-4 line-clamp-2">
                               {app.internships.responsibilities}
                             </p>
                           )}
 
                           {/* Grid Layout for Details - 2 rows x 3 columns */}
-                          <div className="grid grid-cols-3 gap-x-8 gap-y-4 mb-4">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 sm:gap-x-8 gap-y-3 sm:gap-y-4 mb-4">
                             <div>
                               <div className="text-[#717171] text-xs mb-1">Deadline:</div>
-                              <div className="font-semibold text-[#000000] text-sm">
+                              <div className="font-semibold text-[#000000] text-xs sm:text-sm truncate">
                                 {app.internships?.start_date 
                                   ? new Date(app.internships.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                                   : 'N/A'}
@@ -230,13 +230,13 @@ export default function StudentDashboard() {
                             </div>
                             <div>
                               <div className="text-[#717171] text-xs mb-1">Duration:</div>
-                              <div className="font-semibold text-[#000000] text-sm">
+                              <div className="font-semibold text-[#000000] text-xs sm:text-sm truncate">
                                 {app.internships?.duration_value} {app.internships?.duration_unit}
                               </div>
                             </div>
                             <div>
                               <div className="text-[#717171] text-xs mb-1">Stipend:</div>
-                              <div className="font-semibold text-[#008260] text-sm">
+                              <div className="font-semibold text-[#008260] text-xs sm:text-sm truncate">
                                 {app.internships?.paid 
                                   ? `₹${app.internships.stipend_min}${app.internships.stipend_max ? '-₹' + app.internships.stipend_max : ''}/month`
                                   : 'Unpaid'}
@@ -244,15 +244,15 @@ export default function StudentDashboard() {
                             </div>
                             <div>
                               <div className="text-[#717171] text-xs mb-1">Work Mode:</div>
-                              <div className="font-semibold text-[#000000] text-sm">{app.internships?.work_mode}</div>
+                              <div className="font-semibold text-[#000000] text-xs sm:text-sm truncate">{app.internships?.work_mode}</div>
                             </div>
                             <div>
                               <div className="text-[#717171] text-xs mb-1">Engagement:</div>
-                              <div className="font-semibold text-[#000000] text-sm">{app.internships?.engagement}</div>
+                              <div className="font-semibold text-[#000000] text-xs sm:text-sm truncate">{app.internships?.engagement}</div>
                             </div>
                             <div>
                               <div className="text-[#717171] text-xs mb-1">Posted on:</div>
-                              <div className="font-semibold text-[#000000] text-sm">
+                              <div className="font-semibold text-[#000000] text-xs sm:text-sm truncate">
                                 {new Date(app.internships?.created_at || app.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
                               </div>
                             </div>
@@ -261,7 +261,7 @@ export default function StudentDashboard() {
                           {/* View Button */}
                           <div className="flex justify-end">
                             <Button 
-                              className="bg-[#008260] hover:bg-[#006B4F] text-white font-medium rounded-full px-6"
+                              className="bg-[#008260] hover:bg-[#006B4F] text-white font-medium rounded-full px-6 w-full sm:w-auto"
                               onClick={() => router.push(`/student/internships/${app.internship_id}`)}
                             >
                               View
@@ -302,31 +302,31 @@ export default function StudentDashboard() {
                   <div className="space-y-4">
                     {(interviewApps as any[])?.map((app) => (
                       <Card key={app.id} className="bg-white border-2 border-[#D6D6D6] rounded-xl hover:border-[#008260] hover:shadow-md transition-all duration-300">
-                        <CardContent className="p-6">
+                        <CardContent className="p-4 sm:p-6">
                           {/* Header with title and badge */}
-                          <div className="flex items-start justify-between mb-4">
+                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3 sm:mb-4">
                             <div className="flex-1 min-w-0">
-                              <h3 className="font-bold text-base text-[#000000] mb-1">
+                              <h3 className="font-bold text-sm sm:text-base text-[#000000] mb-1 break-words">
                                 {app.internships?.title || 'Internship'}
                               </h3>
                             </div>
-                            <Badge className="bg-[#FFF2E5] text-[#FF6B00] hover:bg-[#FFE5CC] border-none font-medium shrink-0 ml-3">
+                            <Badge className="bg-[#FFF2E5] text-[#FF6B00] hover:bg-[#FFE5CC] border-none font-medium shrink-0 self-start">
                               Interview
                             </Badge>
                           </div>
 
                           {/* Description */}
                           {app.internships?.responsibilities && (
-                            <p className="text-sm text-[#6A6A6A] mb-4 line-clamp-2">
+                            <p className="text-xs sm:text-sm text-[#6A6A6A] mb-3 sm:mb-4 line-clamp-2">
                               {app.internships.responsibilities}
                             </p>
                           )}
 
                           {/* Grid Layout for Details - 2 rows x 3 columns */}
-                          <div className="grid grid-cols-3 gap-x-8 gap-y-4 mb-4">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 sm:gap-x-8 gap-y-3 sm:gap-y-4 mb-4">
                             <div>
                               <div className="text-[#717171] text-xs mb-1">Deadline:</div>
-                              <div className="font-semibold text-[#000000] text-sm">
+                              <div className="font-semibold text-[#000000] text-xs sm:text-sm truncate">
                                 {app.internships?.start_date 
                                   ? new Date(app.internships.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                                   : 'N/A'}
@@ -334,13 +334,13 @@ export default function StudentDashboard() {
                             </div>
                             <div>
                               <div className="text-[#717171] text-xs mb-1">Duration:</div>
-                              <div className="font-semibold text-[#000000] text-sm">
+                              <div className="font-semibold text-[#000000] text-xs sm:text-sm truncate">
                                 {app.internships?.duration_value} {app.internships?.duration_unit}
                               </div>
                             </div>
                             <div>
                               <div className="text-[#717171] text-xs mb-1">Stipend:</div>
-                              <div className="font-semibold text-[#008260] text-sm">
+                              <div className="font-semibold text-[#008260] text-xs sm:text-sm truncate">
                                 {app.internships?.paid 
                                   ? `₹${app.internships.stipend_min}${app.internships.stipend_max ? '-₹' + app.internships.stipend_max : ''}/month`
                                   : 'Unpaid'}
@@ -348,15 +348,15 @@ export default function StudentDashboard() {
                             </div>
                             <div>
                               <div className="text-[#717171] text-xs mb-1">Work Mode:</div>
-                              <div className="font-semibold text-[#000000] text-sm">{app.internships?.work_mode}</div>
+                              <div className="font-semibold text-[#000000] text-xs sm:text-sm truncate">{app.internships?.work_mode}</div>
                             </div>
                             <div>
                               <div className="text-[#717171] text-xs mb-1">Engagement:</div>
-                              <div className="font-semibold text-[#000000] text-sm">{app.internships?.engagement}</div>
+                              <div className="font-semibold text-[#000000] text-xs sm:text-sm truncate">{app.internships?.engagement}</div>
                             </div>
                             <div>
                               <div className="text-[#717171] text-xs mb-1">Posted on:</div>
-                              <div className="font-semibold text-[#000000] text-sm">
+                              <div className="font-semibold text-[#000000] text-xs sm:text-sm truncate">
                                 {new Date(app.internships?.created_at || app.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
                               </div>
                             </div>
@@ -365,7 +365,7 @@ export default function StudentDashboard() {
                           {/* View Button */}
                           <div className="flex justify-end">
                             <Button 
-                              className="bg-[#008260] hover:bg-[#006B4F] text-white font-medium rounded-full px-6"
+                              className="bg-[#008260] hover:bg-[#006B4F] text-white font-medium rounded-full px-6 w-full sm:w-auto"
                               onClick={() => router.push(`/student/internships/${app.internship_id}`)}
                             >
                               View
@@ -406,31 +406,31 @@ export default function StudentDashboard() {
                   <div className="space-y-4">
                     {(selectedApps as any[])?.map((app) => (
                       <Card key={app.id} className="bg-white border-2 border-[#D6D6D6] rounded-xl hover:border-[#008260] hover:shadow-md transition-all duration-300">
-                        <CardContent className="p-6">
+                        <CardContent className="p-4 sm:p-6">
                           {/* Header with title and badge */}
-                          <div className="flex items-start justify-between mb-4">
+                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3 sm:mb-4">
                             <div className="flex-1 min-w-0">
-                              <h3 className="font-bold text-base text-[#000000] mb-1">
+                              <h3 className="font-bold text-sm sm:text-base text-[#000000] mb-1 break-words">
                                 {app.internships?.title || 'Internship'}
                               </h3>
                             </div>
-                            <Badge className="bg-[#FFF2E5] text-[#FF6B00] hover:bg-[#FFE5CC] border-none font-medium shrink-0 ml-3">
+                            <Badge className="bg-[#FFF2E5] text-[#FF6B00] hover:bg-[#FFE5CC] border-none font-medium shrink-0 self-start">
                               Selected
                             </Badge>
                           </div>
 
                           {/* Description */}
                           {app.internships?.responsibilities && (
-                            <p className="text-sm text-[#6A6A6A] mb-4 line-clamp-2">
+                            <p className="text-xs sm:text-sm text-[#6A6A6A] mb-3 sm:mb-4 line-clamp-2">
                               {app.internships.responsibilities}
                             </p>
                           )}
 
                           {/* Grid Layout for Details - 2 rows x 3 columns */}
-                          <div className="grid grid-cols-3 gap-x-8 gap-y-4 mb-4">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 sm:gap-x-8 gap-y-3 sm:gap-y-4 mb-4">
                             <div>
                               <div className="text-[#717171] text-xs mb-1">Deadline:</div>
-                              <div className="font-semibold text-[#000000] text-sm">
+                              <div className="font-semibold text-[#000000] text-xs sm:text-sm truncate">
                                 {app.internships?.start_date 
                                   ? new Date(app.internships.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                                   : 'N/A'}
@@ -438,13 +438,13 @@ export default function StudentDashboard() {
                             </div>
                             <div>
                               <div className="text-[#717171] text-xs mb-1">Duration:</div>
-                              <div className="font-semibold text-[#000000] text-sm">
+                              <div className="font-semibold text-[#000000] text-xs sm:text-sm truncate">
                                 {app.internships?.duration_value} {app.internships?.duration_unit}
                               </div>
                             </div>
                             <div>
                               <div className="text-[#717171] text-xs mb-1">Stipend:</div>
-                              <div className="font-semibold text-[#008260] text-sm">
+                              <div className="font-semibold text-[#008260] text-xs sm:text-sm truncate">
                                 {app.internships?.paid 
                                   ? `₹${app.internships.stipend_min}${app.internships.stipend_max ? '-₹' + app.internships.stipend_max : ''}/month`
                                   : 'Unpaid'}
@@ -452,15 +452,15 @@ export default function StudentDashboard() {
                             </div>
                             <div>
                               <div className="text-[#717171] text-xs mb-1">Work Mode:</div>
-                              <div className="font-semibold text-[#000000] text-sm">{app.internships?.work_mode}</div>
+                              <div className="font-semibold text-[#000000] text-xs sm:text-sm truncate">{app.internships?.work_mode}</div>
                             </div>
                             <div>
                               <div className="text-[#717171] text-xs mb-1">Engagement:</div>
-                              <div className="font-semibold text-[#000000] text-sm">{app.internships?.engagement}</div>
+                              <div className="font-semibold text-[#000000] text-xs sm:text-sm truncate">{app.internships?.engagement}</div>
                             </div>
                             <div>
                               <div className="text-[#717171] text-xs mb-1">Posted on:</div>
-                              <div className="font-semibold text-[#000000] text-sm">
+                              <div className="font-semibold text-[#000000] text-xs sm:text-sm truncate">
                                 {new Date(app.internships?.created_at || app.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
                               </div>
                             </div>
@@ -469,7 +469,7 @@ export default function StudentDashboard() {
                           {/* View Button */}
                           <div className="flex justify-end">
                             <Button 
-                              className="bg-[#008260] hover:bg-[#006B4F] text-white font-medium rounded-full px-6"
+                              className="bg-[#008260] hover:bg-[#006B4F] text-white font-medium rounded-full px-6 w-full sm:w-auto"
                               onClick={() => router.push(`/student/internships/${app.internship_id}`)}
                             >
                               View
@@ -510,31 +510,31 @@ export default function StudentDashboard() {
                   <div className="space-y-4">
                     {(rejectedApps as any[])?.map((app) => (
                       <Card key={app.id} className="bg-white border-2 border-[#D6D6D6] rounded-xl hover:border-[#008260] hover:shadow-md transition-all duration-300">
-                        <CardContent className="p-6">
+                        <CardContent className="p-4 sm:p-6">
                           {/* Header with title and badge */}
-                          <div className="flex items-start justify-between mb-4">
+                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3 sm:mb-4">
                             <div className="flex-1 min-w-0">
-                              <h3 className="font-bold text-base text-[#000000] mb-1">
+                              <h3 className="font-bold text-sm sm:text-base text-[#000000] mb-1 break-words">
                                 {app.internships?.title || 'Internship'}
                               </h3>
                             </div>
-                            <Badge className="bg-[#FFF1E7] text-[#9B0000] hover:bg-[#FFF1E7] border-none font-medium shrink-0 ml-3 text-xs">
+                            <Badge className="bg-[#FFF1E7] text-[#9B0000] hover:bg-[#FFF1E7] border-none font-medium shrink-0 self-start text-xs">
                               Rejected
                             </Badge>
                           </div>
 
                           {/* Description */}
                           {app.internships?.responsibilities && (
-                            <p className="text-sm text-[#6A6A6A] mb-4 line-clamp-2">
+                            <p className="text-xs sm:text-sm text-[#6A6A6A] mb-3 sm:mb-4 line-clamp-2">
                               {app.internships.responsibilities}
                             </p>
                           )}
 
                           {/* Grid Layout for Details - 2 rows x 3 columns */}
-                          <div className="grid grid-cols-3 gap-x-8 gap-y-4 mb-4">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 sm:gap-x-8 gap-y-3 sm:gap-y-4 mb-4">
                             <div>
                               <div className="text-[#717171] text-xs mb-1">Deadline:</div>
-                              <div className="font-semibold text-[#000000] text-sm">
+                              <div className="font-semibold text-[#000000] text-xs sm:text-sm truncate">
                                 {app.internships?.start_date 
                                   ? new Date(app.internships.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                                   : 'N/A'}
@@ -542,13 +542,13 @@ export default function StudentDashboard() {
                             </div>
                             <div>
                               <div className="text-[#717171] text-xs mb-1">Duration:</div>
-                              <div className="font-semibold text-[#000000] text-sm">
+                              <div className="font-semibold text-[#000000] text-xs sm:text-sm truncate">
                                 {app.internships?.duration_value} {app.internships?.duration_unit}
                               </div>
                             </div>
                             <div>
                               <div className="text-[#717171] text-xs mb-1">Stipend:</div>
-                              <div className="font-semibold text-[#008260] text-sm">
+                              <div className="font-semibold text-[#008260] text-xs sm:text-sm truncate">
                                 {app.internships?.paid 
                                   ? `₹${app.internships.stipend_min}${app.internships.stipend_max ? '-₹' + app.internships.stipend_max : ''}/month`
                                   : 'Unpaid'}
@@ -556,15 +556,15 @@ export default function StudentDashboard() {
                             </div>
                             <div>
                               <div className="text-[#717171] text-xs mb-1">Work Mode:</div>
-                              <div className="font-semibold text-[#000000] text-sm">{app.internships?.work_mode}</div>
+                              <div className="font-semibold text-[#000000] text-xs sm:text-sm truncate">{app.internships?.work_mode}</div>
                             </div>
                             <div>
                               <div className="text-[#717171] text-xs mb-1">Engagement:</div>
-                              <div className="font-semibold text-[#000000] text-sm">{app.internships?.engagement}</div>
+                              <div className="font-semibold text-[#000000] text-xs sm:text-sm truncate">{app.internships?.engagement}</div>
                             </div>
                             <div>
                               <div className="text-[#717171] text-xs mb-1">Posted on:</div>
-                              <div className="font-semibold text-[#000000] text-sm">
+                              <div className="font-semibold text-[#000000] text-xs sm:text-sm truncate">
                                 {new Date(app.internships?.created_at || app.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
                               </div>
                             </div>
@@ -573,7 +573,7 @@ export default function StudentDashboard() {
                           {/* View Button */}
                           <div className="flex justify-end">
                             <Button 
-                              className="bg-[#008260] hover:bg-[#006B4F] text-white font-medium rounded-full px-6"
+                              className="bg-[#008260] hover:bg-[#006B4F] text-white font-medium rounded-full px-6 w-full sm:w-auto"
                               onClick={() => router.push(`/student/internships/${app.internship_id}`)}
                             >
                               View

@@ -438,7 +438,7 @@ export default function ExpertProfileSetup() {
 
                 <div className="space-y-2">
                   <Label htmlFor="qualifications_pdf" className="text-slate-700">Qualifications Documents (PDF)</Label>
-                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center hover:border-blue-400 transition-colors">
                     <input
                       type="file"
                       id="qualifications_pdf"
@@ -499,7 +499,7 @@ export default function ExpertProfileSetup() {
                   {/* Photo Upload Area */}
                   <div className="space-y-4">
                     {!photoPreview ? (
-                      <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors duration-300">
+                      <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center hover:border-blue-400 transition-colors duration-300">
                         <input
                           type="file"
                           id="profile_photo"
@@ -653,7 +653,7 @@ export default function ExpertProfileSetup() {
 
                 <div className="space-y-2">
                   <Label htmlFor="resume" className="text-slate-700">Resume/CV (PDF)</Label>
-                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center hover:border-blue-400 transition-colors">
                     <input
                       type="file"
                       id="resume"

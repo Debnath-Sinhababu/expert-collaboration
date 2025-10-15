@@ -529,8 +529,8 @@ export default function ExpertDashboard() {
         )}
 
         <div className="mb-8 text-center">
-          <h1 className="text-4xl font-bold text-slate-900 mb-3 tracking-tight">Expert Dashboard</h1>
-          <p className="text-xl text-slate-600 font-medium">Welcome back, {expert?.name}</p>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-3 tracking-tight">Expert Dashboard</h1>
+          <p className="text-base sm:text-lg md:text-xl text-slate-600 font-medium">Welcome back, {expert?.name}</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
@@ -732,33 +732,33 @@ export default function ExpertDashboard() {
                 ) : (
                   <div className="space-y-4">
                       {pagedPendingApplications?.map((application: any) => (
-                      <div key={application.id} className="bg-white border border-[#DCDCDC] rounded-lg p-6 hover:border-[#008260] hover:shadow-md transition-all duration-300 group">
-                        <div className="flex items-center justify-between mb-2 min-w-0">
-                          <h3 className="font-bold text-lg text-[#000000] group-hover:text-[#008260] truncate pr-2 hover:cursor-pointer transition-colors duration-300"
+                      <div key={application.id} className="bg-white border border-[#DCDCDC] rounded-lg p-4 sm:p-6 hover:border-[#008260] hover:shadow-md transition-all duration-300 group">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
+                          <h3 className="font-bold text-base sm:text-lg text-[#000000] group-hover:text-[#008260] hover:cursor-pointer transition-colors duration-300 min-w-0 break-words"
                           onClick={()=>router.push(`/expert/project/${application.project_id}`)}
                           >{application.projects?.title || 'Project Title'}</h3>
-                          <Badge className="capitalize bg-[#FFF1E7] hover:bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-2 px-4 flex-shrink-0">
+                          <Badge className="capitalize bg-[#FFF1E7] hover:bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 sm:py-2 px-3 sm:px-4 flex-shrink-0 self-start">
                             {new Date(application.applied_at || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </Badge>
                         </div>
-                        <p className="text-sm text-[#6A6A6A] mb-3">{application.projects?.description || 'Project description'}</p>
-                        <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
-                          <div className="flex items-start gap-3">
-                            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
-                              <Clock className="w-5 h-5" style={{ color: '#008260' }} />
+                        <p className="text-xs sm:text-sm text-[#6A6A6A] mb-3 line-clamp-2">{application.projects?.description || 'Project description'}</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 text-sm">
+                          <div className="flex items-start gap-2 sm:gap-3 min-w-0">
+                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+                              <Clock className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
                             </div>
-                            <div>
+                            <div className="min-w-0">
                               <span className="text-[#717171] text-xs">Rate:</span>
-                              <p className="font-semibold text-[#008260] text-base">₹{application.proposed_rate || application.projects?.hourly_rate}/hrs</p>
+                              <p className="font-semibold text-[#008260] text-sm sm:text-base truncate">₹{application.proposed_rate || application.projects?.hourly_rate}/hrs</p>
                             </div>
                           </div>
-                          <div className="flex items-start gap-3">
-                            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
-                              <IndianRupee className="w-5 h-5" style={{ color: '#008260' }} />
+                          <div className="flex items-start gap-2 sm:gap-3 min-w-0">
+                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+                              <IndianRupee className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
                             </div>
-                            <div>
+                            <div className="min-w-0">
                               <span className="text-[#717171] text-xs">Budget:</span>
-                              <p className="font-medium text-base text-[#1D1D1D]">₹{application.projects?.total_budget || 'N/A'}</p>
+                              <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">₹{application.projects?.total_budget || 'N/A'}</p>
                             </div>
                           </div>
                         </div>
@@ -813,25 +813,27 @@ export default function ExpertDashboard() {
                 ) : (
                   <div className="space-y-4">
                       {pagedInterviewApplications?.map((application: any) => (
-                      <div key={application.id} className="bg-white border border-[#DCDCDC] rounded-lg p-6 hover:border-[#008260] hover:shadow-md transition-all duration-300 group">
+                      <div key={application.id} className="bg-white border border-[#DCDCDC] rounded-lg p-4 sm:p-6 hover:border-[#008260] hover:shadow-md transition-all duration-300 group">
                         
-                        <div className="flex items-center justify-between mb-2 min-w-0">
-                          <h3 className="font-bold text-lg text-[#000000] group-hover:text-[#008260] truncate pr-2 hover:cursor-pointer transition-colors duration-300"
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
+                          <h3 className="font-bold text-base sm:text-lg text-[#000000] group-hover:text-[#008260] hover:cursor-pointer transition-colors duration-300 min-w-0 break-words"
                           onClick={()=>router.push(`/expert/project/${application.project_id}`)}
                           >{application.projects?.title || 'Project Title'}</h3>
-                          <Badge className="capitalize bg-[#FFF1E7] hover:bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-2 px-4 flex-shrink-0">
+                          <Badge className="capitalize bg-[#FFF1E7] hover:bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 sm:py-2 px-3 sm:px-4 flex-shrink-0 self-start">
                             {new Date(application.applied_at || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </Badge>
                         </div>
-                        <p className="text-sm text-[#6A6A6A] mb-3">{application.projects?.description || 'Project description'}</p>
+                        <p className="text-xs sm:text-sm text-[#6A6A6A] mb-3 line-clamp-2">{application.projects?.description || 'Project description'}</p>
                         
                         {/* Interview Date Highlight */}
                         {application.interview_date && (
-                          <div className="border-l-4 border-[#008260] bg-[#F8F8F8] rounded-r-lg p-3 mb-3">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="w-4 h-4 text-[#008260]" />
-                              <span className="text-xs font-semibold text-[#008260]">Interview Scheduled:</span>
-                              <span className="text-sm font-bold text-[#000000]">
+                          <div className="border-l-4 border-[#008260] bg-[#F8F8F8] rounded-r-lg p-2 sm:p-3 mb-3">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                              <div className="flex items-center gap-2">
+                                <Calendar className="w-4 h-4 text-[#008260] flex-shrink-0" />
+                                <span className="text-xs font-semibold text-[#008260]">Interview Scheduled:</span>
+                              </div>
+                              <span className="text-xs sm:text-sm font-bold text-[#000000] break-words">
                                 {new Date(application.interview_date).toLocaleDateString('en-US', { 
                                   month: 'short', 
                                   day: 'numeric', 
@@ -844,34 +846,34 @@ export default function ExpertDashboard() {
                           </div>
                         )}
 
-                        <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
-                          <div className="flex items-start gap-3">
-                            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
-                              <Clock className="w-5 h-5 text-[#008260]" />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 text-sm">
+                          <div className="flex items-start gap-2 sm:gap-3 min-w-0">
+                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+                              <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-[#008260]" />
                             </div>
                             <div className="min-w-0">
                               <div className="text-[#717171] text-xs">Rate</div>
-                              <div className="font-semibold text-[#008260] text-base truncate">₹{application.proposed_rate}/hrs</div>
+                              <div className="font-semibold text-[#008260] text-sm sm:text-base truncate">₹{application.proposed_rate}/hrs</div>
                             </div>
                           </div>
-                          <div className="flex items-start gap-3">
-                            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
-                              <IndianRupee className="w-5 h-5 text-[#008260]" />
+                          <div className="flex items-start gap-2 sm:gap-3 min-w-0">
+                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+                              <IndianRupee className="w-4 h-4 sm:w-5 sm:h-5 text-[#008260]" />
                             </div>
                             <div className="min-w-0">
                               <div className="text-[#717171] text-xs">Budget</div>
-                              <div className="font-semibold text-[#000000] text-base truncate">₹{application.projects?.total_budget || 'N/A'}</div>
+                              <div className="font-semibold text-[#000000] text-sm sm:text-base truncate">₹{application.projects?.total_budget || 'N/A'}</div>
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center justify-between gap-3 pt-3">
-                          <Badge className="capitalize bg-[#E8F4F8] hover:bg-[#E8F4F8] text-[#008260] border border-[#008260] rounded-full text-xs font-semibold py-1.5 px-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3">
+                          <Badge className="capitalize bg-[#E8F4F8] hover:bg-[#E8F4F8] text-[#008260] border border-[#008260] rounded-full text-xs font-semibold py-1.5 px-3 self-start">
                             Interview
                           </Badge>
                           <Button
                             variant="outline"
                             size="sm"
-                            className="border-[#008260] text-[#008260] hover:bg-[#008260] hover:text-white text-xs font-semibold px-4"
+                            className="border-[#008260] text-[#008260] hover:bg-[#008260] hover:text-white text-xs font-semibold px-4 w-full sm:w-auto"
                             onClick={() => router.push(`/expert/project/${application.project_id}`)}
                           >
                             View Application
@@ -918,18 +920,18 @@ export default function ExpertDashboard() {
                   ) : (
                     <div className="space-y-4">
                       {pagedRejectedApplications?.map((application: any) => (
-                        <div key={application.id} className="bg-white border border-[#DCDCDC] rounded-lg p-6 hover:border-[#008260] hover:shadow-md transition-all duration-300 group">
-                          <div className="flex items-center justify-between mb-2 min-w-0">
-                            <h3 className="font-semibold text-slate-900 group-hover:text-[#008260] truncate pr-2 transition-colors duration-300">{application.projects?.title || 'Project Title'}</h3>
-                            <Badge className={getStatusColor(application.status)}>
+                        <div key={application.id} className="bg-white border border-[#DCDCDC] rounded-lg p-4 sm:p-6 hover:border-[#008260] hover:shadow-md transition-all duration-300 group">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+                            <h3 className="font-semibold text-base sm:text-lg text-slate-900 group-hover:text-[#008260] transition-colors duration-300 break-words">{application.projects?.title || 'Project Title'}</h3>
+                            <Badge className={`${getStatusColor(application.status)} flex-shrink-0 self-start`}>
                               <div className="flex items-center space-x-1">
                                 {getStatusIcon(application.status)}
                                 <span className="capitalize">{application.status}</span>
                               </div>
                             </Badge>
                           </div>
-                          <p className="text-sm text-slate-600 mb-2 break-words line-clamp-2">{application.projects?.description || 'Project description'}</p>
-                          <div className="flex items-center justify-between text-sm text-slate-500">
+                          <p className="text-xs sm:text-sm text-slate-600 mb-2 break-words line-clamp-2">{application.projects?.description || 'Project description'}</p>
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs sm:text-sm text-slate-500">
                             <span>Applied: {new Date(application.applied_at || Date.now()).toLocaleDateString()}</span>
                             <span className="font-medium text-slate-700">Proposed Rate: ₹{application.proposed_rate}</span>
                           </div>
@@ -975,51 +977,51 @@ export default function ExpertDashboard() {
                   ) : (
                     <div className="space-y-4">
                       {pagedBookings?.map((booking: any) => (
-                      <div key={booking.id} className="bg-white border border-[#DCDCDC] rounded-lg p-6 hover:border-[#008260] hover:shadow-md transition-all duration-300 group">
-                        <div className="flex items-center justify-between mb-2 min-w-0">
-                          <h3 className="font-bold text-lg text-[#000000] group-hover:text-[#008260] truncate pr-2 hover:cursor-pointer transition-colors duration-300"
+                      <div key={booking.id} className="bg-white border border-[#DCDCDC] rounded-lg p-4 sm:p-6 hover:border-[#008260] hover:shadow-md transition-all duration-300 group">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
+                          <h3 className="font-bold text-base sm:text-lg text-[#000000] group-hover:text-[#008260] hover:cursor-pointer transition-colors duration-300 break-words"
                           onClick={()=>router.push(`/expert/project/${booking.project_id}`)}
                           >{booking.projects?.title || 'Project'}</h3>
-                          <Badge className="capitalize bg-[#E8F4F8] hover:bg-[#E8F4F8] text-[#008260] border border-[#008260] rounded-full text-xs font-semibold py-1.5 px-3">
+                          <Badge className="capitalize bg-[#E8F4F8] hover:bg-[#E8F4F8] text-[#008260] border border-[#008260] rounded-full text-xs font-semibold py-1.5 px-3 self-start flex-shrink-0">
                             {booking.status?.replace('_', ' ')}
                           </Badge>
                         </div>
-                        <p className="text-sm text-[#6A6A6A] mb-3">{booking.institutions?.name || 'Institution'}</p>
-                        <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
-                          <div className="flex items-start gap-3">
-                            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
-                              <IndianRupee className="w-5 h-5 text-[#008260]" />
+                        <p className="text-xs sm:text-sm text-[#6A6A6A] mb-3">{booking.institutions?.name || 'Institution'}</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 text-sm">
+                          <div className="flex items-start gap-2 sm:gap-3 min-w-0">
+                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+                              <IndianRupee className="w-4 h-4 sm:w-5 sm:h-5 text-[#008260]" />
                             </div>
                             <div className="min-w-0">
                               <div className="text-[#717171] text-xs">Amount</div>
-                              <div className="font-semibold text-[#008260] text-base truncate">₹{booking.amount}</div>
+                              <div className="font-semibold text-[#008260] text-sm sm:text-base truncate">₹{booking.amount}</div>
                             </div>
                           </div>
-                          <div className="flex items-start gap-3">
-                            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
-                              <Clock className="w-5 h-5 text-[#008260]" />
+                          <div className="flex items-start gap-2 sm:gap-3 min-w-0">
+                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+                              <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-[#008260]" />
                             </div>
                             <div className="min-w-0">
                               <div className="text-[#717171] text-xs">Hours Booked</div>
-                              <div className="font-semibold text-[#000000] text-base truncate">{booking.hours_booked} hrs</div>
+                              <div className="font-semibold text-[#000000] text-sm sm:text-base truncate">{booking.hours_booked} hrs</div>
                             </div>
                           </div>
-                          <div className="flex items-start gap-3">
-                            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
-                              <Calendar className="w-5 h-5 text-[#008260]" />
+                          <div className="flex items-start gap-2 sm:gap-3 min-w-0">
+                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+                              <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-[#008260]" />
                             </div>
                             <div className="min-w-0">
                               <div className="text-[#717171] text-xs">Start Date</div>
-                              <div className="font-semibold text-[#000000] text-base truncate">{new Date(booking.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                              <div className="font-semibold text-[#000000] text-sm sm:text-base truncate">{new Date(booking.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
                             </div>
                           </div>
-                          <div className="flex items-start gap-3">
-                            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
-                              <Calendar className="w-5 h-5 text-[#008260]" />
+                          <div className="flex items-start gap-2 sm:gap-3 min-w-0">
+                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+                              <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-[#008260]" />
                             </div>
                             <div className="min-w-0">
                               <div className="text-[#717171] text-xs">End Date</div>
-                              <div className="font-semibold text-[#000000] text-base truncate">{new Date(booking.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                              <div className="font-semibold text-[#000000] text-sm sm:text-base truncate">{new Date(booking.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
                             </div>
                           </div>
                         </div>
@@ -1030,7 +1032,7 @@ export default function ExpertDashboard() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  className='bg-[#FFF2F2] rounded-3xl border border-[#9B0000] text-[#9B0000] font-medium hover:bg-[#FFE5E5]'
+                                  className='bg-[#FFF2F2] rounded-3xl border border-[#9B0000] text-[#9B0000] font-medium hover:bg-[#FFE5E5] w-full sm:w-auto'
                                 >
                                   <XCircle className="h-4 w-4 mr-1" />
                                   Cancel Booking
