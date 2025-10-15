@@ -4477,6 +4477,253 @@ app.get('/api/admin/profiles/students', async (req, res) => {
 });
 
 // ========================================
+// ADMIN REQUIREMENTS TRACKING ROUTES
+// ========================================
+
+// Admin: Get all requirements (contracts, internships, freelance) with institution details
+app.get('/api/admin/requirements', async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 15, 
+      search = '', 
+      type = 'all', 
+      status = 'call_now' 
+    } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    // Use service role to bypass RLS
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    let allRequirements = [];
+
+    // Fetch contracts if type matches
+    if (type === 'all' || type === 'contract') {
+      const contractQuery = serviceClient
+        .from('projects')
+        .select(`
+          id,
+          title,
+          description,
+          type,
+          hourly_rate,
+          total_budget,
+          start_date,
+          end_date,
+          duration_hours,
+          required_expertise,
+          domain_expertise,
+          subskills,
+          status,
+          created_at,
+          institution_id,
+          call_status,
+          institutions:institution_id (
+            id,
+            name,
+            email,
+            phone,
+            type,
+            city,
+            state,
+            website_url
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (status !== 'all') {
+        contractQuery.eq('call_status', status);
+      }
+
+      const { data: contracts, error: contractError } = await contractQuery;
+      if (contractError) throw contractError;
+
+      if (contracts && contracts.length > 0) {
+        allRequirements.push(...contracts.map(c => ({
+          ...c,
+          requirement_type: 'contract'
+        })));
+      }
+    }
+
+    // Fetch internships if type matches
+    if (type === 'all' || type === 'internship') {
+      const internshipQuery = serviceClient
+        .from('internships')
+        .select(`
+          id,
+          title,
+          responsibilities,
+          stipend_min,
+          stipend_max,
+          duration_value,
+          duration_unit,
+          location,
+          skills_required,
+          status,
+          created_at,
+          corporate_institution_id,
+          call_status,
+          paid,
+          work_mode,
+          engagement,
+          institutions:corporate_institution_id (
+            id,
+            name,
+            email,
+            phone,
+            type,
+            city,
+            state,
+            website_url
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (status !== 'all') {
+        internshipQuery.eq('call_status', status);
+      }
+
+      const { data: internships, error: internshipError } = await internshipQuery;
+      if (internshipError) throw internshipError;
+
+      if (internships && internships.length > 0) {
+        allRequirements.push(...internships.map(i => ({
+          ...i,
+          requirement_type: 'internship',
+          institution_id: i.corporate_institution_id,
+          description: i.responsibilities // Map responsibilities to description for frontend consistency
+        })));
+      }
+    }
+
+    // Fetch freelance projects if type matches
+    if (type === 'all' || type === 'freelance') {
+      const freelanceQuery = serviceClient
+        .from('freelance_projects')
+        .select(`
+          id,
+          title,
+          description,
+          required_skills,
+          deadline,
+          budget_min,
+          budget_max,
+          status,
+          created_at,
+          corporate_institution_id,
+          call_status,
+          institutions:corporate_institution_id (
+            id,
+            name,
+            email,
+            phone,
+            type,
+            city,
+            state,
+            website_url
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (status !== 'all') {
+        freelanceQuery.eq('call_status', status);
+      }
+
+      const { data: freelance, error: freelanceError } = await freelanceQuery;
+      if (freelanceError) throw freelanceError;
+
+      if (freelance && freelance.length > 0) {
+        allRequirements.push(...freelance.map(f => ({
+          ...f,
+          requirement_type: 'freelance',
+          institution_id: f.corporate_institution_id
+        })));
+      }
+    }
+
+    // Sort by created_at descending
+    allRequirements.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    // Apply search filter
+    if (search) {
+      const searchLower = search.toLowerCase();
+      allRequirements = allRequirements.filter(req => {
+        const titleMatch = req.title?.toLowerCase().includes(searchLower);
+        const descMatch = req.description?.toLowerCase().includes(searchLower);
+        const instMatch = req.institutions?.name?.toLowerCase().includes(searchLower);
+        const instEmailMatch = req.institutions?.email?.toLowerCase().includes(searchLower);
+        return titleMatch || descMatch || instMatch || instEmailMatch;
+      });
+    }
+
+    // Apply pagination
+    const paginatedResults = allRequirements.slice(offset, offset + parseInt(limit));
+
+    res.json({
+      data: paginatedResults,
+      total: allRequirements.length,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      hasMore: allRequirements.length > offset + parseInt(limit)
+    });
+  } catch (error) {
+    console.error('Admin get requirements error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: Update requirement call status
+app.patch('/api/admin/requirements/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { type, status } = req.body;
+
+    if (!type || !status) {
+      return res.status(400).json({ error: 'Type and status are required' });
+    }
+
+    if (!['call_now', 'called'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    // Use service role to bypass RLS
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    let tableName;
+    if (type === 'contract') {
+      tableName = 'projects';
+    } else if (type === 'internship') {
+      tableName = 'internships';
+    } else if (type === 'freelance') {
+      tableName = 'freelance_projects';
+    } else {
+      return res.status(400).json({ error: 'Invalid requirement type' });
+    }
+
+    const { data, error } = await serviceClient
+      .from(tableName)
+      .update({ call_status: status })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Admin update requirement status error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========================================
 // CONTACT FORM ROUTES
 // ========================================
 setupContactRoutes(app);
