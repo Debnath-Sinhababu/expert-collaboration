@@ -39,6 +39,7 @@ import {
   Verified
 } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import Logo from '@/components/Logo'
 import BackgroundBannerCarousel from '@/components/BackgroundBannerCarousel'
 import Autoplay from "embla-carousel-autoplay"
@@ -63,6 +64,7 @@ export default function Home() {
 
   const exploreNav: any = (NAVIGATION as any[]).find((s: any) => s.label === 'Explore Experts')
   const studentNav: any = (NAVIGATION as any[]).find((s: any) => s.label === 'Student Marketplace')
+  const router = useRouter()
   
   // Intersection observer for statistics animation
   const { ref: statsRef, inView } = useInView({
@@ -267,98 +269,7 @@ export default function Home() {
             {/* Navigation & CTA - Desktop */}
             <div className="hidden sm:flex items-center justify-end gap-2">
               {/* Explore Experts - Mega Menu */}
-              <NavigationMenu className='lg:[&_div.absolute]:-left-[26rem] lg:[&_div.absolute]:top-12'>
-                <NavigationMenuList>
-                  <NavigationMenuItem>
-                    <NavigationMenuTrigger className="font-medium text-white/90 hover:text-white hover:bg-white/10 border border-transparent transition-all duration-300 px-3 py-2 text-sm sm:text-base bg-transparent">
-                      Explore Experts
-                    </NavigationMenuTrigger>
-                    <NavigationMenuContent
-  
-                    >
-                      <div className="rounded-lg border bg-white text-slate-900 shadow-md p-6 w-[calc(100vw-2rem)] max-w-[1050px] max-h-[75vh]">
-                        <div className="flex">
-                          {/* Left category rail */}
-                          <div className="hidden md:block w-64 border-r p-3">
-                            <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold px-2 mb-2">Categories</div>
-                            <ul className="space-y-1">
-                              {exploreNav?.categories?.map((cat: any, idx: number) => (
-                                <li key={idx}>
-                                  <button onMouseEnter={() => setExploreActiveIdx(idx)} onFocus={() => setExploreActiveIdx(idx)} className={`w-full text-left px-3 py-2 rounded-md text-sm transition ${exploreActiveIdx === idx ? 'bg-slate-100 text-slate-900 font-semibold' : 'text-slate-700 hover:bg-slate-50'}`}>
-                                    {cat.label}
-                                  </button>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                          {/* Right grid for active category */}
-                          <div className="flex-1 p-5 overflow-y-auto">
-                            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                              {(exploreNav?.categories?.[exploreActiveIdx]?.subcategories || exploreNav?.categories?.[exploreActiveIdx]?.items || []).map((sub: any, i: number) => (
-                                <div key={i} className="border rounded-lg p-4 hover:shadow-sm transition bg-white">
-                                  <div className="text-slate-900 font-semibold text-sm mb-2 break-all">{sub.label || sub}</div>
-                                  {Array.isArray(sub.items) && sub.items.length > 0 && (
-                                    <div className="flex flex-wrap gap-2">
-                                      {sub.items.map((item: string, ii: number) => (
-                                        <a key={ii} href="#" className="text-xs text-slate-600 hover:text-slate-900 hover:underline">{item}</a>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </NavigationMenuContent>
-                  </NavigationMenuItem>
-                </NavigationMenuList>
-              </NavigationMenu>
-
-              {/* Student Marketplace - Mega Menu */}
-              <NavigationMenu className='lg:[&_div.absolute]:-left-[30rem] lg:[&_div.absolute]:top-12'>
-                <NavigationMenuList>
-                  <NavigationMenuItem>
-                    <NavigationMenuTrigger className="font-medium text-white hover:text-blue-100 hover:bg-white/10 border border-transparent hover:border-white/20 transition-all duration-300 px-3 py-2 text-sm sm:text-base bg-transparent">
-                      Student Marketplace
-                    </NavigationMenuTrigger>
-                    <NavigationMenuContent>
-                      <div className="rounded-lg border bg-white text-slate-900 shadow-md p-6 w-[calc(100vw-2rem)] max-w-[1050px] max-h-[75vh]">
-                        <div className="flex">
-                          <div className="hidden md:block w-64 border-r p-3">
-                            <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold px-2 mb-2">Categories</div>
-                            <ul className="space-y-1">
-                              {studentNav?.categories?.map((cat: any, idx: number) => (
-                                <li key={idx}>
-                                  <button onMouseEnter={() => setStudentActiveIdx(idx)} onFocus={() => setStudentActiveIdx(idx)} className={`w-full text-left px-3 py-2 rounded-md text-sm transition ${studentActiveIdx === idx ? 'bg-slate-100 text-slate-900 font-semibold' : 'text-slate-700 hover:bg-slate-50'}`}>
-                                    {cat.label}
-                                  </button>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                          <div className="flex-1 p-5 overflow-y-auto max-h-[65vh]">
-                            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                              {(studentNav?.categories?.[studentActiveIdx]?.subcategories || studentNav?.categories?.[studentActiveIdx]?.items || []).map((sub: any, i: number) => (
-                                <div key={i} className="border rounded-lg p-4 hover:shadow-sm transition bg-white">
-                                  <div className="text-slate-900 font-semibold text-sm mb-2 break-all">{sub.label || sub}</div>
-                                  {Array.isArray(sub.items) && sub.items.length > 0 && (
-                                    <div className="flex flex-wrap gap-2">
-                                      {sub.items.map((item: string, ii: number) => (
-                                        <a key={ii} href="#" className="text-xs text-slate-600 hover:text-slate-900 hover:underline">{item}</a>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </NavigationMenuContent>
-                  </NavigationMenuItem>
-                </NavigationMenuList>
-              </NavigationMenu>
+             
               <Link href="/contact-us">
                 <Button variant="ghost" className="font-medium text-white/90 hover:text-white hover:bg-white/10 transition-all duration-300 px-3 py-2 text-sm">Contact Us</Button>
               </Link>
@@ -381,76 +292,8 @@ export default function Home() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-64">
                   {/* Explore Experts nested mobile menu */}
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger className="cursor-pointer">Explore Experts</DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="w-80 max-h-[70vh] overflow-y-auto">
-                      {exploreNav?.categories?.map((cat: any, cIdx: number) => (
-                        <DropdownMenuSub key={cIdx}>
-                          <DropdownMenuSubTrigger className="cursor-pointer">{cat.label}</DropdownMenuSubTrigger>
-                          <DropdownMenuSubContent className="w-72 max-h-[70vh] overflow-y-auto">
-                            {Array.isArray(cat.subcategories) ? (
-                              <div className="p-1">
-                                {cat.subcategories.map((sub: any, subIdx: number) => (
-                                  <div key={subIdx} className="px-2 py-1.5">
-                                    <div className="text-sm font-medium text-slate-800">{sub.label}</div>
-                                    {Array.isArray(sub.items) && sub.items.length > 0 && (
-                                      <div className="mt-1 grid grid-cols-1 gap-1">
-                                        {sub.items.map((item: string, iIdx: number) => (
-                                          <a key={iIdx} href="#" className="text-sm text-slate-600 hover:text-slate-900">{item}</a>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            ) : Array.isArray(cat.items) && cat.items.length > 0 ? (
-                              <div className="p-1">
-                                {cat.items.map((item: string, iIdx: number) => (
-                                  <DropdownMenuItem key={iIdx} className="cursor-pointer">{item}</DropdownMenuItem>
-                                ))}
-                              </div>
-                            ) : null}
-                          </DropdownMenuSubContent>
-                        </DropdownMenuSub>
-                      ))}
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
+                
 
-                  {/* Student Marketplace nested mobile menu */}
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger className="cursor-pointer">Student Marketplace</DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="w-80 max-h-[70vh] overflow-y-auto">
-                      {studentNav?.categories?.map((cat: any, cIdx: number) => (
-                            <DropdownMenuSub key={cIdx}>
-                              <DropdownMenuSubTrigger className="cursor-pointer">{cat.label}</DropdownMenuSubTrigger>
-                              <DropdownMenuSubContent className="w-72 max-h-[70vh] overflow-y-auto">
-                                {Array.isArray(cat.subcategories) ? (
-                                  <div className="p-1">
-                                    {cat.subcategories.map((sub: any, subIdx: number) => (
-                                      <div key={subIdx} className="px-2 py-1.5">
-                                        <div className="text-sm font-medium text-slate-800">{sub.label}</div>
-                                        {Array.isArray(sub.items) && sub.items.length > 0 && (
-                                          <div className="mt-1 grid grid-cols-1 gap-1">
-                                            {sub.items.map((item: string, iIdx: number) => (
-                                              <a key={iIdx} href="#" className="text-sm text-slate-600 hover:text-slate-900">{item}</a>
-                                            ))}
-                                          </div>
-                                        )}
-                                      </div>
-                                    ))}
-                                  </div>
-                                ) : Array.isArray(cat.items) && cat.items.length > 0 ? (
-                                  <div className="p-1">
-                                    {cat.items.map((item: string, iIdx: number) => (
-                                      <DropdownMenuItem key={iIdx} className="cursor-pointer">{item}</DropdownMenuItem>
-                                    ))}
-                                  </div>
-                                ) : null}
-                              </DropdownMenuSubContent>
-                            </DropdownMenuSub>
-                          ))}
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
                   <Link href="/contact-us">
                     <DropdownMenuItem className="cursor-pointer">Contact Us</DropdownMenuItem>
                   </Link>
@@ -540,8 +383,8 @@ export default function Home() {
                 variants={fadeUp}
                 transition={transition}
               >
-                <Link href="/auth/signup?role=expert">
-                  <Button size="lg" className="bg-[#008260] text-white font-semibold text-[16px] px-10 py-5 rounded-full shadow-none hover:opacity-95 transition-all duration-300">
+                <Link href="/auth/signup?role=institution">
+                  <Button size="lg" className="bg-[#008260] hover:bg-[#008260] text-white font-semibold text-[16px] px-10 py-5 rounded-full shadow-none hover:opacity-95 transition-all duration-300">
                     Hire Expert
                   </Button>
                 </Link>
@@ -831,7 +674,7 @@ export default function Home() {
                         </li>
                       </ul>
 
-                      <Link href="/coming-soon/corporate">
+                      <Link href="/auth/signup?role=institution">
                         <Button className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-semibold py-5 rounded-lg transition-all text-sm">
                           Hire Expert →
                         </Button>
@@ -1285,7 +1128,9 @@ export default function Home() {
                           </p>
 
                           {/* View Profile button */}
-                          <Button className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-semibold py-2 rounded-lg transition-all">
+                          <Button className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-semibold py-2 rounded-lg transition-all"
+                          onClick={() => router.push(`/auth/login`)}
+                          >
                             View Profile
                           </Button>
                         </CardContent>
@@ -1472,13 +1317,15 @@ export default function Home() {
             {/* Buttons */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               {/* Start Hiring Button */}
-              <button className="bg-white text-[#008260] px-8 py-3 rounded-full font-semibold text-lg hover:bg-slate-50 transition-all duration-300 shadow-md hover:shadow-lg flex items-center space-x-2 min-w-[200px] justify-center">
+              <button className="bg-white text-[#008260] px-8 py-3 rounded-full font-semibold text-lg hover:bg-slate-50 transition-all duration-300 shadow-md hover:shadow-lg flex items-center space-x-2 min-w-[200px] justify-center" onClick={() => router.push(`/auth/signup?role=institution`)}>
                 <span>Start Hiring</span>
                 <ArrowRight className="h-5 w-5" />
               </button>
 
               {/* Become an Expert Button */}
-              <button className="bg-transparent border-2 border-white text-white px-8 py-3 rounded-full font-semibold text-lg transition-all duration-300 min-w-[200px]">
+              <button className="bg-transparent border-2 border-white text-white px-8 py-3 rounded-full font-semibold text-lg transition-all duration-300 min-w-[200px]"
+              onClick={() => router.push(`/auth/signup?role=expert`)}
+              >
                 Become an Expert
               </button>
             </div>

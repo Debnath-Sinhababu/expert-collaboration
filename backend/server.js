@@ -4123,6 +4123,7 @@ app.delete('/api/bookings/:id', async (req, res) => {
 // ========================================
 // Import student feedback service
 const studentFeedbackService = require('./services/studentFeedbackService');
+const { setupContactRoutes } = require('./routes/contact');
 
 // Student login route
 app.post('/api/student/login', async (req, res) => {
@@ -4295,6 +4296,11 @@ app.get('/api/admin/feedback-analytics', async (req, res) => {
 // ========================================
 // END STUDENT FEEDBACK SYSTEM ROUTES
 // ========================================
+
+// ========================================
+// CONTACT FORM ROUTES
+// ========================================
+setupContactRoutes(app);
 
 // Test endpoint to verify authentication context
 
