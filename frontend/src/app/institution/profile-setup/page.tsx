@@ -232,33 +232,28 @@ export default function InstitutionProfileSetup() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative py-8">
       {/* Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-blue-500/5 to-indigo-500/5 rounded-full blur-3xl"></div>
-      </div>
+   
       
       <div className="container mx-auto px-4 max-w-4xl relative z-10">
         {/* Header */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center space-x-2 mb-4 group">
-            <Logo size="md" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent group-hover:from-blue-800 group-hover:to-indigo-800 transition-all duration-300">Calxmap</span>
+          <Link href="/" className="inline-flex items-center mb-4 group">
+            <Logo size="lg" />
           </Link>
-          <h1 className="text-4xl font-bold text-slate-900 mb-2 tracking-tight">Complete Your Institution Profile</h1>
-          <p className="text-xl text-slate-600">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-2 tracking-tight">Complete Your Institution Profile</h1>
+          <p className="text-base sm:text-lg md:text-xl text-slate-600">
             Set up your institution profile to start posting projects and finding experts
           </p>
         </div>
 
         <Card className="bg-white border-2 border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold text-slate-900">Institution Profile Setup</CardTitle>
-            <CardDescription className="text-slate-600">
+          <CardHeader className="px-4 sm:px-6">
+            <CardTitle className="text-xl sm:text-2xl font-bold text-slate-900">Institution Profile Setup</CardTitle>
+            <CardDescription className="text-sm sm:text-base text-slate-600">
               Complete your institution profile to start connecting with qualified experts
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 sm:px-6">
             <form onSubmit={handleSubmit} className="space-y-6">
               {error && (
                 <Alert variant="destructive">

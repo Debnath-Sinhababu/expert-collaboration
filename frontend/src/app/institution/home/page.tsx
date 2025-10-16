@@ -109,6 +109,7 @@ export default function InstitutionHome() {
   const [availableSubskills, setAvailableSubskills] = useState<string[]>([])
   const [partneredInstitutions, setPartneredInstitutions] = useState<any[]>([])
   const [institutionsLoading, setInstitutionsLoading] = useState(true)
+  const [associatedStudents, setAssociatedStudents] = useState<any[]>([])
   // Featured experts (top-rated, independent of filters)
   const [featuredExperts, setFeaturedExperts] = useState<Expert[]>([])
   const [featuredLoading, setFeaturedLoading] = useState(false)
@@ -284,8 +285,21 @@ export default function InstitutionHome() {
       loadPartneredInstitutions()
       loadInstitutionProjects()
       loadFeaturedExperts()
+      loadAssociatedStudents()
     }
   }, [institution])
+
+  const loadAssociatedStudents = async () => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/students/featured?limit=8`)
+      if (response.ok) {
+        const data = await response.json()
+        setAssociatedStudents(Array.isArray(data) ? data : [])
+      }
+    } catch (error) {
+      console.error('Error loading students:', error)
+    }
+  }
 
   useEffect(() => {
     // Refresh only the infinite list when filters change
@@ -635,10 +649,10 @@ export default function InstitutionHome() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+      <div className="min-h-screen bg-[#ECF2FF] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#008260] mx-auto mb-4"></div>
+          <p className="text-[#6A6A6A]">Loading...</p>
         </div>
       </div>
     )
@@ -656,15 +670,14 @@ export default function InstitutionHome() {
   }
 
   return (
-    <div className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+    <div className="bg-[#ECF2FF]">
       {/* Header */}
-      <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
+      <header className="bg-[#008260] sticky top-0 z-50">
         <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
-            <Link href="/institution/home" className="flex items-center space-x-2 group">
-              {/* <Logo size="md" /> */}
-              <span className="text-xl font-bold text-white group-hover:text-blue-100 transition-all duration-300">Calxmap</span>
+            <Link href="/institution/home" className="flex items-center group">
+              <Logo size="header" />
             </Link>
 
             {/* Navigation */}
@@ -673,23 +686,12 @@ export default function InstitutionHome() {
             {/* Right side */}
             <div className="flex items-center space-x-4">
              
-            
-              {institution?.type === 'Corporate' && (
-                <>
-                  <Link href="/institution/internships/create">
-                    <Button className="hidden md:inline-flex bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">Create Internship</Button>
-                  </Link>
-                  <Link href="/institution/freelance/create">
-                    <Button className="hidden md:inline-flex bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">Create Freelance</Button>
-                  </Link>
-                 
-                </>
-              )}
-              {institution?.type && institution.type !== 'Corporate' && (
+            {institution?.type && institution.type !== 'Corporate' && (
                 <Link href="/institution/internships/opportunities">
-                  <Button className="hidden md:inline-flex bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">Browse Internships</Button>
+                  <p className="hidden md:inline-flex text-white text-[15px] font-medium">Browse Internships</p>
                 </Link>
               )}
+          
                 <ProfileDropdown 
                 user={user} 
                 institution={institution} 
@@ -703,22 +705,34 @@ export default function InstitutionHome() {
         </div>
       </header>
 
+      {/* Mobile Browse Internships Button */}
+      {institution?.type && institution.type !== 'Corporate' && (
+        <div className="md:hidden bg-[#ECF2FF] px-4 py-3">
+          <Link href="/institution/internships/opportunities">
+            <Button className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium rounded-lg py-3 flex items-center justify-center gap-2">
+              <Briefcase className="h-5 w-5" />
+              Browse Internships
+            </Button>
+          </Link>
+        </div>
+      )}
+
       {/* Partnered Institutions Banner */}
       {partneredInstitutions.length > 0 && (
         <div className="bg-gradient-to-r from-slate-50 via-blue-50 to-indigo-100 py-8">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-6">
-              <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">
-                Partnered Institutions
+              <h2 className="text-2xl sm:text-[28px] font-semibold text-[#000000] mb-1">
+                Partner Institutions
               </h2>
-              <p className="text-slate-600">
+              <p className="text-[#000000CC] text-base font-normal">
                 Join our network of leading educational institutions
               </p>
             </div>
 
             {institutionsLoading ? (
               <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#008260]"></div>
               </div>
             ) : (
               <Carousel
@@ -772,7 +786,7 @@ export default function InstitutionHome() {
                           </div>
 
                           {/* Hover Effect */}
-                          <div className="absolute inset-0 bg-blue-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                          <div className="absolute inset-0 bg-[#008260]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                         </div>
                       </CarouselItem>
                     )
@@ -790,22 +804,22 @@ export default function InstitutionHome() {
       <div className="bg-gradient-to-r from-slate-50 via-blue-50 to-indigo-100 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-6">
-            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">Featured Experts</h2>
-            <p className="text-slate-600">Top-rated experts (4.0+), curated for you</p>
+            <h2 className="text-2xl sm:text-[28px] font-semibold text-[#000000] mb-1">Featured Experts</h2>
+            <p className="text-[#000000CC] text-base font-normal">Top-rated experts (4.0+), curated for you</p>
           </div>
           {featuredLoading ? (
             <div className="flex justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#008260]"></div>
             </div>
           ) : (
             <Carousel className="w-full"
               opts={{ align: 'start', containScroll: 'trimSnaps' }}
               plugins={[Autoplay({ delay: 3000 })]}
             >
-              <CarouselContent className="-ml-2 md:-ml-4">
+              <CarouselContent className="-ml-2 md:-ml-4 pb-4">
                 {featuredExperts.map((expert) => (
                   <CarouselItem key={expert.id} className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3">
-                    <Card className="bg-white border-2 border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 group hover:border-blue-300">
+                    <Card className="bg-[#ECF2FF]  shadow-[-4px_4px_4px_0px_#A0A0A040,_4px_4px_4px_0px_#A0A0A040] rounded-xl transition-all duration-300 group border-2 border-[#D6D6D6]">
                       <CardHeader>
                         <div className="flex items-start space-x-3">
                           <Avatar className="w-12 h-12">
@@ -816,11 +830,13 @@ export default function InstitutionHome() {
                           </Avatar>
                           <div className="flex-1 min-w-0">
                             <CardTitle className="text-lg line-clamp-1">{expert.name}</CardTitle>
+                            <div className='flex gap-2 flex-wrap'>
                             <div className="flex items-center text-slate-600 text-sm">
                               <Star className="h-4 w-4 mr-1 fill-yellow-400 text-yellow-400" />
                               {expert.rating?.toFixed(1) || '0.0'} ({expert.total_ratings || 0})
                             </div>
                             <div className="flex items-center text-slate-600 text-sm">₹{expert.hourly_rate}/hour</div>
+                            </div>
                           </div>
                         </div>
                       </CardHeader>
@@ -830,7 +846,7 @@ export default function InstitutionHome() {
                           <div className="mb-4">
                             <div className="flex flex-wrap gap-1">
                               {expert.domain_expertise.slice(0, 2).map((domain: string, index: number) => (
-                                <Badge key={index} className={`text-xs ${getDomainColor(domain)}`}>{domain}</Badge>
+                                <Badge key={index} className={`text-xs bg-[#EBDA98] hover:bg-[#EBDA98] rounded-sm text-black py-[6px]`}>{domain}</Badge>
                               ))}
                               {expert.domain_expertise.length > 2 && (
                                 <Badge variant="secondary" className="text-xs">+{expert.domain_expertise.length - 2} more</Badge>
@@ -839,22 +855,22 @@ export default function InstitutionHome() {
                           </div>
                         )}
                         <div className="flex space-x-2">
-                          <Button className="flex-1 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300" onClick={() => { setQuickSelectExpert(expert); setShowQuickSelectModal(true); }}>
+                          <Button className="flex-1 bg-[#008260] text-white rounded-md hover:bg-[#008260]" onClick={() => { setQuickSelectExpert(expert); setShowQuickSelectModal(true); }}>
                             <UserCheck className="h-4 w-4 mr-2" />
                             Select Expert
                           </Button>
                           <Dialog>
                             <DialogTrigger asChild>
-                              <Button variant="outline" size="icon" className="border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50 transition-all duration-300">
-                                <Eye className="h-4 w-4" />
+                              <Button variant="outline" size="icon" className="border-2 border-slate-300 bg-[#ECF2FF] transition-all duration-300">
+                                <Eye className="h-4 w-4 text-[#008260]" />
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className="max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
-                              <DialogHeader className="flex-shrink-0">
+                            <DialogContent className="max-w-lg w-full max-h-[90vh] overflow-y-auto">
+                              <DialogHeader>
                                 <DialogTitle>{expert.name}</DialogTitle>
                                 <DialogDescription>Complete Expert Profile</DialogDescription>
                               </DialogHeader>
-                              <div className="space-y-4 overflow-y-auto flex-1 pr-2">
+                              <div className="space-y-4">
                                 <div className="flex items-center space-x-4 mb-4">
                                   <Avatar className="w-16 h-16 border-2 border-blue-200 flex-shrink-0">
                                     <AvatarImage src={expert.photo_url} />
@@ -884,10 +900,7 @@ export default function InstitutionHome() {
                                     <h4 className="font-medium mb-1">Experience</h4>
                                     <p className="text-sm">{expert.experience_years || 0} years</p>
                                   </div>
-                                  <div>
-                                    <h4 className="font-medium mb-1">Contact</h4>
-                                    <p className="text-sm">{expert.email}</p>
-                                  </div>
+                                
                                 </div>
                                 {expert.subskills && expert.subskills.length > 0 && (
                                   <div>
@@ -940,39 +953,122 @@ export default function InstitutionHome() {
         </div>
       </div>
 
+      {/* Associated Students Section */}
+      {associatedStudents.length > 4 && (
+        <div className="bg-gradient-to-r from-slate-50 via-blue-50 to-indigo-100 py-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center gap-2 bg-[#E8F5F1] px-6 py-2 rounded-full mb-4">
+                <svg className="w-5 h-5 text-[#008260]" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
+                </svg>
+                <span className="text-[#008260] font-semibold">Students</span>
+              </div>
+              <h2 className="text-2xl sm:text-[28px] font-semibold text-[#000000] mb-1">
+                Associated <span className="text-[#008260]">Students</span>
+              </h2>
+              <p className="text-[#000000CC] text-base font-normal">
+                Meet our students, ready to drive your success forward
+              </p>
+            </div>
+
+            <Carousel
+              opts={{ align: "start", loop: true }}
+              plugins={[Autoplay({ delay: 3500 })]}
+              className="w-full"
+            >
+              <CarouselContent className="-ml-2 md:-ml-4">
+                {associatedStudents.map((student) => (
+                  <CarouselItem key={student.id} className="pl-2 md:pl-4 basis-full sm:basis-1/2 lg:basis-1/4">
+                    <Card className="bg-white border border-[#E0E0E0] rounded-3xl hover:shadow-xl transition-all h-full">
+                      <CardContent className="p-6">
+                        {/* Student Image */}
+                        <div className="relative w-full aspect-square overflow-hidden rounded-2xl mb-4">
+                          <img
+                            src={student.profile_photo_small_url || student.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(student.name)}&size=400&background=008260&color=fff`}
+                            alt={student.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+
+                        {/* Student Info */}
+                        <div>
+                          <h3 className="text-xl font-bold text-[#000000] mb-2">{student.name}</h3>
+                          
+                          <p className="text-[#6A6A6A] text-sm mb-3 line-clamp-2">
+                            {student.degree && student.specialization ? (
+                              <>
+                                {student.degree === 'B.Tech' && 'A B.Tech '}
+                                {student.degree === 'M.Tech' && 'An M.Tech '}
+                                {student.degree === 'BCA' && 'A BCA '}
+                                {student.degree === 'MCA' && 'An MCA '}
+                                {student.degree === 'B.Sc' && 'A B.Sc. '}
+                                {student.degree === 'M.Sc' && 'An M.Sc. '}
+                                {student.degree === 'MBA' && 'An MBA '}
+                                {student.degree === 'BBA' && 'A BBA '}
+                                {!['B.Tech', 'M.Tech', 'BCA', 'MCA', 'B.Sc', 'M.Sc', 'MBA', 'BBA'].includes(student.degree) && `A ${student.degree} `}
+                                Student {student.specialization && `in ${student.specialization}`}
+                              </>
+                            ) : student.degree ? (
+                              `${student.degree} Student`
+                            ) : (
+                              'Student'
+                            )}
+                            {student.skills && student.skills.length > 0 && (
+                              <>, skilled in {student.skills.slice(0, 2).join(', ')}</>
+                            )}
+                          </p>
+
+                          {student.institutions?.name && (
+                            <p className="text-[#000000] text-sm font-medium">
+                              {student.institutions.name}
+                            </p>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious className="text-slate-600 hover:text-slate-900 hidden sm:block" />
+              <CarouselNext className="text-slate-600 hover:text-slate-900 hidden sm:block" />
+            </Carousel>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 md:pb-8">
         {/* Welcome Section */}
         <div className="mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4 leading-tight">
-            Welcome back, {institution?.name}!
+          <h1 className="text-3xl font-semibold text-black mb-2 leading-tight">
+            Welcome back, <span className='text-[#008260]'> {institution?.name}! </span>
           </h1>
-          <p className="text-lg sm:text-xl text-slate-600 leading-relaxed">
+          <p className="text-lg text-[#000000CC] font-medium leading-relaxed">
             Connect with top experts and create impactful learning experiences
           </p>
         </div>
 
         {/* Post Requirement Section */}
-        <div className="bg-white rounded-2xl shadow-sm border-2 border-slate-200 p-8 mb-8">
+        <div className="bg-white rounded-2xl  border-2 border-[#D6D6D6] p-6 mb-8">
           <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-2">
             <div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">Post a New Requirement</h2>
-              <p className="text-slate-600 text-lg">
+              <h2 className="text-2xl font-bold text-black mb-1">Post a New Requirement</h2>
+              <p className="text-[#000000CC] text-lg font-normal">
                 Create opportunities for experts to collaborate with your institution
               </p>
             </div>
-            <Dialog open={showProjectForm} onOpenChange={setShowProjectForm}>
+            <Dialog open={false}>
               <DialogTrigger asChild>
-                <Button className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300">
-                  <Plus className="h-4 w-4 mr-2" />
+                <Button className="bg-[#008260] hover:bg-[#008260] text-sm font-semibold" onClick={() => router.push('/institution/post-requirement')}>
+                  <Plus className="h-3 w-3 mr-1 border border-white rounded-full" />
                   Post Requirement
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+              <DialogContent className="hidden">
                 <DialogHeader className="flex-shrink-0">
-                  <DialogTitle>Create New Project</DialogTitle>
+                  <DialogTitle></DialogTitle>
                   <DialogDescription>
-                    Fill in the details to post a new requirement for experts
                   </DialogDescription>
                 </DialogHeader>
                 <div className="overflow-y-auto flex-1 pr-2">
@@ -1131,7 +1227,7 @@ export default function InstitutionHome() {
         </div>
 
         {/* Search and Filters */}
-        <div className="bg-white rounded-2xl shadow-sm border-2 border-slate-200 p-8 mb-8">
+        <div className="bg-white rounded-2xl border-2 border-[#D6D6D6] p-6 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <Label htmlFor="search">Search Experts</Label>
@@ -1191,7 +1287,7 @@ export default function InstitutionHome() {
         {/* All Experts (List View with infinite scrolling) */}
         <div className="mb-12">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">All Experts</h2>
+            <h2 className="text-2xl font-bold text-[#000000]">All Experts</h2>
             <span className="text-slate-600">{(allExperts || []).length} loaded</span>
           </div>
           {(!allExperts || allExperts.length === 0) && !expertsListLoading ? (
@@ -1203,7 +1299,7 @@ export default function InstitutionHome() {
           ) : (
             <div className="space-y-4">
               {allExperts?.map((expert: any) => (
-                <Card key={expert.id} className="hover:shadow-md transition-all duration-300 border-2 border-slate-200 bg-white">
+                <Card key={expert.id} className="transition-all duration-300 border-2 border-[#D6D6D6] bg-white rounded-[18px]">
                   <CardContent className="p-4">
                     {/* Mobile Layout */}
                     <div className="block sm:hidden">
@@ -1226,7 +1322,7 @@ export default function InstitutionHome() {
                       <p className="text-slate-600 text-sm line-clamp-2 mt-1">{expert.bio}</p>
                       <div className="flex flex-wrap gap-1 mt-2">
                         {expert.domain_expertise?.slice(0, 3)?.map((d: string, i: number) => (
-                          <Badge key={i} className={`text-xs ${getDomainColor(d)}`}>{d}</Badge>
+                          <Badge key={i} className={`text-xs bg-[#EBDA98] hover:bg-[#EBDA98] rounded-sm text-black py-[6px]`}>{d}</Badge>
                         ))}
                       </div>
                       <div className="flex items-center gap-4 text-sm text-slate-600 mt-2">
@@ -1237,7 +1333,7 @@ export default function InstitutionHome() {
                       {/* Buttons - Select stretched, Eye in corner */}
                       <div className="flex gap-2 mt-4">
                         <Button 
-                          className="flex-1 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white" 
+                          className="flex-1 bg-[#008260] hover:bg-[#006d51] text-white" 
                           onClick={() => { setQuickSelectExpert(expert); setShowQuickSelectModal(true); }}
                         >
                           <UserCheck className="h-4 w-4 mr-2" />
@@ -1249,12 +1345,12 @@ export default function InstitutionHome() {
                               <Eye className="h-4 w-4" />
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
-                            <DialogHeader className="flex-shrink-0">
+                          <DialogContent className="max-w-lg w-full max-h-[90vh] overflow-y-auto">
+                            <DialogHeader>
                               <DialogTitle>{expert.name}</DialogTitle>
                               <DialogDescription>Complete Expert Profile</DialogDescription>
                             </DialogHeader>
-                            <div className="space-y-4 overflow-y-auto flex-1 pr-2">
+                            <div className="space-y-4">
                               <div className="flex items-center space-x-4 mb-4">
                                 <Avatar className="w-16 h-16 border-2 border-blue-200 flex-shrink-0">
                                   <AvatarImage src={expert.photo_url} />
@@ -1324,7 +1420,7 @@ export default function InstitutionHome() {
                     </div>
 
                     {/* Desktop Layout - Keep original */}
-                    <div className="hidden sm:flex items-start gap-3">
+                    <div className="hidden sm:flex items-stretch gap-3">
                       <Avatar className="w-12 h-12">
                         <AvatarImage src={expert.photo_url} alt={expert.name} />
                         <AvatarFallback className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">
@@ -1332,9 +1428,9 @@ export default function InstitutionHome() {
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                          <h3 className="text-lg font-semibold text-slate-900 truncate">{expert.name}</h3>
-                          <div className="flex items-center text-slate-600 text-sm">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-start gap-2">
+                          <h3 className="text-lg font-semibold text-[#000000] truncate">{expert.name}</h3>
+                          <div className="flex items-center text-[#000000] font-semibold text-sm">
                             <Star className="h-4 w-4 mr-1 fill-yellow-400 text-yellow-400" />
                             {expert.rating?.toFixed(1) || '0.0'} ({expert.total_ratings || 0})
                           </div>
@@ -1342,31 +1438,32 @@ export default function InstitutionHome() {
                         <p className="text-slate-600 text-sm line-clamp-2 mt-1">{expert.bio}</p>
                         <div className="flex flex-wrap gap-1 mt-2">
                           {expert.domain_expertise?.slice(0, 3)?.map((d: string, i: number) => (
-                            <Badge key={i} className={`text-xs ${getDomainColor(d)}`}>{d}</Badge>
+                            <Badge key={i} className={`text-xs bg-[#EBDA98] hover:bg-[#EBDA98] rounded-sm text-black py-[6px]`}>{d}</Badge>
                           ))}
                         </div>
-                        <div className="flex items-center gap-4 text-sm text-slate-600 mt-2">
+                        <div className="flex items-center gap-4 text-sm text-[#6A6A6A] font-medium mt-3">
                           <span>₹{expert.hourly_rate}/hour</span>
                           {expert.experience_years ? <span>{expert.experience_years}+ yrs</span> : null}
                         </div>
                       </div>
-                      <div className="flex-shrink-0 ml-2 flex gap-2">
-                        <Button className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white" onClick={() => { setQuickSelectExpert(expert); setShowQuickSelectModal(true); }}>
-                          <UserCheck className="h-4 w-4 mr-2" />
+                      <div className="flex-shrink-0 ml-2 flex gap-2 items-end flex-1 justify-end h-full">
+                        <div className='flex gap-2'>
+                        <Button className="bg-[#008260] hover:bg-[#008260] text-white rounded-3xl text-sm" onClick={() => { setQuickSelectExpert(expert); setShowQuickSelectModal(true); }}>
+                          <UserCheck className="h-4 w-4 mr-1" />
                           Select
                         </Button>
                         <Dialog>
                           <DialogTrigger asChild>
-                            <Button variant="outline" size="icon" className="border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50 transition-all duration-300">
-                              <Eye className="h-4 w-4" />
-                            </Button>
+                          <Button variant="outline" size="icon" className="border-2 border-slate-300 bg-[#ECF2FF] transition-all duration-300">
+                                <Eye className="h-4 w-4 text-[#008260]" />
+                              </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
-                            <DialogHeader className="flex-shrink-0">
+                          <DialogContent className="max-w-lg w-full max-h-[90vh] overflow-y-auto">
+                            <DialogHeader>
                               <DialogTitle>{expert.name}</DialogTitle>
                               <DialogDescription>Complete Expert Profile</DialogDescription>
                             </DialogHeader>
-                            <div className="space-y-4 overflow-y-auto flex-1 pr-2">
+                            <div className="space-y-4">
                               <div className="flex items-center space-x-4 mb-4">
                                 <Avatar className="w-16 h-16 border-2 border-blue-200 flex-shrink-0">
                                   <AvatarImage src={expert.photo_url} />
@@ -1396,10 +1493,7 @@ export default function InstitutionHome() {
                                   <h4 className="font-medium mb-1">Experience</h4>
                                   <p className="text-sm">{expert.experience_years || 0} years</p>
                                 </div>
-                                <div>
-                                  <h4 className="font-medium mb-1">Contact</h4>
-                                  <p className="text-sm">{expert.email}</p>
-                                </div>
+                              
                               </div>
                               {expert.subskills && expert.subskills.length > 0 && (
                                 <div>
@@ -1439,6 +1533,7 @@ export default function InstitutionHome() {
                             </div>
                           </DialogContent>
                         </Dialog>
+                        </div>
                       </div>
                     </div>
                   </CardContent>
@@ -1448,7 +1543,7 @@ export default function InstitutionHome() {
               <div ref={expertsListEndRef} />
               {expertsListLoading && (
                 <div className="flex justify-center py-6 text-slate-600">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-2"></div>
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#008260] mr-2"></div>
                   Loading more experts...
                 </div>
               )}
@@ -1469,7 +1564,7 @@ export default function InstitutionHome() {
             <div className="flex-1 overflow-y-auto pr-2">
               {expertsLoading ? (
                 <div className="flex justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#008260]"></div>
                 </div>
               ) : recommendedExperts.length === 0 ? (
                 <div className="text-center py-12">
@@ -1638,40 +1733,40 @@ export default function InstitutionHome() {
             setQuickSelectExpert(null)
           }
         }}>
-          <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-hidden flex flex-col bg-white border border-[#E0E0E0]">
             <DialogHeader className="flex-shrink-0">
-              <DialogTitle>Notify Expert</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="text-xl font-bold text-[#000000]">Notify Expert</DialogTitle>
+              <DialogDescription className="text-sm text-[#6A6A6A]">
                 Select one of your projects to notify {quickSelectExpert?.name}
               </DialogDescription>
             </DialogHeader>
 
             <div className="flex-1 overflow-y-auto pr-2 space-y-3">
               {institutionProjects.length === 0 ? (
-                <div className="text-center py-8 text-slate-600">
+                <div className="text-center py-8 text-[#6A6A6A]">
                   No projects found. Create a project first.
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {institutionProjects.map((proj) => {
                     const isSelected = quickSelectedProjectId === proj.id
                     return (
-                      <label key={proj.id} className={`block rounded-xl ${isSelected ? 'bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-600 p-[1.5px]' : ''}`}>
+                      <label key={proj.id} className="block">
                         <div
-                          className={`flex items-start gap-3 p-4 rounded-xl border bg-white transition-all duration-200 ${isSelected ? 'border-transparent shadow-md' : 'border-slate-200 hover:border-blue-300 hover:shadow-sm'}`}
+                          className={`flex items-start gap-3 p-4 rounded-xl border bg-white transition-all duration-200 cursor-pointer ${isSelected ? 'border-[#008260] bg-[#E8F5F1] shadow-md' : 'border-[#E0E0E0] hover:border-[#008260] hover:shadow-sm'}`}
                           onClick={() => setQuickSelectedProjectId(isSelected ? null : proj.id)}
                         >
                           <Checkbox
                             checked={isSelected}
                             onCheckedChange={(checked) => setQuickSelectedProjectId(checked ? proj.id : null)}
-                            className="mt-1 border-2 rounded-md border-slate-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                            className="mt-1 border-2 rounded-md border-[#DCDCDC] data-[state=checked]:bg-[#008260] data-[state=checked]:border-[#008260]"
                           />
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <h4 className="font-medium text-slate-900 truncate">{proj.title}</h4>
-                              <Badge variant="secondary" className="capitalize text-xs">{proj.type}</Badge>
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <h4 className="font-semibold text-[#000000] truncate">{proj.title}</h4>
+                              {proj.type && <Badge className="capitalize text-xs flex-shrink-0 bg-[#E8F5F1] text-[#008260] border border-[#008260]">{proj.type}</Badge>}
                             </div>
-                            <p className="text-sm text-slate-600 line-clamp-2">{proj.description}</p>
+                            <p className="text-sm text-[#6A6A6A] line-clamp-2">{proj.description}</p>
                           </div>
                         </div>
                       </label>
@@ -1681,11 +1776,11 @@ export default function InstitutionHome() {
               )}
             </div>
 
-            <div className="flex-shrink-0 flex justify-end gap-2 pt-4 border-t border-slate-200">
-              <Button variant="outline" onClick={() => setShowQuickSelectModal(false)}>Cancel</Button>
+            <div className="flex-shrink-0 flex justify-end gap-2 pt-4 border-t border-[#DCDCDC]">
+              <Button variant="outline" onClick={() => setShowQuickSelectModal(false)} className="border border-[#DCDCDC] hover:border-[#008260] hover:bg-[#E8F5F1] text-[#000000] hover:text-[#008260]">Cancel</Button>
               <Button
                 disabled={!quickSelectedProjectId || sendingQuickMessage}
-                className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
+                className="bg-[#008260] hover:bg-[#006B4F] text-white disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={async () => {
                   if (!quickSelectExpert || !quickSelectedProjectId || !institution?.id) return
                   try {
@@ -1778,18 +1873,7 @@ export default function InstitutionHome() {
 
       </main>
 
-      {institution?.type === 'Corporate' && (
-        <div className="fixed bottom-4 inset-x-0 px-4 md:hidden z-50">
-          <div className="bg-white/90 backdrop-blur-md border border-slate-200 shadow-xl rounded-xl p-3 flex gap-3">
-            <Link href="/institution/internships/create" className="flex-1">
-              <Button className="w-full bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">Create Internship</Button>
-            </Link>
-            <Link href="/institution/freelance/create" className="flex-1">
-              <Button className="w-full bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">Create Freelance</Button>
-            </Link>
-          </div>
-        </div>
-      )}
+    
     </div>
   )
 }

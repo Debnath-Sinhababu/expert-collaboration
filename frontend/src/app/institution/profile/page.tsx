@@ -16,6 +16,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import Logo from '@/components/Logo'
+import NotificationBell from '@/components/NotificationBell'
+import ProfileDropdown from '@/components/ProfileDropdown'
 
 const INSTITUTION_TYPES = [
   'University',
@@ -263,136 +265,191 @@ export default function InstitutionProfile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-[#ECF2FF] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading profile...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#008260] mx-auto mb-4"></div>
+          <p className="text-[#6A6A6A]">Loading profile...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative py-8">
-      
-      <div className="container mx-auto px-4 max-w-6xl relative z-10">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-        <div  className="inline-flex cursor-pointer items-center space-x-2 hover:opacity-80 transition-opacity duration-300"
-          onClick={() => router.back()}
-          >
-            <ArrowLeft className="h-5 w-5 text-blue-500" />
-            <span className="bg-gradient-to-r from-blue-500 to-indigo-500 bg-clip-text text-transparent font-medium">Back</span>
-          </div>
-          
-          <nav className="hidden md:flex items-center space-x-8">
-              <Link href="/institution/home" className="text-blue-500 hover:text-blue-200 font-medium transition-colors duration-200 relative group">
+    <div className="min-h-screen bg-[#ECF2FF]">
+      {/* Header */}
+      <header className="bg-[#008260] border-b border-white/10 sticky top-0 z-50 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            {/* Logo */}
+            <Link href="/institution/home" className="flex items-center group">
+              <Logo size="header" />
+            </Link>
+
+            {/* Navigation */}
+            <nav className="hidden md:flex items-center space-x-8">
+              <Link href="/institution/home" className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
                 Home
-                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-blue-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
-              <Link href="/institution/dashboard" className="text-blue-500  hover:text-blue-200 font-medium transition-colors duration-200 relative group">
+              <Link href="/institution/dashboard" className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
                 Dashboard
-                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-blue-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
+            
             </nav>
+
+            {/* Right side */}
+            <div className="flex items-center space-x-4">
+              <NotificationBell />
+              <ProfileDropdown 
+                user={user} 
+                institution={institution} 
+                userType="institution" 
+              />
+            </div>
+          </div>
+        </div>
+      </header>
+      
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl py-6 sm:py-8">
+        {/* Page Title */}
+        <h1 className="text-xl sm:text-2xl font-bold text-[#000000] mb-4 sm:mb-6">Profile</h1>
+
+        {/* Profile Header - Centered */}
+        <div className="flex flex-col items-center mb-6">
+          <div className="relative mb-4">
+            <Avatar className="w-24 h-24 sm:w-32 sm:h-32 border-4 border-white shadow-lg">
+              <AvatarImage src={institution?.logo_url} />
+              <AvatarFallback className="text-3xl sm:text-4xl font-bold bg-[#C8E6F5] text-[#008260]">
+                {institution?.name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'I'}
+              </AvatarFallback>
+            </Avatar>
+          </div>
           
-          <div className="w-24"></div> {/* Spacer for centering */}
-        </div>
-
-        <div className="text-center mb-8">
-        <div className="text-center">
-            <Logo size="lg" />
-          </div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent mb-2">Profile Summary</h1>
-          <p className="text-xl text-slate-600">
-            Manage your institution profile and showcase your academic excellence
+          <h2 className="text-xl sm:text-2xl font-bold text-[#000000] mb-1 text-center px-4">
+            {institution?.name || 'Institution'}
+          </h2>
+          
+          <p className="text-sm sm:text-base text-[#6A6A6A] mb-3 text-center">
+            {institution?.type || 'Educational Institution'}
           </p>
+          
+          {/* Verified Badge */}
+          <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1 bg-[#8FFFA7] rounded-full border border-[#008260]">
+            <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-[#008260] flex items-center justify-center">
+              <Shield className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-white" />
+            </div>
+            <span className="text-[11px] sm:text-[12px] text-[#008260] font-medium">Verified</span>
+          </div>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Profile Summary Card */}
-          <div className="lg:col-span-1">
-            <Card className="bg-white border-2 border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
-              <CardContent className="p-6 text-center">
-                <div className="mb-6">
-                  <Avatar className="w-24 h-24 mx-auto mb-4 border-2 border-slate-300">
-                    <AvatarImage src={institution?.logo_url} />
-                    <AvatarFallback className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
-                      {institution?.name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'I'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <h2 className="text-2xl font-bold text-slate-900 mb-2">{institution?.name || 'Institution'}</h2>
-                  <p className="text-slate-600 mb-4">{institution?.type || 'Educational Institution'}</p>
-                  
-                  {/* Status Badges */}
-                  <div className="flex justify-center space-x-2 mb-4">
-                    <div className="flex items-center space-x-1 px-3 py-1 bg-green-100 rounded-full">
-                      <Shield className="h-4 w-4 text-green-600" />
-                      <span className="text-sm text-green-700 font-medium">Active</span>
-                    </div>
-                    <div className="flex items-center space-x-1 px-3 py-1 bg-blue-100 rounded-full">
-                      <Award className="h-4 w-4 text-blue-600" />
-                      <span className="text-sm text-blue-700 font-medium">
-                        {institution?.accreditation || 'Standard'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quick Stats */}
+        {/* Main Card */}
+        <Card className="bg-white border border-[#DCDCDC] rounded-lg shadow-sm mb-8">
+          <CardContent className="p-4 sm:p-6 lg:p-8">
+            {/* Responsive Grid - Stack on mobile, 2 columns on desktop */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+              {/* ABOUT Section */}
+              <div>
+                <h3 className="text-xs font-semibold text-[#6A6A6A] uppercase tracking-wider mb-4">
+                  ABOUT
+                </h3>
+                
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                    <div className="flex items-center space-x-2">
-                      <Calendar className="h-5 w-5 text-green-600" />
-                      <span className="text-slate-600">Established</span>
-                    </div>
-                    <span className="font-bold text-slate-900">{institution?.established_year || 'N/A'}</span>
+                  <div>
+                    <p className="text-sm text-[#6A6A6A] mb-1">City</p>
+                    <p className="text-base font-semibold text-[#000000]">
+                      {institution?.city || 'N/A'}
+                    </p>
                   </div>
                   
-                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                    <div className="flex items-center space-x-2">
-                      <Users className="h-5 w-5 text-blue-600" />
-                      <span className="text-slate-600">Students</span>
-                    </div>
-                    <span className="font-bold text-slate-900">{institution?.student_count || 'N/A'}</span>
+                  <div>
+                    <p className="text-sm text-[#6A6A6A] mb-1">State</p>
+                    <p className="text-base font-semibold text-[#000000]">
+                      {institution?.state || 'N/A'}
+                    </p>
                   </div>
                   
-                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                    <div className="flex items-center space-x-2">
-                      <MapPin className="h-5 w-5 text-purple-600" />
-                      <span className="text-slate-600">City</span>
-                    </div>
-                    <span className="font-bold text-slate-900">{institution?.city || 'N/A'}</span>
+                  <div>
+                    <p className="text-sm text-[#6A6A6A] mb-1">Bio</p>
+                    <p className="text-base text-[#000000] leading-relaxed">
+                      {institution?.description || 'No description provided'}
+                    </p>
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                    <div className="flex items-center space-x-2">
-                      <MapPin className="h-5 w-5 text-purple-600" />
-                      <span className="text-slate-600">State</span>
+                </div>
+              </div>
+
+              {/* DETAILS Section */}
+              <div>
+                <h3 className="text-xs font-semibold text-[#6A6A6A] uppercase tracking-wider mb-4">
+                  DETAILS
+                </h3>
+                
+                <div className="space-y-3 mb-6">
+                  <div className="flex items-center gap-3 p-3 bg-[#ECF2FF] rounded-xl">
+                    <div className="w-10 h-10 bg-[#008260] rounded-full flex items-center justify-center flex-shrink-0">
+                      <Calendar className="h-5 w-5 text-white" />
                     </div>
-                    <span className="font-bold text-slate-900">{institution?.state || 'N/A'}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-[#6A6A6A]">Established</p>
+                      <p className="text-base font-bold text-[#000000] truncate">
+                        {institution?.established_year ? `${institution.established_year} years` : 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-3 p-3 bg-[#ECF2FF] rounded-xl">
+                    <div className="w-10 h-10 bg-[#008260] rounded-full flex items-center justify-center flex-shrink-0">
+                      <Users className="h-5 w-5 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-[#6A6A6A]">Students</p>
+                      <p className="text-base font-bold text-[#000000] truncate">
+                        {institution?.student_count ? `${institution.student_count} Lakhs +` : 'N/A'}
+                      </p>
+                    </div>
                   </div>
                 </div>
 
-                <Button
-                  onClick={() => setEditing(!editing)}
-                  className="w-full mt-6 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  {editing ? 'Cancel Editing' : 'Edit Profile'}
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+                {/* Action Buttons */}
+                <div className="space-y-2">
+                  <Button
+                    onClick={() => {
+                      setEditing(!editing)
+                      if(editing){
+                        loadInstitutionData(user.id)
+                      }
+                    }}
+                    className="w-full bg-[#008260] hover:bg-[#006b4f] text-white rounded-xl py-4 sm:py-5 font-medium shadow-sm transition-all duration-200"
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    {editing ? 'Cancel Editing' : 'Edit Profile'}
+                  </Button>
+                  
+                  {/* <Button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/institutions/${institution?.id || ''}`)
+                      toast.success('Profile link copied!')
+                    }}
+                    className="w-full bg-[#008260] hover:bg-[#006b4f] text-white rounded-xl py-4 sm:py-5 font-medium shadow-sm transition-all duration-200"
+                  >
+                    <Globe className="h-4 w-4 mr-2" />
+                    Copy Profile Link
+                  </Button> */}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* Profile Form Card */}
-          <div className="lg:col-span-2">
-            <Card className="bg-white border-2 border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
-              <CardHeader>
-                <CardTitle className="text-slate-900">Institution Information</CardTitle>
-                <CardDescription className="text-slate-600">
-                  {editing ? 'Update your institution information below' : 'Your current institution information'}
-                </CardDescription>
-              </CardHeader>
+        {/* Form Section */}
+        <Card className="bg-white border border-[#DCDCDC] rounded-lg shadow-sm">
+          <CardHeader className="border-b border-[#ECECEC]">
+            <CardTitle className="text-xl font-bold text-[#000000]">Institution Profile Setup</CardTitle>
+            <CardDescription className="text-[#6A6A6A]">
+              {editing ? 'Update your institution information below' : 'Your current institution information'}
+            </CardDescription>
+          </CardHeader>
               <CardContent>
                 {error && (
                   <Alert variant="destructive" className="mb-6">
@@ -406,32 +463,32 @@ export default function InstitutionProfile() {
                   </Alert>
                 )}
 
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-8">
                   {/* Basic Information */}
                   <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-slate-800 flex items-center space-x-2">
-                      <Building className="h-5 w-5 text-blue-500" />
+                    <h3 className="text-base font-semibold text-[#000000] flex items-center space-x-2 pb-2 border-b border-[#ECECEC]">
+                      <Building className="h-5 w-5 text-[#008260]" />
                       <span>Basic Information</span>
                     </h3>
                     
                     <div className="grid md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="name" className="text-slate-700">Institution Name *</Label>
+                        <Label htmlFor="name" className="text-[#000000] font-medium">Institution Name *</Label>
                         <Input
                           id="name"
                           placeholder="Enter institution name"
                           value={formData.name}
                           onChange={(e) => handleInputChange('name', e.target.value)}
-                          className="border-2 border-slate-200 focus:border-blue-400 focus:ring-blue-400 transition-all duration-300"
+                          className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]"
                           required
                           disabled={!editing}
                         />
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="type" className="text-slate-700">Institution Type *</Label>
+                        <Label htmlFor="type" className="text-[#000000] font-medium">Institution Type *</Label>
                         <Select value={formData.type} onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))} disabled={!editing}>
-                          <SelectTrigger className="border-2 border-slate-200 focus:border-blue-400 focus:ring-blue-400 transition-all duration-300">
+                          <SelectTrigger className="focus:ring-[#008260] focus:ring-1 focus:ring-offset-0 focus:border-[#008260]">
                             <SelectValue placeholder="Select institution type" />
                           </SelectTrigger>
                           <SelectContent>
@@ -446,14 +503,14 @@ export default function InstitutionProfile() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="description" className="text-slate-700">Institution Description *</Label>
+                      <Label htmlFor="description" className="text-[#000000] font-medium">Institution Description *</Label>
                       <Textarea
                         id="description"
                         placeholder="Describe your institution, its mission, and academic focus..."
                         value={formData.description}
                         onChange={(e) => handleInputChange('description', e.target.value)}
                         rows={4}
-                        className="border-2 border-slate-200 focus:border-blue-400 focus:ring-blue-400 transition-all duration-300"
+                        className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260] transition-all duration-300"
                         required
                         disabled={!editing}
                       />
@@ -461,26 +518,26 @@ export default function InstitutionProfile() {
 
                     <div className="grid md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="website_url" className="text-slate-700">Website URL</Label>
+                        <Label htmlFor="website_url" className="text-[#000000] font-medium">Website URL</Label>
                         <Input
                           id="website_url"
                           placeholder="https://www.yourinstitution.edu"
                           value={formData.website_url}
                           onChange={(e) => setFormData(prev => ({ ...prev, website_url: e.target.value }))}
-                          className="border-2 border-slate-200 focus:border-blue-400 focus:ring-blue-400 transition-all duration-300"
+                          className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260] transition-all duration-300"
                           disabled={!editing}
                         />
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="established_year" className="text-slate-700">Established Year</Label>
+                        <Label htmlFor="established_year" className="text-[#000000] font-medium">Established Year</Label>
                         <Input
                           id="established_year"
                           type="number"
                           placeholder="e.g., 1990"
                           value={formData.established_year}
                           onChange={(e) => handleInputChange('established_year', e.target.value)}
-                          className="border-2 border-slate-200 focus:border-blue-400 focus:ring-blue-400 transition-all duration-300"
+                          className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260] transition-all duration-300"
                           disabled={!editing}
                         />
                       </div>
@@ -495,35 +552,35 @@ export default function InstitutionProfile() {
                     </h3>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="address" className="text-slate-700">Address</Label>
+                      <Label htmlFor="address" className="text-[#000000] font-medium">Address</Label>
                       <Textarea
                         id="address"
                         placeholder="Enter complete address"
                         value={formData.address}
                         onChange={(e) => handleInputChange('address', e.target.value)}
                         rows={3}
-                        className="border-2 border-slate-200 focus:border-blue-400 focus:ring-blue-400 transition-all duration-300"
+                        className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260] transition-all duration-300"
                         disabled={!editing}
                       />
                     </div>
 
                     <div className="grid md:grid-cols-3 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="city" className="text-slate-700">City</Label>
+                        <Label htmlFor="city" className="text-[#000000] font-medium">City</Label>
                         <Input
                           id="city"
                           placeholder="Enter city"
                           value={formData.city}
                           onChange={(e) => handleInputChange('city', e.target.value)}
-                          className="border-2 border-slate-200 focus:border-blue-400 focus:ring-blue-400 transition-all duration-300"
+                          className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260] transition-all duration-300"
                           disabled={!editing}
                         />
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="state" className="text-slate-700">State</Label>
+                        <Label htmlFor="state" className="text-[#000000] font-medium">State</Label>
                         <Select value={formData.state} onValueChange={(value) => handleInputChange('state', value)} disabled={!editing}>
-                          <SelectTrigger className="border-2 border-slate-200 focus:border-blue-400 focus:ring-blue-400 transition-all duration-300">
+                          <SelectTrigger className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260] transition-all duration-300">
                             <SelectValue placeholder="Select state" />
                           </SelectTrigger>
                           <SelectContent>
@@ -537,13 +594,13 @@ export default function InstitutionProfile() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="pincode" className="text-slate-700">Pincode</Label>
+                        <Label htmlFor="pincode" className="text-[#000000] font-medium">Pincode</Label>
                         <Input
                           id="pincode"
                           placeholder="Enter pincode"
                           value={formData.pincode}
                           onChange={(e) => handleInputChange('pincode', e.target.value)}
-                          className="border-2 border-slate-200 focus:border-blue-400 focus:ring-blue-400 transition-all duration-300"
+                          className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260] transition-all duration-300"
                           disabled={!editing}
                         />
                       </div>
@@ -559,26 +616,26 @@ export default function InstitutionProfile() {
                     
                     <div className="grid md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="contact_person" className="text-slate-700">Contact Person *</Label>
+                        <Label htmlFor="contact_person" className="text-[#000000] font-medium">Contact Person *</Label>
                         <Input
                           id="contact_person"
                           placeholder="Name of primary contact person"
                           value={formData.contact_person}
                           onChange={(e) => handleInputChange('contact_person', e.target.value)}
-                          className="border-2 border-slate-200 focus:border-blue-400 focus:ring-blue-400 transition-all duration-300"
+                          className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260] transition-all duration-300"
                           required
                           disabled={!editing}
                         />
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="phone" className="text-slate-700">Contact Phone *</Label>
+                        <Label htmlFor="phone" className="text-[#000000] font-medium">Contact Phone *</Label>
                         <Input
                           id="phone"
                           placeholder="Enter contact phone number"
                           value={formData.phone}
                           onChange={(e) => handleInputChange('phone', e.target.value)}
-                          className="border-2 border-slate-200 focus:border-blue-400 focus:ring-blue-400 transition-all duration-300"
+                          className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260] transition-all duration-300"
                           disabled={!editing}
                           required
                         />
@@ -586,14 +643,14 @@ export default function InstitutionProfile() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="email" className="text-slate-700">Contact Email *</Label>
+                      <Label htmlFor="email" className="text-[#000000] font-medium">Contact Email *</Label>
                       <Input
                         id="email"
                         type="email"
                         placeholder="Enter contact email"
                         value={formData.email}
                         onChange={(e) => handleInputChange('email', e.target.value)}
-                        className="border-2 border-slate-200 focus:border-blue-400 focus:ring-blue-400 transition-all duration-300"
+                        className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260] transition-all duration-300"
                         disabled={!editing}
                         required
                       />
@@ -611,26 +668,26 @@ export default function InstitutionProfile() {
                       formData.type !== 'Corporate' &&
                       <div className="grid md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="accreditation" className="text-slate-700">Accreditation</Label>
+                        <Label htmlFor="accreditation" className="text-[#000000] font-medium">Accreditation</Label>
                         <Input
                           id="accreditation"
                           placeholder="e.g., NAAC A+, NBA, UGC"
                           value={formData.accreditation}
                           onChange={(e) => handleInputChange('accreditation', e.target.value)}
-                          className="border-2 border-slate-200 focus:border-blue-400 focus:ring-blue-400 transition-all duration-300"
+                          className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260] transition-all duration-300"
                           disabled={!editing}
                         />
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="student_count" className="text-slate-700">Student Count</Label>
+                        <Label htmlFor="student_count" className="text-[#000000] font-medium">Student Count</Label>
                         <Input
                           id="student_count"
                           type="number"
                           placeholder="Approximate number of students"
                           value={formData.student_count}
                           onChange={(e) => handleInputChange('student_count', e.target.value)}
-                          className="border-2 border-slate-200 focus:border-blue-400 focus:ring-blue-400 transition-all duration-300"
+                          className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260] transition-all duration-300"
                           disabled={!editing}
                         />
                       </div>
@@ -639,13 +696,13 @@ export default function InstitutionProfile() {
                    
 
                     <div className="space-y-2">
-                      <Label htmlFor="logo_url" className="text-slate-700">Logo URL</Label>
+                      <Label htmlFor="logo_url" className="text-[#000000] font-medium">Logo URL</Label>
                       <Input
                         id="logo_url"
                         placeholder="Link to your institution logo"
                         value={formData.logo_url}
                         onChange={(e) => handleInputChange('logo_url', e.target.value)}
-                        className="border-2 border-slate-200 focus:border-blue-400 focus:ring-blue-400 transition-all duration-300"
+                        className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260] transition-all duration-300"
                         disabled={!editing}
                       />
                     </div>
@@ -656,15 +713,15 @@ export default function InstitutionProfile() {
           
                       <div className="grid md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label>Industry *</Label>
+                          <Label className="text-[#000000] font-medium">Industry *</Label>
                           <Input value={formData.industry} onChange={(e) => setFormData(prev => ({ ...prev, industry: e.target.value }))} disabled={!editing}
                           required
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label>Company Size *</Label>
+                          <Label className="text-[#000000] font-medium">Company Size *</Label>
                           <Select value={formData.company_size} onValueChange={(v) => setFormData(prev => ({ ...prev, company_size: v }))} disabled={!editing}>
-                            <SelectTrigger>
+                            <SelectTrigger className="focus:ring-[#008260] focus:ring-1 focus:ring-offset-0 focus:border-[#008260]">
                               <SelectValue placeholder="Select size" />
                             </SelectTrigger>
                             <SelectContent>
@@ -681,21 +738,21 @@ export default function InstitutionProfile() {
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label>GSTIN *</Label>
+                          <Label className="text-[#000000] font-medium">GSTIN *</Label>
                           <Input value={formData.gstin} required maxLength={15} onChange={(e) => {
                             const upper = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')
                             setFormData(prev => ({ ...prev, gstin: upper }))
                           }} disabled={!editing} />
                         </div>
                         <div className="space-y-2">
-                          <Label>PAN *</Label>
+                          <Label className="text-[#000000] font-medium">PAN *</Label>
                           <Input value={formData.pan} required maxLength={10} onChange={(e) => {
                             const upper = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')
                             setFormData(prev => ({ ...prev, pan: upper }))
                           }} disabled={!editing} />
                         </div>
                         <div className="space-y-2">
-                          <Label>CIN *</Label>
+                          <Label className="text-[#000000] font-medium">CIN *</Label>
                           <Input value={formData.cin} required maxLength={21} onChange={(e) => {
                             const upper = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')
                             setFormData(prev => ({ ...prev, cin: upper }))
@@ -703,20 +760,20 @@ export default function InstitutionProfile() {
                         </div>
                      
                         <div className="space-y-2">
-                          <Label>Preferred Engagements (comma separated)</Label>
-                          <Input value={formData.preferred_engagements} onChange={(e) => setFormData(prev => ({ ...prev, preferred_engagements: e.target.value }))} disabled={!editing} />
+                          <Label className="text-[#000000] font-medium">Preferred Engagements (comma separated)</Label>
+                          <Input value={formData.preferred_engagements} onChange={(e) => setFormData(prev => ({ ...prev, preferred_engagements: e.target.value }))} className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]" disabled={!editing} />
                         </div>
                         <div className="space-y-2">
-                          <Label>Work Mode Preference</Label>
-                          <Input value={formData.work_mode_preference} onChange={(e) => setFormData(prev => ({ ...prev, work_mode_preference: e.target.value }))} disabled={!editing} />
+                          <Label className="text-[#000000] font-medium">Work Mode Preference</Label>
+                          <Input value={formData.work_mode_preference} onChange={(e) => setFormData(prev => ({ ...prev, work_mode_preference: e.target.value }))} className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]" disabled={!editing} />
                         </div>
                      
                       </div>
                       <div className="grid md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label>Requires PO?</Label>
+                          <Label className="text-[#000000] font-medium">Requires PO?</Label>
                           <Select value={formData.requires_po} onValueChange={(v) => setFormData(prev => ({ ...prev, requires_po: v }))} disabled={!editing}>
-                            <SelectTrigger>
+                            <SelectTrigger className="focus:ring-[#008260] focus:ring-1 focus:ring-offset-0 focus:border-[#008260]">
                               <SelectValue placeholder="Select" />
                             </SelectTrigger>
                             <SelectContent>
@@ -726,9 +783,9 @@ export default function InstitutionProfile() {
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label>NDA Required?</Label>
+                          <Label className="text-[#000000] font-medium">NDA Required?</Label>
                           <Select value={formData.nda_required} onValueChange={(v) => setFormData(prev => ({ ...prev, nda_required: v }))} disabled={!editing}>
-                            <SelectTrigger>
+                            <SelectTrigger className="focus:ring-[#008260] focus:ring-1 focus:ring-offset-0 focus:border-[#008260]">
                               <SelectValue placeholder="Select" />
                             </SelectTrigger>
                             <SelectContent>
@@ -742,22 +799,28 @@ export default function InstitutionProfile() {
                   )}
 
                   {editing && (
-                    <div className="flex justify-end pt-6">
+                    <div className="flex justify-end gap-3 pt-6">
+                      <Button
+                        type="button"
+                        onClick={() => setEditing(false)}
+                        variant="outline"
+                        className="bg-white border-[#DCDCDC] text-[#000000] hover:bg-[#F8F8F8] px-8"
+                      >
+                        Cancel
+                      </Button>
                       <Button
                         type="submit"
-                        className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
+                        className="bg-[#008260] hover:bg-[#006b4f] text-white px-8"
                         disabled={saving}
                       >
                         <Save className="h-4 w-4 mr-2" />
-                        {saving ? 'Saving...' : 'Save Changes'}
+                        {saving ? 'Saving...' : 'Save'}
                       </Button>
                     </div>
                   )}
                 </form>
               </CardContent>
             </Card>
-          </div>
-        </div>
       </div>
     </div>
   )

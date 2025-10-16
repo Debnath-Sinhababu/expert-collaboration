@@ -20,6 +20,7 @@ import { Save, Edit, ArrowLeft, FileText, X, Link2, GraduationCap, User, MapPin,
 import { INDIAN_STATES, INDIAN_DEGREES } from '@/lib/constants'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command'
+import Logo from '@/components/Logo'
 
 export default function StudentProfilePage() {
   const router = useRouter()
@@ -214,23 +215,22 @@ export default function StudentProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-[#ECF2FF] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading profile...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#008260] mx-auto mb-4"></div>
+          <p className="text-[#6A6A6A]">Loading profile...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
+    <div className="min-h-screen bg-[#ECF2FF]">
+      <header className="bg-[#008260] backdrop-blur-sm border-b border-white/10 sticky top-0 z-50 shadow-lg">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="inline-flex cursor-pointer items-center space-x-2" onClick={() => router.back()}>
-            <ArrowLeft className="h-5 w-5 text-blue-100" />
-            <span className="text-blue-100">Back</span>
-          </div>
+          <Link href="/student/home" className="flex items-center">
+            <Logo size="header" />
+          </Link>
           <div className="flex items-center gap-2">
             <NotificationBell />
             <ProfileDropdown user={user} student={student} userType="student" />
@@ -242,66 +242,105 @@ export default function StudentProfilePage() {
         {error && <Alert variant="destructive" className="mb-6"><AlertDescription>{error}</AlertDescription></Alert>}
         {success && <Alert className="mb-6 bg-green-50 border-green-200"><AlertDescription className="text-green-700">{success}</AlertDescription></Alert>}
 
-        <div className="grid lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-1">
-            <Card className="bg-white border-2 border-slate-200">
-              <CardContent className="p-6 text-center">
-                <Avatar className="w-20 h-20 mx-auto mb-3 border-2 border-slate-200">
-                  <AvatarImage src={photoPreview || student?.photo_url || ''} />
-                  <AvatarFallback className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
-                    {form.name?.charAt(0) || 'S'}
-                  </AvatarFallback>
-                </Avatar>
-                <h2 className="text-xl font-semibold text-slate-900">{form.name || 'Student'}</h2>
-                <p className="text-slate-600 text-sm">{student?.specialization || 'Student specialization'}</p>
-                {Array.isArray(student?.skills) && student.skills.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-1 justify-center">
-                    {student.skills.slice(0, 5).map((s: string, i: number) => (
-                      <Badge key={`${s}-${i}`} variant="secondary" className="text-xs bg-slate-100 text-slate-700">{s}</Badge>
-                    ))}
-                  </div>
-                )}
-                <div className="mt-4 space-y-1 text-sm text-slate-600">
-                  <div className="flex items-center justify-center gap-1"><User className="h-4 w-4" /> {form.email}</div>
-                  <div className="flex items-center justify-center gap-1"><MapPin className="h-4 w-4" /> {[form.city, form.state].filter(Boolean).join(', ')}</div>
-                </div>
-                <Button className="w-full mt-4 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white" onClick={() => setEditing(!editing)}>
-                  <Edit className="h-4 w-4 mr-2" />{editing ? 'Cancel' : 'Edit Profile'}
-                </Button>
-                {student?.resume_url && (
-                  <a href={student.resume_url} target="_blank" rel="noreferrer">
-                    <Button variant="outline" className="w-full mt-2 border-2 border-slate-300 text-slate-700"><FileText className="h-4 w-4 mr-2" />View Resume</Button>
-                  </a>
-                )}
-              </CardContent>
-            </Card>
+        {/* Profile Summary Section */}
+        <div className="mb-8 text-center">
+          <div className="relative inline-block mb-4">
+            <Avatar className="w-32 h-32 border-4 border-white shadow-lg">
+              <AvatarImage src={photoPreview || student?.photo_url || ''} />
+              <AvatarFallback className="bg-[#C8E6F5] text-[#008260] text-3xl">
+                {form.name?.charAt(0) || 'S'}
+              </AvatarFallback>
+            </Avatar>
           </div>
+          <h2 className="text-2xl font-bold text-[#000000] mb-1">{form.name || 'Student'}</h2>
+          <p className="text-base text-[#6A6A6A] mb-2">Student</p>
+          {!editing && (
+            <div className="inline-flex items-center gap-2 px-4 py-1 bg-[#8FFFA7] rounded-full border border-[#008260]">
+              <svg className="w-4 h-4 text-[#008260]" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <span className="text-sm font-medium text-[#008260]">Verified</span>
+            </div>
+          )}
+        </div>
 
-          <div className="lg:col-span-2">
-            <Card className="bg-white border-2 border-slate-200">
-              <CardHeader>
-                <CardTitle className="text-slate-900">Profile Information</CardTitle>
-                <CardDescription className="text-slate-600">Update your student profile</CardDescription>
-              </CardHeader>
-              <CardContent>
+        {/* About Card */}
+        <Card className="bg-white border border-[#DCDCDC] rounded-lg shadow-sm mb-8">
+          <CardContent className="p-8">
+            <h3 className="text-xs font-semibold text-[#6A6A6A] uppercase mb-4">ABOUT</h3>
+            
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm text-[#6A6A6A] mb-1">Email</p>
+                <p className="text-base font-semibold text-[#000000]">{form.email}</p>
+              </div>
+              
+              <div>
+                <p className="text-sm text-[#6A6A6A] mb-1">Location</p>
+                <p className="text-base font-semibold text-[#000000]">
+                  {[form.city, form.state].filter(Boolean).join(', ') || 'Not specified'}
+                </p>
+              </div>
+              
+              {form.degree && (
+                <div>
+                  <p className="text-sm text-[#6A6A6A] mb-1">Degree</p>
+                  <p className="text-base font-semibold text-[#000000]">
+                    {form.degree}
+                  </p>
+                </div>
+              )}
+
+              {form.specialization && (
+                <div>
+                  <p className="text-sm text-[#6A6A6A] mb-1">Specialization</p>
+                  <p className="text-base font-semibold text-[#000000]">
+                    {form.specialization}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="mt-6 space-y-3">
+              <Button 
+                className="w-full bg-[#008260] hover:bg-[#006b4f] text-white rounded-xl py-5 font-medium shadow-sm" 
+                onClick={() => setEditing(!editing)}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                {editing ? 'Cancel Edit' : 'Edit Profile'}
+              </Button>
+              
+           
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Form Section */}
+        <Card className="bg-white border border-[#DCDCDC] rounded-lg shadow-sm">
+          <CardHeader className="border-b border-[#ECECEC]">
+            <CardTitle className="text-xl font-bold text-[#000000]">Student Profile Setup</CardTitle>
+            <CardDescription className="text-[#6A6A6A]">Create your student profile to apply to internships</CardDescription>
+          </CardHeader>
+          <CardContent className="p-8">
                 <form onSubmit={save} className="space-y-6">
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
-                      <Label>Name *</Label>
-                      <Input value={form.name} onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))} required disabled={!editing} />
+                      <Label className="text-[#000000] font-medium">Name *</Label>
+                      <Input value={form.name} onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))} required disabled={!editing}  className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]" />
                     </div>
                     <div>
-                      <Label>Email *</Label>
+                      <Label className="text-[#000000] font-medium">Email *</Label>
                       <Input type="email" value={form.email} onChange={(e) => setForm(prev => ({ ...prev, email: e.target.value }))} required disabled />
                     </div>
                     <div>
-                      <Label>Phone *</Label>
-                      <Input value={form.phone} onChange={(e) => setForm(prev => ({ ...prev, phone: e.target.value }))} required disabled={!editing} />
+                      <Label className="text-[#000000] font-medium">Phone *</Label>
+                      <Input value={form.phone} onChange={(e) => setForm(prev => ({ ...prev, phone: e.target.value }))} required disabled={!editing}  className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]" />
                     </div>
                     <div>
-                      <Label>Gender</Label>
+                      <Label className="text-[#000000] font-medium">Gender</Label>
                       <Select value={form.gender} onValueChange={(v) => setForm(prev => ({ ...prev, gender: v }))} disabled={!editing}>
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                        <SelectTrigger className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]"><SelectValue placeholder="Select" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="Male">Male</SelectItem>
                           <SelectItem value="Female">Female</SelectItem>
@@ -310,13 +349,13 @@ export default function StudentProfilePage() {
                       </Select>
                     </div>
                     <div>
-                      <Label>Date of Birth</Label>
+                      <Label className="text-[#000000] font-medium">Date of Birth</Label>
                       <Input type="date" value={form.date_of_birth} onChange={(e) => setForm(prev => ({ ...prev, date_of_birth: e.target.value }))} disabled={!editing} />
                     </div>
                     <div>
-                      <Label>Institution *</Label>
+                      <Label className="text-[#000000] font-medium">Institution *</Label>
                       <Select value={form.institution_id} onValueChange={(v) => setForm(prev => ({ ...prev, institution_id: v }))} disabled={!editing}>
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                        <SelectTrigger className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]"><SelectValue placeholder="Select" /></SelectTrigger>
                         <SelectContent>
                           {institutions.map((i) => (
                             <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>
@@ -325,7 +364,7 @@ export default function StudentProfilePage() {
                       </Select>
                     </div>
                     <div>
-                      <Label>Degree *</Label>
+                      <Label className="text-[#000000] font-medium">Degree *</Label>
                       {editing ? (
                         <div className="relative">
                           <Input
@@ -380,24 +419,24 @@ export default function StudentProfilePage() {
                       )}
                     </div>
                     <div>
-                      <Label>Academic Year</Label>
-                      <Input value={form.year} onChange={(e) => setForm(prev => ({ ...prev, year: e.target.value }))} disabled={!editing} />
+                      <Label className="text-[#000000] font-medium">Academic Year</Label>
+                      <Input value={form.year} onChange={(e) => setForm(prev => ({ ...prev, year: e.target.value }))} disabled={!editing}  className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]" />
                     </div>
                     <div>
-                      <Label>Specialization *</Label>
-                      <Input value={form.specialization} onChange={(e) => setForm(prev => ({ ...prev, specialization: e.target.value }))} required disabled={!editing} />
+                      <Label className="text-[#000000] font-medium">Specialization *</Label>
+                      <Input value={form.specialization} onChange={(e) => setForm(prev => ({ ...prev, specialization: e.target.value }))} required disabled={!editing}  className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]" />
                     </div>
                     <div className="md:col-span-2">
-                      <Label>Skills (comma-separated) *</Label>
-                      <Input value={form.skills} onChange={(e) => setForm(prev => ({ ...prev, skills: e.target.value }))} required disabled={!editing} />
+                      <Label className="text-[#000000] font-medium">Skills (comma-separated) *</Label>
+                      <Input value={form.skills} onChange={(e) => setForm(prev => ({ ...prev, skills: e.target.value }))} required disabled={!editing}  className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]" />
                     </div>
                   </div>
 
                   <div className="grid md:grid-cols-3 gap-4">
                     <div>
-                      <Label>Availability *</Label>
+                      <Label className="text-[#000000] font-medium">Availability *</Label>
                       <Select value={form.availability} onValueChange={(v) => setForm(prev => ({ ...prev, availability: v }))} disabled={!editing}>
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                        <SelectTrigger className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]"><SelectValue placeholder="Select" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="immediately">Immediately</SelectItem>
                           <SelectItem value="1 month">1 month</SelectItem>
@@ -406,9 +445,9 @@ export default function StudentProfilePage() {
                       </Select>
                     </div>
                     <div>
-                      <Label>Preferred Engagement *</Label>
+                      <Label className="text-[#000000] font-medium">Preferred Engagement *</Label>
                       <Select value={form.preferred_engagement} onValueChange={(v) => setForm(prev => ({ ...prev, preferred_engagement: v }))} disabled={!editing}>
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                        <SelectTrigger className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]"><SelectValue placeholder="Select" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="Part-time">Part-time</SelectItem>
                           <SelectItem value="Full-time">Full-time</SelectItem>
@@ -416,9 +455,9 @@ export default function StudentProfilePage() {
                       </Select>
                     </div>
                     <div>
-                      <Label>Preferred Work Mode *</Label>
+                      <Label className="text-[#000000] font-medium">Preferred Work Mode *</Label>
                       <Select value={form.preferred_work_mode} onValueChange={(v) => setForm(prev => ({ ...prev, preferred_work_mode: v }))} disabled={!editing}>
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                        <SelectTrigger className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]"><SelectValue placeholder="Select" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="In office">In office</SelectItem>
                           <SelectItem value="Hybrid">Hybrid</SelectItem>
@@ -430,11 +469,11 @@ export default function StudentProfilePage() {
 
                   <div className="grid md:grid-cols-3 gap-4">
                     <div>
-                      <Label>Education Start *</Label>
+                      <Label className="text-[#000000] font-medium">Education Start *</Label>
                       <Input type="month" value={form.education_start_date} onChange={(e) => setForm(prev => ({ ...prev, education_start_date: e.target.value }))} required disabled={!editing} />
                     </div>
                     <div>
-                      <Label>Education End{!form.currently_studying ? ' *' : ''}</Label>
+                      <Label className="text-[#000000] font-medium">Education End{!form.currently_studying ? ' *' : ''}</Label>
                       <Input type="month" value={form.education_end_date} onChange={(e) => setForm(prev => ({ ...prev, education_end_date: e.target.value }))} required={!form.currently_studying} disabled={!editing || form.currently_studying} />
                     </div>
                     <div className="flex items-center gap-2 pt-6">
@@ -445,14 +484,14 @@ export default function StudentProfilePage() {
 
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
-                      <Label>City *</Label>
-                      <Input value={form.city} onChange={(e) => setForm(prev => ({ ...prev, city: e.target.value }))} required disabled={!editing} />
+                      <Label className="text-[#000000] font-medium">City *</Label>
+                      <Input value={form.city} onChange={(e) => setForm(prev => ({ ...prev, city: e.target.value }))} required disabled={!editing}  className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]" />
                     </div>
                     <div>
-                      <Label>State *</Label>
+                      <Label className="text-[#000000] font-medium">State *</Label>
                       {editing ? (
                         <Select value={form.state} onValueChange={(v) => setForm(prev => ({ ...prev, state: v }))}>
-                          <SelectTrigger><SelectValue placeholder="Select state" /></SelectTrigger>
+                          <SelectTrigger className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]"><SelectValue placeholder="Select state" /></SelectTrigger>
                           <SelectContent>
                             {INDIAN_STATES.map(s => (
                               <SelectItem key={s} value={s}>{s}</SelectItem>
@@ -464,28 +503,28 @@ export default function StudentProfilePage() {
                       )}
                     </div>
                     <div className="md:col-span-2">
-                      <Label>Address</Label>
-                      <Textarea value={form.address} onChange={(e) => setForm(prev => ({ ...prev, address: e.target.value }))} rows={3} disabled={!editing} />
+                      <Label className="text-[#000000] font-medium">Address</Label>
+                      <Textarea value={form.address} onChange={(e) => setForm(prev => ({ ...prev, address: e.target.value }))} rows={3} disabled={!editing}  className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]" />
                     </div>
                   </div>
 
                   <div className="grid md:grid-cols-3 gap-4">
                     <div>
-                      <Label>LinkedIn URL</Label>
-                      <Input value={form.linkedin_url} onChange={(e) => setForm(prev => ({ ...prev, linkedin_url: e.target.value }))} disabled={!editing} />
+                      <Label className="text-[#000000] font-medium">LinkedIn URL</Label>
+                      <Input value={form.linkedin_url} onChange={(e) => setForm(prev => ({ ...prev, linkedin_url: e.target.value }))} disabled={!editing}  className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]" />
                     </div>
                     <div>
-                      <Label>GitHub URL</Label>
-                      <Input value={form.github_url} onChange={(e) => setForm(prev => ({ ...prev, github_url: e.target.value }))} disabled={!editing} />
+                      <Label className="text-[#000000] font-medium">GitHub URL</Label>
+                      <Input value={form.github_url} onChange={(e) => setForm(prev => ({ ...prev, github_url: e.target.value }))} disabled={!editing}  className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]" />
                     </div>
                     <div>
-                      <Label>Portfolio URL</Label>
-                      <Input value={form.portfolio_url} onChange={(e) => setForm(prev => ({ ...prev, portfolio_url: e.target.value }))} disabled={!editing} />
+                      <Label className="text-[#000000] font-medium">Portfolio URL</Label>
+                      <Input value={form.portfolio_url} onChange={(e) => setForm(prev => ({ ...prev, portfolio_url: e.target.value }))} disabled={!editing}  className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]" />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Resume/CV (PDF)</Label>
+                    <Label className="text-[#000000] font-medium">Resume/CV (PDF)</Label>
                     {editing ? (
                       <>
                         <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
@@ -547,17 +586,28 @@ export default function StudentProfilePage() {
                   )}
 
                   {editing && (
-                    <div className="flex justify-end pt-4">
-                      <Button type="submit" disabled={saving} className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">
-                        <Save className="h-4 w-4 mr-2" />{saving ? 'Saving...' : 'Save Changes'}
+                    <div className="flex justify-end gap-3 pt-6 border-t border-[#ECECEC]">
+                      <Button 
+                        type="button" 
+                        variant="outline"
+                        onClick={() => setEditing(false)}
+                        className="bg-white border-[#DCDCDC] text-[#000000] hover:bg-[#F8F8F8]"
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        type="submit" 
+                        disabled={saving} 
+                        className="bg-[#008260] hover:bg-[#006b4f] text-white"
+                      >
+                        <Save className="h-4 w-4 mr-2" />
+                        {saving ? 'Saving...' : 'Save'}
                       </Button>
                     </div>
                   )}
                 </form>
               </CardContent>
             </Card>
-          </div>
-        </div>
       </div>
     </div>
   )

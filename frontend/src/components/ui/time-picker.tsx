@@ -110,7 +110,7 @@ export function TimePicker({
                     key={time}
                     variant={timeValue === time ? "default" : "ghost"}
                     size="sm"
-                    className="h-8 text-xs"
+                    className={`h-8 text-xs ${timeValue===time ? '!bg-[#ECF2FF] text-black':''}`}
                     onClick={(e) => {
                       e.stopPropagation()
                       handleTimeChange(time)
@@ -139,6 +139,7 @@ export function TimePicker({
                   e.stopPropagation()
                   handleApply()
                 }}
+                className="bg-[#008260] hover:bg-[#008260]"
                 disabled={!timeValue}
               >
                 Apply

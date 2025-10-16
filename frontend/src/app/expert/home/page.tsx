@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
 import { usePagination } from '@/hooks/usePagination'
-import { PROJECT_TYPES } from '@/lib/constants'
+import { PROJECT_TYPES, EXPERTISE_DOMAINS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -64,6 +64,7 @@ export default function ExpertHome() {
     hourly_rate?: number
     duration_hours?: number
     type?: string
+    domain_expertise?: string
     required_expertise?: string[]
     subskills?: string[]
     institutions?: {
@@ -86,6 +87,7 @@ export default function ExpertHome() {
   const [isApplying, setIsApplying] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedType, setSelectedType] = useState('all')
+  const [selectedDomain, setSelectedDomain] = useState('all')
   const [minRate, setMinRate] = useState('')
   const [maxRate, setMaxRate] = useState('')
   const [applicationForm, setApplicationForm] = useState({
@@ -125,12 +127,13 @@ export default function ExpertHome() {
       
       if (searchTerm) params.search = searchTerm
       if (selectedType !== 'all') params.type = selectedType
+      if (selectedDomain !== 'all') params.domain_expertise = selectedDomain
       if (minRate) params.min_hourly_rate = parseFloat(minRate)
       if (maxRate) params.max_hourly_rate = parseFloat(maxRate)
 
       return await api.projects.getAll(params)
     },
-    [expert?.id, searchTerm, selectedType, minRate, maxRate]
+    [expert?.id, searchTerm, selectedType, selectedDomain, minRate, maxRate]
   )
 
   // Reuse existing getUser pattern from dashboard
@@ -303,12 +306,12 @@ export default function ExpertHome() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading...</p>
-        </div>
+      <div className="min-h-screen bg-[#ECF2FF] flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#008260] mx-auto mb-4"></div>
+        <p className="text-[#6A6A6A]">Loading...</p>
       </div>
+    </div>
     )
   }
 
@@ -324,26 +327,25 @@ export default function ExpertHome() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-[#ECF2FF]">
       {/* Header */}
-      <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
+      <header className="bg-[#008260] border-b border-slate-200/20 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
-            <Link href="/expert/home" className="flex items-center space-x-2 group">
-              {/* <Logo size="md" /> */}
-              <span className="text-xl font-bold bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent group-hover:from-blue-200 group-hover:to-white transition-all duration-300">Calxmap</span>
+            <Link href="/expert/home" className="flex items-center group">
+              <Logo size="header" />
             </Link>
 
             {/* Navigation */}
             <nav className="hidden md:flex items-center space-x-8">
-              <Link href="/expert/home" className="text-white/90 hover:text-blue-200 font-medium transition-colors duration-200 relative group">
+              <Link href="/expert/home" className="text-white font-medium transition-colors duration-200 relative group">
                 Home
-                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-blue-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
-              <Link href="/expert/dashboard" className="text-white/70 hover:text-blue-200 font-medium transition-colors duration-200 relative group">
+              <Link href="/expert/dashboard" className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
                 Dashboard
-                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-blue-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
             </nav>
 
@@ -369,35 +371,28 @@ export default function ExpertHome() {
             <h1 className="text-4xl font-bold text-slate-900 mb-3 tracking-tight">
               Welcome back, {expert?.name}! 👋
             </h1>
-            <p className="text-xl text-slate-600 font-medium">
+            <p className="text-lg text-slate-600 font-normal">
               Discover new opportunities and grow your expertise
             </p>
           </div>
 
         {/* Recommended for You Section */}
         {recommendedProjects.length > 0 && (
-          <div className="mb-8">
+          <div className="mb-12">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="mb-6">
-          <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-100 rounded-lg p-4 shadow-lg shadow-blue-200/30 border border-blue-200/50">
-            <div className="flex items-center mb-2">
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                <Star className="h-4 w-4 text-blue-600" />
+              <div className="text-center mb-6">
+                <h2 className="text-[28px] font-bold text-black mb-1 tracking-tight">
+                  🎯 Recommended for You
+                </h2>
+                <p className="text-black text-base">
+                  Based on your expertise in <strong>{expert?.domain_expertise || 'your field'}</strong> - 
+                  {recommendedProjects.length} matching {recommendedProjects.length === 1 ? 'project' : 'projects'}
+                </p>
               </div>
-              <h3 className="text-lg font-semibold text-slate-900">
-                🎯 Recommended for You
-              </h3>
-            </div>
-            <p className="text-slate-600 text-sm">
-              Based on your expertise in <strong>{expert?.domain_expertise || 'your field'}</strong>, 
-              we found <strong>{recommendedProjects.length} matching projects</strong> below
-            </p>
-          </div>
-        </div>
 
               {loadingRecommendations ? (
                 <div className="flex justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#008260]"></div>
                 </div>
               ) : (
                 <Carousel
@@ -412,11 +407,11 @@ export default function ExpertHome() {
                   ]}
                   className="w-full max-w-7xl mx-auto"
                 >
-                  <CarouselContent className="-ml-2">
+                  <CarouselContent className="-ml-2 pb-2">
                     {recommendedProjects.map((project) => (
-                      <CarouselItem key={project.id} className="pl-2 basis-full sm:basis-1/2 lg:basis-1/3">
-                        <Card className="h-full mx-2 transition-all duration-300 hover:shadow-lg border border-slate-200/50 hover:border-blue-300/50 bg-gradient-to-br from-white to-slate-50/30 shadow-sm hover:shadow-blue-100/20 relative group">
-                          <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 opacity-0 group-hover:opacity-10 transition-opacity duration-300 -z-10"></div>
+                      <CarouselItem key={project.id} className="pl-2 pt-2 pb-4 basis-full sm:basis-1/2 lg:basis-1/3">
+                        <Card className="h-full mx-2 transition-all duration-300 hover:shadow-lg border border-[#E0E0E0] bg-white shadow-sm relative group">
+                          <div className="absolute inset-0 rounded-lg bg-[#008260] opacity-0 group-hover:opacity-5 transition-opacity duration-300 -z-10"></div>
                           <CardContent className="p-4 sm:p-6">
                             {/* Header Section */}
                             <div className="flex flex-col mb-4 gap-4">
@@ -455,7 +450,7 @@ export default function ExpertHome() {
                               {/* Price Section - Only show on larger screens */}
                               <div className="hidden lg:flex justify-between items-start space-y-2 flex-shrink-0">
                                 <div className="text-right flex items-center gap-x-2">
-                                  <div className="text-2xl font-bold text-blue-600">
+                                  <div className="text-2xl font-bold text-[#008260]">
                                     ₹{project.hourly_rate}
                                   </div>
                                   <div className="text-sm text-slate-500">per hour</div>
@@ -475,15 +470,15 @@ export default function ExpertHome() {
                               <div className="flex space-x-2 w-full sm:w-auto">
                                 <Button 
                                   onClick={() => handleOpenApplicationModal(project.id)}
-                                  className="flex-1 sm:flex-none bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white text-sm px-4 py-2 font-medium shadow-sm hover:shadow-md transition-all duration-200"
+                                  className="flex-1 sm:flex-none bg-[#008260] hover:bg-[#006d51] text-white text-sm px-4 py-2 font-medium shadow-sm hover:shadow-md transition-all duration-200 rounded-lg"
                                 >
                                   <Send className="h-4 w-4 mr-1 sm:mr-2" />
                                   <span className="hidden sm:inline">Apply Now</span>
                                   <span className="sm:hidden">Apply</span>
                                 </Button>
                                 <Link href={`/expert/project/${project.id}`}>
-                                  <Button variant="outline" size="icon" className="border-slate-300/50 hover:border-blue-300/50 hover:bg-blue-50/50 flex-shrink-0 transition-all duration-200">
-                                    <Eye className="h-4 w-4" />
+                                  <Button variant="outline" size="icon" className="border-[#008260] hover:border-[#006d51] hover:bg-[#008260]/10 flex-shrink-0 transition-all duration-200">
+                                    <Eye className="h-4 w-4 text-[#008260]" />
                                   </Button>
                                 </Link>
                               </div>
@@ -508,20 +503,20 @@ export default function ExpertHome() {
 
         {
             universities.length > 0 && (
-                <div className="mb-8">
+                <div className="mb-12">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                   <div className="text-center mb-6">
-                    <h2 className="text-3xl font-bold text-slate-900 mb-3 tracking-tight">
+                    <h2 className="text-[28px] font-semibold text-[#000000] mb-1 tracking-tight">
                       Partner Universities
                     </h2>
-                    <p className="text-slate-600">
+                    <p className="text-black text-base">
                       Trusted by leading educational institutions across India
                     </p>
                   </div>
       
                   {universitiesLoading ? (
                     <div className="flex justify-center py-12">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#008260]"></div>
                     </div>
                   ) : (
                                          <Carousel
@@ -563,7 +558,7 @@ export default function ExpertHome() {
                                 
                                 {/* University Name */}
                                 <div className="absolute bottom-0 left-0 right-0 p-6">
-                                  <h3 className="text-white font-bold text-xl mb-2 group-hover:text-blue-200 transition-colors duration-300">
+                                  <h3 className="text-white font-bold text-xl mb-2 transition-colors duration-300">
                                     {university.name}
                                   </h3>
                                   <p className="text-white/90 text-base mb-1">
@@ -575,7 +570,7 @@ export default function ExpertHome() {
                                 </div>
       
                                 {/* Hover Effect */}
-                                <div className="absolute inset-0 bg-blue-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                <div className="absolute inset-0 bg-[#008260]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                               </div>
                             </CarouselItem>
                           )
@@ -598,17 +593,17 @@ export default function ExpertHome() {
                 <div className="mb-8">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                   <div className="text-center mb-6">
-                    <h2 className="text-3xl font-bold text-slate-900 mb-3 tracking-tight">
+                    <h2 className="text-[28px] font-bold text-black mb-1 tracking-tight">
                       Partnered Experts
                     </h2>
-                    <p className="text-slate-600">
+                    <p className="text-black text-base">
                       Connect with verified professionals in your field
                     </p>
                   </div>
       
                   {expertsLoading ? (
                     <div className="flex justify-center py-12">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#008260]"></div>
                     </div>
                   ) : (
                                          <Carousel
@@ -623,24 +618,24 @@ export default function ExpertHome() {
                        ]}
                        className="w-full max-w-7xl mx-auto"
                      >
-                       <CarouselContent className="-ml-2">
+                       <CarouselContent className="-ml-2 pb-2">
                         {partneredExperts.map((expert, index) => {
                           // Color variations for expert cards
                           const colors = ['blue', 'purple', 'green', 'orange', 'cyan', 'indigo']
                           const expertColor = colors[index % colors.length]
                           
                                                      return (
-                             <CarouselItem key={expert.id} className="pl-2 basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4">
-                              <Card className="h-full mx-2 transition-all duration-300 hover:shadow-lg hover:border-blue-300/50 bg-gradient-to-br from-white to-slate-50/30 shadow-sm hover:shadow-blue-100/20 relative group">
-                                <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 opacity-0 group-hover:opacity-10 transition-opacity duration-300 -z-10"></div>
-                                <CardContent className="p-6 text-center relative overflow-hidden group">
-                                  {/* Subtle blue glow effect on hover */}
-                                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-indigo-500/5 to-slate-500/5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                             <CarouselItem key={expert.id} className="pl-2 pt-2 pb-4 basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4">
+                              <Card className="h-full mx-2 transition-all duration-300 bg-[#ECF2FF] shadow-[-4px_4px_4px_0px_#A0A0A040,_4px_4px_4px_0px_#A0A0A040] relative group">
+                                <div className="absolute inset-0 rounded-lg bg-[#008260] opacity-0 group-hover:opacity-5 transition-opacity duration-300 -z-10"></div>
+                                <CardContent className="p-6 text-center relative group">
+                                  {/* Subtle green glow effect on hover */}
+                                  <div className="absolute inset-0 bg-[#008260]/5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                                   
                                   {/* Expert Avatar */}
                                   <div className="relative mb-4">
                                     {expert.photo_url ? (
-                                      <div className="w-20 h-20 rounded-full overflow-hidden mx-auto shadow-lg border-2 border-slate-200 relative z-10 group-hover:border-blue-300/50 transition-colors duration-300">
+                                      <div className="w-20 h-20 rounded-full overflow-hidden mx-auto shadow-lg border-2 border-[#008260] relative z-10 transition-colors duration-300">
                                         <img 
                                           src={expert.photo_url} 
                                           alt={expert.name}
@@ -648,14 +643,14 @@ export default function ExpertHome() {
                                         />
                                       </div>
                                     ) : (
-                                      <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mx-auto shadow-lg border-2 border-slate-200 group-hover:border-blue-300/50 relative z-10 overflow-hidden transition-colors duration-300">
+                                      <div className="w-20 h-20 rounded-full bg-[#008260] flex items-center justify-center mx-auto shadow-lg border-2 border-[#008260] relative z-10 overflow-hidden transition-colors duration-300">
                                         <Users className="h-8 w-8 text-white" />
                                       </div>
                                     )}
                                   </div>
                                   
                                   {/* Expert Name */}
-                                  <h3 className="font-bold text-slate-900 mb-1 text-lg relative z-10 group-hover:text-blue-600 transition-colors duration-300">
+                                  <h3 className="font-bold text-slate-900 mb-1 text-lg relative z-10 transition-colors duration-300">
                                     {expert.name}
                                   </h3>
                                   
@@ -679,8 +674,8 @@ export default function ExpertHome() {
                                     {expert.experience_years ? `${expert.experience_years}+ years` : 'Experienced'} • ₹{expert.hourly_rate || '1500'}/hr
                                   </p>
                                   
-                                  {/* Bottom accent line with blue glow */}
-                                  <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-16 h-0.5 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-full mt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                  {/* Bottom accent line with green glow */}
+                                  <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-16 h-0.5 bg-[#008260] rounded-full mt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                                 </CardContent>
                               </Card>
                             </CarouselItem>
@@ -719,7 +714,7 @@ export default function ExpertHome() {
             variant="outline" 
             size="sm"
             onClick={() => setMinRate('2000')}
-            className="hover:bg-blue-50"
+            className="hover:bg-[#008260]/10 border-[#008260]/30"
           >
             <Star className="h-4 w-4 mr-2" />
             High Paying (₹2000+)
@@ -728,7 +723,7 @@ export default function ExpertHome() {
             variant="outline" 
             size="sm"
             onClick={() => setSelectedType('consulting')}
-            className="hover:bg-green-50"
+            className="hover:bg-[#008260]/10 border-[#008260]/30"
           >
             <Clock className="h-4 w-4 mr-2" />
             Consulting
@@ -737,7 +732,7 @@ export default function ExpertHome() {
             variant="outline" 
             size="sm"
             onClick={() => setSelectedType('training')}
-            className="hover:bg-purple-50"
+            className="hover:bg-[#008260]/10 border-[#008260]/30"
           >
             <Users className="h-4 w-4 mr-2" />
             Training
@@ -748,6 +743,7 @@ export default function ExpertHome() {
             onClick={() => {
               setSearchTerm('')
               setSelectedType('all')
+              setSelectedDomain('all')
               setMinRate('')
               setMaxRate('')
             }}
@@ -758,8 +754,8 @@ export default function ExpertHome() {
         </div>
 
         {/* Search and Filters */}
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg shadow-sm border-2 border-[#D6D6D6] p-4 sm:p-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
               <Label htmlFor="search">Search</Label>
               <div className="relative">
@@ -785,6 +781,23 @@ export default function ExpertHome() {
                   {PROJECT_TYPES.map((type) => (
                     <SelectItem key={type} value={type}>
                       {getProjectTypeLabel(type)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="domain">Expertise Domain</Label>
+              <Select value={selectedDomain} onValueChange={setSelectedDomain}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All domains" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All domains</SelectItem>
+                  {EXPERTISE_DOMAINS.map((domain) => (
+                    <SelectItem key={domain.name} value={domain.name}>
+                      {domain.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -818,32 +831,12 @@ export default function ExpertHome() {
         {/* Projects List */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
+            <h2 className="text-xl font-bold text-[#000000] tracking-tight">
               Available Projects ({projects.length})
             </h2>
           </div>
 
-          {/* Project Type Breakdown */}
-          {projects.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-6">
-              {(() => {
-                const typeCounts = (projects as Project[]).reduce((acc: any, project) => {
-                  const type = project.type || 'other'
-                  acc[type] = (acc[type] || 0) + 1
-                  return acc
-                }, {})
-                
-                return Object.entries(typeCounts).map(([type, count]) => (
-                  <span 
-                    key={type}
-                    className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
-                  >
-                    {getProjectTypeLabel(type)}: {String(count)}
-                  </span>
-                ))
-              })()}
-            </div>
-          )}
+       
 
           {projects.length === 0 && !projectsLoading ? (
             <div className="text-center py-12">
@@ -854,15 +847,15 @@ export default function ExpertHome() {
           ) : (
             <div className="space-y-4">
               {(projects as Project[]).map((project) => (
-                <Card key={project.id} className="hover:shadow-lg transition-all duration-300 border border-slate-200/50 hover:border-blue-300/50 bg-gradient-to-br from-white to-slate-50/30 shadow-sm hover:shadow-blue-100/20 relative group">
-                  <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 opacity-0 group-hover:opacity-10 transition-opacity duration-300 -z-10"></div>
+                <Card key={project.id} className="hover:shadow-lg transition-all duration-300 hover:border hover:border-[#008260]  bg-white shadow-sm relative group">
+                  <div className="absolute inset-0 rounded-lg bg-[#008260] opacity-0 group-hover:opacity-5 transition-opacity duration-300 -z-10"></div>
                   <CardContent className="p-4 sm:p-6">
                     {/* Header Section */}
                     <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start mb-4 gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
                           <Link href={`/expert/project/${project.id}`}>
-                            <h3 className="text-lg sm:text-xl font-semibold text-slate-900 hover:text-blue-600 cursor-pointer truncate">
+                            <h3 className="text-lg sm:text-xl font-semibold text-[#000000] cursor-pointer truncate">
                               {project.title}
                             </h3>
                           </Link>
@@ -874,7 +867,7 @@ export default function ExpertHome() {
                           <Building2 className="h-4 w-4 mr-2 flex-shrink-0" />
                           <span className="font-medium truncate">{project.institutions?.name}</span>
                         </div> */}
-                        <p className="text-slate-600 text-sm line-clamp-2">
+                        <p className="text-[#6A6A6A] text-sm line-clamp-2">
                           {project.description}
                         </p>
                       </div>
@@ -882,7 +875,7 @@ export default function ExpertHome() {
                       {/* Price Section - Only show on larger screens */}
                       <div className="hidden lg:flex flex-col items-end space-y-2 flex-shrink-0">
                         <div className="text-right">
-                          <div className="text-2xl font-bold text-blue-600">
+                          <div className="text-2xl font-bold text-[#008260]">
                             ₹{project.hourly_rate}
                           </div>
                           <div className="text-sm text-slate-500">per hour</div>
@@ -894,29 +887,23 @@ export default function ExpertHome() {
                     {/* Skills and Specializations Section */}
                     <div className="mb-4 space-y-3">
                       {/* Skills */}
-                      {project.required_expertise && project.required_expertise.length > 0 && (
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                          <span className="text-sm font-medium text-slate-700 min-w-fit">Skills:</span>
-                          <div className="flex flex-wrap gap-1">
-                            {project.required_expertise.slice(0, 3).map((skill, index) => (
-                              <Badge key={index} variant="secondary" className="text-xs">
-                                {skill}
-                              </Badge>
-                            ))}
-                            {project.required_expertise.length > 3 && (
-                              <Badge variant="secondary" className="text-xs">
-                                +{project.required_expertise.length - 3}
-                              </Badge>
-                            )}
-                          </div>
+                   
+                      
+                      {/* Expertise Domain */}
+                      {project.domain_expertise && (
+                        <div className="flex flex-col sm:flex-row sm:items-start gap-2">
+                          <span className="text-sm font-semibold min-w-fit text-[#6A6A6A]">Expertise Domain:</span>
+                          <span className="text-[#6A6A6A] font-medium text-sm break-words">
+                            {project.domain_expertise}
+                          </span>
                         </div>
                       )}
                       
                       {/* Specializations */}
                       {project.subskills && project.subskills.length > 0 && (
                         <div className="flex flex-col sm:flex-row sm:items-start gap-2">
-                          <span className="text-sm font-medium text-slate-700 min-w-fit">Specializations:</span>
-                          <span className="text-slate-600 text-sm break-words">
+                          <span className="text-sm font-semibold min-w-fit text-[#6A6A6A]">Specializations:</span>
+                          <span className="text-[#6A6A6A] font-medium text-sm break-words">
                             {project.subskills.join(', ')}
                           </span>
                         </div>
@@ -927,18 +914,18 @@ export default function ExpertHome() {
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                       {/* Project Details */}
                       <div className="flex flex-col sm:flex-row sm:items-center gap-4 text-sm text-slate-600">
-                        <div className="flex items-center">
+                        <div className="flex items-center font-medium text-base">
                           <Clock className="h-4 w-4 mr-2 flex-shrink-0" />
                           <span>{project.duration_hours} hours</span>
                         </div>
-                        <div className="flex items-center">
+                        <div className="flex items-center font-medium text-base">
                           <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />
                           <span className="truncate">{project.start_date} - {project.end_date}</span>
                         </div>
                         
                         {/* Price for mobile */}
                         <div className="lg:hidden flex items-center">
-                          <span className="text-lg font-bold text-blue-600">
+                          <span className="text-lg font-bold text-[#008260]">
                             ₹{project.hourly_rate}/hour
                           </span>
                         </div>
@@ -948,15 +935,15 @@ export default function ExpertHome() {
                       <div className="flex space-x-2 flex-shrink-0">
                         <Button 
                           onClick={() => handleOpenApplicationModal(project.id)}
-                          className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white text-sm px-4 py-2 font-medium shadow-sm hover:shadow-md transition-all duration-200"
+                          className="bg-[#008260] hover:bg-[#006d51] text-white text-sm px-4 py-2 font-medium shadow-sm hover:shadow-md transition-all duration-200 rounded-lg"
                         >
                           <Send className="h-4 w-4 mr-1 sm:mr-2" />
                           <span className="hidden sm:inline">Apply Now</span>
                           <span className="sm:hidden">Apply</span>
                         </Button>
                         <Link href={`/expert/project/${project.id}`}>
-                          <Button variant="outline" size="icon" className="border-slate-300/50 hover:border-blue-300/50 hover:bg-blue-50/50 flex-shrink-0 transition-all duration-200">
-                            <Eye className="h-4 w-4" />
+                          <Button variant="outline" size="icon" className="border-[#008260] hover:border-[#006d51] hover:bg-[#008260]/10 flex-shrink-0 transition-all duration-200">
+                            <Eye className="h-4 w-4 text-[#008260]" />
                           </Button>
                         </Link>
                       </div>
@@ -1003,14 +990,14 @@ export default function ExpertHome() {
 
         {/* Application Modal */}
         <Dialog open={showApplicationModal} onOpenChange={setShowApplicationModal}>
-          <DialogContent className="sm:max-w-md bg-white border-2 border-slate-200 shadow-xl">
-            <DialogHeader className="space-y-3">
-              <DialogTitle className="text-xl font-bold text-slate-900">Apply to Project</DialogTitle>
-              <DialogDescription className="text-slate-600">
-                Submit your application for "{(projects as Project[]).find(p => p.id === selectedProjectId)?.title || 'this project'}"
+          <DialogContent className="sm:max-w-md bg-white">
+            <DialogHeader className="space-y-1">
+              <DialogTitle className="text-xl font-bold text-[#000000]">Apply to Project</DialogTitle>
+              <DialogDescription className="text-[#000000] text-sm font-normal font-sans">
+                Submit your application for {(projects as Project[]).find(p => p.id === selectedProjectId)?.title || 'this project'}
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-6 py-4">
+            <div className="space-y-6 ">
               <div className="space-y-2">
                 <Label htmlFor="coverLetter" className="text-sm font-medium text-slate-700">Cover Letter</Label>
                 <Textarea
@@ -1019,7 +1006,7 @@ export default function ExpertHome() {
                   value={applicationForm.coverLetter}
                   onChange={(e) => setApplicationForm({...applicationForm, coverLetter: e.target.value})}
                   rows={4}
-                  className="border-2 border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                  className="border-2 border-slate-200 focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]"
                 />
               </div>
               <div className="space-y-2">
@@ -1030,7 +1017,7 @@ export default function ExpertHome() {
                   placeholder={expert?.hourly_rate?.toString() || "1500"}
                   value={applicationForm.proposedRate}
                   onChange={(e) => setApplicationForm({...applicationForm, proposedRate: e.target.value})}
-                  className="border-2 border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                  className="border-2 border-slate-200 focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]"
                 />
               </div>
               {error && (
@@ -1047,7 +1034,7 @@ export default function ExpertHome() {
               )}
               <Button 
                 onClick={() => selectedProjectId && handleApplicationSubmit(selectedProjectId)}
-                className="w-full bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-medium shadow-sm hover:shadow-md transition-all duration-200 py-2.5"
+                className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium shadow-sm hover:shadow-md transition-all duration-200 py-2.5 rounded-lg"
                 disabled={!applicationForm.coverLetter || !selectedProjectId || isApplying}
               >
                 {isApplying ? 'Submitting...' : 'Submit Application'}

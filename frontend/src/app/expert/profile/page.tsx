@@ -17,6 +17,8 @@ import { useRouter } from 'next/navigation'
 import { MultiSelect } from '@/components/ui/multi-select'
 import { EXPERTISE_DOMAINS } from '@/lib/constants'
 import Logo from '@/components/Logo'
+import NotificationBell from '@/components/NotificationBell'
+import ProfileDropdown from '@/components/ProfileDropdown'
 
 export default function ExpertProfile() {
   const [user, setUser] = useState<any>(null)
@@ -389,167 +391,205 @@ export default function ExpertProfile() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      <div className="container mx-auto px-4 max-w-6xl py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div  className="inline-flex cursor-pointer items-center space-x-2 hover:opacity-80 transition-opacity duration-300"
-          onClick={() => router.back()}
-          >
-            <ArrowLeft className="h-5 w-5 text-blue-500" />
-            <span className="bg-gradient-to-r from-blue-500 to-indigo-500 bg-clip-text text-transparent font-medium">Back</span>
-          </div>
-          <nav className="hidden md:flex items-center space-x-8">
-              <Link href="/expert/home" className="text-blue-500 hover:text-blue-200 font-medium transition-colors duration-200 relative group">
+        <header className="bg-[#008260] border-b border-slate-200/20 sticky top-0 z-50 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            {/* Logo */}
+            <Link href="/expert/home" className="flex items-center group">
+              <Logo size="header" />
+            </Link>
+
+            {/* Navigation */}
+            <nav className="hidden md:flex items-center space-x-8">
+              <Link href="/expert/home" className="text-white font-medium transition-colors duration-200 relative group">
                 Home
-                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-blue-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
-              <Link href="/expert/dashboard" className="text-blue-500  hover:text-blue-200 font-medium transition-colors duration-200 relative group">
+              <Link href="/expert/dashboard" className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
                 Dashboard
-                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-blue-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
             </nav>
-       
-          
-          <div className="w-24"></div> {/* Spacer for centering */}
-        </div>
 
-        <div className="text-center mb-8">
-        <div className="text-center">
-            <Link href="/" className="inline-flex items-center space-x-2 group">
-              <Logo size="lg" />
-             
-            </Link>
+            {/* Right side */}
+            <div className="flex items-center space-x-4">
+              <div className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors duration-200">
+                <NotificationBell />
+              </div>
+              <ProfileDropdown 
+                user={user} 
+                expert={expert} 
+                userType="expert" 
+              />
+            </div>
           </div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent mb-2">Profile Summary</h1>
-          <p className="text-xl text-slate-600">
-            Manage your professional profile and showcase your expertise
-          </p>
         </div>
+      </header>
+      <div className="container mx-auto px-4 max-w-6xl py-8">
+   
+      
 
-        <div className="grid lg:grid-cols-3 gap-8">
+     
+
+        <div className="flex flex-col gap-4">
           {/* Profile Summary Card */}
-          <div className="lg:col-span-1">
-            <Card className="bg-white border-2 border-slate-200 rounded-lg shadow-sm hover:shadow-md hover:border-blue-300 transition-all duration-300">
-              <CardContent className="p-6 text-center">
-                <div className="mb-6">
-                  <div className="relative">
-                    <Avatar className="w-24 h-24 mx-auto mb-4 border-2 border-slate-200">
-                      <AvatarImage src={expert?.photo_url} />
-                      <AvatarFallback className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
-                        {expert?.name?.charAt(0) || user?.email?.charAt(0) || 'E'}
-                      </AvatarFallback>
-                    </Avatar>
-                    {editing && (
-                      <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center border-2 border-white shadow-md">
-                        <Camera className="h-4 w-4 text-white" />
-                      </div>
-                    )}
-                  </div>
-                  <h2 className="text-2xl font-bold text-slate-900 mb-2">{expert?.name || 'Expert User'}</h2>
-                  <p className="text-slate-600 mb-2">{expert?.domain_expertise || 'Domain Expert'}</p>
-                  
-                  {/* Subskills Display */}
-                  {expert?.subskills && expert.subskills.length > 0 && (
-                    <div className="mb-4">
-                      <p className="text-sm text-slate-500 mb-2">Specializations:</p>
-                      <div className="flex flex-wrap gap-1 justify-center">
-                        {expert.subskills.slice(0, 3).map((skill: string) => (
-                          <span
-                            key={skill}
-                            className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200"
-                          >
-                            {skill}
-                          </span>
-                        ))}
-                        {expert.subskills.length > 3 && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-50 text-slate-600 border border-slate-200">
-                            +{expert.subskills.length - 3} more
-                          </span>
-                        )}
-                      </div>
-                    </div>
+          <div className="flex-1">
+  {/* Profile Header - Outside Card */}
+  <div className="flex flex-col items-center mb-6">
+    <div className="relative mb-4">
+      <Avatar className="w-32 h-32 border-4 border-white shadow-lg">
+        <AvatarImage src={expert?.photo_url} />
+        <AvatarFallback className="text-4xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+          {expert?.name?.charAt(0) || user?.email?.charAt(0) || 'E'}
+        </AvatarFallback>
+      </Avatar>
+    
+    </div>
+    
+    <h2 className="text-2xl font-bold text-slate-900 mb-2">
+      {expert?.name || 'Expert User'}
+    </h2>
+    
+    {/* Rating Stars */}
+    <div className="flex items-center gap-1 mb-3">
+      <Star className="h-5 w-5 text-yellow-400" fill="currentColor" />
+      <Star className="h-5 w-5 text-yellow-400" fill="currentColor" />
+      <Star className="h-5 w-5 text-yellow-400" fill="currentColor" />
+      <Star className="h-5 w-5 text-yellow-400" fill="currentColor" />
+      <Star className="h-5 w-5 text-slate-300" fill="currentColor" />
+      <span className="ml-2 text-lg font-semibold text-slate-900">4.8</span>
+    </div>
+    
+    {/* Status Badge */}
+    {expert?.is_verified && (
+      <div className="inline-flex items-center gap-2 px-4 py-1 bg-[#8FFFA7] rounded-full border border-[#008260]">
+        <div className="w-5 h-5 rounded-full bg-[#008260] flex items-center justify-center">
+          <Shield className="h-3 w-3 text-white" />
+        </div>
+        <span className="text-[12px] text-[#008260] font-medium">Verified</span>
+      </div>
+    )}
+  </div>
+
+  {/* Main Card */}
+  <Card className="bg-white border border-slate-200 rounded-2xl shadow-sm">
+    <CardContent className="p-4 sm:p-6 lg:p-8">
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+        {/* ABOUT Section */}
+        <div>
+          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
+            ABOUT
+          </h3>
+          
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm text-slate-500 mb-1">Expertise</p>
+              <p className="text-base font-semibold text-slate-900">
+                {expert?.domain_expertise || 'Engineering'}
+              </p>
+            </div>
+            
+            <div>
+              <p className="text-sm text-slate-500 mb-2">Subskills</p>
+              {expert?.subskills && expert.subskills.length > 0 ? (
+                <div className="space-y-1">
+                  {expert.subskills.slice(0, 3).map((skill: string) => (
+                    <p key={skill} className="text-base font-semibold text-slate-900">
+                      {skill}
+                    </p>
+                  ))}
+                  {expert.subskills.length > 3 && (
+                    <p className="text-sm text-slate-500">
+                      +{expert.subskills.length - 3} more
+                    </p>
                   )}
-                  
-                  {/* Status Badges */}
-                  <div className="flex justify-center space-x-2 mb-4">
-                    <div className="flex items-center space-x-1 px-3 py-1 bg-green-50 rounded-full border border-green-200">
-                      <Shield className="h-4 w-4 text-green-600" />
-                      <span className="text-sm text-green-700 font-medium">
-                        {expert?.is_verified ? 'Verified' : 'Pending'}
-                      </span>
-                    </div>
-                    {/* <div className="flex items-center space-x-1 px-3 py-1 bg-blue-50 rounded-full border border-blue-200">
-                      <Star className="h-4 w-4 text-blue-600" />
-                      <span className="text-sm text-blue-700 font-medium">
-                        {expert?.rating || 0}/5
-                      </span>
-                    </div> */}
-                  </div>
                 </div>
-
-                {/* Quick Stats */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
-                    <div className="flex items-center space-x-2">
-                      <IndianRupee className="h-5 w-5 text-green-600" />
-                      <span className="text-slate-600">Hourly Rate</span>
-                    </div>
-                    <span className="font-bold text-slate-900">₹{expert?.hourly_rate || 0}</span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
-                    <div className="flex items-center space-x-2">
-                      <Calendar className="h-5 w-5 text-blue-600" />
-                      <span className="text-slate-600">Experience</span>
-                    </div>
-                    <span className="font-bold text-slate-900">{expert?.experience_years || 0} years</span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
-                    <div className="flex items-center space-x-2">
-                      <div className="flex items-center space-x-0.5">
-                        <Star className="h-4 w-4 text-yellow-500" fill="currentColor" />
-                        <Star className="h-4 w-4 text-yellow-500" fill="currentColor" />
-                        <Star className="h-4 w-4 text-yellow-500" fill="currentColor" />
-                        <Star className="h-4 w-4 text-yellow-500" fill="currentColor" />
-                        <Star className="h-4 w-4 text-slate-300" />
-                      </div>
-                      <span className="text-slate-600">Rating</span>
-                    </div>
-                    <span className="font-bold text-slate-900">4+</span>
-                  </div>
-                </div>
-
-                <Button
-                  onClick={() => {
-                    setEditing(!editing)
-                    if(editing){
-                      loadExpertData(user.id)
-                    }
-                  }}
-                  className="w-full mt-6 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  {editing ? 'Cancel Editing' : 'Edit Profile'}
-                </Button>
-                <Button
-                  type="button"
-                  onClick={handleCopyLink}
-                  className="w-full mt-3 border-2 border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 shadow-sm hover:shadow-md transition-all duration-300"
-                >
-                  <Link2 className="h-4 w-4 mr-2" />
-                  Copy Public Profile Link
-                </Button>
-                {copied && (
-                  <p className="text-xs text-green-600 mt-2">Link copied!</p>
-                )}
-              </CardContent>
-            </Card>
+              ) : (
+                <p className="text-base font-semibold text-slate-900">
+                  Electrical Systems
+                </p>
+              )}
+            </div>
+            
+            <div>
+              <p className="text-sm text-slate-500 mb-1">Bio</p>
+              <p className="text-base text-slate-900">
+                {expert?.bio || 'Here is the background in my profession.'}
+              </p>
+            </div>
           </div>
+        </div>
+
+        {/* DETAILS Section */}
+        <div>
+          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
+            DETAILS
+          </h3>
+          
+          <div className="space-y-3 mb-6">
+            <div className="flex items-center gap-3 p-3 bg-[#ECF2FF] rounded-xl">
+              <div className="w-10 h-10 bg-[#008260] rounded-full flex items-center justify-center">
+                <Calendar className="h-5 w-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-slate-600">Experience</p>
+                <p className="text-base font-bold text-slate-900">
+                  {expert?.experience_years || 3} years
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3 p-3 bg-[#ECF2FF] rounded-xl">
+              <div className="w-10 h-10 bg-[#008260] rounded-full flex items-center justify-center">
+                <IndianRupee className="h-5 w-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-slate-600">Hourly Rate</p>
+                <p className="text-base font-bold text-slate-900">
+                  ₹{expert?.hourly_rate || 4300}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="space-y-2">
+            <Button
+              onClick={() => {
+                setEditing(!editing)
+                if(editing){
+                  loadExpertData(user.id)
+                }
+              }}
+              className="w-full bg-[#008260] hover:bg-[#006b4f] text-white rounded-xl py-5 font-medium shadow-sm transition-all duration-200"
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              {editing ? 'Cancel Editing' : 'Edit Profile'}
+            </Button>
+            
+            <Button
+              type="button"
+              onClick={handleCopyLink}
+              className="w-full bg-[#008260] hover:bg-[#006b4f] text-white rounded-xl py-5 font-medium shadow-sm transition-all duration-200"
+            >
+              <Link2 className="h-4 w-4 mr-2" />
+              Copy Profile Link
+            </Button>
+          </div>
+          
+          {copied && (
+            <p className="text-xs text-green-600 mt-2 text-center">Link copied!</p>
+          )}
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+</div>
 
           {/* Profile Form Card */}
-          <div className="lg:col-span-2">
-            <Card className="bg-white border-2 border-slate-200 rounded-lg shadow-sm hover:shadow-md hover:border-blue-300 transition-all duration-300">
+          <div className="flex-1">
+            <Card className="bg-white hover:border hover:border-[#008260] p-2 rounded-2xl">
               <CardHeader>
                 <CardTitle className="text-slate-900">Profile Information</CardTitle>
                 <CardDescription className="text-slate-600">
@@ -573,7 +613,7 @@ export default function ExpertProfile() {
                   {/* Basic Information */}
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-slate-800 flex items-center space-x-2">
-                      <User className="h-5 w-5 text-blue-500" />
+                      <User className="h-5 w-5 text-[#008260]" />
                       <span>Basic Information</span>
                     </h3>
                     
@@ -637,7 +677,7 @@ export default function ExpertProfile() {
                       <Label htmlFor="qualifications_pdf" className="text-slate-700">Qualifications Documents (PDF)</Label>
                       {editing ? (
                         <>
-                          <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 hover:bg-blue-50 transition-all duration-300">
+                          <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center transition-all duration-300">
                             <input
                               type="file"
                               id="qualifications_pdf"
@@ -646,9 +686,9 @@ export default function ExpertProfile() {
                               className="hidden"
                             />
                             <label htmlFor="qualifications_pdf" className="cursor-pointer">
-                              <FileText className="mx-auto h-12 w-12 text-slate-400 mb-4" />
+                              <FileText className="mx-auto h-12 w-12 text-[#008260] mb-4" />
                               <p className="text-sm text-slate-600 mb-2">
-                                <span className="font-medium text-blue-600 hover:text-blue-500">
+                                <span className="font-medium text-[#008260]">
                                   Click to upload
                                 </span>{' '}
                                 or drag and drop
@@ -710,7 +750,7 @@ export default function ExpertProfile() {
                       <div className="space-y-4">
                         <div className="space-y-2">
                           <Label htmlFor="profile_photo" className="text-slate-700 flex items-center space-x-2">
-                            <Camera className="h-5 w-5 text-blue-500" />
+                            <Camera className="h-5 w-5 text-[#008260]" />
                             <span>Update Profile Photo</span>
                           </Label>
                           <p className="text-sm text-slate-500">Upload a new professional photo (JPEG, PNG, or WebP, max 5MB)</p>
@@ -719,7 +759,7 @@ export default function ExpertProfile() {
                         {/* Photo Upload Area */}
                         <div className="space-y-4">
                           {!photoPreview ? (
-                            <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 hover:bg-blue-50 transition-all duration-300">
+                            <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center">
                               <input
                                 type="file"
                                 id="profile_photo"
@@ -729,11 +769,11 @@ export default function ExpertProfile() {
                               />
                               <label htmlFor="profile_photo" className="cursor-pointer">
                                 <div className="space-y-3">
-                                  <div className="mx-auto w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center">
-                                    <Upload className="h-8 w-8 text-slate-400" />
+                                  <div className="mx-auto w-16 h-16 bg-[#ECF2FF] rounded-full flex items-center justify-center">
+                                    <Upload className="h-8 w-8 text-[#008260]" />
                                   </div>
                                   <div>
-                                    <p className="text-slate-600 font-medium">Click to upload new photo</p>
+                                    <p className="text-[#008260] font-medium ">Click to upload <span className='text-slate-600'>new photo </span> </p>
                                     <p className="text-sm text-slate-500">or drag and drop</p>
                                   </div>
                                 </div>
@@ -741,10 +781,10 @@ export default function ExpertProfile() {
                             </div>
                           ) : (
                             <div className="relative">
-                              <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 overflow-hidden">
+                              <div className="p-4 bg-[#ECF2FF] rounded-lg border border-slate-200 overflow-hidden">
                                 {/* Top row: Avatar and Remove button */}
                                 <div className="flex items-center justify-between mb-3">
-                                  <Avatar className="w-20 h-20 border-4 border-blue-200 flex-shrink-0">
+                                  <Avatar className="w-20 h-20 border-4 border-[#008260] flex-shrink-0">
                                     <AvatarImage src={photoPreview} />
                                     <AvatarFallback className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
                                       {formData.name?.charAt(0) || 'E'}
@@ -786,7 +826,7 @@ export default function ExpertProfile() {
                   {/* Professional Details */}
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-slate-800 flex items-center space-x-2">
-                      <Briefcase className="h-5 w-5 text-indigo-500" />
+                      <Briefcase className="h-5 w-5 text-[#008260]" />
                       <span>Professional Details</span>
                     </h3>
                     
@@ -871,7 +911,7 @@ export default function ExpertProfile() {
                       <Label htmlFor="resume" className="text-slate-700">Resume/CV (PDF)</Label>
                       {editing ? (
                         <>
-                          <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 hover:bg-blue-50 transition-all duration-300">
+                          <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center transition-all duration-300">
                             <input
                               type="file"
                               id="resume"
@@ -880,9 +920,9 @@ export default function ExpertProfile() {
                               className="hidden"
                             />
                             <label htmlFor="resume" className="cursor-pointer">
-                              <FileText className="mx-auto h-12 w-12 text-slate-400 mb-4" />
+                              <FileText className="mx-auto h-12 w-12 text-[#008260] mb-4" />
                               <p className="text-sm text-slate-600 mb-2">
-                                <span className="font-medium text-blue-600 hover:text-blue-500">
+                                <span className="font-medium text-[#008260]">
                                   Click to upload
                                 </span>{' '}
                                 or drag and drop
@@ -893,11 +933,11 @@ export default function ExpertProfile() {
                           
                           {/* Resume Preview */}
                           {selectedResume && (
-                            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="mt-3 p-3 bg-[#ECF2FF] rounded-lg">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center space-x-2">
-                                  <FileText className="h-5 w-5 text-blue-600" />
-                                  <span className="text-sm font-medium text-blue-900 break-all">
+                                  <FileText className="h-5 w-5 text-[#008260]" />
+                                  <span className="text-sm font-medium text-[#008260] break-all">
                                     {selectedResume.name}
                                   </span>
                                 </div>
@@ -944,10 +984,10 @@ export default function ExpertProfile() {
                     <div className="flex justify-end pt-6">
                       <Button
                         type="submit"
-                        className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
+                         className="bg-[#008260] rounded-md w-[150px]"
                         disabled={saving}
                       >
-                        <Save className="h-4 w-4 mr-2" />
+                        <Save className="h-4 w-4 mr-1" />
                         {saving ? 'Saving...' : 'Save Changes'}
                       </Button>
                     </div>

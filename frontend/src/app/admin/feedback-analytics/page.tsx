@@ -194,15 +194,8 @@ export default function FeedbackAnalyticsPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden flex items-center justify-center p-4">
-        {/* Background Elements */}
-        <div className="absolute inset-0">
-          <div className="absolute top-20 left-20 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-20 right-20 w-80 h-80 bg-indigo-500/5 rounded-full blur-3xl"></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-blue-300/10 to-indigo-300/10 rounded-full blur-3xl"></div>
-        </div>
-
-        <div className="w-full max-w-md px-4 relative z-10">
+      <div className="min-h-screen bg-[#ECF2FF] flex items-center justify-center p-4">
+        <div className="w-full max-w-md px-4">
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
               <Logo size="lg" />
@@ -211,10 +204,10 @@ export default function FeedbackAnalyticsPage() {
             <p className="text-sm sm:text-base text-slate-600">Enter your email to access feedback analytics</p>
           </div>
 
-          <Card className="bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+          <Card className="bg-white border-2 border-[#D6D6D6] rounded-lg shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center space-x-2 text-slate-900">
-                <BarChart3 className="h-5 w-5 text-blue-600" />
+                <BarChart3 className="h-5 w-5 text-[#008260]" />
                 <span>Authentication Required</span>
               </CardTitle>
               <CardDescription className="text-slate-600">
@@ -238,11 +231,11 @@ export default function FeedbackAnalyticsPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:ring-blue-500 focus:border-blue-500"
+                    className="bg-white border-[#D6D6D6] text-slate-900 placeholder:text-slate-400 focus:ring-[#008260] focus:border-[#008260]"
                   />
                 </div>
 
-                <Button type="submit" className="w-full bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-bold py-6 shadow-sm hover:shadow-md transition-all">
+                <Button type="submit" className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium py-6 rounded-lg shadow-sm hover:shadow-md transition-all">
                   Access Analytics
                 </Button>
               </form>
@@ -254,50 +247,45 @@ export default function FeedbackAnalyticsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden p-3 sm:p-4">
-      {/* Background Elements */}
-      <div className="absolute inset-0">
-        <div className="absolute top-20 left-20 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-20 right-20 w-80 h-80 bg-indigo-500/5 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-blue-300/10 to-indigo-300/10 rounded-full blur-3xl"></div>
-      </div>
-
-      <div className="max-w-7xl mx-auto relative z-10">
-        <div ref={topSentinelRef} className="h-px" />
-        {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <Logo size="lg" />
-            <div className="min-w-0">
-              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 break-words">Feedback Analytics Dashboard</h1>
-              <p className="text-sm sm:text-base text-slate-600 mt-1">Comprehensive analysis of student feedback</p>
+    <div className="min-h-screen bg-[#ECF2FF]">
+      {/* Header */}
+      <header className="bg-[#008260] border-b-2 border-[#006d51] sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <Logo size="header" />
+            <div className="flex gap-2 sm:gap-3">
+              <Button onClick={() => loadAnalytics(1, false)} variant="outline" disabled={loading} className="border-white/30 bg-white/10 text-white hover:bg-white/20 backdrop-blur-sm">
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''} sm:mr-2`} />
+                <span className="hidden sm:inline">Refresh</span>
+              </Button>
+              <Button onClick={exportData} variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20 backdrop-blur-sm">
+                <Download className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Export Data</span>
+              </Button>
             </div>
           </div>
-          
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
-            <Button onClick={() => loadAnalytics(1, false)} variant="outline" disabled={loading} className="w-full sm:w-auto border-slate-300 bg-white text-slate-700 hover:bg-blue-50 hover:text-slate-900">
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">Refresh</span>
-              <span className="sm:hidden">🔄</span>
-            </Button>
-            <Button onClick={exportData} variant="outline" className="w-full sm:w-auto border-slate-300 bg-white text-slate-700 hover:bg-blue-50 hover:text-slate-900">
-              <Download className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">Export Data</span>
-              <span className="sm:hidden">📥</span>
-            </Button>
-          </div>
+        </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto p-3 sm:p-4 md:p-6">
+        <div ref={topSentinelRef} className="h-px" />
+        
+        {/* Page Title */}
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Feedback Analytics Dashboard</h1>
+          <p className="text-sm sm:text-base text-slate-600 mt-1">Comprehensive analysis of student feedback</p>
         </div>
 
         {error && (
-          <Alert className="mb-6 border-red-500/20 bg-red-500/10 text-red-200">
+          <Alert className="mb-6 border-red-500/20 bg-red-500/10 text-red-700">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
         {loading && (
           <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500/30 mx-auto mb-4"></div>
-            <p className="text-slate-300">Loading analytics...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#008260] mx-auto mb-4"></div>
+            <p className="text-slate-600">Loading analytics...</p>
           </div>
         )}
 
@@ -305,7 +293,7 @@ export default function FeedbackAnalyticsPage() {
           <>
             {/* Overview Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
-              <Card className="bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+              <Card className="bg-white border-2 border-[#D6D6D6] rounded-lg shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-xs sm:text-sm font-medium text-slate-900">Total Submissions</CardTitle>
                   <Users className="h-4 w-4 text-slate-600 flex-shrink-0" />
@@ -318,7 +306,7 @@ export default function FeedbackAnalyticsPage() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+              <Card className="bg-white border-2 border-[#D6D6D6] rounded-lg shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-xs sm:text-sm font-medium text-slate-900">Very Good</CardTitle>
                   <Star className="h-4 w-4 text-green-600 flex-shrink-0" />
@@ -333,13 +321,13 @@ export default function FeedbackAnalyticsPage() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+              <Card className="bg-white border-2 border-[#D6D6D6] rounded-lg shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-xs sm:text-sm font-medium text-slate-900">Good</CardTitle>
-                  <CheckCircle className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                  <CheckCircle className="h-4 w-4 text-[#008260] flex-shrink-0" />
                 </CardHeader>
                 <CardContent className="pt-2">
-                  <div className="text-xl sm:text-2xl font-bold text-blue-600">
+                  <div className="text-xl sm:text-2xl font-bold text-[#008260]">
                     {analytics.overallPercentages.GOOD}%
                   </div>
                   <p className="text-xs text-slate-600 mt-1">
@@ -348,7 +336,7 @@ export default function FeedbackAnalyticsPage() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+              <Card className="bg-white border-2 border-[#D6D6D6] rounded-lg shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-xs sm:text-sm font-medium text-slate-900">Average & Below</CardTitle>
                   <AlertCircle className="h-4 w-4 text-yellow-600 flex-shrink-0" />
@@ -366,10 +354,10 @@ export default function FeedbackAnalyticsPage() {
 
             {/* Rating Distribution */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
-              <Card className="bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+              <Card className="bg-white border-2 border-[#D6D6D6] rounded-lg shadow-sm">
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2 text-slate-900">
-                    <PieChart className="h-5 w-5 text-slate-700" />
+                    <PieChart className="h-5 w-5 text-[#008260]" />
                     <span>Overall Rating Distribution</span>
                   </CardTitle>
                 </CardHeader>
@@ -396,10 +384,10 @@ export default function FeedbackAnalyticsPage() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+              <Card className="bg-white border-2 border-[#D6D6D6] rounded-lg shadow-sm">
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2 text-slate-900">
-                    <BarChart3 className="h-5 w-5 text-slate-700" />
+                    <BarChart3 className="h-5 w-5 text-[#008260]" />
                     <span>Session Type Breakdown</span>
                   </CardTitle>
                 </CardHeader>
@@ -411,7 +399,7 @@ export default function FeedbackAnalyticsPage() {
                           <span className="font-medium text-slate-900">
                             {sessionType === 'ET' ? 'Emerging Technologies' : 'Prompt Engineering'}
                           </span>
-                          <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200">{stats.total} responses</Badge>
+                          <Badge variant="secondary" className="bg-[#008260]/10 text-[#008260] border-[#008260]/20">{stats.total} responses</Badge>
                         </div>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                           {Object.entries(stats.ratings).map(([rating, count]) => (
@@ -433,10 +421,10 @@ export default function FeedbackAnalyticsPage() {
             </div>
 
             {/* Recent Feedback */}
-            <Card className="bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+            <Card className="bg-white border-2 border-[#D6D6D6] rounded-lg shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2 text-slate-900">
-                  <TrendingUp className="h-5 w-5 text-slate-700" />
+                  <TrendingUp className="h-5 w-5 text-[#008260]" />
                   <span>Recent Feedback</span>
                 </CardTitle>
                 <CardDescription className="text-slate-600">
@@ -455,7 +443,7 @@ export default function FeedbackAnalyticsPage() {
                     allFeedback.map((feedback, index) => (
                     <div
                       key={feedback.id}
-                      className="border-2 border-slate-200 rounded-lg p-3 sm:p-4 bg-white"
+                      className="border-2 border-[#D6D6D6] rounded-lg p-3 sm:p-4 bg-white hover:border-[#008260]/30 transition-colors"
                       ref={index === allFeedback.length - 1 ? setLastItemRef : undefined as any}
                     >
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3">
@@ -557,7 +545,7 @@ export default function FeedbackAnalyticsPage() {
         {showScrollTop && (
           <button
             onClick={scrollToTop}
-            className="fixed bottom-6 right-6 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white p-3 rounded-full shadow-sm hover:shadow-md transition-all z-50"
+            className="fixed bottom-6 right-6 bg-[#008260] hover:bg-[#006d51] text-white p-3 rounded-full shadow-lg hover:shadow-xl transition-all z-50"
             aria-label="Scroll to top"
           >
             <TrendingUp className="h-5 w-5 rotate-180" />

@@ -1675,6 +1675,93 @@ app.put('/api/students/:id', upload.fields([{ name: 'resume', maxCount: 1 }, { n
   }
 });
 
+// Get featured/public students for showcase (no auth required)
+app.get('/api/students/featured', async (req, res) => {
+  try {
+    const { limit = 8 } = req.query;
+    const limitNum = Math.min(parseInt(limit, 10) || 8, 20);
+
+    const { data, error } = await supabase
+      .from('site_students')
+      .select(`
+        id,
+        name,
+        degree,
+        specialization,
+        skills,
+        photo_url,
+        profile_photo_small_url,
+        city,
+        state,
+        institution_id,
+        institutions:institution_id (
+          id,
+          name,
+          city,
+          state
+        )
+      `)
+      .not('photo_url', 'is', null)
+      .not('name', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(limitNum);
+
+    if (error) throw error;
+    res.json(Array.isArray(data) ? data : []);
+  } catch (error) {
+    console.error('Featured students error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Public endpoint for freelance projects (no auth required)
+app.get('/api/freelance', async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = Math.min(parseInt(limit, 10) || 10, 50);
+    const offset = (pageNum - 1) * limitNum;
+
+    const { data, error, count } = await supabase
+      .from('freelance_projects')
+      .select(`
+        id,
+        title,
+        description,
+        budget_min,
+        budget_max,
+        deadline,
+        status,
+        created_at,
+        corporate_institution_id,
+        institutions:corporate_institution_id (
+          id,
+          name,
+          city,
+          state
+        )
+      `, { count: 'exact' })
+      .eq('status', 'open')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limitNum - 1);
+
+    if (error) throw error;
+
+    res.json({
+      data: Array.isArray(data) ? data : [],
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / limitNum)
+      }
+    });
+  } catch (error) {
+    console.error('Freelance projects error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Student applies to internship
 app.post('/api/internship-applications', async (req, res) => {
   try {
@@ -2240,13 +2327,22 @@ app.get('/api/freelance/projects', async (req, res) => {
 // Visible freelance projects (students), only open
 app.get('/api/freelance/projects/visible', async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
-    const token = authHeader.substring(7);
-    const supabaseClient = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, { global: { headers: { Authorization: `Bearer ${token}` } } });
-    const { data, error } = await supabaseClient.from('freelance_projects').select('*, corporate:corporate_institution_id ( id, name, city, state )').eq('status','open').order('created_at', { ascending: false });
-    if (error) throw error; res.json(Array.isArray(data) ? data : []);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+    const { limit = 50 } = req.query;
+    const limitNum = Math.min(parseInt(limit, 10) || 50, 100);
+    
+    // Public endpoint - no auth required for browsing
+    const { data, error } = await supabase
+      .from('freelance_projects')
+      .select('*, corporate:corporate_institution_id ( id, name, city, state )')
+      .eq('status','open')
+      .order('created_at', { ascending: false })
+      .limit(limitNum);
+    
+    if (error) throw error; 
+    res.json(Array.isArray(data) ? data : []);
+  } catch (e) { 
+    res.status(500).json({ error: e.message }); 
+  }
 });
 
 // Student apply to project
@@ -2349,7 +2445,7 @@ app.get('/api/freelance/my-applications', async (req, res) => {
 
     let query = supabaseClient
       .from('freelance_applications')
-      .select('*, project:project_id ( id, title, description, deadline )')
+      .select('*, project:project_id ( id, title, description, deadline, budget_min, budget_max )')
       .eq('student_id', student.id)
       .order('created_at', { ascending: false });
     if (status && ['pending','shortlisted','rejected'].includes(String(status))) {
@@ -2634,7 +2730,7 @@ app.get('/api/internship-applications', async (req, res) => {
       .select(`
         *,
         internships:internship_id (
-          id, title, work_mode, engagement, openings, duration_value, duration_unit, paid, stipend_min, stipend_max, created_at
+          id, title, work_mode, engagement, openings, duration_value, duration_unit, paid, stipend_min, stipend_max, created_at, start_date, responsibilities
         )
       `)
       .eq('student_id', student.id)
@@ -4123,6 +4219,7 @@ app.delete('/api/bookings/:id', async (req, res) => {
 // ========================================
 // Import student feedback service
 const studentFeedbackService = require('./services/studentFeedbackService');
+const { setupContactRoutes } = require('./routes/contact');
 
 // Student login route
 app.post('/api/student/login', async (req, res) => {
@@ -4295,6 +4392,389 @@ app.get('/api/admin/feedback-analytics', async (req, res) => {
 // ========================================
 // END STUDENT FEEDBACK SYSTEM ROUTES
 // ========================================
+
+// ========================================
+// ADMIN PROFILE MANAGEMENT ROUTES
+// ========================================
+
+// Admin: Get all experts with pagination and search
+app.get('/api/admin/profiles/experts', async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 12, 
+      search = '', 
+      domain_expertise = '', 
+      min_hourly_rate = '', 
+      max_hourly_rate = '' 
+    } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    // Use service role to bypass RLS
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    let query = serviceClient
+      .from('experts')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + parseInt(limit) - 1);
+
+    // General search filter
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,bio.ilike.%${search}%`);
+    }
+
+    // Domain expertise filter
+    if (domain_expertise && domain_expertise !== 'all') {
+      query = query.contains('domain_expertise', [domain_expertise]);
+    }
+
+    // Min hourly rate filter
+    if (min_hourly_rate && !isNaN(parseFloat(min_hourly_rate))) {
+      query = query.gte('hourly_rate', parseFloat(min_hourly_rate));
+    }
+
+    // Max hourly rate filter
+    if (max_hourly_rate && !isNaN(parseFloat(max_hourly_rate))) {
+      query = query.lte('hourly_rate', parseFloat(max_hourly_rate));
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json(Array.isArray(data) ? data : []);
+  } catch (error) {
+    console.error('Admin get experts error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: Get all institutions with pagination and search
+app.get('/api/admin/profiles/institutions', async (req, res) => {
+  try {
+    const { page = 1, limit = 12, search = '' } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    // Use service role to bypass RLS
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    let query = serviceClient
+      .from('institutions')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + parseInt(limit) - 1);
+
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,type.ilike.%${search}%`);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json(Array.isArray(data) ? data : []);
+  } catch (error) {
+    console.error('Admin get institutions error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: Get all students with pagination and search
+app.get('/api/admin/profiles/students', async (req, res) => {
+  try {
+    const { page = 1, limit = 12, search = '' } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    // Use service role to bypass RLS
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    let query = serviceClient
+      .from('site_students')
+      .select(`
+        *,
+        institutions:institution_id (
+          id,
+          name,
+          city,
+          state
+        )
+      `)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + parseInt(limit) - 1);
+
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,degree.ilike.%${search}%`);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json(Array.isArray(data) ? data : []);
+  } catch (error) {
+    console.error('Admin get students error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========================================
+// ADMIN REQUIREMENTS TRACKING ROUTES
+// ========================================
+
+// Admin: Get all requirements (contracts, internships, freelance) with institution details
+app.get('/api/admin/requirements', async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 15, 
+      search = '', 
+      type = 'all', 
+      status = 'call_now' 
+    } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    // Use service role to bypass RLS
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    let allRequirements = [];
+
+    // Fetch contracts if type matches
+    if (type === 'all' || type === 'contract') {
+      const contractQuery = serviceClient
+        .from('projects')
+        .select(`
+          id,
+          title,
+          description,
+          type,
+          hourly_rate,
+          total_budget,
+          start_date,
+          end_date,
+          duration_hours,
+          required_expertise,
+          domain_expertise,
+          subskills,
+          status,
+          created_at,
+          institution_id,
+          call_status,
+          institutions:institution_id (
+            id,
+            name,
+            email,
+            phone,
+            type,
+            city,
+            state,
+            website_url
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (status !== 'all') {
+        contractQuery.eq('call_status', status);
+      }
+
+      const { data: contracts, error: contractError } = await contractQuery;
+      if (contractError) throw contractError;
+
+      if (contracts && contracts.length > 0) {
+        allRequirements.push(...contracts.map(c => ({
+          ...c,
+          requirement_type: 'contract'
+        })));
+      }
+    }
+
+    // Fetch internships if type matches
+    if (type === 'all' || type === 'internship') {
+      const internshipQuery = serviceClient
+        .from('internships')
+        .select(`
+          id,
+          title,
+          responsibilities,
+          stipend_min,
+          stipend_max,
+          duration_value,
+          duration_unit,
+          location,
+          skills_required,
+          status,
+          created_at,
+          corporate_institution_id,
+          call_status,
+          paid,
+          work_mode,
+          engagement,
+          institutions:corporate_institution_id (
+            id,
+            name,
+            email,
+            phone,
+            type,
+            city,
+            state,
+            website_url
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (status !== 'all') {
+        internshipQuery.eq('call_status', status);
+      }
+
+      const { data: internships, error: internshipError } = await internshipQuery;
+      if (internshipError) throw internshipError;
+
+      if (internships && internships.length > 0) {
+        allRequirements.push(...internships.map(i => ({
+          ...i,
+          requirement_type: 'internship',
+          institution_id: i.corporate_institution_id,
+          description: i.responsibilities // Map responsibilities to description for frontend consistency
+        })));
+      }
+    }
+
+    // Fetch freelance projects if type matches
+    if (type === 'all' || type === 'freelance') {
+      const freelanceQuery = serviceClient
+        .from('freelance_projects')
+        .select(`
+          id,
+          title,
+          description,
+          required_skills,
+          deadline,
+          budget_min,
+          budget_max,
+          status,
+          created_at,
+          corporate_institution_id,
+          call_status,
+          institutions:corporate_institution_id (
+            id,
+            name,
+            email,
+            phone,
+            type,
+            city,
+            state,
+            website_url
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (status !== 'all') {
+        freelanceQuery.eq('call_status', status);
+      }
+
+      const { data: freelance, error: freelanceError } = await freelanceQuery;
+      if (freelanceError) throw freelanceError;
+
+      if (freelance && freelance.length > 0) {
+        allRequirements.push(...freelance.map(f => ({
+          ...f,
+          requirement_type: 'freelance',
+          institution_id: f.corporate_institution_id
+        })));
+      }
+    }
+
+    // Sort by created_at descending
+    allRequirements.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    // Apply search filter
+    if (search) {
+      const searchLower = search.toLowerCase();
+      allRequirements = allRequirements.filter(req => {
+        const titleMatch = req.title?.toLowerCase().includes(searchLower);
+        const descMatch = req.description?.toLowerCase().includes(searchLower);
+        const instMatch = req.institutions?.name?.toLowerCase().includes(searchLower);
+        const instEmailMatch = req.institutions?.email?.toLowerCase().includes(searchLower);
+        return titleMatch || descMatch || instMatch || instEmailMatch;
+      });
+    }
+
+    // Apply pagination
+    const paginatedResults = allRequirements.slice(offset, offset + parseInt(limit));
+
+    res.json({
+      data: paginatedResults,
+      total: allRequirements.length,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      hasMore: allRequirements.length > offset + parseInt(limit)
+    });
+  } catch (error) {
+    console.error('Admin get requirements error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: Update requirement call status
+app.patch('/api/admin/requirements/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { type, status } = req.body;
+
+    if (!type || !status) {
+      return res.status(400).json({ error: 'Type and status are required' });
+    }
+
+    if (!['call_now', 'called'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    // Use service role to bypass RLS
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    let tableName;
+    if (type === 'contract') {
+      tableName = 'projects';
+    } else if (type === 'internship') {
+      tableName = 'internships';
+    } else if (type === 'freelance') {
+      tableName = 'freelance_projects';
+    } else {
+      return res.status(400).json({ error: 'Invalid requirement type' });
+    }
+
+    const { data, error } = await serviceClient
+      .from(tableName)
+      .update({ call_status: status })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Admin update requirement status error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========================================
+// CONTACT FORM ROUTES
+// ========================================
+setupContactRoutes(app);
 
 // Test endpoint to verify authentication context
 
