@@ -57,7 +57,7 @@ export default function Home() {
   const [scrolled, setScrolled] = useState(false);
   const [featuredUniversities, setFeaturedUniversities] = useState<{ name: string; desc: string; logo: string; color: string }[]>([])
   const [featuredExperts, setFeaturedExperts] = useState<any[]>([])
-  const [userRole, setUserRole] = useState<'expert' | 'institution' | null>(null)
+  const [userRole, setUserRole] = useState<'expert' | 'institution' | 'student' | null>(null)
   const [showWelcomeDialog, setShowWelcomeDialog] = useState(false)
   const [exploreActiveIdx, setExploreActiveIdx] = useState(0)
   const [studentActiveIdx, setStudentActiveIdx] = useState(0)
@@ -128,17 +128,19 @@ export default function Home() {
     const resolveRole = async () => {
       if (!user) { setUserRole(null); return }
       const metaRole = (user as any)?.user_metadata?.role
-      if (metaRole === 'expert' || metaRole === 'institution') {
+      if (metaRole === 'expert' || metaRole === 'institution' || metaRole === 'student') {
         setUserRole(metaRole)
         return
       }
       try {
-        const [expert, institution] = await Promise.all([
+        const [expert, institution, student] = await Promise.all([
           api.experts.getByUserId(user.id).catch(() => null),
-          api.institutions.getByUserId(user.id).catch(() => null)
+          api.institutions.getByUserId(user.id).catch(() => null),
+          api.students.me().catch(() => null)
         ])
         if (expert) setUserRole('expert')
         else if (institution) setUserRole('institution')
+        else if (student) setUserRole('student')
         else setUserRole(null)
       } catch {
         setUserRole(null)
@@ -281,9 +283,12 @@ export default function Home() {
             {/* Navigation & CTA - Desktop */}
             <div className="hidden sm:flex items-center justify-end gap-2">
               {/* Explore Experts - Mega Menu */}
-              <Link href="/requirements">
-                <Button variant="ghost" className="font-medium text-white/90 hover:text-white hover:bg-white/10 transition-all duration-300 px-3 py-2 text-sm">Requirements</Button>
-              </Link>
+                <Link href="/requirements">
+                  <Button variant="ghost" className="font-medium text-white/90 hover:text-white hover:bg-white/10 transition-all duration-300 px-3 py-2 text-sm">Requirements</Button>
+                </Link>
+                <Link href="/solutions">
+                  <Button variant="ghost" className="font-medium text-white/90 hover:text-white hover:bg-white/10 transition-all duration-300 px-3 py-2 text-sm">Services</Button>
+                </Link>
               <Link href="/contact-us">
                 <Button variant="ghost" className="font-medium text-white/90 hover:text-white hover:bg-white/10 transition-all duration-300 px-3 py-2 text-sm">Contact Us</Button>
               </Link>
@@ -306,6 +311,9 @@ export default function Home() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-64">
                   {/* Explore Experts nested mobile menu */}
+                  <Link href="/solutions">
+                  <DropdownMenuItem className="cursor-pointer">Services</DropdownMenuItem>
+              </Link>
                 
                   <Link href="/requirements">
                   <DropdownMenuItem className="cursor-pointer">Requirements</DropdownMenuItem>
@@ -343,13 +351,13 @@ export default function Home() {
                 Welcome Back! 👋
               </DialogTitle>
               <DialogDescription className="text-[#6A6A6A] text-base">
-                Continue to your {userRole === 'expert' ? 'Expert' : 'Institution'} dashboard to manage your activities.
+                Continue to your {userRole === 'expert' ? 'Expert' : userRole === 'student' ? 'Student' : 'Institution'} dashboard to manage your activities.
               </DialogDescription>
             </DialogHeader>
             <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Link href={userRole === 'expert' ? '/expert/home' : '/institution/home'} className="w-full">
+              <Link href={userRole === 'expert' ? '/expert/home' : userRole === 'student' ? '/student/home' : '/institution/home'} className="w-full">
                 <Button className="bg-[#008260] hover:bg-[#006d51] text-white w-full h-11 text-base font-semibold shadow-sm hover:shadow-md transition-all duration-200 rounded-lg">
-                  Go to {userRole === 'expert' ? 'Expert' : 'Institution'} Home
+                  Go to {userRole === 'expert' ? 'Expert' : userRole === 'student' ? 'Student' : 'Institution'} Home
                 </Button>
               </Link>
               <Button 
@@ -437,7 +445,7 @@ export default function Home() {
                   <div className="w-16 h-16 rounded-2xl bg-[#DBE5FF] flex items-center justify-center mb-4">
                     <Users className="h-8 w-8 text-[#008260]" />
                   </div>
-                  <div className="text-4xl font-bold text-slate-900 mb-1">10,000+</div>
+                  <div className="text-4xl font-bold text-slate-900 mb-1">100+</div>
                   <div className="text-slate-600 font-medium">Verified Experts</div>
                 </div>
 
@@ -455,7 +463,7 @@ export default function Home() {
                   <div className="w-16 h-16 rounded-2xl bg-[#FFFAD5] flex items-center justify-center mb-4">
                     <Star className="h-8 w-8 text-[#FFA800]" />
                   </div>
-                  <div className="text-4xl font-bold text-slate-900 mb-1">4.9/5</div>
+                  <div className="text-4xl font-bold text-slate-900 mb-1">4.7/5</div>
                   <div className="text-slate-600 font-medium">Client Satisfaction</div>
                 </div>
               </motion.div>
@@ -474,9 +482,9 @@ export default function Home() {
                 variants={fadeUp}
                 transition={transition}
               >
-                  <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">Why choose CalxMap?</h2>
+                  <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">Why Choose CalxMap?</h2>
                   <p className="text-base sm:text-lg text-slate-600 max-w-3xl mx-auto">
-                  Here is the description for this section – need a change for sure so just ignore it, though this even consider a read, never mind.
+                    The all-in-one platform connecting talent, expertise, and opportunities to drive meaningful growth
                 </p>
               </motion.div>
 
@@ -492,9 +500,9 @@ export default function Home() {
                   <Card className="card-black rounded-md shadow-sm transition-all duration-300 h-full">
                     <CardContent className="p-8">
                       <TrendingUp className="h-10 w-10 text-white mb-6" />
-                      <h3 className="text-xl font-bold text-white mb-4 border-b border-white/20 pb-4">Impactful Partnerships<br/>for Growth</h3>
+                      <h3 className="text-xl font-bold text-white mb-4 border-b border-white/20 pb-4">One Platform,<br/>Multiple Solutions</h3>
                       <p className="text-slate-300 leading-relaxed text-base">
-                        Empower your organization or institution to drive growth, upskill teams, and create tangible social impact. Partner with Calxmap for scalable solutions in knowledge sharing.
+                        Whether you're an expert monetizing skills, a student seeking opportunities, or an institution hiring talent—CalxMap provides tailored workflows that seamlessly connect supply with demand.
                       </p>
                     </CardContent>
                   </Card>
@@ -511,9 +519,9 @@ export default function Home() {
                   <Card className="card-green rounded-md shadow-sm transition-all duration-300 h-full">
                     <CardContent className="p-8">
                       <Shield className="h-10 w-10 text-white mb-6" />
-                      <h3 className="text-xl font-bold text-white mb-4 border-b border-white/20 pb-4">Verified Experts, On<br/>Demand</h3>
+                      <h3 className="text-xl font-bold text-white mb-4 border-b border-white/20 pb-4">AI-Powered Smart<br/>Matching</h3>
                       <p className="text-white/90 leading-relaxed text-base">
-                        Access a curated network of Chartered Accountants, Corporate Lawyers, Trainers, and Consultants with proven credentials—ready when you need them for projects.
+                        Our intelligent algorithms match the right talent with the right opportunities. Students find ideal internships, experts get relevant projects, and institutions discover perfect candidates—all automatically.
                       </p>
                     </CardContent>
                   </Card>
@@ -530,9 +538,9 @@ export default function Home() {
                   <Card className="card-black rounded-md shadow-sm transition-all duration-300 h-full">
                     <CardContent className="p-8">
                       <Zap className="h-10 w-10 text-white mb-6" />
-                      <h3 className="text-xl font-bold text-white mb-4 border-b border-white/20 pb-4">Seamless Industry–<br/>Academia Collaboration</h3>
+                      <h3 className="text-xl font-bold text-white mb-4 border-b border-white/20 pb-4">End-to-End<br/>Workflow Management</h3>
                       <p className="text-slate-300 leading-relaxed text-base">
-                        Bridge the gap between academic learning and industry experience through tailored guest lectures, certification programs, and real-world mentorships powered by Calxmap.
+                        From posting requirements to tracking applications, scheduling interviews to managing placements—every step is streamlined. Universities track analytics, corporates manage hiring, and students monitor their journey in one place.
                       </p>
                     </CardContent>
                   </Card>
@@ -565,11 +573,11 @@ export default function Home() {
                   <span className="text-[#008260]">Everyone</span>
                 </h2>
                 <p className="text-base text-slate-600 max-w-2xl mx-auto">
-                  Tailored solutions for experts, universities, and corporations
+                  Tailored solutions for experts, students, universities, and corporations
                 </p>
               </motion.div>
 
-              <div className="grid lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
+              <div className="grid md:grid-cols-2 gap-6 max-w-6xl mx-auto">
                 {/* For Experts */}
                 <motion.div
                   initial="hidden"
@@ -617,6 +625,53 @@ export default function Home() {
                   </Card>
                 </motion.div>
 
+                {/* For Students */}
+                <motion.div
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true, amount: 0.3 }}
+                  variants={slideRight}
+                  transition={transition}
+                >
+                  <Card className="bg-[#F0F7FF] border-2 border-[#008260] rounded-lg shadow-none transition-all duration-300 h-full">
+                    <CardContent className="p-8">
+                      <div className="w-14 h-14 bg-[#008260] rounded-xl flex items-center justify-center mb-6">
+                        <Briefcase className="h-7 w-7 text-white" />
+                      </div>
+                      <h3 className="text-2xl font-bold text-slate-900 mb-2">For Students</h3>
+                      <p className="text-[#008260] font-semibold text-base mb-4">Launch Your Career</p>
+                      <p className="text-slate-600 text-sm mb-6 leading-relaxed">
+                        Kickstart your professional journey with real-world opportunities
+                      </p>
+                      
+                      <ul className="space-y-3 mb-8">
+                        <li className="flex items-start text-slate-900 text-sm">
+                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-slate-900 mt-1.5 mr-3 flex-shrink-0"></span>
+                          <span className='font-medium'>Premium internships</span>
+                        </li>
+                        <li className="flex items-start text-slate-900 text-sm">
+                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-slate-900 mt-1.5 mr-3 flex-shrink-0"></span>
+                          <span className='font-medium'>Freelance projects</span>
+                        </li>
+                        <li className="flex items-start text-slate-900 text-sm">
+                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-slate-900 mt-1.5 mr-3 flex-shrink-0"></span>
+                          <span className='font-medium'>Skill development</span>
+                        </li>
+                        <li className="flex items-start text-slate-900 text-sm">
+                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-slate-900 mt-1.5 mr-3 flex-shrink-0"></span>
+                          <span className='font-medium'>Build portfolio</span>
+                        </li>
+                      </ul>
+
+                      <Link href="/auth/signup?role=student">
+                        <Button className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-semibold py-5 rounded-lg transition-all text-sm">
+                          Join as Student →
+                        </Button>
+                      </Link>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+
                 {/* For Education */}
                 <motion.div
                   initial="hidden"
@@ -630,28 +685,28 @@ export default function Home() {
                       <div className="w-14 h-14 bg-[#008260] rounded-xl flex items-center justify-center mb-6">
                         <GraduationCap className="h-7 w-7 text-white" />
                       </div>
-                      <h3 className="text-2xl font-bold text-slate-900 mb-2">For Education</h3>
-                      <p className="text-[#008260] font-semibold text-base mb-4">Enhance Learning</p>
+                      <h3 className="text-2xl font-bold text-slate-900 mb-2">For Universities</h3>
+                      <p className="text-[#008260] font-semibold text-base mb-4">Empower Your Students</p>
                       <p className="text-slate-600 text-sm mb-6 leading-relaxed">
-                        Connect students with transformative real-world knowledge
+                        Bridge academia and industry with premium placement opportunities
                       </p>
                       
                       <ul className="space-y-3 mb-8">
                         <li className="flex items-start text-slate-900 text-sm">
                           <span className="inline-block w-1.5 h-1.5 rounded-full bg-slate-900 mt-1.5 mr-3 flex-shrink-0"></span>
-                          <span className='font-medium'>Expert guest lectures</span>
+                          <span className='font-medium'>Post internship requirements</span>
                         </li>
                         <li className="flex items-start text-slate-900 text-sm">
                           <span className="inline-block w-1.5 h-1.5 rounded-full bg-slate-900 mt-1.5 mr-3 flex-shrink-0"></span>
-                          <span className='font-medium'>Industry workshops</span>
+                          <span className='font-medium'>Access industry experts as faculty</span>
                         </li>
                         <li className="flex items-start text-slate-900 text-sm">
                           <span className="inline-block w-1.5 h-1.5 rounded-full bg-slate-900 mt-1.5 mr-3 flex-shrink-0"></span>
-                          <span className='font-medium'>Certification programs</span>
+                          <span className='font-medium'>Track placement analytics</span>
                         </li>
                         <li className="flex items-start text-slate-900 text-sm">
                           <span className="inline-block w-1.5 h-1.5 rounded-full bg-slate-900 mt-1.5 mr-3 flex-shrink-0"></span>
-                          <span className='font-medium'>Mentorship opportunities</span>
+                          <span className='font-medium'>Bulk student onboarding</span>
                         </li>
                       </ul>
 
@@ -678,33 +733,33 @@ export default function Home() {
                         <Building className="h-7 w-7 text-white" />
                       </div>
                       <h3 className="text-2xl font-bold text-slate-900 mb-2">For Corporates</h3>
-                      <p className="text-[#008260] font-semibold text-base mb-4">On-Demand Services</p>
+                      <p className="text-[#008260] font-semibold text-base mb-4">Scale Your Workforce</p>
                       <p className="text-slate-600 text-sm mb-6 leading-relaxed">
-                        Access verified experts for instant business acceleration
+                        Access verified talent and experts to accelerate business growth
                       </p>
                       
                       <ul className="space-y-3 mb-8">
                         <li className="flex items-start text-slate-900 text-sm">
                           <span className="inline-block w-1.5 h-1.5 rounded-full bg-slate-900 mt-1.5 mr-3 flex-shrink-0"></span>
-                          <span className='font-medium'>Chartered Accountants</span>
+                          <span className='font-medium'>Hire skilled interns & freelancers</span>
                         </li>
                         <li className="flex items-start text-slate-900 text-sm">
                           <span className="inline-block w-1.5 h-1.5 rounded-full bg-slate-900 mt-1.5 mr-3 flex-shrink-0"></span>
-                          <span className='font-medium'>Corporate Lawyers</span>
+                          <span className='font-medium'>On-demand industry experts</span>
                         </li>
                         <li className="flex items-start text-slate-900 text-sm">
                           <span className="inline-block w-1.5 h-1.5 rounded-full bg-slate-900 mt-1.5 mr-3 flex-shrink-0"></span>
-                          <span className='font-medium'>Business Consultants</span>
+                          <span className='font-medium'>AI-powered candidate matching</span>
                         </li>
                         <li className="flex items-start text-slate-900 text-sm">
                           <span className="inline-block w-1.5 h-1.5 rounded-full bg-slate-900 mt-1.5 mr-3 flex-shrink-0"></span>
-                          <span className='font-medium'>24/7 availability</span>
+                          <span className='font-medium'>Streamlined hiring process</span>
                         </li>
                       </ul>
 
                       <Link href="/auth/signup?role=institution">
                         <Button className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-semibold py-5 rounded-lg transition-all text-sm">
-                          Hire Expert →
+                          Post Requirements →
                         </Button>
                       </Link>
                     </CardContent>
@@ -1375,42 +1430,7 @@ export default function Home() {
             </section>
           )}
 
-          <section className=''>
-           <div className='flex justify-center flex-col bg-white items-center'>
-            <p className='text-[#000000] text-[42px] font-bold text-center'>What Our Clients Say</p>
-            <div className="grid md:grid-cols-3 gap-8 p-10">
-          {testimonials.map((testimonial) => (
-            <div
-              key={testimonial.id}
-              className="bg-[#ECF2FF] rounded-3xl p-8 flex flex-col max-w-[400px]"
-            >
-              {/* Avatar */}
-              <div className="mb-6">
-                <img
-                  src={testimonial.image}
-                  alt={testimonial.author}
-                  className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-md"
-                />
-              </div>
-
-              {/* Testimonial Text */}
-              <div className="flex-grow mb-6">
-                <p className="text-slate-900 text-lg leading-relaxed">
-                  {testimonial.text}
-                </p>
-              </div>
-
-              {/* Author */}
-              <div className="mt-auto">
-                <p className="text-slate-900 font-semibold text-lg">
-                  - {testimonial.author}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-           </div>
-          </section>
+       
 
           <div className="w-full px-4 py-16">
       <div className="container mx-auto max-w-7xl">

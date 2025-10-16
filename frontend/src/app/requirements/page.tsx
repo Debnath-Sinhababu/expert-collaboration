@@ -436,36 +436,7 @@ export default function RequirementsPage() {
       </section>
 
       {/* Reviews Section */}
-      <section className="py-16 bg-white">
-        <div className="container mx-auto px-4">
-          <h2 className="text-4xl font-bold text-[#000000] text-center mb-12">Reviews</h2>
-          <p className="text-center text-[#6A6A6A] text-lg mb-12">
-            See what persons are saying about us, from <strong>experts</strong>, <strong>institution</strong> to <strong>companies</strong>.
-          </p>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
-            {reviews.map((review) => (
-              <Card key={review.id} className="bg-[#ECF2FF] border-0 rounded-3xl">
-                <CardContent className="p-8">
-                  <div className="mb-6">
-                    <img
-                      src={review.image}
-                      alt={review.name}
-                      className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-md"
-                    />
-                  </div>
-                  <p className="text-[#000000] text-base leading-relaxed mb-6">
-                    {review.text}
-                  </p>
-                  <p className="text-[#000000] font-semibold text-lg">
-                    - {review.company}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
+   
 
       {/* CTA Section */}
       <section className="py-16 bg-white">

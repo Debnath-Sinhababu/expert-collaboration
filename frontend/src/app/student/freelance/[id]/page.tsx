@@ -146,7 +146,7 @@ export default function StudentFreelanceDetail() {
 
             {/* Draft Attachments */}
             {project.draft_attachment_url && (
-              <div>
+              <div className="mb-6">
                 <span className="text-xs text-[#717171] font-medium">Draft Attachements: </span>
                 <a 
                   href={project.draft_attachment_url} 
@@ -159,9 +159,9 @@ export default function StudentFreelanceDetail() {
               </div>
             )}
 
-            {/* View Button (if already applied, show status instead) */}
+            {/* Apply/Applied Button - Desktop only (top right) */}
             {applied && (
-              <div className="mt-6 flex justify-end">
+              <div className="hidden sm:flex justify-end">
                 <Button 
                   disabled
                   className="bg-[#008260] text-white rounded-full px-8 font-medium cursor-not-allowed"
@@ -170,12 +170,34 @@ export default function StudentFreelanceDetail() {
                 </Button>
               </div>
             )}
+            
+            {/* Apply/Applied Button - Mobile only (at the bottom after all details) */}
+            <div className="sm:hidden mt-6">
+              {applied ? (
+                <Button 
+                  disabled
+                  className="w-full bg-[#008260] text-white rounded-full px-8 font-medium cursor-not-allowed"
+                >
+                  Already Applied
+                </Button>
+              ) : (
+                <Button 
+                  onClick={() => {
+                    const applySection = document.getElementById('apply-section')
+                    applySection?.scrollIntoView({ behavior: 'smooth' })
+                  }}
+                  className="w-full bg-[#008260] hover:bg-[#006B4F] text-white rounded-full px-8 font-medium"
+                >
+                  Apply Now
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
 
         {/* Apply Now Section */}
         {!applied && (
-          <Card className="bg-white border-2 border-[#D6D6D6] rounded-lg">
+          <Card id="apply-section" className="bg-white border-2 border-[#D6D6D6] rounded-lg">
             <CardContent className="p-8">
               <h2 className="text-xl font-bold text-[#000000] mb-6">Apply Now</h2>
               

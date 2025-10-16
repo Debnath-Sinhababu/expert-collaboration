@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Mail, School, FileText, CalendarDays, Eye, Check, X } from 'lucide-react'
+import { Mail, School, FileText, CalendarDays, Eye, Check, X, Link2, CheckCircle } from 'lucide-react'
 import NotificationBell from '@/components/NotificationBell'
 import ProfileDropdown from '@/components/ProfileDropdown'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -31,6 +31,38 @@ export default function InternshipDetailPage() {
   const [activeStage, setActiveStage] = useState<'pending' | 'approved' | 'rejected'>('pending')
   const [appsPage, setAppsPage] = useState(1)
   const [appsHasMore, setAppsHasMore] = useState(true)
+  const [copySuccess, setCopySuccess] = useState(false)
+
+  const handleCopyLink = async () => {
+    try {
+      const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || window.location.origin
+      const studentLink = `${frontendUrl}/student/internships/${id}`
+      
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(studentLink)
+      } else {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea')
+        textArea.value = studentLink
+        textArea.style.position = 'fixed'
+        textArea.style.left = '-999999px'
+        document.body.appendChild(textArea)
+        textArea.focus()
+        textArea.select()
+        try {
+          document.execCommand('copy')
+        } catch (err) {
+          console.error('Failed to copy:', err)
+        }
+        document.body.removeChild(textArea)
+      }
+      
+      setCopySuccess(true)
+      setTimeout(() => setCopySuccess(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy link:', err)
+    }
+  }
 
   useEffect(() => {
     const init = async () => {
@@ -94,8 +126,11 @@ export default function InternshipDetailPage() {
            <div className="">
              <div>
               {/* Title and Location */}
-              <div className="mb-6 border-b border-[#C5C5C5]">
-                <h1 className="text-3xl font-bold text-[#000000] mb-3">{internship.title}</h1>
+              <div className="mb-6 pb-4 border-b border-[#C5C5C5]">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-[#000000]">{internship.title}</h1>
+                
+                </div>
                 {(internship.location || internship.corporate?.state) && (
                   <div className="flex items-center gap-2 text-[#6A6A6A] text-base">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -179,15 +214,23 @@ export default function InternshipDetailPage() {
 
               {/* Copy Link Button */}
               <div className="flex justify-end mb-6">
-                <Button 
-                  className="bg-[#008260] hover:bg-[#006B4F] text-white font-medium rounded-full px-6" 
-                  onClick={() => {
-                    navigator.clipboard.writeText(window.location.href)
-                    alert('Link copied to clipboard!')
-                  }}
-                >
-                  Copy Link
-                </Button>
+              <Button 
+                    variant="outline"
+                    onClick={handleCopyLink}
+                    className="w-full sm:w-auto border-2 border-[#008260] text-[#008260] hover:bg-[#008260]/10 font-medium rounded-full px-6"
+                  >
+                    {copySuccess ? (
+                      <>
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Link2 className="h-4 w-4 mr-2" />
+                        Copy Student Link
+                      </>
+                    )}
+                  </Button>
               </div>
 
               {internship.visibility_scope !== 'public' && (

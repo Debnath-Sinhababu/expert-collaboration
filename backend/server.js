@@ -1714,6 +1714,54 @@ app.get('/api/students/featured', async (req, res) => {
   }
 });
 
+// Public endpoint for freelance projects (no auth required)
+app.get('/api/freelance', async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = Math.min(parseInt(limit, 10) || 10, 50);
+    const offset = (pageNum - 1) * limitNum;
+
+    const { data, error, count } = await supabase
+      .from('freelance_projects')
+      .select(`
+        id,
+        title,
+        description,
+        budget_min,
+        budget_max,
+        deadline,
+        status,
+        created_at,
+        corporate_institution_id,
+        institutions:corporate_institution_id (
+          id,
+          name,
+          city,
+          state
+        )
+      `, { count: 'exact' })
+      .eq('status', 'open')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limitNum - 1);
+
+    if (error) throw error;
+
+    res.json({
+      data: Array.isArray(data) ? data : [],
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / limitNum)
+      }
+    });
+  } catch (error) {
+    console.error('Freelance projects error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Student applies to internship
 app.post('/api/internship-applications', async (req, res) => {
   try {
