@@ -74,7 +74,7 @@ export default function StudentProfilePage() {
         setUser(user)
         // Institutions (non corporate)
         try {
-          const list = await api.institutions.getAll({ page: 1, limit: 100, exclude_type: 'Corporate' })
+          const list = await api.institutions.getAll({ page: 1, limit: 1000, exclude_type: 'Corporate' })
           setInstitutions(Array.isArray(list) ? list : (list?.data || []))
         } catch {}
         // Student profile
@@ -146,6 +146,7 @@ export default function StudentProfilePage() {
   const validate = () => {
     if (!form.name.trim()) { setError('Enter name'); return false }
     if (!form.phone.trim()) { setError('Enter phone'); return false }
+    if (!/^\d{10}$/.test(form.phone)) { setError('Phone number must be exactly 10 digits'); return false }
     if (!form.institution_id) { setError('Select institution'); return false }
     if (!form.degree.trim()) { setError('Enter degree'); return false }
     if (!form.specialization.trim()) { setError('Enter specialization'); return false }
@@ -335,7 +336,19 @@ export default function StudentProfilePage() {
                     </div>
                     <div>
                       <Label className="text-[#000000] font-medium">Phone *</Label>
-                      <Input value={form.phone} onChange={(e) => setForm(prev => ({ ...prev, phone: e.target.value }))} required disabled={!editing}  className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]" />
+                      <Input 
+                        value={form.phone} 
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, '').slice(0, 10)
+                          setForm(prev => ({ ...prev, phone: value }))
+                        }} 
+                        type="tel"
+                        maxLength={10}
+                        pattern="\d{10}"
+                        required 
+                        disabled={!editing}  
+                        className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]" 
+                      />
                     </div>
                     <div>
                       <Label className="text-[#000000] font-medium">Gender</Label>
@@ -469,11 +482,11 @@ export default function StudentProfilePage() {
 
                   <div className="grid md:grid-cols-3 gap-4">
                     <div>
-                      <Label className="text-[#000000] font-medium">Education Start *</Label>
+                      <Label className="text-[#000000] font-medium">Education Start (Month & Year) *</Label>
                       <Input type="month" value={form.education_start_date} onChange={(e) => setForm(prev => ({ ...prev, education_start_date: e.target.value }))} required disabled={!editing} />
                     </div>
                     <div>
-                      <Label className="text-[#000000] font-medium">Education End{!form.currently_studying ? ' *' : ''}</Label>
+                      <Label className="text-[#000000] font-medium">Education End (Month & Year){!form.currently_studying ? ' *' : ''}</Label>
                       <Input type="month" value={form.education_end_date} onChange={(e) => setForm(prev => ({ ...prev, education_end_date: e.target.value }))} required={!form.currently_studying} disabled={!editing || form.currently_studying} />
                     </div>
                     <div className="flex items-center gap-2 pt-6">

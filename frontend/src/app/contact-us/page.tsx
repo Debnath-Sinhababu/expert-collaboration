@@ -393,8 +393,8 @@ export default function ContactUs() {
           <div className="grid md:grid-cols-4 gap-12 mb-12">
             <div>
               <div className="flex items-center space-x-2 mb-4">
-                <Logo size="sm" />
-                <span className="text-2xl font-bold">Cal<span className="text-[#FFD700]">X</span>Map</span>
+                <Logo size="md" />
+              
               </div>
               <p className="text-white/90 leading-relaxed text-sm mb-6">
                 We're on a mission to make mentorship accessible to everyone!

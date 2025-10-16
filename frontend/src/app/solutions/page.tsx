@@ -234,7 +234,11 @@ function SolutionsContent() {
           </div>
 
           {/* Solutions text - Only on desktop */}
-          <div className="hidden lg:block text-white font-semibold">Solutions</div>
+          <Link href="/contact-us">
+                <Button variant="ghost" className="text-white hover:text-white hover:bg-white/10 transition-colors">
+                  Contact Us
+                </Button>
+              </Link>
         </div>
       </header>
 

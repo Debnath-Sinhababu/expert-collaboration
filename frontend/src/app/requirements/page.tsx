@@ -512,7 +512,7 @@ export default function RequirementsPage() {
           </div>
           
           <div className="border-t border-white/20 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-white/70 text-sm">Trusted by 1000+ organizations worldwide</p>
+            <p className="text-white/70 text-sm"></p>
             <div className="flex gap-4">
               {/* Instagram */}
               <a href="#" className="w-10 h-10 rounded-full border-2 border-white/30 flex items-center justify-center hover:bg-white/10 transition-colors">
