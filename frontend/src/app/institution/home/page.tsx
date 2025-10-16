@@ -900,10 +900,7 @@ export default function InstitutionHome() {
                                     <h4 className="font-medium mb-1">Experience</h4>
                                     <p className="text-sm">{expert.experience_years || 0} years</p>
                                   </div>
-                                  <div>
-                                    <h4 className="font-medium mb-1">Contact</h4>
-                                    <p className="text-sm">{expert.email}</p>
-                                  </div>
+                                
                                 </div>
                                 {expert.subskills && expert.subskills.length > 0 && (
                                   <div>
@@ -1496,10 +1493,7 @@ export default function InstitutionHome() {
                                   <h4 className="font-medium mb-1">Experience</h4>
                                   <p className="text-sm">{expert.experience_years || 0} years</p>
                                 </div>
-                                <div>
-                                  <h4 className="font-medium mb-1">Contact</h4>
-                                  <p className="text-sm">{expert.email}</p>
-                                </div>
+                              
                               </div>
                               {expert.subskills && expert.subskills.length > 0 && (
                                 <div>

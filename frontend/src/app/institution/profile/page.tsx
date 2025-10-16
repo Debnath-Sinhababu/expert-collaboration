@@ -425,7 +425,7 @@ export default function InstitutionProfile() {
                     {editing ? 'Cancel Editing' : 'Edit Profile'}
                   </Button>
                   
-                  <Button
+                  {/* <Button
                     type="button"
                     onClick={() => {
                       navigator.clipboard.writeText(`${window.location.origin}/institutions/${institution?.id || ''}`)
@@ -435,7 +435,7 @@ export default function InstitutionProfile() {
                   >
                     <Globe className="h-4 w-4 mr-2" />
                     Copy Profile Link
-                  </Button>
+                  </Button> */}
                 </div>
               </div>
             </div>

@@ -1233,14 +1233,8 @@ export default function ProjectDetailsPage() {
                       <h4 className="font-medium text-sm text-[#666666] mb-1">Experience</h4>
                       <p className="text-sm text-[#000000]">{booking.experts?.experience_years || 0} years</p>
                     </div>
-                    <div>
-                      <h4 className="font-medium text-sm text-[#666666] mb-1">Contact</h4>
-                      <p className="text-sm text-[#000000]">{booking.experts?.email || 'Not available'}</p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-sm text-[#666666] mb-1">Phone</h4>
-                      <p className="text-sm text-[#000000]">{booking.experts?.phone || 'Not available'}</p>
-                    </div>
+                   
+                 
                     <div>
                       <h4 className="font-medium text-sm text-[#666666] mb-1">Rating</h4>
                       <div className="flex items-center space-x-1">

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -14,7 +14,7 @@ import Link from 'next/link'
 type Expert = any
 type Student = any
 
-export default function SolutionsPage() {
+function SolutionsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -759,4 +759,18 @@ function EmptyState({ text }: { text: string }) {
   )
 }
 
+export default function SolutionsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#ECF2FF] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-[#008260]/30 border-t-[#008260] rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading solutions...</p>
+        </div>
+      </div>
+    }>
+      <SolutionsContent />
+    </Suspense>
+  )
+}
 

@@ -7,7 +7,7 @@ import { Card, CardContent, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
-import { Star, Briefcase, Calendar, IndianRupee, ArrowLeft } from 'lucide-react'
+import { Star, Briefcase, Calendar, IndianRupee, ArrowLeft, Shield, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
 import Logo from '@/components/Logo'
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel'
@@ -23,6 +23,8 @@ type Expert = {
   subskills?: string[]
   experience_years?: number
   hourly_rate?: number
+  qualifications?: string
+  is_verified?: boolean
 }
 
 export default function PublicExpertProfile() {
@@ -57,21 +59,21 @@ export default function PublicExpertProfile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-[#ECF2FF] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#008260]"></div>
       </div>
     )
   }
 
   if (error || !expert) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <Card className="max-w-md w-full border-2 border-slate-200 bg-white">
+      <div className="min-h-screen bg-[#ECF2FF] flex items-center justify-center p-4">
+        <Card className="max-w-md w-full border-2 border-[#D6D6D6] bg-white rounded-lg">
           <CardContent className="p-6">
             <Alert variant="destructive" className="mb-4">
               <AlertDescription>{error || 'Expert not found'}</AlertDescription>
             </Alert>
-            <Link href="/" className="inline-flex items-center text-blue-600 hover:text-blue-800">
+            <Link href="/" className="inline-flex items-center text-[#008260] hover:text-[#006d51]">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Home
             </Link>
@@ -82,136 +84,203 @@ export default function PublicExpertProfile() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      {/* Simple public header */}
-      <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 border-b border-blue-200/20 sticky top-0 z-40">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link href="/" className="flex items-center"><Logo size="header" /></Link>
-          <Link href="/contact-us" className="text-white/80 hover:text-white text-sm">Contact Us</Link>
+    <div className="min-h-screen bg-[#ECF2FF]">
+      {/* Header */}
+      <header className="bg-[#008260] border-b-2 border-[#006d51] sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <Link href="/" className="flex items-center">
+              <Logo size="header" />
+            </Link>
+            <Link href="/contact-us" className="text-white hover:text-white/80 transition-colors text-sm sm:text-base">
+              Contact Us
+            </Link>
+          </div>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        {/* Hero */}
-        <Logo size="lg" className='mb-4' />
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        {/* Profile Header */}
         <div className="text-center mb-8">
-          <Avatar className="w-24 h-24 mx-auto mb-4 border-2 border-slate-200">
+          <Avatar className="w-28 h-28 sm:w-32 sm:h-32 mx-auto mb-4 border-4 border-white shadow-lg">
             <AvatarImage src={expert.photo_url || ''} />
-            <AvatarFallback className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+            <AvatarFallback className="text-3xl sm:text-4xl font-bold bg-slate-400 text-white">
               {expert.name?.charAt(0) || 'E'}
             </AvatarFallback>
           </Avatar>
-          <h1 className="text-3xl font-bold text-slate-900 mb-1">{expert.name || 'Expert'}</h1>
-          <div className="flex items-center justify-center gap-2 text-slate-600">
-            <div className="flex items-center space-x-0.5">
-              <Star className="h-4 w-4 text-yellow-500" fill="currentColor" />
-              <Star className="h-4 w-4 text-yellow-500" fill="currentColor" />
-              <Star className="h-4 w-4 text-yellow-500" fill="currentColor" />
-              <Star className="h-4 w-4 text-yellow-500" fill="currentColor" />
-              <Star className="h-4 w-4 text-slate-300" />
-            </div>
-            <span className="text-slate-700 font-semibold">4+</span>
+          
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-3">{expert.name || 'Expert'}</h1>
+          
+          {/* Rating Stars */}
+          <div className="flex items-center justify-center gap-1 mb-3">
+            <Star className="h-5 w-5 text-yellow-400" fill="currentColor" />
+            <Star className="h-5 w-5 text-yellow-400" fill="currentColor" />
+            <Star className="h-5 w-5 text-yellow-400" fill="currentColor" />
+            <Star className="h-5 w-5 text-yellow-400" fill="currentColor" />
+            <Star className="h-5 w-5 text-slate-300" fill="currentColor" />
+            <span className="ml-2 text-lg font-semibold text-slate-900">4.8</span>
           </div>
+          
+          {/* Verified Badge */}
+          {expert.is_verified && (
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white rounded-full border border-[#008260]">
+              <CheckCircle className="h-4 w-4 text-[#008260]" />
+              <span className="text-sm text-[#008260] font-medium">Verified</span>
+            </div>
+          )}
         </div>
 
-        {/* Core Info Card */}
-        <Card className="bg-white border-2 border-slate-200 rounded-xl shadow-sm mb-8">
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-slate-500 mb-1">Expertise</p>
-                  <div className="flex flex-wrap gap-2">
-                    {Array.isArray(expert.domain_expertise) && expert.domain_expertise.length > 0 ? (
-                      expert.domain_expertise.map((d, i) => (
-                        <Badge key={i} variant="secondary" className="px-3 py-1">{d}</Badge>
-                      ))
+        {/* Main Info Card */}
+        <Card className="bg-white border border-[#D6D6D6] rounded-lg shadow-sm mb-8">
+          <CardContent className="p-6 sm:p-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* ABOUT Section */}
+              <div>
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
+                  ABOUT
+                </h3>
+                
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm text-slate-500 mb-1">Domain Expertise</p>
+                    <p className="text-base font-semibold text-slate-900">
+                      {Array.isArray(expert.domain_expertise) && expert.domain_expertise.length > 0
+                        ? expert.domain_expertise[0]
+                        : 'Engineering'}
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <p className="text-sm text-slate-500 mb-2">Subskills</p>
+                    {Array.isArray(expert.subskills) && expert.subskills.length > 0 ? (
+                      <div className="space-y-1">
+                        {expert.subskills.slice(0, 3).map((skill: string, idx: number) => (
+                          <p key={idx} className="text-base font-semibold text-slate-900">
+                            {skill}
+                          </p>
+                        ))}
+                        {expert.subskills.length > 3 && (
+                          <p className="text-sm text-slate-500">
+                            +{expert.subskills.length - 3} more
+                          </p>
+                        )}
+                      </div>
                     ) : (
-                      <Badge variant="secondary" className="px-3 py-1">Expert</Badge>
+                      <p className="text-base font-semibold text-slate-900">
+                        Electrical Systems
+                      </p>
                     )}
                   </div>
-                </div>
-
-                {Array.isArray(expert.subskills) && expert.subskills.length > 0 && (
+                  
                   <div>
-                    <p className="text-sm text-slate-500 mb-1">Subskills</p>
-                    <div className="flex flex-wrap gap-2">
-                      {expert.subskills.slice(0, 6).map((s, i) => (
-                        <Badge key={i} variant="outline" className="px-3 py-1 text-xs">{s}</Badge>
-                      ))}
-                    </div>
+                    <p className="text-sm text-slate-500 mb-1">Bio</p>
+                    <p className="text-base text-slate-900 leading-relaxed">
+                      {expert.bio || 'Here is the background in my profession.'}
+                    </p>
                   </div>
-                )}
-
-                <div>
-                  <p className="text-sm text-slate-500 mb-1">Bio</p>
-                  <p className="text-slate-700 leading-relaxed whitespace-pre-line line-clamp-6">
-                    {expert.bio || 'No bio provided.'}
-                  </p>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
-                  <div className="flex items-center space-x-2">
-                    <Calendar className="h-5 w-5 text-blue-600" />
-                    <span className="text-slate-600">Experience</span>
+              {/* DETAILS Section */}
+              <div>
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
+                  DETAILS
+                </h3>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 p-3 bg-[#ECF2FF] rounded-xl">
+                    <div className="w-10 h-10 bg-[#008260] rounded-full flex items-center justify-center flex-shrink-0">
+                      <Briefcase className="h-5 w-5 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm text-slate-600">Experience</p>
+                      <p className="text-base font-bold text-slate-900">
+                        {expert.experience_years || 3} years
+                      </p>
+                    </div>
                   </div>
-                  <span className="font-bold text-slate-900">{expert.experience_years || 0} years</span>
-                </div>
-
-                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
-                  <div className="flex items-center space-x-2">
-                    <IndianRupee className="h-5 w-5 text-green-600" />
-                    <span className="text-slate-600">Hourly Rate</span>
+                  
+                  <div className="flex items-center gap-3 p-3 bg-[#ECF2FF] rounded-xl">
+                    <div className="w-10 h-10 bg-[#008260] rounded-full flex items-center justify-center flex-shrink-0">
+                      <IndianRupee className="h-5 w-5 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm text-slate-600">Hourly Rate</p>
+                      <p className="text-base font-bold text-slate-900">
+                        ₹{expert.hourly_rate || 4300}
+                      </p>
+                    </div>
                   </div>
-                  <span className="font-bold text-slate-900">₹{expert.hourly_rate || 0}</span>
                 </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Student Feedback Carousel */}
-        {studentFeedback.length > 0 && (
-          <div className="mb-8">
-            <Card className="bg-white border-2 border-slate-200 rounded-xl shadow-sm">
-              <CardContent className="p-6">
-                <CardTitle className="text-slate-900 mb-4">Student Feedback</CardTitle>
-                <div className="mb-2 text-slate-600 text-sm">What students loved about the sessions</div>
-                <Carousel
-                  opts={{ align: 'start', containScroll: 'trimSnaps' }}
-                  plugins={[Autoplay({ delay: 3500 })]}
-                  className="w-full max-w-5xl mx-auto"
-                >
-                  <CarouselContent className="-ml-2">
-                    {studentFeedback.map((fb, idx) => (
-                      <CarouselItem key={idx} className="pl-2 basis-full sm:basis-1/2 lg:basis-1/3">
-                        <Card className="h-full mx-2 transition-all duration-300 hover:shadow-lg border border-slate-200/50 hover:border-blue-300/50 bg-gradient-to-br from-white to-slate-50/30 shadow-sm hover:shadow-blue-100/20 relative group">
-                          <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 opacity-0 group-hover:opacity-10 transition-opacity duration-300 -z-10"></div>
-                          <CardContent className="p-6">
-                            <div className="flex items-start justify-between mb-3 gap-3">
-                              <h3 className="font-bold text-lg text-slate-900 truncate group-hover:text-blue-600 transition-colors duration-200">{fb.student_name}</h3>
-                              <span className={`${fb.rating === 'VERY_GOOD' ? 'border-green-200 bg-green-50 text-green-700' : 'border-blue-200 bg-blue-50 text-blue-700'} px-2 py-0.5 rounded-full border text-xs flex-shrink-0`}>{fb.rating === 'VERY_GOOD' ? 'Very Good' : 'Good'}</span>
-                            </div>
-                            <p className="text-slate-700 text-sm leading-relaxed line-clamp-4">{fb.pros}</p>
-                          </CardContent>
-                        </Card>
-                      </CarouselItem>
-                    ))}
-                  </CarouselContent>
-                  <CarouselPrevious className="text-slate-600 hover:text-slate-900 hidden sm:block" />
-                  <CarouselNext className="text-slate-600 hover:text-slate-900 hidden sm:block" />
-                </Carousel>
-              </CardContent>
-            </Card>
-          </div>
+        {/* Qualification Section */}
+        {expert.qualifications && (
+          <Card className="bg-white border border-[#D6D6D6] rounded-lg shadow-sm mb-8">
+            <CardContent className="p-6 sm:p-8">
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
+                QUALIFICATION
+              </h3>
+              <div className="space-y-3">
+                {expert.qualifications.split(',').map((qual, idx) => (
+                  <div key={idx} className="p-3 bg-[#ECF2FF] rounded-lg">
+                    <p className="text-base text-slate-900">{qual.trim()}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         )}
 
-        {/* Minimal CTA */}
-        <div className="text-center text-slate-600 text-sm">
-          Looking to collaborate with {expert.name || 'this expert'}? Contact us via the Calxmap platform.
-        </div>
+        {/* Student Feedback Section */}
+        {studentFeedback.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">Student Feedback</h2>
+            <p className="text-sm sm:text-base text-slate-600 mb-6">What students loved about the sessions</p>
+            
+            <Carousel
+              opts={{ align: 'start', loop: true }}
+              plugins={[Autoplay({ delay: 4000 })]}
+              className="w-full"
+            >
+              <CarouselContent className="-ml-4">
+                {studentFeedback.map((fb, idx) => (
+                  <CarouselItem key={idx} className="pl-4 basis-full sm:basis-1/2">
+                    <Card className="bg-white border border-[#D6D6D6] rounded-lg shadow-sm h-full hover:shadow-md transition-shadow">
+                      <CardContent className="p-6">
+                        <div className="flex items-start justify-between mb-3 gap-3">
+                          <h3 className="font-bold text-lg text-slate-900">
+                            {fb.student_name}
+                          </h3>
+                          <Badge 
+                            className={`${
+                              fb.rating === 'VERY_GOOD' 
+                                ? 'bg-green-50 text-green-700 border-green-200' 
+                                : 'bg-blue-50 text-blue-700 border-blue-200'
+                            } flex-shrink-0`}
+                            variant="outline"
+                          >
+                            {fb.rating === 'VERY_GOOD' ? 'Very Good' : 'Good'}
+                          </Badge>
+                        </div>
+                        <p className="text-slate-700 text-sm leading-relaxed">
+                          {fb.pros}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <div className="flex items-center justify-center gap-2 mt-4">
+                <CarouselPrevious className="static translate-y-0 bg-white border-[#D6D6D6] hover:bg-[#ECF2FF]" />
+                <CarouselNext className="static translate-y-0 bg-white border-[#D6D6D6] hover:bg-[#ECF2FF]" />
+              </div>
+            </Carousel>
+          </div>
+        )}
       </main>
     </div>
   )

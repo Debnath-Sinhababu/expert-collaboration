@@ -311,17 +311,7 @@ export default function StudentProfilePage() {
                 {editing ? 'Cancel Edit' : 'Edit Profile'}
               </Button>
               
-              <Button 
-                className="w-full bg-[#008260] hover:bg-[#006b4f] text-white rounded-xl py-5 font-medium shadow-sm"
-                onClick={() => {
-                  navigator.clipboard.writeText(window.location.href)
-                  setSuccess('Profile link copied!')
-                  setTimeout(() => setSuccess(''), 2000)
-                }}
-              >
-                <Link2 className="h-4 w-4 mr-2" />
-                Copy Profile Link
-              </Button>
+           
             </div>
           </CardContent>
         </Card>
