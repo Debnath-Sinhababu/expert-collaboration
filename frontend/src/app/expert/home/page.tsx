@@ -100,6 +100,8 @@ export default function ExpertHome() {
   const [universitiesLoading, setUniversitiesLoading] = useState(true)
   const [partneredExperts, setPartneredExperts] = useState<any[]>([])
   const [expertsLoading, setExpertsLoading] = useState(true)
+  const [corporates, setCorporates] = useState<any[]>([])
+  const [corporatesLoading, setCorporatesLoading] = useState(true)
   
   // Recommended projects state
   const [recommendedProjects, setRecommendedProjects] = useState<Project[]>([])
@@ -185,6 +187,7 @@ export default function ExpertHome() {
   useEffect(() => {
     loadExpertData()
     loadUniversities()
+    loadCorporates()
     
   }, [router])
 
@@ -198,7 +201,7 @@ export default function ExpertHome() {
   const loadUniversities = async () => {
     try {
       setUniversitiesLoading(true)
-      const data = await api.institutions.getAll({ limit: 5 })
+      const data = await api.institutions.getAll({ limit: 5, exclude_type: 'Corporate' })
       setUniversities(Array.isArray(data) ? data : (data?.data || []))
     } catch (error) {
       console.error('Error fetching universities:', error)
@@ -223,6 +226,18 @@ export default function ExpertHome() {
       console.error('Error fetching partnered experts:', error)
     } finally {
       setExpertsLoading(false)
+    }
+  }
+
+  const loadCorporates = async () => {
+    try {
+      setCorporatesLoading(true)
+      const data = await api.institutions.getAll({ type: 'Corporate', limit: 5 })
+      setCorporates(Array.isArray(data) ? data : (data?.data || []))
+    } catch (error) {
+      console.error('Error fetching corporates:', error)
+    } finally {
+      setCorporatesLoading(false)
     }
   }
 
@@ -573,6 +588,93 @@ export default function ExpertHome() {
                                 <div className="absolute inset-0 bg-[#008260]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                               </div>
                             </CarouselItem>
+                          )
+                        })}
+                      </CarouselContent>
+                      <CarouselPrevious className="text-slate-600 hover:text-slate-900 hidden sm:block" />
+                      <CarouselNext className="text-slate-600 hover:text-slate-900 hidden sm:block" />
+                    </Carousel>
+                  )}
+                </div>
+              </div>
+                
+            )
+        }
+      
+
+        {/* Partnered Corporates Carousel */}
+        {
+            corporates.length > 0 && (
+                <div className="mb-12">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                  <div className="text-center mb-6">
+                    <h2 className="text-[28px] font-semibold text-[#000000] mb-1 tracking-tight">
+                      Partnered Corporates
+                    </h2>
+                    <p className="text-black text-base">
+                      Collaborate with leading companies and organizations
+                    </p>
+                  </div>
+      
+                  {corporatesLoading ? (
+                    <div className="flex justify-center py-12">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#008260]"></div>
+                    </div>
+                  ) : (
+                    <Carousel
+                      opts={{
+                        align: "start",
+                        containScroll: "trimSnaps"
+                      }}
+                      plugins={[
+                        Autoplay({
+                          delay: 3500,
+                        }),
+                      ]}
+                      className="w-full max-w-7xl mx-auto"
+                    >
+                      <CarouselContent className="-ml-2">
+                        {corporates.map((corporate, index) => {
+                          // Use corporate images
+                          const corporateImages = [
+                            '/images/universityimage5.webp',
+                            '/images/universityimage6.jpeg', 
+                            '/images/universityimage7.webp',
+                            '/images/universityimage9.webp',
+                            '/images/universityimage5.webp'
+                          ]
+                          
+                          return (
+                            <CarouselItem key={corporate.id || index} className="pl-2 basis-full sm:basis-1/2 lg:basis-1/2">
+                             <div className="relative h-64 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 group">
+                               {/* Background Image */}
+                               <div 
+                                 className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+                                 style={{
+                                   backgroundImage: `url('${corporateImages[index % corporateImages.length]}')`
+                                 }}
+                               >
+                                 {/* Overlay */}
+                                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
+                               </div>
+                               
+                               {/* Corporate Name */}
+                               <div className="absolute bottom-0 left-0 right-0 p-6">
+                                 <h3 className="text-white font-bold text-xl mb-2 transition-colors duration-300">
+                                   {corporate.name}
+                                 </h3>
+                                 <p className="text-white/90 text-base mb-1">
+                                   {corporate.type || 'Corporate Organization'}
+                                 </p>
+                                 <p className="text-white/80 text-sm">
+                                   {[corporate.city, corporate.state, corporate.country].filter(Boolean).join(', ') || 'India'}
+                                 </p>
+                               </div>
+     
+                               {/* Hover Effect */}
+                               <div className="absolute inset-0 bg-[#008260]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                             </div>
+                           </CarouselItem>
                           )
                         })}
                       </CarouselContent>
