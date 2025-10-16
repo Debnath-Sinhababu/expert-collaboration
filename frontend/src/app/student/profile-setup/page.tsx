@@ -16,6 +16,7 @@ import { toast } from 'sonner'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Upload, X, Camera } from 'lucide-react'
 import Logo from '@/components/Logo'
+import Link from 'next/link'
 
 export default function StudentProfileSetup() {
   const [loading, setLoading] = useState(true)
@@ -62,7 +63,7 @@ export default function StudentProfileSetup() {
       if (!user) { router.push('/auth/login'); return }
       setForm(prev => ({ ...prev, email: user.email || '' }))
       try {
-        const list = await api.institutions.getAll({ page: 1, limit: 50, exclude_type: 'Corporate' })
+        const list = await api.institutions.getAll({ page: 1, limit: 1000, exclude_type: 'Corporate' })
         const arr = Array.isArray(list) ? list : (list?.data || [])
         setInstitutionList(arr)
       } catch {}
@@ -102,6 +103,7 @@ export default function StudentProfileSetup() {
       if (!form.name.trim()) { toast.error('Enter name'); setSaving(false); return }
       if (!form.email.trim()) { toast.error('Enter email'); setSaving(false); return }
       if (!form.phone.trim()) { toast.error('Enter phone'); setSaving(false); return }
+      if (!/^\d{10}$/.test(form.phone)) { toast.error('Phone number must be exactly 10 digits'); setSaving(false); return }
       if (!form.institution_id) { toast.error('Select institution'); setSaving(false); return }
       if (!form.degree.trim()) { toast.error('Enter degree'); setSaving(false); return }
       if (!form.specialization.trim()) { toast.error('Enter specialization'); setSaving(false); return }
@@ -178,7 +180,9 @@ export default function StudentProfileSetup() {
         <div className="container mx-auto flex items-center justify-between">
           <Logo size="header" />
           <div className="flex items-center gap-4">
+            <Link href="/contact-us">
             <span className="text-sm">Contact Us</span>
+            </Link>
           </div>
         </div>
       </header>
@@ -247,7 +251,19 @@ export default function StudentProfileSetup() {
                   <Label className="text-[#000000] font-medium mb-2 block">Phone Number *</Label>
                   <div className="flex gap-2">
                     <Input value="+91" disabled className="w-20 border-[#DCDCDC]" />
-                    <Input placeholder="Phone Number" value={form.phone} onChange={(e) => setForm(prev => ({ ...prev, phone: e.target.value }))} required className="flex-1 border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]" />
+                    <Input 
+                      placeholder="Phone Number" 
+                      value={form.phone} 
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '').slice(0, 10)
+                        setForm(prev => ({ ...prev, phone: value }))
+                      }} 
+                      type="tel"
+                      maxLength={10}
+                      pattern="\d{10}"
+                      required 
+                      className="flex-1 border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]" 
+                    />
                   </div>
                 </div>
                 <div>
@@ -400,44 +416,25 @@ export default function StudentProfileSetup() {
               {/* Education period */}
               <div className="grid md:grid-cols-3 gap-4">
                 <div>
-                  <Label className="text-[#000000] font-medium mb-2 block">Education Start *</Label>
-                  <Select value={form.education_start_date} onValueChange={(v) => setForm(prev => ({ ...prev, education_start_date: v }))}>
-                    <SelectTrigger className="border-[#DCDCDC] focus:ring-[#008260] focus:ring-1 focus:ring-offset-0 focus:border-[#008260]"><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="january">January</SelectItem>
-                      <SelectItem value="february">February</SelectItem>
-                      <SelectItem value="march">March</SelectItem>
-                      <SelectItem value="april">April</SelectItem>
-                      <SelectItem value="may">May</SelectItem>
-                      <SelectItem value="june">June</SelectItem>
-                      <SelectItem value="july">July</SelectItem>
-                      <SelectItem value="august">August</SelectItem>
-                      <SelectItem value="september">September</SelectItem>
-                      <SelectItem value="october">October</SelectItem>
-                      <SelectItem value="november">November</SelectItem>
-                      <SelectItem value="december">December</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-[#000000] font-medium mb-2 block">Education Start (Month & Year) *</Label>
+                  <Input 
+                    type="month" 
+                    value={form.education_start_date} 
+                    onChange={(e) => setForm(prev => ({ ...prev, education_start_date: e.target.value }))} 
+                    className="border-[#DCDCDC] focus:ring-[#008260] focus:ring-1 focus:ring-offset-0 focus:border-[#008260]"
+                    required
+                  />
                 </div>
                 <div>
-                  <Label className="text-[#000000] font-medium mb-2 block">Education End *</Label>
-                  <Select value={form.education_end_date} onValueChange={(v) => setForm(prev => ({ ...prev, education_end_date: v }))} disabled={form.currently_studying}>
-                    <SelectTrigger className="border-[#DCDCDC] focus:ring-[#008260] focus:ring-1 focus:ring-offset-0 focus:border-[#008260]"><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="january">January</SelectItem>
-                      <SelectItem value="february">February</SelectItem>
-                      <SelectItem value="march">March</SelectItem>
-                      <SelectItem value="april">April</SelectItem>
-                      <SelectItem value="may">May</SelectItem>
-                      <SelectItem value="june">June</SelectItem>
-                      <SelectItem value="july">July</SelectItem>
-                      <SelectItem value="august">August</SelectItem>
-                      <SelectItem value="september">September</SelectItem>
-                      <SelectItem value="october">October</SelectItem>
-                      <SelectItem value="november">November</SelectItem>
-                      <SelectItem value="december">December</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-[#000000] font-medium mb-2 block">Education End (Month & Year) {!form.currently_studying && '*'}</Label>
+                  <Input 
+                    type="month" 
+                    value={form.education_end_date} 
+                    onChange={(e) => setForm(prev => ({ ...prev, education_end_date: e.target.value }))} 
+                    className="border-[#DCDCDC] focus:ring-[#008260] focus:ring-1 focus:ring-offset-0 focus:border-[#008260]"
+                    disabled={form.currently_studying}
+                    required={!form.currently_studying}
+                  />
                 </div>
                 <div className="flex items-center gap-2 pt-8">
                   <input type="checkbox" id="currently_studying" checked={form.currently_studying} onChange={(e) => setForm(prev => ({ ...prev, currently_studying: e.target.checked }))} className="w-4 h-4 border-[#DCDCDC] accent-[#008260]" />

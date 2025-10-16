@@ -220,9 +220,9 @@ export default function InstitutionProfileSetup() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-[#ECF2FF] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#008260] mx-auto mb-4"></div>
           <p className="text-slate-600">Loading profile setup...</p>
         </div>
       </div>
@@ -230,47 +230,53 @@ export default function InstitutionProfileSetup() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative py-8">
-      {/* Background Elements */}
-   
-      
-      <div className="container mx-auto px-4 max-w-4xl relative z-10">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center mb-4 group">
-            <Logo size="lg" />
-          </Link>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-2 tracking-tight">Complete Your Institution Profile</h1>
-          <p className="text-base sm:text-lg md:text-xl text-slate-600">
+    <div className="min-h-screen bg-[#ECF2FF] relative">
+      {/* Header */}
+      <header className="relative bg-[#008260] shadow-sm">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <Logo size="header" />
+            <Link href="/contact-us">
+              <Button variant="ghost" className="font-medium text-white hover:text-white hover:bg-white/10 transition-all duration-300 px-4 py-2 text-sm">
+                Contact Us
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <div className="container mx-auto px-4 max-w-7xl relative z-10 mt-8 mb-8">
+        {/* Page Title */}
+        <div className="mb-8">
+          <h1 className="text-[#000000] font-semibold text-[32px] mb-2">Complete Your Institution Profile</h1>
+          <p className="text-[#000000] text-base">
             Set up your institution profile to start posting projects and finding experts
           </p>
         </div>
 
-        <Card className="bg-white border-2 border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
-          <CardHeader className="px-4 sm:px-6">
-            <CardTitle className="text-xl sm:text-2xl font-bold text-slate-900">Institution Profile Setup</CardTitle>
-            <CardDescription className="text-sm sm:text-base text-slate-600">
-              Complete your institution profile to start connecting with qualified experts
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="px-4 sm:px-6">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
+        {/* Alerts */}
+        {error && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
-              {success && (
-                <Alert>
-                  <AlertDescription>{success}</AlertDescription>
-                </Alert>
-              )}
+        {success && (
+          <Alert className="mb-6">
+            <AlertDescription>{success}</AlertDescription>
+          </Alert>
+        )}
 
+        <Card className="bg-white border border-[#E0E0E0] rounded-xl shadow-sm">
+          <CardContent className="px-4 sm:px-6 py-6">
+            {/* Card Header Inside Content */}
+    
+
+            <div  className="space-y-6">
               {/* Basic Information */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold flex items-center space-x-2 text-slate-900">
-                  <Building className="h-5 w-5 text-blue-500" />
+                  <Building className="h-5 w-5 text-[#008260]" />
                   <span>Basic Information</span>
                 </h3>
                 
@@ -282,7 +288,7 @@ export default function InstitutionProfileSetup() {
                       placeholder="Enter institution name"
                       value={formData.name}
                       onChange={(e) => handleInputChange('name', e.target.value)}
-                      className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
+                      className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
                       required
                     />
                   </div>
@@ -290,7 +296,7 @@ export default function InstitutionProfileSetup() {
                   <div className="space-y-2">
                     <Label htmlFor="type" className="text-slate-700">Institution Type *</Label>
                     <Select value={formData.type} onValueChange={(value) => handleInputChange('type', value)}>
-                        <SelectTrigger className="border-2 border-slate-200 focus:border-blue-400 focus:ring-blue-400 transition-all duration-300">
+                        <SelectTrigger className="border-2 border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300">
                           <SelectValue placeholder="Select institution type" />
                         </SelectTrigger>
                         <SelectContent>
@@ -432,7 +438,7 @@ export default function InstitutionProfileSetup() {
                     value={formData.description}
                     onChange={(e) => handleInputChange('description', e.target.value)}
                     rows={4}
-                    className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
+                    className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300"
                     required
                   />
                 </div>
@@ -446,20 +452,20 @@ export default function InstitutionProfileSetup() {
                       placeholder="e.g., 1985"
                       value={formData.established_year}
                       onChange={(e) => handleInputChange('established_year', e.target.value)}
-                      className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
+                      className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
                     />
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="website_url" className="text-slate-700">Website URL</Label>
                     <div className="relative">
-                      <Globe className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                      <Globe className="absolute left-3 top-3 h-4 w-4 text-[#008260]" />
                       <Input
                         id="website_url"
                         placeholder="https://www.yourinstitution.edu"
                         value={formData.website_url}
                         onChange={(e) => handleInputChange('website_url', e.target.value)}
-                        className="pl-10 border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
+                        className="pl-10 border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
                       />
                     </div>
                   </div>
@@ -469,7 +475,7 @@ export default function InstitutionProfileSetup() {
               {/* Location Information */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold flex items-center space-x-2 text-slate-900">
-                  <MapPin className="h-5 w-5 text-blue-500" />
+                  <MapPin className="h-5 w-5 text-[#008260]" />
                   <span>Location Information</span>
                 </h3>
                 
@@ -480,7 +486,7 @@ export default function InstitutionProfileSetup() {
                     placeholder="Enter complete address"
                     value={formData.address}
                     onChange={(e) => handleInputChange('address', e.target.value)}
-                    className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
+                    className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
                   />
                 </div>
 
@@ -493,7 +499,7 @@ export default function InstitutionProfileSetup() {
                       value={formData.city}
                       required
                       onChange={(e) => handleInputChange('city', e.target.value)}
-                      className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
+                      className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
                     />
                   </div>
 
@@ -520,7 +526,7 @@ export default function InstitutionProfileSetup() {
                       placeholder="Enter pincode"
                       value={formData.pincode}
                       onChange={(e) => handleInputChange('pincode', e.target.value)}
-                      className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
+                      className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
                     />
                   </div>
                 </div>
@@ -538,7 +544,7 @@ export default function InstitutionProfileSetup() {
                       placeholder="Name of primary contact person"
                       value={formData.contact_person}
                       onChange={(e) => handleInputChange('contact_person', e.target.value)}
-                      className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
+                      className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
                       required
                     />
                   </div>
@@ -550,7 +556,7 @@ export default function InstitutionProfileSetup() {
                       placeholder="Enter contact phone number"
                       value={formData.contact_phone}
                       onChange={(e) => handleInputChange('contact_phone', e.target.value)}
-                      className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
+                      className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
                       required
                     />
                   </div>
@@ -564,7 +570,7 @@ export default function InstitutionProfileSetup() {
                     placeholder="Enter contact email"
                     value={formData.contact_email}
                     onChange={(e) => handleInputChange('contact_email', e.target.value)}
-                    className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
+                    className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
                     required
                   />
                 </div>
@@ -584,7 +590,7 @@ export default function InstitutionProfileSetup() {
                         placeholder="e.g., NAAC A+, NBA, UGC"
                         value={formData.accreditation}
                         onChange={(e) => handleInputChange('accreditation', e.target.value)}
-                        className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
+                        className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
                       />
                     </div>
   
@@ -596,7 +602,7 @@ export default function InstitutionProfileSetup() {
                         placeholder="Approximate number of students"
                         value={formData.student_count}
                         onChange={(e) => handleInputChange('student_count', e.target.value)}
-                        className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
+                        className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
                       />
                     </div>
                   </div>
@@ -608,7 +614,7 @@ export default function InstitutionProfileSetup() {
                       placeholder="Link to your institution logo"
                       value={formData.logo_url}
                       onChange={(e) => handleInputChange('logo_url', e.target.value)}
-                      className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
+                      className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
                     />
                   </div>
                 </div>
@@ -616,23 +622,25 @@ export default function InstitutionProfileSetup() {
               }
             
 
-              <div className="flex justify-between pt-6 flex-wrap gap-3">
+             
+            </div>
+          </CardContent>
+        </Card>
+        <div className="flex justify-end py-6 flex-wrap gap-3">
                 <Link href="/auth/login">
-                  <Button variant="outline" className="border-2 border-slate-300 text-slate-700 transition-all duration-300 hover:text-white hover:border-transparent hover:bg-gradient-to-r hover:from-slate-900 hover:via-blue-900 hover:to-indigo-900 hover:shadow-sm">
-                    Back to Login
+                  <Button variant="outline" className="bg-white hover:bg-white w-[100px]">
+                    Back
                   </Button>
                 </Link>
                 <Button
-                  type="submit"
-                  className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
+                  type="button"
+                  className="bg-[#008260] hover:bg-[#006d51] text-white shadow-sm hover:shadow-md transition-all duration-300 min-w-[100px]"
                   disabled={saving}
+                  onClick={handleSubmit}
                 >
-                  {saving ? 'Creating Profile...' : 'Complete Profile Setup'}
+                  {saving ? 'Saving...' : 'Save'}
                 </Button>
               </div>
-            </form>
-          </CardContent>
-        </Card>
       </div>
     </div>
   )
