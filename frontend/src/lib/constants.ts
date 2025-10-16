@@ -192,3 +192,33 @@ export const EXPERTISE_DOMAINS = [
     ]
   }
 ] as const;
+
+export const INDIAN_STATES = [
+  'Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisgarh','Goa','Gujarat','Haryana','Himachal Pradesh','Jharkhand','Karnataka','Kerala','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram','Nagaland','Odisha','Punjab','Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh','Uttarakhand','West Bengal','Andaman and Nicobar Islands','Chandigarh','Dadra and Nagar Haveli and Daman and Diu','Delhi','Jammu and Kashmir','Ladakh','Lakshadweep','Puducherry'
+] as const;
+
+// Broad, India-focused list of common undergraduate, postgraduate and professional degrees
+export const INDIAN_DEGREES = [
+  // Undergraduate (General)
+  'B.A.', 'B.A. (Hons)', 'B.Sc.', 'B.Sc. (Hons)', 'B.Com', 'B.Com (Hons)', 'BBA', 'BCA', 'BSW', 'BFA', 'B.Voc', 'B.Lib.I.Sc',
+  // Undergraduate (Engineering/Tech/Design/Architecture)
+  'B.E.', 'B.Tech', 'B.Arch', 'B.Des', 'B.Plan',
+  // Undergraduate (Medical & Allied)
+  'MBBS', 'BDS', 'BAMS', 'BHMS', 'BUMS', 'BNYS', 'BPT', 'B.Sc Nursing', 'B.Pharm',
+  // Undergraduate (Law, Education, Agriculture, Hospitality)
+  'LLB', 'B.Ed', 'B.El.Ed', 'B.P.Ed', 'BHM', 'BHMCT', 'B.Sc (Agriculture)', 'B.Sc (Forestry)', 'B.Sc (Horticulture)',
+  // Postgraduate (General)
+  'M.A.', 'M.Sc.', 'M.Com', 'MBA', 'PGDM', 'MCA', 'MSW', 'MFA', 'M.Voc', 'M.Lib.I.Sc', 'M.Stat',
+  // Postgraduate (Engineering/Tech/Design/Architecture)
+  'M.E.', 'M.Tech', 'M.Arch', 'M.Plan', 'M.Des',
+  // Postgraduate (Medical & Allied)
+  'MD', 'MS (General Surgery)', 'MDS', 'MPT', 'M.Pharm', 'MPH',
+  // Postgraduate (Law, Education, Agriculture, Hospitality)
+  'LLM', 'M.Ed', 'M.P.Ed', 'M.Sc (Agriculture)', 'MHM',
+  // Research & Super-speciality
+  'M.Phil', 'Ph.D.', 'D.Phil', 'DM', 'M.Ch', 'DNB',
+  // Professional Certifications (commonly captured as highest qualification in India)
+  'CA', 'CMA', 'CS',
+  // Other/common variants
+  'Diploma (UG Level)', 'Diploma (PG Level)', 'Integrated M.Sc', 'Integrated M.Tech', 'Integrated MBA', 'Dual Degree', 'Other'
+] as const;

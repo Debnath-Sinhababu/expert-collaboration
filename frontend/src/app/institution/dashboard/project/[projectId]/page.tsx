@@ -32,7 +32,10 @@ import {
   DollarSign,
   UserCheck,
   UserX,
-  BookOpen
+  BookOpen,
+  FileText,
+  IndianRupee,
+  Hourglass
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -600,7 +603,7 @@ export default function ProjectDetailsPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
 
       {/* Header */}
-      <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
+      <header className="bg-[#008260] sticky top-0 z-50 shadow-lg">
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-2">
@@ -612,9 +615,8 @@ export default function ProjectDetailsPage() {
                 <ArrowLeft className="h-4 w-4" />
                 Back 
               </Button>
-              <Link href="/institution/home" className="flex items-center space-x-2 group">
-                {/* <Logo size="md" /> */}
-                <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Calxmap</span>
+              <Link href="/institution/home" className="flex items-center group">
+                <Logo size="header" />
               </Link>
             </div>
             
@@ -628,128 +630,97 @@ export default function ProjectDetailsPage() {
 
       <main className="container mx-auto px-4 py-8">
         {/* Project Info Section */}
-        <Card className="mb-8 bg-white border-2 border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
-          <CardHeader>
-            {/* Mobile Layout */}
-            <div className="block sm:hidden">
-              <div className="text-center mb-4">
-                <CardTitle className="text-xl font-bold text-slate-900 mb-2">{project.title}</CardTitle>
-                <CardDescription className="text-slate-600 text-sm">{project.description}</CardDescription>
-              </div>
-              <div className="flex justify-center gap-2 flex-wrap">
-                <Badge variant="outline" className="capitalize border-slate-300 text-slate-700 text-xs">{project.status}</Badge>
-                <Badge variant="secondary" className="capitalize bg-slate-100 text-slate-700 text-xs">{project.type}</Badge>
-              </div>
-            </div>
-            
-            {/* Desktop Layout - Keep original */}
-            <div className="hidden sm:flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div>
-                <CardTitle className="text-2xl font-bold text-slate-900 mb-2">{project.title}</CardTitle>
-                <CardDescription className="text-slate-600">{project.description}</CardDescription>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Badge variant="outline" className="capitalize border-slate-300 text-slate-700">{project.status}</Badge>
-                <Badge variant="secondary" className="capitalize bg-slate-100 text-slate-700">{project.type}</Badge>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {/* Mobile Layout */}
-            <div className="block sm:hidden">
-              <div className="grid grid-cols-2 gap-3 text-sm mb-4">
-                <div className="text-center p-2 bg-slate-50 rounded-lg">
-                  <span className="text-slate-500 block text-xs">Rate</span>
-                  <p className="font-medium text-sm">₹{project.hourly_rate}/hr</p>
-                </div>
-                <div className="text-center p-2 bg-slate-50 rounded-lg">
-                  <span className="text-slate-500 block text-xs">Duration</span>
-                  <p className="font-medium text-sm">{project.duration_hours} hrs</p>
-                </div>
-                <div className="text-center p-2 bg-slate-50 rounded-lg">
-                  <span className="text-slate-500 block text-xs">Budget</span>
-                  <p className="font-medium text-sm">₹{project.total_budget}</p>
-                </div>
-                <div className="text-center p-2 bg-slate-50 rounded-lg">
-                  <span className="text-slate-500 block text-xs">Posted</span>
-                  <p className="font-medium text-sm">{new Date(project.created_at).toLocaleDateString()}</p>
-                </div>
-              </div>
-              {project.required_expertise && project.required_expertise.length > 0 && (
-                <div>
-                  <span className="text-sm text-slate-500 block mb-2 text-center">Required Expertise</span>
-                  <div className="flex flex-wrap gap-1 justify-center">
-                    {project.required_expertise.map((skill: string, index: number) => (
-                      <Badge key={index} variant="secondary" className="text-xs px-2 py-1">
-                        {skill}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Desktop Layout - Keep original */}
-            <div className="hidden sm:block">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div>
-                  <span className="text-slate-500">Rate:</span>
-                  <p className="font-medium">₹{project.hourly_rate}/hour</p>
-                </div>
-                <div>
-                  <span className="text-slate-500">Duration:</span>
-                  <p className="font-medium">{project.duration_hours} hours</p>
-                </div>
-                <div>
-                  <span className="text-slate-500">Budget:</span>
-                  <p className="font-medium">₹{project.total_budget}</p>
-                </div>
-                <div>
-                  <span className="text-slate-500">Posted:</span>
-                  <p className="font-medium">{new Date(project.created_at).toLocaleDateString()}</p>
-                </div>
-              </div>
-              {project.required_expertise && project.required_expertise.length > 0 && (
-                <div className="mt-4">
-                  <span className="text-sm text-slate-500">Required Expertise:</span>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {project.required_expertise.map((skill: string, index: number) => (
-                      <Badge key={index} variant="secondary" className="text-xs">
-                        {skill}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
+        <div 
+                        key={project.id} 
+                        className="bg-white border border-[#DCDCDC] rounded-lg p-4 sm:p-6 transition-all duration-300 group"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3 min-w-0">
+                          <h3 className="font-bold text-base sm:text-lg text-[#000000] truncate pr-2">{project.title}</h3>
+                          <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
+                            <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 px-3 sm:py-2 sm:px-4">{project.status}</Badge>
+                            <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 px-3 sm:py-2 sm:px-4">{project.type}</Badge>
+                          </div>
+                        </div>
+                        <p className="text-sm text-[#6A6A6A] mb-3">{project.description}</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 text-sm">
+                        <div className="flex items-start gap-3 min-w-0">
+    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+      <Clock className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
+    </div>
+    <div className="min-w-0">
+      <span className="text-[#717171] text-xs">Rate:</span>
+      <p className="font-semibold text-[#008260] text-sm sm:text-base truncate">₹{project.hourly_rate}/hour</p>
+    </div>
+  </div>
+                          <div className='flex items-start gap-3 min-w-0'>
+                          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+      <Hourglass className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
+    </div>
+                             <div className="min-w-0">
+                            <span className="text-[#717171] text-xs">Duration:</span>
+                            <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">{project.duration_hours} hours</p>
+                            </div>
+                          </div>
+                          <div className='flex items-start gap-3 min-w-0'>
+                          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+      <IndianRupee className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
+    </div> 
+                         <div className="min-w-0">
+                            <span className="text-[#717171] text-xs">Budget:</span>
+                            <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">₹{project.total_budget}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-3 min-w-0">
+    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+      <Calendar className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
+    </div>
+    <div className="min-w-0">
+      <span className="text-[#717171] text-xs">Posted:</span>
+      <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">
+       {new Date(project.created_at).toLocaleDateString()}
+      </p>
+    </div>
+  </div>
+                        </div>
+                        {project.required_expertise && project.required_expertise.length > 0 && (
+                          <div className="mb-4">
+                            <span className="text-sm text-slate-500">Required Expertise:</span>
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              {project.required_expertise.map((skill: string, index: number) => (
+                                <Badge key={index} variant="secondary" className="text-xs bg-slate-100 text-slate-700">
+                                  {skill}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      
+                      </div>
         {/* 3-Tab System */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 mt-10">
           <div className="w-full overflow-x-auto md:overflow-x-visible scrollbar-hide">
             <TabsList className="flex md:grid w-max md:w-full md:grid-cols-4 gap-2 bg-white border-b border-slate-200 h-12 px-4 md:px-0">
               <TabsTrigger 
                 value="pending" 
-                className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
+                className="data-[state=active]:bg-emerald-50 data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-emerald-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
               >
                 Pending ({pendingCount || 0})
               </TabsTrigger>
               <TabsTrigger 
                 value="interview" 
-                className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
+                className="data-[state=active]:bg-emerald-50 data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-emerald-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
               >
                 Interview ({interviewCount || 0})
               </TabsTrigger>
               <TabsTrigger 
                 value="rejected" 
-                className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
+                className="data-[state=active]:bg-emerald-50 data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-emerald-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
               >
                 Rejected ({rejectedCount || 0})
               </TabsTrigger>
               <TabsTrigger 
                 value="selected" 
-                className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
+                className="data-[state=active]:bg-emerald-50 data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-emerald-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
               >
                 Selected ({selectedCount || 0})
               </TabsTrigger>
@@ -760,8 +731,8 @@ export default function ProjectDetailsPage() {
           <TabsContent value="pending">
             <Card className="bg-white border-2 border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
               <CardHeader>
-                <CardTitle className="text-2xl font-bold text-slate-900">Pending Applications</CardTitle>
-                <CardDescription className="text-slate-600">
+                <CardTitle className="text-lg font-semibold text-[#000000]">Pending Applications</CardTitle>
+                <CardDescription className="text-[#000000] text-base font-normal !-mt-[2px]">
                   Review and move applications to interview stage
                 </CardDescription>
               </CardHeader>
@@ -775,22 +746,22 @@ export default function ProjectDetailsPage() {
                 ) : (
                   <div className="space-y-4">
                     {pendingApplications?.map((application: any) => (
-                      <Card key={application.id} className="bg-white border-2 border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all duration-300 group">
+                      <Card key={application.id} className="bg-white border border-[#DCDCDC] p-4 sm:p-5">
                         <CardContent className="p-0">
-                          <div className="flex items-center justify-between mb-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                             <div className="flex items-center space-x-3">
-                              <Avatar className="w-10 h-10 border-2 border-blue-200">
+                              <Avatar className="w-10 h-10 sm:w-12 sm:h-12 border-2 border-[#008260]/40">
                                 <AvatarImage src={application.experts?.photo_url} />
                                 <AvatarFallback className="text-lg font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
                                   {application.experts?.name?.charAt(0) || 'E'}
                                 </AvatarFallback>
                               </Avatar>
-                              <div>
-                                <h3 className="font-semibold text-slate-900">{application.experts?.name || 'Unknown Expert'}</h3>
-                                <p className="text-sm text-slate-600">₹{application.experts?.hourly_rate || 0}/hr</p>
+                              <div className="min-w-0">
+                                <h3 className="font-semibold text-black text-sm sm:text-base truncate">{application.experts?.name || 'Unknown Expert'}</h3>
+                                <p className="text-xs sm:text-sm text-black">₹{application.experts?.hourly_rate || 0}/hr</p>
                               </div>
                             </div>
-                            <Badge className={getStatusColor(application.status)}>
+                            <Badge className='bg-[#FFF6D3] text-xs font-semibold text-[#967800] flex-shrink-0'>
                               <div className="flex items-center space-x-1">
                                 {getStatusIcon(application.status)}
                                 <span className="capitalize">{application.status}</span>
@@ -798,91 +769,76 @@ export default function ProjectDetailsPage() {
                             </Badge>
                           </div>
                           
-                          <p className="text-sm text-slate-600 mb-4">{application.experts?.bio || 'No bio available'}</p>
+                          <p className="text-xs sm:text-sm text-[#000000] mb-4">{application.experts?.bio || 'No bio available'}</p>
                           
                           {/* Expert Details */}
-                          <div className="grid grid-cols-2 gap-3 text-sm mb-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-4">
                             <div>
-                              <span className="text-slate-500">Experience:</span>
-                              <p className="font-medium text-slate-700">{application.experts?.experience_years || 0} years</p>
+                              <span className="text-[#666666] font-medium text-sm">Experience:</span>
+                              <p className="font-medium text-[#000000] text-sm">{application.experts?.experience_years || 0} years</p>
                             </div>
                             <div>
-                              <span className="text-slate-500">Rating:</span>
+                              <span className="text-[#666666] font-medium text-sm">Rating:</span>
                               <div className="flex items-center space-x-1">
                                 <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                                <span className="font-medium text-slate-700">
+                                <span className="font-semibold text-[#000000] text-sm">
                                   {application.experts?.rating || 0}/5 ({application.experts?.total_ratings || 0})
                                 </span>
                               </div>
                             </div>
                             <div>
-                              <span className="text-slate-500">Domain:</span>
-                              <p className="font-medium text-slate-700">
+                              <span className="text-[#666666] font-medium text-sm">Domain:</span>
+                              <p className="font-medium text-[#000000] text-sm">
                                 {application.experts?.domain_expertise && application.experts.domain_expertise.length > 0 
                                   ? application.experts.domain_expertise.join(', ') 
                                   : 'Not specified'}
                               </p>
                             </div>
-                            <div>
-                              <span className="text-slate-500">Status:</span>
-                              <Badge 
-                                variant={application.experts?.is_verified ? "default" : "secondary"} 
-                                className="ml-1"
-                              >
-                                {application.experts?.is_verified ? 'Verified' : 'Pending'}
-                              </Badge>
-                            </div>
+                        
                           </div>
 
                           {/* Subskills */}
                           {application.experts?.subskills && application.experts.subskills.length > 0 && (
                             <div className="mb-4">
-                              <span className="text-sm text-slate-500">Specializations:</span>
+                              <span className="text-[#666666] font-medium text-sm">Specializations:</span>
                               <div className="flex flex-wrap gap-1 mt-1">
-                                {application.experts.subskills.slice(0, 4).map((skill: string, index: number) => (
-                                  <Badge key={index} variant="outline" className="text-xs">
-                                    {skill}
-                                  </Badge>
-                                ))}
-                                {application.experts.subskills.length > 4 && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    +{application.experts.subskills.length - 4} more
-                                  </Badge>
-                                )}
-                              </div>
+  <span className="text-sm text-[#000000] font-medium ">
+    {application.experts.subskills.join(', ')}
+  </span>
+</div>
                             </div>
                           )}
 
                           {/* Qualifications */}
                           {application.experts?.qualifications && (
                             <div className="mb-4">
-                              <span className="text-sm text-slate-500">Qualifications:</span>
-                              <p className="text-sm mt-1 text-slate-700">{application.experts.qualifications}</p>
+                              <span className="text-[#666666] font-medium text-sm">Qualifications:</span>
+                              <p className="font-medium text-[#000000] text-sm mt-1">{application.experts.qualifications}</p>
                             </div>
                           )}
                           
-                          <div className="flex items-center justify-between">
-                            <div className="text-sm text-slate-500">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <div className="text-[#666666] font-medium text-xs sm:text-sm">
                               Applied: {new Date(application.applied_at).toLocaleDateString()}
                             </div>
-                            <div className="flex items-center space-x-2">
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                               <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleRejectApplication(application.id)}
                                 disabled={processingApplications[application.id]}
-                                className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+                                className="border border-[#FF0000] text-[13px] font-medium text-[#FF0000] rounded-[25px] bg-white hover:bg-white hover:text-[#FF0000] w-full sm:w-auto"
                               >
-                                <XCircle className="h-4 w-4 mr-1" />
+                                <XCircle className="h-4 w-4" />
                                 {processingApplications[application.id] ? 'Processing...' : 'Reject'}
                               </Button>
                               <Button
                                 size="sm"
                                 onClick={() => handleProceedToInterview(application.id)}
                                 disabled={processingApplications[application.id]}
-                                className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
+                                className="bg-[#008260] hover:bg-[#008260] text-white hover:text-white rounded-[25px] text-[13px] w-full sm:w-auto"
                               >
-                                <Calendar className="h-4 w-4 mr-1" />
+                                <Calendar className="h-4 w-4" />
                                 {processingApplications[application.id] ? 'Processing...' : 'Proceed for Interview'}
                               </Button>
                             </div>
@@ -910,292 +866,264 @@ export default function ProjectDetailsPage() {
 
           {/* Interview Tab */}
           <TabsContent value="interview">
-            <Card className="bg-white border-2 border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
-              <CardHeader>
-                <CardTitle className="text-2xl font-bold text-slate-900">Interview Stage</CardTitle>
-                <CardDescription className="text-slate-600">
-                  Applications ready for interview - proceed to create bookings
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {interviewApplications?.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Calendar className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                    <p className="text-slate-600">No applications in interview stage</p>
-                    <p className="text-sm text-slate-500">Move applications from pending to see them here</p>
+  <Card className="bg-white border-2 border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
+    <CardHeader>
+      <CardTitle className="text-lg font-semibold text-[#000000]">Interview Stage</CardTitle>
+      <CardDescription className="text-[#000000] text-base font-normal !-mt-[2px]">
+        Applications ready for interview - proceed to create bookings
+      </CardDescription>
+    </CardHeader>
+    <CardContent>
+      {interviewApplications?.length === 0 ? (
+        <div className="text-center py-8">
+          <Calendar className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+          <p className="text-slate-600">No applications in interview stage</p>
+          <p className="text-sm text-slate-500">Move applications from pending to see them here</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {interviewApplications?.map((application: any) => (
+            <Card key={application.id} className="bg-white border border-[#DCDCDC] p-4 sm:p-5">
+              <CardContent className="p-0">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                  <div className="flex items-center space-x-3">
+                    <Avatar className="w-10 h-10 sm:w-12 sm:h-12 border-2 border-[#008260]/40">
+                      <AvatarImage src={application.experts?.photo_url} />
+                      <AvatarFallback className="text-lg font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+                        {application.experts?.name?.charAt(0) || 'E'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-black text-sm sm:text-base truncate">{application.experts?.name || 'Unknown Expert'}</h3>
+                      <p className="text-xs sm:text-sm text-black">₹{application.experts?.hourly_rate || 0}/hr</p>
+                    </div>
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    {interviewApplications?.map((application: any) => (
-                      <Card key={application.id} className="bg-white border-2 border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all duration-300 group">
-                        <CardContent className="p-0">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center space-x-3">
-                              <Avatar className="w-10 h-10 border-2 border-blue-200">
-                                <AvatarImage src={application.experts?.photo_url} />
-                                <AvatarFallback className="text-lg font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
-                                  {application.experts?.name?.charAt(0) || 'E'}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <h3 className="font-semibold text-slate-900">{application.experts?.name || 'Unknown Expert'}</h3>
-                                <p className="text-sm text-slate-600">₹{application.experts?.hourly_rate || 0}/hr</p>
-                              </div>
-                            </div>
-                            <Badge className={getStatusColor(application.status)}>
-                              <div className="flex items-center space-x-1">
-                                {getStatusIcon(application.status)}
-                                <span className="capitalize">{application.status}</span>
-                              </div>
-                            </Badge>
-                          </div>
-                          
-                          <p className="text-sm text-slate-600 mb-4">{application.experts?.bio || 'No bio available'}</p>
-                          
-                          {/* Expert Details */}
-                          <div className="grid grid-cols-2 gap-3 text-sm mb-4">
-                            <div>
-                              <span className="text-slate-500">Experience:</span>
-                              <p className="font-medium text-slate-700">{application.experts?.experience_years || 0} years</p>
-                            </div>
-                            <div>
-                              <span className="text-slate-500">Rating:</span>
-                              <div className="flex items-center space-x-1">
-                                <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                                <span className="font-medium text-slate-700">
-                                  {application.experts?.rating || 0}/5 ({application.experts?.total_ratings || 0})
-                                </span>
-                              </div>
-                            </div>
-                            <div>
-                              <span className="text-slate-500">Domain:</span>
-                              <p className="font-medium text-slate-700">
-                                {application.experts?.domain_expertise && application.experts.domain_expertise.length > 0 
-                                  ? application.experts.domain_expertise.join(', ') 
-                                  : 'Not specified'}
-                              </p>
-                            </div>
-                            <div>
-                              <span className="text-slate-500">Status:</span>
-                              <Badge 
-                                variant={application.experts?.is_verified ? "default" : "secondary"} 
-                                className="ml-1"
-                              >
-                                {application.experts?.is_verified ? 'Verified' : 'Pending'}
-                              </Badge>
-                            </div>
-                          </div>
+                  <Badge className='bg-[#FFF6D3] text-xs font-semibold text-[#967800] flex-shrink-0'>
+                    <div className="flex items-center space-x-1">
+                      {getStatusIcon(application.status)}
+                      <span className="capitalize">{application.status}</span>
+                    </div>
+                  </Badge>
+                </div>
+                
+                <p className="text-xs sm:text-sm text-[#000000] mb-4">{application.experts?.bio || 'No bio available'}</p>
+                
+                {/* Expert Details */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-4">
+                  <div>
+                    <span className="text-[#666666] font-medium text-sm">Experience:</span>
+                    <p className="font-medium text-[#000000] text-sm">{application.experts?.experience_years || 0} years</p>
+                  </div>
+                  <div>
+                    <span className="text-[#666666] font-medium text-sm">Rating:</span>
+                    <div className="flex items-center space-x-1">
+                      <Star className="h-4 w-4 text-yellow-400 fill-current" />
+                      <span className="font-semibold text-[#000000] text-sm">
+                        {application.experts?.rating || 0}/5 ({application.experts?.total_ratings || 0})
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-[#666666] font-medium text-sm">Domain:</span>
+                    <p className="font-medium text-[#000000] text-sm">
+                      {application.experts?.domain_expertise && application.experts.domain_expertise.length > 0 
+                        ? application.experts.domain_expertise.join(', ') 
+                        : 'Not specified'}
+                    </p>
+                  </div>
+               
+                </div>
 
-                          {/* Subskills */}
-                          {application.experts?.subskills && application.experts.subskills.length > 0 && (
-                            <div className="mb-4">
-                              <span className="text-sm text-slate-500">Specializations:</span>
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {application.experts.subskills.slice(0, 4).map((skill: string, index: number) => (
-                                  <Badge key={index} variant="outline" className="text-xs">
-                                    {skill}
-                                  </Badge>
-                                ))}
-                                {application.experts.subskills.length > 4 && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    +{application.experts.subskills.length - 4} more
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                          
-                          {application.interview_date && (
-                            <div className="text-sm text-blue-600 mb-4">
-                              <Calendar className="h-4 w-4 inline mr-1" />
-                              Interview scheduled: {new Date(application.interview_date).toLocaleString()}
-                            </div>
-                          )}
-                          
-                          <div className="flex items-center justify-between">
-                            <div className="text-sm text-slate-500">
-                              Applied: {new Date(application.applied_at).toLocaleDateString()}
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleRejectApplication(application.id)}
-                                disabled={processingApplications[application.id]}
-                                className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
-                              >
-                                <XCircle className="h-4 w-4 mr-1" />
-                                {processingApplications[application.id] ? 'Processing...' : 'Reject'}
-                              </Button>
-                              <Button
-                                size="sm"
-                                onClick={() => handleProceedToBooking(application.id)}
-                                disabled={processingApplications[application.id]}
-                                className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
-                              >
-                                <CheckCircle className="h-4 w-4 mr-1" />
-                                {processingApplications[application.id] ? 'Processing...' : 'Proceed for Booking'}
-                              </Button>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                    
-                    {/* Infinite scroll trigger for Interview Applications */}
-                    {hasMoreInterview && (
-                      <div ref={interviewScrollRef} className="flex justify-center py-4">
-                        {interviewLoading && (
-                          <div className="flex items-center space-x-2 text-slate-500">
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                            <span>Loading more applications...</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                {/* Subskills */}
+                {application.experts?.subskills && application.experts.subskills.length > 0 && (
+                  <div className="mb-4">
+                    <span className="text-[#666666] font-medium text-sm">Specializations:</span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      <span className="text-sm text-[#000000] font-medium ">
+                        {application.experts.subskills.join(', ')}
+                      </span>
+                    </div>
                   </div>
                 )}
+                
+                {application.interview_date && (
+                  <div className="mb-4">
+                    <span className="text-[#666666] font-medium text-sm">
+                      <Calendar className="h-4 w-4 inline mr-1" />
+                      Interview scheduled: <span className='text-black'> {new Date(application.interview_date).toLocaleString()}</span>
+                    </span>
+                  </div>
+                )}
+                
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div className="text-[#666666] font-medium text-xs sm:text-sm">
+                    Applied: {new Date(application.applied_at).toLocaleDateString()}
+                  </div>
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleRejectApplication(application.id)}
+                      disabled={processingApplications[application.id]}
+                      className="border border-[#FF0000] text-[13px] font-medium text-[#FF0000] rounded-[25px] bg-white hover:bg-white hover:text-[#FF0000] w-full sm:w-auto"
+                    >
+                      <XCircle className="h-4 w-4" />
+                      {processingApplications[application.id] ? 'Processing...' : 'Reject'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => handleProceedToBooking(application.id)}
+                      disabled={processingApplications[application.id]}
+                      className="bg-[#008260] hover:bg-[#008260] text-white hover:text-white rounded-[25px] text-[13px] w-full sm:w-auto"
+                    >
+                      <CheckCircle className="h-4 w-4" />
+                      {processingApplications[application.id] ? 'Processing...' : 'Proceed for Booking'}
+                    </Button>
+                  </div>
+                </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          ))}
+          
+          {/* Infinite scroll trigger for Interview Applications */}
+          {hasMoreInterview && (
+            <div ref={interviewScrollRef} className="flex justify-center py-4">
+              {interviewLoading && (
+                <div className="flex items-center space-x-2 text-slate-500">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  <span>Loading more applications...</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </CardContent>
+  </Card>
+</TabsContent>
 
           {/* Rejected Tab */}
           <TabsContent value="rejected">
-            <Card className="bg-white border-2 border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
-              <CardHeader>
-                <CardTitle className="text-2xl font-bold text-slate-900">Rejected Applications</CardTitle>
-                <CardDescription className="text-slate-600">
-                  Applications that were not shortlisted for this project
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {rejectedApplications?.length === 0 ? (
-                  <div className="text-center py-8">
-                    <UserX className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                    <p className="text-slate-600">No rejected applications</p>
-                    <p className="text-sm text-slate-500">Rejected applications will appear here</p>
+  <Card className="bg-white border-2 border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
+    <CardHeader>
+      <CardTitle className="text-lg font-semibold text-[#000000]">Rejected Applications</CardTitle>
+      <CardDescription className="text-[#000000] text-base font-normal !-mt-[2px]">
+        Applications that were not shortlisted for this project
+      </CardDescription>
+    </CardHeader>
+    <CardContent>
+      {rejectedApplications?.length === 0 ? (
+        <div className="text-center py-8">
+          <UserX className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+          <p className="text-slate-600">No rejected applications</p>
+          <p className="text-sm text-slate-500">Rejected applications will appear here</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {rejectedApplications?.map((application: any) => (
+            <Card key={application.id} className="bg-white border border-[#DCDCDC] p-4 sm:p-5">
+              <CardContent className="p-0">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                  <div className="flex items-center space-x-3">
+                    <Avatar className="w-10 h-10 sm:w-12 sm:h-12 border-2 border-[#008260]/40">
+                      <AvatarImage src={application.experts?.photo_url} />
+                      <AvatarFallback className="text-lg font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+                        {application.experts?.name?.charAt(0) || 'E'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-black text-sm sm:text-base truncate">{application.experts?.name || 'Unknown Expert'}</h3>
+                      <p className="text-xs sm:text-sm text-black">₹{application.experts?.hourly_rate || 0}/hr</p>
+                    </div>
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    {rejectedApplications?.map((application: any) => (
-                      <Card key={application.id} className="bg-white border-2 border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all duration-300 group">
-                        <CardContent className="p-0">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center space-x-3">
-                              <Avatar className="w-10 h-10 border-2 border-blue-200">
-                                <AvatarImage src={application.experts?.photo_url} />
-                                <AvatarFallback className="text-lg font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
-                                  {application.experts?.name?.charAt(0) || 'E'}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <h3 className="font-semibold text-slate-900">{application.experts?.name || 'Unknown Expert'}</h3>
-                                <p className="text-sm text-slate-600">₹{application.experts?.hourly_rate || 0}/hr</p>
-                              </div>
-                            </div>
-                            <Badge className={getStatusColor(application.status)}>
-                              <div className="flex items-center space-x-1">
-                                {getStatusIcon(application.status)}
-                                <span className="capitalize">{application.status}</span>
-                              </div>
-                            </Badge>
-                          </div>
-                          
-                          <p className="text-sm text-slate-600 mb-4">{application.experts?.bio || 'No bio available'}</p>
-                          
-                          {/* Expert Details */}
-                          <div className="grid grid-cols-2 gap-3 text-sm mb-4">
-                            <div>
-                              <span className="text-slate-500">Experience:</span>
-                              <p className="font-medium text-slate-700">{application.experts?.experience_years || 0} years</p>
-                            </div>
-                            <div>
-                              <span className="text-slate-500">Rating:</span>
-                              <div className="flex items-center space-x-1">
-                                <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                                <span className="font-medium text-slate-700">
-                                  {application.experts?.rating || 0}/5 ({application.experts?.total_ratings || 0})
-                                </span>
-                              </div>
-                            </div>
-                            <div>
-                              <span className="text-slate-500">Domain:</span>
-                              <p className="font-medium text-slate-700">
-                                {application.experts?.domain_expertise && application.experts.domain_expertise.length > 0 
-                                  ? application.experts.domain_expertise.join(', ') 
-                                  : 'Not specified'}
-                              </p>
-                            </div>
-                            <div>
-                              <span className="text-slate-500">Status:</span>
-                              <Badge 
-                                variant={application.experts?.is_verified ? "default" : "secondary"} 
-                                className="ml-1"
-                              >
-                                {application.experts?.is_verified ? 'Verified' : 'Pending'}
-                              </Badge>
-                            </div>
-                          </div>
+                  <Badge className={`${getStatusColor(application.status)} flex-shrink-0`}>
+                    <div className="flex items-center space-x-1">
+                      {getStatusIcon(application.status)}
+                      <span className="capitalize">{application.status}</span>
+                    </div>
+                  </Badge>
+                </div>
+                
+                <p className="text-xs sm:text-sm text-[#000000] mb-4">{application.experts?.bio || 'No bio available'}</p>
+                
+                {/* Expert Details */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-4">
+                  <div>
+                    <span className="text-[#666666] font-medium text-sm">Experience:</span>
+                    <p className="font-medium text-[#000000] text-sm">{application.experts?.experience_years || 0} years</p>
+                  </div>
+                  <div>
+                    <span className="text-[#666666] font-medium text-sm">Rating:</span>
+                    <div className="flex items-center space-x-1">
+                      <Star className="h-4 w-4 text-yellow-400 fill-current" />
+                      <span className="font-semibold text-[#000000] text-sm">
+                        {application.experts?.rating || 0}/5 ({application.experts?.total_ratings || 0})
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-[#666666] font-medium text-sm">Domain:</span>
+                    <p className="font-medium text-[#000000] text-sm">
+                      {application.experts?.domain_expertise && application.experts.domain_expertise.length > 0 
+                        ? application.experts.domain_expertise.join(', ') 
+                        : 'Not specified'}
+                    </p>
+                  </div>
+                 
+                </div>
 
-                          {/* Subskills */}
-                          {application.experts?.subskills && application.experts.subskills.length > 0 && (
-                            <div className="mb-4">
-                              <span className="text-sm text-slate-500">Specializations:</span>
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {application.experts.subskills.slice(0, 4).map((skill: string, index: number) => (
-                                  <Badge key={index} variant="outline" className="text-xs">
-                                    {skill}
-                                  </Badge>
-                                ))}
-                                {application.experts.subskills.length > 4 && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    +{application.experts.subskills.length - 4} more
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                          
-                          {/* Qualifications */}
-                          {application.experts?.qualifications && (
-                            <div className="mb-4">
-                              <span className="text-sm text-slate-500">Qualifications:</span>
-                              <p className="text-sm mt-1 text-slate-700">{application.experts.qualifications}</p>
-                            </div>
-                          )}
-                          
-                          <div className="flex items-center justify-between">
-                            <div className="text-sm text-slate-500">
-                              Applied: {new Date(application.applied_at).toLocaleDateString()}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-
-                    {/* Infinite scroll trigger for Rejected Applications */}
-                    {hasMoreRejected && (
-                      <div ref={rejectedScrollRef} className="flex justify-center py-4">
-                        {rejectedLoading && (
-                          <div className="flex items-center space-x-2 text-slate-500">
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                            <span>Loading more applications...</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                {/* Subskills */}
+                {application.experts?.subskills && application.experts.subskills.length > 0 && (
+                  <div className="mb-4">
+                    <span className="text-[#666666] font-medium text-sm">Specializations:</span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      <span className="text-sm text-[#000000] font-medium ">
+                        {application.experts.subskills.join(', ')}
+                      </span>
+                    </div>
                   </div>
                 )}
+                
+                {/* Qualifications */}
+                {application.experts?.qualifications && (
+                  <div className="mb-4">
+                    <span className="text-[#666666] font-medium text-sm">Qualifications:</span>
+                    <p className="font-medium text-[#000000] text-sm mt-1">{application.experts.qualifications}</p>
+                  </div>
+                )}
+                
+                <div className="flex items-center justify-between">
+                  <div className="text-[#666666] font-medium text-sm">
+                    Applied: {new Date(application.applied_at).toLocaleDateString()}
+                  </div>
+                </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          ))}
+
+          {/* Infinite scroll trigger for Rejected Applications */}
+          {hasMoreRejected && (
+            <div ref={rejectedScrollRef} className="flex justify-center py-4">
+              {rejectedLoading && (
+                <div className="flex items-center space-x-2 text-slate-500">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  <span>Loading more applications...</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </CardContent>
+  </Card>
+</TabsContent>
 
           {/* Selected Tab */}
           <TabsContent value="selected">
             <Card className="bg-white border-2 border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
               <CardHeader>
-                <CardTitle className="text-2xl font-bold text-slate-900">Selected Bookings</CardTitle>
-                <CardDescription className="text-slate-600">
+                <CardTitle className="text-lg font-semibold text-[#000000]">Selected Bookings</CardTitle>
+                <CardDescription className="text-[#000000] text-base font-normal !-mt-[2px]">
                   Manage confirmed bookings for this project
                 </CardDescription>
               </CardHeader>
@@ -1208,252 +1136,214 @@ export default function ProjectDetailsPage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {selectedBookings?.map((booking: any) => {
-                     
-                      return (
-                      <div key={booking.id} className="bg-white border-2 border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all duration-300 group">
-                        <div className="flex justify-between items-start min-w-0">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-3 mb-2 min-w-0">
-                              <h4 className="font-semibold truncate pr-2">{booking.project?.title}</h4>
-                              <Badge variant={getStatusVariant(booking.status)}>
-                                {booking.status.replace('_', ' ')}
-                              </Badge>
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-3">
-                              <div>
-                                <span className="font-medium">Expert:</span> {booking.experts?.name}
-                              </div>
-                              <div>
-                                <span className="font-medium">Amount:</span> ₹{booking.amount}
-                              </div>
-                              <div>
-                                <span className="font-medium">Start Date:</span> {new Date(booking.start_date).toLocaleDateString()}
-                              </div>
-                              <div>
-                                <span className="font-medium">End Date:</span> {new Date(booking.end_date).toLocaleDateString()}
-                              </div>
-                              <div>
-                                <span className="font-medium">Status:</span> 
-                                <Badge variant={getStatusVariant(booking.status)} className="ml-2">
-                                  {booking.status.replace('_', ' ')}
-                                </Badge>
-                              </div>
-                              <div>
-                                <span className="font-medium">Rated:</span> 
-                                <span className="ml-2">
-                                  {getBookingRating(booking.id) ? '✅ Yes' : '❌ No'}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="flex flex-col gap-2">
-                            {/* View Profile Button - Always visible */}
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button variant="outline" size="sm" className="flex items-center space-x-1">
-                                  <Eye className="h-4 w-4" />
-                                  <span>View Profile</span>
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
-                                <DialogHeader className="flex-shrink-0">
-                                  <DialogTitle>{booking.experts?.name || 'Expert Profile'}</DialogTitle>
-                                  <DialogDescription>Complete Expert Profile</DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-4 overflow-y-auto flex-1 pr-2">
-                                  <div className="flex items-center space-x-4 mb-4">
-                                    <Avatar className="w-16 h-16 border-2 border-blue-200 flex-shrink-0">
-                                      <AvatarImage src={booking.experts?.photo_url} />
-                                      <AvatarFallback className="text-xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
-                                        {booking.experts?.name?.charAt(0) || 'E'}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <div className="min-w-0 flex-1">
-                                      <h4 className="font-semibold text-lg truncate">{booking.experts?.name || 'Unknown Expert'}</h4>
-                                      <p className="text-sm text-gray-600 truncate">
-                                        {booking.experts?.domain_expertise && booking.experts.domain_expertise.length > 0 
-                                          ? booking.experts.domain_expertise.join(', ') 
-                                          : 'Expert'}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <div className="max-h-32 overflow-y-auto">
-                                    <h4 className="font-medium mb-2">Professional Bio</h4>
-                                    <p className="text-sm text-gray-600 leading-relaxed">
-                                      {booking.experts?.bio || 'No bio available'}
-                                    </p>
-                                  </div>
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    <div>
-                                      <h4 className="font-medium mb-1">Domain Expertise</h4>
-                                      <p className="text-sm">
-                                        {booking.experts?.domain_expertise && booking.experts.domain_expertise.length > 0 
-                                          ? booking.experts.domain_expertise.join(', ') 
-                                          : 'Not specified'}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <h4 className="font-medium mb-1">Hourly Rate</h4>
-                                      <p className="text-sm">₹{booking.experts?.hourly_rate || 0}</p>
-                                    </div>
-                                    <div>
-                                      <h4 className="font-medium mb-1">Experience</h4>
-                                      <p className="text-sm">{booking.experts?.experience_years || 0} years</p>
-                                    </div>
-                                    <div>
-                                      <h4 className="font-medium mb-1">Contact</h4>
-                                      <p className="text-sm">{booking.experts?.email || 'Not available'}</p>
-                                    </div>
-                                    <div>
-                                      <h4 className="font-medium mb-1">Phone</h4>
-                                      <p className="text-sm">{booking.experts?.phone || 'Not available'}</p>
-                                    </div>
-                                    <div>
-                                      <h4 className="font-medium mb-1">Rating</h4>
-                                      <div className="flex items-center space-x-1">
-                                        <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                                        <p className="text-sm">
-                                          {booking.experts?.rating || 0}/5 ({booking.experts?.total_ratings || 0} reviews)
-                                        </p>
-                                      </div>
-                                    </div>
-                                    <div>
-                                      <h4 className="font-medium mb-1">Verification</h4>
-                                      <Badge variant={booking.experts?.is_verified ? "default" : "secondary"} className="text-xs">
-                                        {booking.experts?.is_verified ? 'Verified' : 'Pending'}
-                                      </Badge>
-                                    </div>
-                                    <div>
-                                      <h4 className="font-medium mb-1">KYC Status</h4>
-                                      <Badge 
-                                        variant={booking.experts?.kyc_status === 'approved' ? "default" : "secondary"} 
-                                        className="text-xs capitalize"
-                                      >
-                                        {booking.experts?.kyc_status || 'pending'}
-                                      </Badge>
-                                    </div>
-                                  </div>
-                                  {booking.experts?.subskills && booking.experts.subskills.length > 0 && (
-                                    <div>
-                                      <h4 className="font-medium mb-2">Specializations</h4>
-                                      <div className="max-h-24 overflow-y-auto">
-                                        <div className="flex flex-wrap gap-2">
-                                          {booking.experts.subskills.map((skill: string, index: number) => (
-                                            <Badge key={index} variant="secondary" className="text-xs">
-                                              {skill}
-                                            </Badge>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  )}
-                                  {booking.experts?.qualifications && (
-                                    <div>
-                                      <h4 className="font-medium mb-1">Qualifications</h4>
-                                      <div className="max-h-20 overflow-y-auto">
-                                        <p className="text-sm leading-relaxed">{booking.experts.qualifications}</p>
-                                      </div>
-                                    </div>
-                                  )}
-                                  {/* {booking.experts?.resume_url && (
-                                    <div>
-                                      <h4 className="font-medium mb-1">Resume</h4>
-                                      <a 
-                                        href={booking.experts.resume_url} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="text-blue-600 hover:underline text-sm"
-                                      >
-                                        View Resume
-                                      </a>
-                                    </div>
-                                  )} */}
-                                  
-                                  {/* {booking.experts?.linkedin_url && (
-                                    <div>
-                                      <h4 className="font-medium mb-1">LinkedIn Profile</h4>
-                                      <a 
-                                        href={booking.experts.linkedin_url} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="text-blue-600 hover:underline text-sm"
-                                      >
-                                        View LinkedIn Profile
-                                      </a>
-                                    </div>
-                                  )} */}
-
-
-                                  <div className="pt-2 border-t">
-                                    <h4 className="font-medium mb-1">Profile Information</h4>
-                                    <div className="grid grid-cols-2 gap-2 text-xs text-gray-500">
-                                      <div>
-                                        <span className="font-medium">Profile Created:</span>
-                                        <p>{booking.experts?.created_at ? new Date(booking.experts.created_at).toLocaleDateString() : 'Unknown'}</p>
-                                      </div>
-                                      <div>
-                                        <span className="font-medium">Last Updated:</span>
-                                        <p>{booking.experts?.updated_at ? new Date(booking.experts.updated_at).toLocaleDateString() : 'Unknown'}</p>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </DialogContent>
-                            </Dialog>
-
-                            {booking.status === 'in_progress' && (
-                              <>
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleUpdateBookingStatus(booking.id, booking?.application_id, 'completed')}
-                                  className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
-                                >
-                                  <CheckCircle className="h-4 w-4 mr-1" />
-                                  Mark Complete & Rate
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleUpdateBookingStatus(booking.id,booking?.application_id, 'cancelled')}
-                                >
-                                  <XCircle className="h-4 w-4 mr-1" />
-                                  Cancel & Delete
-                                </Button>
-                              </>
-                            )}
-                            
-                            {booking.status === 'completed' && !getBookingRating(booking.id) && (
-                              <Button
-                                size="sm"
-                                onClick={() => handleRateExpert(booking)}
-                                variant={getBookingRating(booking.id) ? "outline" : "default"}
-                                className={getBookingRating(booking.id) ? "border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50 text-slate-700 hover:text-blue-700" : "bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"}
-                              >
-                                <Star className="h-4 w-4 mr-1" />
-                                Rate Expert
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      )
-                    })}
-                    
-                    {/* Infinite scroll trigger for Selected Bookings */}
-                    {hasMoreSelected && (
-                      <div ref={selectedScrollRef} className="flex justify-center py-4">
-                        {selectedLoading && (
-                          <div className="flex items-center space-x-2 text-slate-500">
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                            <span>Loading more bookings...</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
+  {selectedBookings?.map((booking: any) => {
+    return (
+      <div key={booking.id} className="bg-white border border-[#DCDCDC] rounded-lg p-4">
+        <div className="flex justify-between items-start">
+          <div className="flex-1 grid grid-cols-2 gap-x-8 gap-y-3">
+            {/* Left Column */}
+            <div>
+              <span className="text-[#666666] font-medium text-sm">Expert: </span>
+              <span className="text-[#000000] font-medium text-sm">{booking.experts?.name}</span>
+            </div>
+            
+            {/* Right Column */}
+            <div>
+              <span className="text-[#666666] font-medium text-sm">Amount: </span>
+              <span className="text-[#000000] font-medium text-sm">₹{booking.amount}</span>
+            </div>
+            
+            {/* Left Column */}
+            <div>
+              <span className="text-[#666666] font-medium text-sm">Start Date: </span>
+              <span className="text-[#000000] font-medium text-sm">{new Date(booking.start_date).toLocaleDateString()}</span>
+            </div>
+            
+            {/* Right Column */}
+            <div>
+              <span className="text-[#666666] font-medium text-sm">End Date: </span>
+              <span className="text-[#000000] font-medium text-sm">{new Date(booking.end_date).toLocaleDateString()}</span>
+            </div>
+            
+            {/* Left Column */}
+            <div>
+              <span className="text-[#666666] font-medium text-sm">Status: </span>
+              <span className="text-[#008260] font-medium text-sm capitalize">{booking.status.replace('_', ' ')}</span>
+            </div>
+            
+            {/* Right Column */}
+            <div>
+              <span className="text-[#666666] font-medium text-sm">Rated: </span>
+              <span className="text-[#000000] font-medium text-sm">
+                {getBookingRating(booking.id) ? 'Yes' : 'No'}
+              </span>
+            </div>
+          </div>
+          
+          <div className="flex flex-col gap-2 ml-4">
+            {/* View Profile Button - Always visible */}
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="border border-[#D6D6D6] text-[13px] font-medium text-[#000000] rounded-[25px] bg-white hover:bg-white hover:text-[#000000] whitespace-nowrap">
+                  View Profile
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
+                <DialogHeader className="flex-shrink-0">
+                  <DialogTitle className="text-lg font-semibold text-[#000000]">{booking.experts?.name || 'Expert Profile'}</DialogTitle>
+                  <DialogDescription className="text-[#666666] text-sm">Complete Expert Profile</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 overflow-y-auto flex-1 pr-2">
+                  <div className="flex items-center space-x-4 mb-4">
+                    <Avatar className="w-16 h-16 border-2 border-[#008260]/40 flex-shrink-0">
+                      <AvatarImage src={booking.experts?.photo_url} />
+                      <AvatarFallback className="text-xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+                        {booking.experts?.name?.charAt(0) || 'E'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="font-semibold text-base text-[#000000] truncate">{booking.experts?.name || 'Unknown Expert'}</h4>
+                      <p className="text-sm text-[#666666] truncate">
+                        {booking.experts?.domain_expertise && booking.experts.domain_expertise.length > 0 
+                          ? booking.experts.domain_expertise.join(', ') 
+                          : 'Expert'}
+                      </p>
+                    </div>
                   </div>
+                  <div className="max-h-32 overflow-y-auto">
+                    <h4 className="font-medium text-sm text-[#666666] mb-2">Professional Bio</h4>
+                    <p className="text-sm text-[#000000] leading-relaxed">
+                      {booking.experts?.bio || 'No bio available'}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <h4 className="font-medium text-sm text-[#666666] mb-1">Domain Expertise</h4>
+                      <p className="text-sm text-[#000000]">
+                        {booking.experts?.domain_expertise && booking.experts.domain_expertise.length > 0 
+                          ? booking.experts.domain_expertise.join(', ') 
+                          : 'Not specified'}
+                      </p>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-sm text-[#666666] mb-1">Hourly Rate</h4>
+                      <p className="text-sm text-[#000000]">₹{booking.experts?.hourly_rate || 0}</p>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-sm text-[#666666] mb-1">Experience</h4>
+                      <p className="text-sm text-[#000000]">{booking.experts?.experience_years || 0} years</p>
+                    </div>
+                   
+                 
+                    <div>
+                      <h4 className="font-medium text-sm text-[#666666] mb-1">Rating</h4>
+                      <div className="flex items-center space-x-1">
+                        <Star className="h-4 w-4 text-yellow-400 fill-current" />
+                        <p className="text-sm text-[#000000]">
+                          {booking.experts?.rating || 0}/5 ({booking.experts?.total_ratings || 0} reviews)
+                        </p>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-sm text-[#666666] mb-1">Verification</h4>
+                      <Badge variant={booking.experts?.is_verified ? "default" : "secondary"} className="text-xs">
+                        {booking.experts?.is_verified ? 'Verified' : 'Pending'}
+                      </Badge>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-sm text-[#666666] mb-1">KYC Status</h4>
+                      <Badge 
+                        variant={booking.experts?.kyc_status === 'approved' ? "default" : "secondary"} 
+                        className="text-xs capitalize"
+                      >
+                        {booking.experts?.kyc_status || 'pending'}
+                      </Badge>
+                    </div>
+                  </div>
+                  {booking.experts?.subskills && booking.experts.subskills.length > 0 && (
+                    <div>
+                      <h4 className="font-medium text-sm text-[#666666] mb-2">Specializations</h4>
+                      <div className="max-h-24 overflow-y-auto">
+                        <span className="text-sm text-[#000000] font-medium">
+                          {booking.experts.subskills.join(', ')}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  {booking.experts?.qualifications && (
+                    <div>
+                      <h4 className="font-medium text-sm text-[#666666] mb-1">Qualifications</h4>
+                      <div className="max-h-20 overflow-y-auto">
+                        <p className="text-sm text-[#000000] leading-relaxed">{booking.experts.qualifications}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="pt-2 border-t">
+                    <h4 className="font-medium text-sm text-[#666666] mb-1">Profile Information</h4>
+                    <div className="grid grid-cols-2 gap-2 text-xs text-[#666666]">
+                      <div>
+                        <span className="font-medium">Profile Created:</span>
+                        <p className="text-[#000000]">{booking.experts?.created_at ? new Date(booking.experts.created_at).toLocaleDateString() : 'Unknown'}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium">Last Updated:</span>
+                        <p className="text-[#000000]">{booking.experts?.updated_at ? new Date(booking.experts.updated_at).toLocaleDateString() : 'Unknown'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {booking.status === 'in_progress' && (
+              <>
+                <Button
+                  size="sm"
+                  onClick={() => handleUpdateBookingStatus(booking.id, booking?.application_id, 'completed')}
+                  className="bg-[#008260] hover:bg-[#008260] text-white hover:text-white rounded-[25px] text-[13px] whitespace-nowrap px-6"
+                >
+                  Mark Completed
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleUpdateBookingStatus(booking.id, booking?.application_id, 'cancelled')}
+                  className="border border-[#FF0000] text-[13px] font-medium text-[#FF0000] rounded-[25px] bg-white hover:bg-white hover:text-[#FF0000]"
+                >
+                  Delete
+                </Button>
+              </>
+            )}
+            
+            {booking.status === 'completed' && !getBookingRating(booking.id) && (
+              <Button
+                size="sm"
+                onClick={() => handleRateExpert(booking)}
+                className="bg-[#008260] hover:bg-[#008260] text-white hover:text-white rounded-[25px] text-[13px] whitespace-nowrap"
+              >
+                <Star className="h-4 w-4 mr-1" />
+                Rate Expert
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  })}
+  
+  {/* Infinite scroll trigger for Selected Bookings */}
+  {hasMoreSelected && (
+    <div ref={selectedScrollRef} className="flex justify-center py-4">
+      {selectedLoading && (
+        <div className="flex items-center space-x-2 text-slate-500">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+          <span>Loading more bookings...</span>
+        </div>
+      )}
+    </div>
+  )}
+</div>
                 )}
               </CardContent>
             </Card>
@@ -1505,7 +1395,7 @@ export default function ProjectDetailsPage() {
               <Button
                 onClick={handleInterviewSubmit}
                 disabled={processingApplications[selectedApplicationId || '']}
-                className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
+                className="bg-[#008260] hover:bg-[#008260]"
               >
                 {processingApplications[selectedApplicationId || ''] ? 'Processing...' : 'Proceed to Interview'}
               </Button>

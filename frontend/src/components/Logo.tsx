@@ -1,32 +1,31 @@
 import Image from 'next/image'
 
 interface LogoProps {
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'sm' | 'md' | 'lg' | 'header'
   className?: string
 }
 
 export default function Logo({ size = 'md', className = '' }: LogoProps) {
+  // Header size: optimized for 64px (h-16) headers
+  const dimensions = {
+    sm: { width: 80, height: 32 },
+    md: { width: 120, height: 48 },
+    lg: { width: 200, height: 80 },
+    header: { width: 140, height: 10 } // Perfect for h-16 headers
+  }
+
+  const { width, height } = dimensions[size]
 
   return (
-    <div className={`flex items-center justify-center leading-none ${className}`}>
-      {/* Logo Image Only - No Circle Background */}
-      <div className={`relative group overflow-hidden ${size === 'sm' ? 'w-10 h-10' : size === 'md' ? 'w-20 h-20' : 'w-52 h-20'}`}>
-        {/* Your actual logo image */}
-    
-  <Image
-    src="/images/calxmaplogo.png"
-    alt="Calxmap Logo"
-    width={size === 'sm' ? 28 : size === 'md' ? 40 : 204}
-    height={size === 'sm' ? 28 : size === 'md' ? 40 : 64}
-    className="block w-full h-full object-cover transition-all duration-300 rounded-md"
-    priority
-  />
-
-
-
-      </div>
-
-
+    <div className={`flex items-center leading-none h-4 ${className}`}>
+      <Image
+        src="/images/calxmap.png"
+        alt="CalXMap Logo"
+        width={width}
+        height={height}
+        className="object-contain transition-all duration-300 scale-150"
+        priority
+      />
     </div>
   )
 }

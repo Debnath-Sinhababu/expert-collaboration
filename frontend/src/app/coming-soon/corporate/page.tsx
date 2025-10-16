@@ -19,9 +19,8 @@ export default function CorporateComingSoon() {
       <div className="container mx-auto px-4 py-8 relative z-10">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <Link href="/" className="inline-flex items-center space-x-2 group">
-            <Logo size="md" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent group-hover:from-blue-800 group-hover:to-indigo-800 transition-all duration-300">Calxmap</span>
+          <Link href="/" className="inline-flex items-center group">
+            <Logo size="lg" />
           </Link>
           <Link href="/">
             <Button variant="ghost" className="border border-transparent hover:border-slate-200">

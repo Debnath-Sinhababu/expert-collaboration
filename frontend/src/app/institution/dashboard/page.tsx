@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { MultiSelect } from '@/components/ui/multi-select'
 import { Drawer } from '@/components/ui/drawer'
 import ProfileDropdown from '@/components/ProfileDropdown'
@@ -40,7 +41,10 @@ import {
   Shield,
   MessageSquare,
   AlertCircle,
-  BookOpen
+  BookOpen,
+  Hourglass,
+  IndianRupee,
+  FileText
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -85,6 +89,8 @@ export default function InstitutionDashboard() {
   const [recommendedExperts, setRecommendedExperts] = useState<any[]>([])
   const [showExpertSelectionModal, setShowExpertSelectionModal] = useState(false)
   const [selectedExperts, setSelectedExperts] = useState<string[]>([])
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false)
+  const [projectToClose, setProjectToClose] = useState<string | null>(null)
   const router = useRouter()
   
   const handleDomainChange = (domain: string) => {
@@ -634,16 +640,27 @@ export default function InstitutionDashboard() {
     }
   }
 
-  const handleCloseProject = async (projectId: string) => {
+  const handleCloseProjectClick = (projectId: string) => {
+    setProjectToClose(projectId)
+    setShowCloseConfirm(true)
+  }
+
+  const confirmCloseProject = async () => {
+    if (!projectToClose) return
+    
     try {
-      const result = await api.projects.update(projectId, { status: 'closed' })
+      const result = await api.projects.update(projectToClose, { status: 'closed' })
       console.log('Project closed successfully:', result)
-     
+      toast.success('Project closed successfully!')
       refreshProjects()
       setError('')
+      setShowCloseConfirm(false)
+      setProjectToClose(null)
     } catch (error: any) {
       console.error('Project close error:', error)
-      setError(`Failed to close project: ${error.message}`)
+      toast.error(`Failed to close project: ${error.message}`)
+      setShowCloseConfirm(false)
+      setProjectToClose(null)
     }
   }
 
@@ -652,9 +669,9 @@ export default function InstitutionDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-[#ECF2FF] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#008260] mx-auto mb-4"></div>
           <p className="text-slate-300">Loading dashboard...</p>
         </div>
       </div>
@@ -662,14 +679,13 @@ export default function InstitutionDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-[#ECF2FF]">
       {/* Header */}
-      <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
+      <header className="bg-[#008260]">
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
-            <Link href="/institution/home" className="flex items-center space-x-2 group">
-            
-              <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Calxmap</span>
+            <Link href="/institution/home" className="flex items-center group">
+              <Logo size="header" />
             </Link>
             
             <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 lg:gap-4">
@@ -693,25 +709,24 @@ export default function InstitutionDashboard() {
         {/* Welcome Section */}
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="min-w-0 text-center sm:text-left">
-             <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">
-               Welcome back, {institution?.name}!
+             <h1 className="text-3xl font-semibold text-[#000000] mb-1">
+               Welcome back, <span className='text-[#008260]'>{institution?.name}!</span>
              </h1>
-             <p className="text-lg sm:text-xl text-slate-600">
+             <p className="text-lg text-[#000000CC] font-medium">
                Manage your projects, review applications, and connect with qualified experts.
              </p>
           </div>
-          <Dialog open={showProjectForm} onOpenChange={setShowProjectForm}>
+          <Dialog open={false}>
               <DialogTrigger asChild>
-                <Button className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300">
-                  <Plus className="h-4 w-4 mr-2" />
+              <Button className="bg-[#008260] hover:bg-[#008260] text-sm font-semibold" onClick={() => router.push('/institution/post-requirement')}>
+                  <Plus className="h-3 w-3 mr-1 border border-white rounded-full" />
                   Post Requirement
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+              <DialogContent className="hidden">
                 <DialogHeader className="flex-shrink-0">
-                  <DialogTitle>Create New Project</DialogTitle>
+                  <DialogTitle></DialogTitle>
                   <DialogDescription>
-                    Fill in the details to post a new requirement for experts
                   </DialogDescription>
                 </DialogHeader>
                 <div className="overflow-y-auto flex-1 pr-2">
@@ -1044,29 +1059,30 @@ export default function InstitutionDashboard() {
 
           {/* Edit Project Dialog */}
           <Dialog open={showEditForm} onOpenChange={setShowEditForm}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogContent className="max-w-3xl max-h-[90vh]  flex flex-col">
               <DialogHeader className="flex-shrink-0">
-                <DialogTitle>Edit Project</DialogTitle>
-                <DialogDescription>
+                <DialogTitle className="text-2xl font-bold text-[#000000]">Edit Project</DialogTitle>
+                <DialogDescription className="text-[#6A6A6A]">
                   Update your project details
                 </DialogDescription>
               </DialogHeader>
-              <div className="overflow-y-auto flex-1 pr-2">
+              <div className="overflow-y-auto flex-1 pr-2 p-2">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="title">Project Title *</Label>
+                    <Label htmlFor="title" className="text-[#000000] font-medium mb-2 block">Project Title *</Label>
                     <Input
                       id="title"
                       value={projectForm.title}
                       onChange={(e) => setProjectForm({...projectForm, title: e.target.value})}
                       placeholder="e.g., Guest Lecture on AI"
+                      className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:border-[#008260]"
                       required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="type">Project Type *</Label>
+                    <Label htmlFor="type" className="text-[#000000] font-medium mb-2 block">Project Type *</Label>
                     <Select value={projectForm.type} onValueChange={(value) => setProjectForm({...projectForm, type: value})}>
-                      <SelectTrigger>
+                      <SelectTrigger className="border-[#DCDCDC] focus:ring-[#008260] focus:border-[#008260]">
                         <SelectValue placeholder="Select type" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1082,7 +1098,7 @@ export default function InstitutionDashboard() {
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="hourly_rate">Hourly Rate (₹) *</Label>
+                    <Label htmlFor="hourly_rate" className="text-[#000000] font-medium mb-2 block">Hourly Rate (₹) *</Label>
                     <Input
                       id="hourly_rate"
                       type="number"
@@ -1090,11 +1106,12 @@ export default function InstitutionDashboard() {
                       value={projectForm.hourly_rate}
                       onChange={(e) => setProjectForm({...projectForm, hourly_rate: e.target.value})}
                       placeholder="1000"
+                      className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:border-[#008260]"
                       required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="total_budget">Total Budget (₹) *</Label>
+                    <Label htmlFor="total_budget" className="text-[#000000] font-medium mb-2 block">Total Budget (₹) *</Label>
                     <Input
                       id="total_budget"
                       type="number"
@@ -1102,31 +1119,34 @@ export default function InstitutionDashboard() {
                       value={projectForm.total_budget}
                       onChange={(e) => setProjectForm({...projectForm, total_budget: e.target.value})}
                       placeholder="50000"
+                      className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:border-[#008260]"
                       required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="start_date">Start Date *</Label>
+                    <Label htmlFor="start_date" className="text-[#000000] font-medium mb-2 block">Start Date *</Label>
                     <Input
                       id="start_date"
                       type="date"
                       value={projectForm.start_date}
                       onChange={(e) => setProjectForm({...projectForm, start_date: e.target.value})}
+                      className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:border-[#008260]"
                       required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="end_date">End Date *</Label>
+                    <Label htmlFor="end_date" className="text-[#000000] font-medium mb-2 block">End Date *</Label>
                     <Input
                       id="end_date"
                       type="date"
                       value={projectForm.end_date}
                       onChange={(e) => setProjectForm({...projectForm, end_date: e.target.value})}
+                      className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:border-[#008260]"
                       required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="duration_hours">Duration (Hours) *</Label>
+                    <Label htmlFor="duration_hours" className="text-[#000000] font-medium mb-2 block">Duration (Hours) *</Label>
                     <Input
                       id="duration_hours"
                       type="number"
@@ -1134,13 +1154,14 @@ export default function InstitutionDashboard() {
                       value={projectForm.duration_hours}
                       onChange={(e) => setProjectForm({...projectForm, duration_hours: e.target.value})}
                       placeholder="40"
+                      className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:border-[#008260]"
                       required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="domain_expertise">Domain Expertise *</Label>
+                    <Label htmlFor="domain_expertise" className="text-[#000000] font-medium mb-2 block">Domain Expertise *</Label>
                     <Select value={projectForm.domain_expertise} onValueChange={handleDomainChange}>
-                      <SelectTrigger>
+                      <SelectTrigger className="border-[#DCDCDC] focus:ring-[#008260] focus:border-[#008260]">
                         <SelectValue placeholder="Select required domain" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1152,21 +1173,22 @@ export default function InstitutionDashboard() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div>
-                    <Label htmlFor="required_expertise">Additional Skills (comma-separated)</Label>
+                  <div className="md:col-span-2">
+                    <Label htmlFor="required_expertise" className="text-[#000000] font-medium mb-2 block">Additional Skills (comma-separated)</Label>
                     <Input
                       id="required_expertise"
                       value={projectForm.required_expertise}
                       onChange={(e) => setProjectForm({...projectForm, required_expertise: e.target.value})}
                       placeholder="AI, Machine Learning, Data Science"
+                      className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:border-[#008260]"
                     />
                   </div>
                 </div>
                 
                 {/* Subskills Multi-Select */}
                 {projectForm.domain_expertise && availableSubskills.length > 0 && (
-                  <div className='my-3' onClick={(e) => e.stopPropagation()}>
-                    <Label className="text-slate-700" htmlFor="required_specialization">Required Specializations *</Label>
+                  <div className='my-4' onClick={(e) => e.stopPropagation()}>
+                    <Label className="text-[#000000] font-medium mb-2 block" htmlFor="required_specialization">Required Specializations *</Label>
                     <MultiSelect
                       options={availableSubskills}
                       selected={selectedSubskills}
@@ -1177,26 +1199,27 @@ export default function InstitutionDashboard() {
                   </div>
                 )}
                 
-                <div>
-                  <Label htmlFor="description">Description *</Label>
+                <div className="mt-4">
+                  <Label htmlFor="description" className="text-[#000000] font-medium mb-2 block">Description *</Label>
                   <Textarea
                     id="description"
                     value={projectForm.description}
                     onChange={(e) => setProjectForm({...projectForm, description: e.target.value})}
                     placeholder="Describe the project requirements..."
                     rows={4}
+                    className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:border-[#008260]"
                     required
                   />
                 </div>
                 </div>
-                <div className="flex-shrink-0 flex justify-end space-x-2 pt-4 border-t border-slate-200">
-                  <Button variant="outline" onClick={() => setShowEditForm(false)}>
+                <div className="flex-shrink-0 flex justify-end space-x-3 pt-4 border-t border-[#DCDCDC]">
+                  <Button variant="outline" onClick={() => setShowEditForm(false)} className="border-[#DCDCDC] text-[#000000] hover:bg-slate-50">
                     Cancel
                   </Button>
                   <Button 
                     onClick={handleUpdateProject}
                     disabled={submittingProject}
-                    className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300"
+                    className="bg-[#008260] hover:bg-[#006B4F] text-white"
                   >
                     {submittingProject ? 'Updating...' : 'Update Project'}
                   </Button>
@@ -1207,71 +1230,71 @@ export default function InstitutionDashboard() {
 
         {/* Stats Cards */}
         <div className="grid md:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
-            <CardContent className="p-6">
+          <Card className="bg-white border-2 border-[#D6D6D6]">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-slate-600">Total Projects</p>
-                  <p className="text-2xl font-bold text-slate-900">{projects.length}</p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-sm font-medium text-[#000000]">Total Projects</p>
+                  <p className="text-3xl font-bold text-[#000000] my-2">{projects.length}</p>
+                  <p className="text-xs text-[#656565]">
                     {projects.filter(p => p.status === 'open').length} open
                   </p>
                 </div>
-                <div className="p-3 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-full">
-                  <Briefcase className="h-8 w-8 text-white" />
+                <div className="p-3 bg-[#ECF2FF] rounded-full">
+                  <Briefcase className="h-8 w-8 text-[#008260]" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
-            <CardContent className="p-6">
+          <Card className="bg-white border-2 border-[#D6D6D6]">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-slate-600">Applications</p>
-                  <p className="text-2xl font-bold text-slate-900">
+                  <p className="text-sm font-medium text-[#000000]">Applications</p>
+                  <p className="text-3xl font-bold text-[#000000] my-2">
                     {projects.reduce((total, project) => total + (project.applicationCounts?.total || 0), 0)}
                   </p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-[#656565]">
                     {projects.reduce((total, project) => total + (project.applicationCounts?.pending || 0), 0)} pending
                   </p>
                 </div>
-                <div className="p-3 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-full">
-                  <Users className="h-8 w-8 text-white" />
+                <div className="p-3 bg-[#ECF2FF] rounded-full">
+                  <Users className="h-8 w-8 text-[#008260]" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
-            <CardContent className="p-6">
+          <Card className="bg-white border-2 border-[#D6D6D6]">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-slate-600">Active Bookings</p>
-                  <p className="text-2xl font-bold text-slate-900">
+                  <p className="text-sm font-medium text-[#000000]">Active Bookings</p>
+                  <p className="text-3xl font-bold text-[#000000] my-2">
                     {bookingCounts.in_progress}
                   </p>
-                  <p className="text-xs text-slate-500">in progress</p>
+                  <p className="text-xs text-[#656565]">in progress</p>
                 </div>
-                <div className="p-3 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-full">
-                  <BookOpen className="h-8 w-8 text-white" />
+                <div className="p-3 bg-[#ECF2FF] rounded-full">
+                  <BookOpen className="h-8 w-8 text-[#008260]" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
-            <CardContent className="p-6">
+          <Card className="bg-white border-2 border-[#D6D6D6]">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-slate-600">Completed</p>
-                  <p className="text-2xl font-bold text-slate-900">
+                  <p className="text-sm font-medium text-[#000000]">Completed</p>
+                  <p className="text-3xl font-bold text-[#000000] my-2">
                     {bookingCounts.completed}
                   </p>
-                  <p className="text-xs text-slate-500">bookings</p>
+                  <p className="text-xs text-[#656565]">bookings</p>
                 </div>
-                <div className="p-3 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 rounded-full">
-                  <CheckCircle className="h-8 w-8 text-white" />
+                <div className="p-3 bg-[#ECF2FF] rounded-full">
+                  <CheckCircle className="h-8 w-8 text-[#008260]" />
                 </div>
               </div>
             </CardContent>
@@ -1302,8 +1325,8 @@ export default function InstitutionDashboard() {
         <div className="space-y-6">
           <Card className="bg-white border-2 border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
             <CardHeader>
-              <CardTitle className="text-2xl font-bold text-slate-900">My Projects</CardTitle>
-              <CardDescription className="text-slate-600">
+              <CardTitle className="text-lg font-semibold text-[#000000]">My Projects</CardTitle>
+              <CardDescription className="text-[#000000] font-normal text-base !-mt-[2px]">
                 Manage your posted projects and track their progress
               </CardDescription>
             </CardHeader>
@@ -1320,34 +1343,54 @@ export default function InstitutionDashboard() {
                     {projects.map((project: any) => (
                       <div 
                         key={project.id} 
-                        className="bg-white border-2 border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all duration-300 group"
+                        className="bg-white border border-[#DCDCDC] rounded-lg p-4 sm:p-6 transition-all duration-300 group"
                       >
-                        <div className="flex items-center justify-between mb-2 min-w-0">
-                          <h3 className="font-semibold text-lg text-slate-900 truncate pr-2">{project.title}</h3>
-                          <div className="flex items-center space-x-2 flex-shrink-0">
-                            <Badge variant="outline" className="capitalize border-slate-300 text-slate-700">{project.status}</Badge>
-                            <Badge variant="secondary" className="capitalize bg-slate-100 text-slate-700">{project.type}</Badge>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                          <h3 className="font-bold text-base sm:text-lg text-[#000000]">{project.title}</h3>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 px-3 sm:py-2 sm:px-4">{project.status}</Badge>
+                            <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 px-3 sm:py-2 sm:px-4">{project.type}</Badge>
                           </div>
                         </div>
-                        <p className="text-sm text-slate-600 mb-3 line-clamp-2">{project.description}</p>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-sm">
-                          <div>
-                            <span className="text-slate-500">Rate:</span>
-                            <p className="font-medium text-slate-900">₹{project.hourly_rate}/hour</p>
+                        <p className="text-sm text-[#6A6A6A] mb-3 line-clamp-2">{project.description}</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 text-sm">
+                          <div className="flex items-start gap-2.5 sm:gap-3">
+                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+                              <Clock className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[#717171] text-xs">Rate:</span>
+                              <p className="font-semibold text-[#008260] text-sm sm:text-base truncate">₹{project.hourly_rate}/hour</p>
+                            </div>
                           </div>
-                          <div>
-                            <span className="text-slate-500">Duration:</span>
-                            <p className="font-medium text-slate-900">{project.duration_hours} hours</p>
+                          <div className='flex items-start gap-2.5 sm:gap-3'>
+                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+                              <Hourglass className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[#717171] text-xs">Duration:</span>
+                              <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">{project.duration_hours} hours</p>
+                            </div>
                           </div>
-                          <div>
-                            <span className="text-slate-500">Budget:</span>
-                            <p className="font-medium text-slate-900">₹{project.total_budget}</p>
+                          <div className='flex items-start gap-2.5 sm:gap-3'>
+                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+                              <IndianRupee className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
+                            </div> 
+                            <div className="min-w-0">
+                              <span className="text-[#717171] text-xs">Budget:</span>
+                              <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">₹{project.total_budget}</p>
+                            </div>
                           </div>
-                          <div>
-                            <span className="text-slate-500">Applications:</span>
-                            <p className="font-medium text-slate-900">
-                              {project.applicationCounts?.total}
-                            </p>
+                          <div className="flex items-start gap-2.5 sm:gap-3">
+                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+                              <FileText className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[#717171] text-xs">Applications:</span>
+                              <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">
+                                {project.applicationCounts?.total}
+                              </p>
+                            </div>
                           </div>
                         </div>
                         {project.required_expertise && project.required_expertise.length > 0 && (
@@ -1370,20 +1413,20 @@ export default function InstitutionDashboard() {
                             <Button 
                               size="sm" 
                               variant="outline" 
-                              className="flex-1 sm:flex-none border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50 text-slate-700 hover:text-blue-700"
+                              className="flex-1 sm:flex-none bg-[#ECF2FF] rounded-[25px] text-[#1D1D1D] font-medium text-[13px]"
                               onClick={() => handleViewApplications(project)}
                               disabled={!project.applicationCounts?.total}
                             >
-                              <Eye className="h-4 w-4 mr-2" />
+                              <Eye className="h-4 w-4" />
                               View Applications ({project.applicationCounts?.pending || 0})
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => handleEditProject(project)} className="flex-1 sm:flex-none border-2 border-slate-300 hover:border-blue-400 hover:bg-blue-50 text-slate-700 hover:text-blue-700">
-                              <Edit className="h-4 w-4 mr-2" />
+                            <Button size="sm" variant="outline" onClick={() => handleEditProject(project)} className="flex-1 sm:flex-none bg-[#ECF2FF] rounded-[25px] text-[#1D1D1D] font-semibold text-[13px]">
+                              <Edit className="h-4 w-4" />
                               Edit
                             </Button>
                             {project.status === 'open' && (
-                              <Button size="sm" variant="outline" onClick={() => handleCloseProject(project.id)} className="flex-1 sm:flex-none border-2 border-slate-300 hover:border-red-400 hover:bg-red-50 text-slate-700 hover:text-red-700">
-                                <XCircle className="h-4 w-4 mr-2" />
+                              <Button size="sm" variant="outline" onClick={() => handleCloseProjectClick(project.id)} className="flex-1 sm:flex-none bg-[#9B0000] hover:bg-[#9B0000] rounded-[25px] text-white hover:text-white font-semibold text-[13px]">
+                                <XCircle className="h-4 w-4" />
                                 Close
                               </Button>
                             )}
@@ -1416,7 +1459,24 @@ export default function InstitutionDashboard() {
           </Card>
         </div>
         </div>
+
+        {/* Close Project Confirmation */}
+        <AlertDialog open={showCloseConfirm} onOpenChange={setShowCloseConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Close Project?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to close this project? This action will mark the project as closed and it will no longer be visible to experts.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmCloseProject} className="bg-[#9B0000] hover:bg-[#800000]">
+                Yes, Close Project
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
-    
-  )
-}
+    )
+  }

@@ -218,9 +218,9 @@ export default function FeedbackFormPage() {
 
   if (!studentData || !universityData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-[#ECF2FF] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-16 h-16 border-4 border-[#008260]/30 border-t-[#008260] rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-slate-600">Loading your feedback sessions...</p>
         </div>
       </div>
@@ -230,8 +230,8 @@ export default function FeedbackFormPage() {
   const currentSession = getCurrentSession()
   if (!currentSession) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+      <div className="min-h-screen bg-[#ECF2FF] flex items-center justify-center p-4">
+        <Card className="w-full max-w-md bg-white border-2 border-[#D6D6D6] rounded-lg shadow-sm">
           <CardContent className="p-6 text-center">
             <p className="text-slate-600">Loading sessions...</p>
           </CardContent>
@@ -244,80 +244,79 @@ export default function FeedbackFormPage() {
   const isLastSession = currentSessionIndex === sessions.length - 1
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden p-4">
-      {/* Background Elements */}
-      <div className="absolute inset-0">
-        <div className="absolute top-20 left-20 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-20 right-20 w-80 h-80 bg-indigo-500/5 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-blue-300/10 to-indigo-300/10 rounded-full blur-3xl"></div>
-      </div>
-
-      <div className="max-w-4xl mx-auto relative z-10">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <Logo size="lg" />
+    <div className="min-h-screen bg-[#ECF2FF]">
+      {/* Header */}
+      <header className="bg-[#008260] border-b-2 border-[#006d51] sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-center">
+            <Logo size="header" />
           </div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Session Feedback Form</h1>
-          <p className="text-slate-600">
+        </div>
+      </header>
+
+      <div className="max-w-4xl mx-auto p-4 sm:p-6">
+        {/* Page Title */}
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">Session Feedback Form</h1>
+          <p className="text-sm sm:text-base text-slate-600">
             Welcome, {studentData.student_name} from {universityData.name}
           </p>
         </div>
 
         {/* Progress Indicator */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-sm font-medium text-slate-300">
+        <div className="mb-6 sm:mb-8">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <span className="text-xs sm:text-sm font-medium text-slate-600">
               Session {currentSessionIndex + 1} of {sessions.length}
             </span>
-            <span className="text-sm text-slate-400">
+            <span className="text-xs sm:text-sm text-slate-600">
               {sessions.filter(s => isSessionCompleted(s.session_type)).length} completed
             </span>
           </div>
           <div className="w-full bg-slate-200 rounded-full h-2">
             <div 
-              className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 h-2 rounded-full transition-all duration-300"
+              className="bg-[#008260] h-2 rounded-full transition-all duration-300"
               style={{ width: `${((currentSessionIndex + 1) / sessions.length) * 100}%` }}
             ></div>
           </div>
         </div>
 
         {/* Session Cards */}
-        <div className="grid gap-6 mb-8">
+        <div className="grid gap-4 sm:gap-6 mb-6 sm:mb-8">
           {sessions.map((session, index) => (
             <Card 
               key={session.id} 
               className={`transition-all duration-300 ${
                 index === currentSessionIndex 
-                  ? 'bg-white border-2 border-blue-300 shadow-sm hover:shadow-md' 
-                  : 'bg-white/80 border-2 border-slate-200'
+                  ? 'bg-white border-2 border-[#008260] shadow-md' 
+                  : 'bg-white/80 border-2 border-[#D6D6D6]'
               } ${
                 isSessionCompleted(session.session_type) 
-                  ? 'ring-1 ring-green-300' 
+                  ? 'ring-2 ring-green-500/30' 
                   : ''
-              }`}
+              } rounded-lg`}
             >
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between text-slate-900">
-                  <span className="flex items-center space-x-2">
-                    <GraduationCap className="h-5 w-5 text-blue-600" />
+              <CardHeader className="pb-3 sm:pb-4">
+                <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-slate-900">
+                  <span className="flex items-center space-x-2 text-base sm:text-lg">
+                    <GraduationCap className="h-5 w-5 text-[#008260] flex-shrink-0" />
                     <span>{session.session_type === 'ET' ? 'Emerging Technologies' : 'Prompt Engineering'}</span>
                   </span>
                   {isSessionCompleted(session.session_type) && (
-                    <CheckCircle className="h-6 w-6 text-green-500" />
+                    <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-green-500 flex-shrink-0" />
                   )}
                 </CardTitle>
-                <CardDescription className="text-slate-600">
+                <CardDescription className="text-xs sm:text-sm text-slate-600">
                   {session.topic} - {session.expert_name}
                 </CardDescription>
               </CardHeader>
                
               {index === currentSessionIndex && !isSessionCompleted(session.session_type) && (
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6">
                   {/* Rating Selection */}
                   <div className="space-y-3">
-                    <Label className="text-base font-medium text-slate-900">How would you rate this session?</Label>
-                    <div className="grid grid-cols-2 gap-4">
+                    <Label className="text-sm sm:text-base font-medium text-slate-900">How would you rate this session?</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       {RATING_OPTIONS.map((option) => {
                         const Icon = option.icon
                         return (
@@ -329,13 +328,13 @@ export default function FeedbackFormPage() {
                               value={option.value}
                               checked={feedbackData[session.id]?.rating === option.value}
                               onChange={(e) => handleFeedbackChange(session.id, 'rating', e.target.value)}
-                              className="h-4 w-4 text-blue-600 border-slate-300 focus:ring-blue-600 bg-white"
+                              className="h-4 w-4 text-[#008260] border-[#D6D6D6] focus:ring-[#008260] bg-white"
                             />
                             <label 
                               htmlFor={`${session.id}-${option.value}`}
-                              className={`flex items-center space-x-2 cursor-pointer ${option.color}`}
+                              className={`flex items-center space-x-2 cursor-pointer ${option.color} text-sm sm:text-base`}
                             >
-                              <Icon className="h-4 w-4" />
+                              <Icon className="h-4 w-4 flex-shrink-0" />
                               <span className="text-slate-900">{option.label}</span>
                             </label>
                           </div>
@@ -346,47 +345,47 @@ export default function FeedbackFormPage() {
 
                   {/* Pros */}
                   <div className="space-y-2">
-                    <Label htmlFor={`pros-${session.id}`} className="text-slate-900">What did you like about this session?</Label>
+                    <Label htmlFor={`pros-${session.id}`} className="text-sm sm:text-base text-slate-900">What did you like about this session?</Label>
                     <Textarea
                       id={`pros-${session.id}`}
                       placeholder="Share the positive aspects..."
                       value={feedbackData[session.id]?.pros || ''}
                       onChange={(e) => handleFeedbackChange(session.id, 'pros', e.target.value)}
                       rows={3}
-                      className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:ring-blue-500 focus:border-blue-500"
+                      className="bg-white border-[#D6D6D6] text-slate-900 placeholder:text-slate-400 focus:ring-[#008260] focus:border-[#008260] text-sm sm:text-base"
                     />
                   </div>
 
                   {/* Cons */}
                   <div className="space-y-2">
-                    <Label htmlFor={`cons-${session.id}`} className="text-slate-900">What could be improved?</Label>
+                    <Label htmlFor={`cons-${session.id}`} className="text-sm sm:text-base text-slate-900">What could be improved?</Label>
                     <Textarea
                       id={`cons-${session.id}`}
                       placeholder="Share areas for improvement..."
                       value={feedbackData[session.id]?.cons || ''}
                       onChange={(e) => handleFeedbackChange(session.id, 'cons', e.target.value)}
                       rows={3}
-                      className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:ring-blue-500 focus:border-blue-500"
+                      className="bg-white border-[#D6D6D6] text-slate-900 placeholder:text-slate-400 focus:ring-[#008260] focus:border-[#008260] text-sm sm:text-base"
                     />
                   </div>
 
                   {/* Additional Comments */}
                   <div className="space-y-2">
-                    <Label htmlFor={`comments-${session.id}`} className="text-slate-900">Additional Comments (Optional)</Label>
+                    <Label htmlFor={`comments-${session.id}`} className="text-sm sm:text-base text-slate-900">Additional Comments (Optional)</Label>
                     <Textarea
                       id={`comments-${session.id}`}
                       placeholder="Any other feedback or suggestions..."
                       value={feedbackData[session.id]?.additionalComments || ''}
                       onChange={(e) => handleFeedbackChange(session.id, 'additionalComments', e.target.value)}
                       rows={2}
-                      className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:ring-blue-500 focus:border-blue-500"
+                      className="bg-white border-[#D6D6D6] text-slate-900 placeholder:text-slate-400 focus:ring-[#008260] focus:border-[#008260] text-sm sm:text-base"
                     />
                   </div>
 
                   {/* Submit Button */}
                   <Button
                     onClick={() => handleSubmitFeedback(session.id)}
-                    className="w-full bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white font-bold py-6 shadow-sm hover:shadow-md transition-all"
+                    className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium sm:font-bold py-5 sm:py-6 rounded-lg shadow-sm hover:shadow-md transition-all text-sm sm:text-base"
                     disabled={loading || !feedbackData[session.id]?.rating}
                   >
                     {loading ? 'Submitting...' : 'Submit Feedback'}
