@@ -344,7 +344,7 @@ export default function ExpertProfileSetup() {
       <header className="relative bg-[#008260] shadow-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-           
+            <Logo size="header" />
             <Link href="/contact-us">
               <Button variant="ghost" className="font-medium text-white hover:text-white hover:bg-white/10 transition-all duration-300 px-4 py-2 text-sm">
                 Contact Us
@@ -392,7 +392,7 @@ export default function ExpertProfileSetup() {
                       placeholder="Enter your full name"
                       value={formData.name}
                       onChange={(e) => handleInputChange('name', e.target.value)}
-                      className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
+                      className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300"
                       required
                     />
                   </div>
@@ -404,7 +404,7 @@ export default function ExpertProfileSetup() {
                       placeholder="Enter your phone number"
                       value={formData.phone}
                       onChange={(e) => handleInputChange('phone', e.target.value)}
-                      className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
+                      className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300"
                       required
                     />
                   </div>
@@ -418,7 +418,7 @@ export default function ExpertProfileSetup() {
                     value={formData.bio}
                     onChange={(e) => handleInputChange('bio', e.target.value)}
                     rows={4}
-                    className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
+                    className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300"
                     required
                   />
                 </div>
@@ -431,14 +431,14 @@ export default function ExpertProfileSetup() {
                     value={formData.qualifications}
                     onChange={(e) => handleInputChange('qualifications', e.target.value)}
                     rows={3}
-                    className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
+                    className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300"
                   />
                   <p className="text-xs text-slate-500">Brief summary of your qualifications (optional)</p>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="qualifications_pdf" className="text-slate-700">Qualifications Documents (PDF)</Label>
-                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center hover:border-blue-400 transition-colors">
+                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center hover:border-[#008260] transition-colors">
                     <input
                       type="file"
                       id="qualifications_pdf"
@@ -449,7 +449,7 @@ export default function ExpertProfileSetup() {
                     <label htmlFor="qualifications_pdf" className="cursor-pointer">
                       <FileText className="mx-auto h-12 w-12 text-slate-400 mb-4" />
                       <p className="text-sm text-slate-600 mb-2">
-                        <span className="font-medium text-blue-600 hover:text-blue-500">
+                        <span className="font-medium text-[#008260] hover:text-[#006d51]">
                           Click to upload
                         </span>{' '}
                         or drag and drop
@@ -460,11 +460,11 @@ export default function ExpertProfileSetup() {
                   
                   {/* Qualifications PDF Preview */}
                   {selectedQualifications && (
-                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="mt-3 p-3 bg-[#008260]/10 border border-[#008260]/30 rounded-lg">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
-                          <FileText className="h-5 w-5 text-blue-600" />
-                          <span className="text-sm font-medium text-blue-900 break-all">
+                          <FileText className="h-5 w-5 text-[#008260]" />
+                          <span className="text-sm font-medium text-slate-900 break-all">
                             {selectedQualifications.name}
                           </span>
                         </div>
@@ -499,7 +499,7 @@ export default function ExpertProfileSetup() {
                   {/* Photo Upload Area */}
                   <div className="space-y-4">
                     {!photoPreview ? (
-                      <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center hover:border-blue-400 transition-colors duration-300">
+                      <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center hover:border-[#008260] transition-colors duration-300">
                         <input
                           type="file"
                           id="profile_photo"
@@ -509,8 +509,8 @@ export default function ExpertProfileSetup() {
                         />
                         <label htmlFor="profile_photo" className="cursor-pointer">
                           <div className="space-y-3">
-                            <div className="mx-auto w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center">
-                              <Upload className="h-8 w-8 text-slate-400" />
+                            <div className="mx-auto w-16 h-16 bg-[#008260]/10 rounded-full flex items-center justify-center">
+                              <Upload className="h-8 w-8 text-[#008260]" />
                             </div>
                             <div>
                               <p className="text-slate-600 font-medium">Click to upload photo</p>
@@ -524,9 +524,9 @@ export default function ExpertProfileSetup() {
                         <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 overflow-hidden">
                           {/* Top row: Avatar and Remove button */}
                           <div className="flex items-center justify-between mb-3">
-                            <Avatar className="w-20 h-20 border-4 border-blue-200 flex-shrink-0">
+                            <Avatar className="w-20 h-20 border-4 border-[#008260]/30 flex-shrink-0">
                               <AvatarImage src={photoPreview} />
-                              <AvatarFallback className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+                              <AvatarFallback className="text-2xl font-bold bg-[#008260] text-white">
                                 {formData.name?.charAt(0) || 'E'}
                               </AvatarFallback>
                             </Avatar>
@@ -581,7 +581,7 @@ export default function ExpertProfileSetup() {
                   <div className="space-y-2">
                     <Label htmlFor="domain_expertise" className="text-slate-700">Domain Expertise *</Label>
                     <Select value={formData.domain_expertise} onValueChange={handleDomainChange}>
-                      <SelectTrigger className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300">
+                      <SelectTrigger className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300">
                         <SelectValue placeholder="Select your primary domain" />
                       </SelectTrigger>
                       <SelectContent>
@@ -617,7 +617,7 @@ export default function ExpertProfileSetup() {
                       placeholder="Enter years of experience"
                       value={formData.experience_years}
                       onChange={(e) => handleInputChange('experience_years', e.target.value)}
-                      className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
+                      className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300"
                     />
                   </div>
                 </div>
@@ -626,14 +626,14 @@ export default function ExpertProfileSetup() {
                   <div className="space-y-2">
                     <Label htmlFor="hourly_rate" className="text-slate-700">Hourly Rate (₹) *</Label>
                     <div className="relative">
-                    <IndianRupee className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                    <IndianRupee className="absolute left-3 top-3 h-4 w-4 text-[#008260]" />
                       <Input
                         id="hourly_rate"
                         type="number"
                         placeholder="Enter your hourly rate"
                         value={formData.hourly_rate}
                         onChange={(e) => handleInputChange('hourly_rate', e.target.value)}
-                        className="pl-10 border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
+                        className="pl-10 border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300"
                         required
                       />
                     </div>
@@ -646,14 +646,14 @@ export default function ExpertProfileSetup() {
                       placeholder="https://linkedin.com/in/yourprofile"
                       value={formData.linkedin_url}
                       onChange={(e) => handleInputChange('linkedin_url', e.target.value)}
-                      className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
+                      className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="resume" className="text-slate-700">Resume/CV (PDF)</Label>
-                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center hover:border-blue-400 transition-colors">
+                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center hover:border-[#008260] transition-colors">
                     <input
                       type="file"
                       id="resume"
@@ -664,7 +664,7 @@ export default function ExpertProfileSetup() {
                     <label htmlFor="resume" className="cursor-pointer">
                       <FileText className="mx-auto h-12 w-12 text-slate-400 mb-4" />
                       <p className="text-sm text-slate-600 mb-2">
-                        <span className="font-medium text-blue-600 hover:text-blue-500">
+                        <span className="font-medium text-[#008260] hover:text-[#006d51]">
                           Click to upload
                         </span>{' '}
                         or drag and drop
@@ -675,11 +675,11 @@ export default function ExpertProfileSetup() {
                   
                   {/* Resume Preview */}
                   {selectedResume && (
-                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="mt-3 p-3 bg-[#008260]/10 border border-[#008260]/30 rounded-lg">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
-                          <FileText className="h-5 w-5 text-blue-600" />
-                          <span className="text-sm font-medium text-blue-900 break-all">
+                          <FileText className="h-5 w-5 text-[#008260]" />
+                          <span className="text-sm font-medium text-slate-900 break-all">
                             {selectedResume.name}
                           </span>
                         </div>
