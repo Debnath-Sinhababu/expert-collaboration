@@ -290,7 +290,10 @@ app.post('/api/experts', upload.fields([
       rating: req.body.rating || 0.00,
       total_ratings: req.body.total_projects || 0,
       experience_years: req.body.experience_years || 0,
-      linkedin_url: req.body.linkedin_url || ''
+      linkedin_url: req.body.linkedin_url || '',
+      last_working_company: req.body.last_working_company || null,
+      expert_types: Array.isArray(req.body.expert_types) ? req.body.expert_types : (req.body.expert_types ? JSON.parse(req.body.expert_types) : []),
+      available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true
     };
     
     const { data, error } = await supabaseClient
@@ -397,7 +400,13 @@ app.put('/api/experts/:id', upload.fields([
 
     if (fetchError) throw fetchError;
 
-    let updateData = { ...req.body, domain_expertise: [req.body.domain_expertise.trim()] };
+    let updateData = { 
+      ...req.body, 
+      domain_expertise: [req.body.domain_expertise.trim()],
+      last_working_company: req.body.last_working_company || null,
+      expert_types: Array.isArray(req.body.expert_types) ? req.body.expert_types : (req.body.expert_types ? JSON.parse(req.body.expert_types) : []),
+      available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true
+    };
     
     // Handle profile photo update if new photo is uploaded
     if (req.files?.profile_photo?.[0]) {

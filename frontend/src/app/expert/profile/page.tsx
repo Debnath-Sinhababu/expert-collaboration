@@ -11,7 +11,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { GraduationCap, DollarSign, ArrowLeft, Save, Edit, User, Shield, Star, Briefcase, Calendar, Globe, Upload, Camera, X, FileText, IndianRupee, Link2 } from 'lucide-react'
+import { GraduationCap, DollarSign, ArrowLeft, Save, Edit, User, Shield, Star, Briefcase, Calendar, Globe, Upload, Camera, X, FileText, IndianRupee, Link2, Info, Building2 } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { MultiSelect } from '@/components/ui/multi-select'
@@ -42,7 +43,10 @@ export default function ExpertProfile() {
     photo_url: '',
     experience_years: '',
     phone: '',
-    linkedin_url: ''
+    linkedin_url: '',
+    last_working_company: '',
+    expert_types: [] as string[],
+    available_on_demand: false
   })
 
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
@@ -92,7 +96,10 @@ export default function ExpertProfile() {
             photo_url: expertProfile.photo_url || '',
             experience_years: expertProfile.experience_years?.toString() || '',
             phone: expertProfile.phone || '',
-            linkedin_url: expertProfile.linkedin_url || ''
+            linkedin_url: expertProfile.linkedin_url || '',
+            last_working_company: expertProfile.last_working_company || '',
+            expert_types: expertProfile.expert_types || [],
+            available_on_demand: expertProfile.available_on_demand || false
           })
           
           // Set subskills state
@@ -253,6 +260,14 @@ export default function ExpertProfile() {
         throw new Error('Please fill in all required fields')
       }
 
+      if (!formData.last_working_company?.trim()) {
+        throw new Error('Please enter your last working company')
+      }
+
+      if (formData.expert_types.length === 0) {
+        throw new Error('Please select at least one expert type')
+      }
+
       if (expert?.id) {
         // Update existing profile
         if (selectedPhoto || selectedResume || selectedQualifications) {
@@ -268,6 +283,9 @@ export default function ExpertProfile() {
           formDataToSend.append('linkedin_url', formData.linkedin_url)
           formDataToSend.append('domain_expertise', formData.domain_expertise)
           formDataToSend.append('subskills', JSON.stringify(formData.subskills))
+          formDataToSend.append('last_working_company', formData.last_working_company)
+          formDataToSend.append('expert_types', JSON.stringify(formData.expert_types))
+          formDataToSend.append('available_on_demand', String(formData.available_on_demand))
 
           // Add the photo file if selected
           if (selectedPhoto) {
@@ -551,6 +569,20 @@ export default function ExpertProfile() {
                 </p>
               </div>
             </div>
+
+            {expert?.last_working_company && (
+              <div className="flex items-center gap-3 p-3 bg-[#ECF2FF] rounded-xl">
+                <div className="w-10 h-10 bg-[#008260] rounded-full flex items-center justify-center">
+                  <Building2 className="h-5 w-5 text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-slate-600">Last Working Company</p>
+                  <p className="text-base font-bold text-slate-900">
+                    {expert.last_working_company}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Action Buttons */}
@@ -907,6 +939,61 @@ export default function ExpertProfile() {
                       </div>
                     </div>
 
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="last_working_company" className="text-slate-700">Last Working Company *</Label>
+                        <Input
+                          id="last_working_company"
+                          placeholder="Enter your last company name"
+                          value={formData.last_working_company}
+                          onChange={(e) => handleInputChange('last_working_company', e.target.value)}
+                          className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
+                          disabled={!editing}
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2 min-w-0 max-w-full overflow-hidden">
+                        <Label className="text-slate-700">Expert Type *</Label>
+                        <MultiSelect
+                          options={['Guest Faculty', 'Visiting Faculty', 'Industry Experts']}
+                          selected={formData.expert_types}
+                          onSelectionChange={(types) => setFormData(prev => ({ ...prev, expert_types: types }))}
+                          placeholder="Select expert types..."
+                          className="w-full min-w-0"
+                          disabled={!editing}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="available_on_demand"
+                          checked={formData.available_on_demand}
+                          onChange={(e) => setFormData(prev => ({ ...prev, available_on_demand: e.target.checked }))}
+                          className="w-4 h-4 border-slate-300 rounded text-[#008260] focus:ring-[#008260] focus:ring-offset-0"
+                          disabled={!editing}
+                        />
+                        <Label htmlFor="available_on_demand" className="text-slate-700 cursor-pointer flex items-center gap-2">
+                          Are you available on demand?
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="h-4 w-4 text-slate-400 hover:text-[#008260] cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                <p className="text-sm">
+                                  By checking this, you agree to be available immediately when a requirement is posted and will be connected with institutions right away.
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </Label>
+                      </div>
+                    </div>
+
                     <div className="space-y-2">
                       <Label htmlFor="resume" className="text-slate-700">Resume/CV (PDF)</Label>
                       {editing ? (
@@ -984,7 +1071,7 @@ export default function ExpertProfile() {
                     <div className="flex justify-end pt-6">
                       <Button
                         type="submit"
-                         className="bg-[#008260] rounded-md w-[150px]"
+                         className="bg-[#008260] hover:bg-[#006d51] text-white rounded-md w-[150px]"
                         disabled={saving}
                       >
                         <Save className="h-4 w-4 mr-1" />
