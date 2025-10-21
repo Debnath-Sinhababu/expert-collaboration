@@ -12,7 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { MultiSelect } from '@/components/ui/multi-select'
-import { Upload, Calendar, DollarSign, X, Camera, FileText, Download, Check, IndianRupee } from 'lucide-react'
+import { Upload, Calendar, DollarSign, X, Camera, FileText, Download, Check, IndianRupee, Info } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -63,7 +64,10 @@ export default function ExpertProfileSetup() {
     availability: [] as string[],
     experience_years: '',
     phone: '',
-    linkedin_url: ''
+    linkedin_url: '',
+    last_working_company: '',
+    expert_types: [] as string[],
+    available_on_demand: false
   })
 
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
@@ -262,6 +266,18 @@ export default function ExpertProfileSetup() {
         return
       }
 
+      if (!formData.last_working_company?.trim()) {
+        toast.error('Please enter your last working company')
+        setSaving(false)
+        return
+      }
+
+      if (formData.expert_types.length === 0) {
+        toast.error('Please select at least one expert type')
+        setSaving(false)
+        return
+      }
+
       if (!selectedPhoto) {
         toast.error('Please upload a profile photo')
         setSaving(false)
@@ -286,6 +302,9 @@ export default function ExpertProfileSetup() {
       formDataToSend.append('experience_years', formData.experience_years)
       formDataToSend.append('linkedin_url', formData.linkedin_url)
       formDataToSend.append('availability', JSON.stringify(formData.availability))
+      formDataToSend.append('last_working_company', formData.last_working_company)
+      formDataToSend.append('expert_types', JSON.stringify(formData.expert_types))
+      formDataToSend.append('available_on_demand', String(formData.available_on_demand))
       
       // Add the photo file
       if (selectedPhoto) {
@@ -651,6 +670,58 @@ export default function ExpertProfileSetup() {
                   </div>
                 </div>
 
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="last_working_company" className="text-slate-700">Last Working Company *</Label>
+                    <Input
+                      id="last_working_company"
+                      placeholder="Enter your last company name"
+                      value={formData.last_working_company}
+                      onChange={(e) => handleInputChange('last_working_company', e.target.value)}
+                      className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2 min-w-0 max-w-full overflow-hidden">
+                    <Label className="text-slate-700">Expert Type *</Label>
+                    <MultiSelect
+                      options={['Guest Faculty', 'Visiting Faculty', 'Industry Experts']}
+                      selected={formData.expert_types}
+                      onSelectionChange={(types) => setFormData(prev => ({ ...prev, expert_types: types }))}
+                      placeholder="Select expert types..."
+                      className="w-full min-w-0"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="available_on_demand"
+                      checked={formData.available_on_demand}
+                      onChange={(e) => setFormData(prev => ({ ...prev, available_on_demand: e.target.checked }))}
+                      className="w-4 h-4 border-slate-300 rounded text-[#008260] focus:ring-[#008260] focus:ring-offset-0"
+                    />
+                    <Label htmlFor="available_on_demand" className="text-slate-700 cursor-pointer flex items-center gap-2">
+                      Are you available on demand?
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="h-4 w-4 text-slate-400 hover:text-[#008260] cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            <p className="text-sm">
+                              By checking this, you agree to be available immediately when a requirement is posted and will be connected with institutions right away.
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </Label>
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="resume" className="text-slate-700">Resume/CV (PDF)</Label>
                   <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center hover:border-[#008260] transition-colors">
@@ -711,7 +782,7 @@ export default function ExpertProfileSetup() {
                 </Link>
                 <Button
                   type="button"
-                  className="bg-[#008260] rounded-md w-[150px]"
+                  className="bg-[#008260] hover:bg-[#006d51] text-white rounded-md w-[150px]"
                   disabled={saving}
                   onClick={handleSubmit}
                 >

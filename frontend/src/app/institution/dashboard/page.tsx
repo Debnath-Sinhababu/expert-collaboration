@@ -843,14 +843,14 @@ export default function InstitutionDashboard() {
                 
                 {/* Subskills Multi-Select */}
                 {projectForm.domain_expertise && availableSubskills.length > 0 && (
-                  <div className='my-3' onClick={(e) => e.stopPropagation()}>
+                  <div className='my-3 min-w-0 max-w-full overflow-hidden' onClick={(e) => e.stopPropagation()}>
                     <Label className="text-slate-700" htmlFor="required_specialization">Required Specializations *</Label>
                     <MultiSelect
                       options={availableSubskills}
                       selected={selectedSubskills}
                       onSelectionChange={handleSubskillChange}
                       placeholder="Select required specializations..."
-                      className="w-full"
+                      className="w-full min-w-0"
                     />
                   </div>
                 )}
@@ -1187,14 +1187,14 @@ export default function InstitutionDashboard() {
                 
                 {/* Subskills Multi-Select */}
                 {projectForm.domain_expertise && availableSubskills.length > 0 && (
-                  <div className='my-4' onClick={(e) => e.stopPropagation()}>
+                  <div className='my-4 min-w-0 max-w-full overflow-hidden' onClick={(e) => e.stopPropagation()}>
                     <Label className="text-[#000000] font-medium mb-2 block" htmlFor="required_specialization">Required Specializations *</Label>
                     <MultiSelect
                       options={availableSubskills}
                       selected={selectedSubskills}
                       onSelectionChange={handleSubskillChange}
                       placeholder="Select required specializations..."
-                      className="w-full"
+                      className="w-full min-w-0"
                     />
                   </div>
                 )}
