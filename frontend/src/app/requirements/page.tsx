@@ -226,9 +226,9 @@ export default function RequirementsPage() {
                 {expertsProjects.map((project) => (
                   <CarouselItem key={project.id} className="pl-4 md:basis-1/2 lg:basis-1/3">
                     <Card className="bg-white border border-[#E0E0E0] rounded-2xl hover:shadow-lg transition-all h-full">
-                      <CardContent className="p-6">
+                      <CardContent className="p-6 pb-3">
                         <div className="flex justify-between items-start mb-6">
-                          <h3 className="text-lg font-bold text-[#000000] line-clamp-2 flex-1 pr-2">
+                          <h3 className="text-lg font-bold text-[#000000] truncate flex-1 pr-2">
                             {project.title}
                           </h3>
                           <Badge variant="outline" className="bg-[#FFF4E6] text-[#FF9800] border-[#FFE0B2] text-xs px-2 py-1 rounded-md flex-shrink-0">
@@ -254,6 +254,13 @@ export default function RequirementsPage() {
                               </div>
                             </div>
                           )}
+                           <Button size="lg" className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium rounded-lg"
+                           onClick={() => {
+                            router.push(`/auth/login`)
+                          }}
+                           >
+                          Apply Now
+                        </Button>
                         </div>
                       </CardContent>
                     </Card>
@@ -300,9 +307,9 @@ export default function RequirementsPage() {
                 {internships.map((internship) => (
                   <CarouselItem key={internship.id} className="pl-4 md:basis-1/2 lg:basis-1/3">
                     <Card className="bg-white border border-[#E0E0E0] rounded-2xl hover:shadow-lg transition-all h-full">
-                      <CardContent className="p-6">
+                      <CardContent className="p-6 pb-3">
                         <div className="flex justify-between items-start mb-6">
-                          <h3 className="text-lg font-bold text-[#000000] line-clamp-2 flex-1 pr-2">
+                          <h3 className="text-lg font-bold text-[#000000] truncate flex-1 pr-2">
                             {internship.title}
                           </h3>
                           <Badge variant="outline" className="bg-[#FFF4E6] text-[#FF9800] border-[#FFE0B2] text-xs px-2 py-1 rounded-md flex-shrink-0">
@@ -335,6 +342,13 @@ export default function RequirementsPage() {
                               </div>
                             </div>
                           )}
+                           <Button size="lg" className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium rounded-lg"
+                           onClick={() => {
+                            router.push(`/auth/login`)
+                          }}
+                           >
+                          Apply Now
+                        </Button>
                         </div>
                       </CardContent>
                     </Card>
@@ -381,9 +395,9 @@ export default function RequirementsPage() {
                 {freelanceProjects.map((project) => (
                   <CarouselItem key={project.id} className="pl-4 md:basis-1/2 lg:basis-1/3">
                     <Card className="bg-white border border-[#E0E0E0] rounded-2xl hover:shadow-lg transition-all h-full">
-                      <CardContent className="p-6">
+                      <CardContent className="p-6 pb-3">
                         <div className="flex justify-between items-start mb-6">
-                          <h3 className="text-lg font-bold text-[#000000] line-clamp-2 flex-1 pr-2">
+                          <h3 className="text-lg font-bold text-[#000000] line-clamp-2 flex-1 pr-2 truncate">
                             {project.title}
                           </h3>
                           <Badge variant="outline" className="bg-[#FFF4E6] text-[#FF9800] border-[#FFE0B2] text-xs px-2 py-1 rounded-md flex-shrink-0">
@@ -422,6 +436,13 @@ export default function RequirementsPage() {
                               </div>
                             </div>
                           )}
+                             <Button size="lg" className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium rounded-lg"
+                           onClick={() => {
+                            router.push(`/auth/login`)
+                          }}
+                           >
+                          Apply Now
+                        </Button>
                         </div>
                       </CardContent>
                     </Card>
