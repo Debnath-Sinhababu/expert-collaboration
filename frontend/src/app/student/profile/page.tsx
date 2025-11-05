@@ -110,6 +110,10 @@ export default function StudentProfile() {
                 Home
                 <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
+              <Link href="/student/dashboard" className="text-white font-medium transition-colors duration-200 relative group">
+                Dashboard
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
+              </Link>
             </nav>
 
             <div className="flex items-center space-x-4">
@@ -270,6 +274,38 @@ export default function StudentProfile() {
               </CardContent>
             </Card>
 
+            {/* Academic Performance Card */}
+            {(student?.class_10th_percentage || student?.class_12th_percentage || student?.cgpa_percentage) && (
+              <Card className="bg-white border border-slate-200 rounded-xl shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <GraduationCap className="h-5 w-5 text-[#008260]" />
+                    <h2 className="text-lg font-semibold text-slate-900">Academic Performance</h2>
+                  </div>
+                  <div className="space-y-3">
+                    {student?.class_10th_percentage && (
+                      <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                        <span className="text-slate-600">Class 10th</span>
+                        <span className="text-slate-900 font-semibold">{student.class_10th_percentage}%</span>
+                      </div>
+                    )}
+                    {student?.class_12th_percentage && (
+                      <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                        <span className="text-slate-600">Class 12th</span>
+                        <span className="text-slate-900 font-semibold">{student.class_12th_percentage}%</span>
+                      </div>
+                    )}
+                    {student?.cgpa_percentage && (
+                      <div className="flex items-center justify-between py-2">
+                        <span className="text-slate-600">CGPA</span>
+                        <span className="text-slate-900 font-semibold">{student.cgpa_percentage}%</span>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Skills Card */}
             {student?.skills && Array.isArray(student.skills) && student.skills.length > 0 && (
               <Card className="bg-white border border-slate-200 rounded-xl shadow-sm">
@@ -331,6 +367,20 @@ export default function StudentProfile() {
                       <Button variant="outline" className="w-full border-[#008260] text-[#008260] hover:bg-[#ECF2FF] rounded-lg py-6 font-medium">
                         <Globe className="h-4 w-4 mr-2" />
                         Portfolio
+                      </Button>
+                    </a>
+                  )}
+
+                  {student?.documents_url && (
+                    <a 
+                      href={student.documents_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="block"
+                    >
+                      <Button variant="outline" className="w-full border-[#008260] text-[#008260] hover:bg-[#ECF2FF] rounded-lg py-6 font-medium">
+                        <FileText className="h-4 w-4 mr-2" />
+                        View Documents (PDF)
                       </Button>
                     </a>
                   )}

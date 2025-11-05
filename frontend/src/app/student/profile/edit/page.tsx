@@ -52,11 +52,16 @@ export default function StudentProfileEdit() {
     linkedin_url: '',
     github_url: '',
     portfolio_url: '',
-    about: ''
+    about: '',
+    class_10th_percentage: '',
+    class_12th_percentage: '',
+    cgpa_percentage: ''
   })
 
   const [resumeFile, setResumeFile] = useState<File | null>(null)
   const [resumeError, setResumeError] = useState('')
+  const [documentsFile, setDocumentsFile] = useState<File | null>(null)
+  const [documentsError, setDocumentsError] = useState('')
   const [degreeOpen, setDegreeOpen] = useState(false)
   const [degreeHighlight, setDegreeHighlight] = useState(0)
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
@@ -102,7 +107,10 @@ export default function StudentProfileEdit() {
           linkedin_url: s.linkedin_url || '',
           github_url: s.github_url || '',
           portfolio_url: s.portfolio_url || '',
-          about: s.about || ''
+          about: s.about || '',
+          class_10th_percentage: s.class_10th_percentage ? String(s.class_10th_percentage) : '',
+          class_12th_percentage: s.class_12th_percentage ? String(s.class_12th_percentage) : '',
+          cgpa_percentage: s.cgpa_percentage ? String(s.cgpa_percentage) : ''
         })
       } catch (e: any) {
         setError(e.message || 'Failed to load profile')
@@ -126,6 +134,21 @@ export default function StudentProfileEdit() {
   const removeResume = () => {
     setResumeFile(null)
     setResumeError('')
+  }
+
+  const handleDocumentsSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.type !== 'application/pdf') { setDocumentsError('Please select a PDF file'); return }
+    if (file.size > 20 * 1024 * 1024) { setDocumentsError('Max size 20MB'); return }
+    setDocumentsError('')
+    setDocumentsFile(file)
+    if (e.target) e.target.value = ''
+  }
+
+  const removeDocuments = () => {
+    setDocumentsFile(null)
+    setDocumentsError('')
   }
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -163,6 +186,15 @@ export default function StudentProfileEdit() {
     if (!form.preferred_work_mode) { toast.error('Select work mode'); return false }
     if (!form.education_start_date) { toast.error('Select education start'); return false }
     if (!form.currently_studying && !form.education_end_date) { toast.error('Select education end'); return false }
+    if (!form.class_10th_percentage.trim()) { toast.error('Enter Class 10th percentage'); return false }
+    if (!form.class_12th_percentage.trim()) { toast.error('Enter Class 12th percentage'); return false }
+    if (!form.cgpa_percentage.trim()) { toast.error('Enter CGPA percentage'); return false }
+    const class10Percent = parseFloat(form.class_10th_percentage)
+    const class12Percent = parseFloat(form.class_12th_percentage)
+    const cgpaPercent = parseFloat(form.cgpa_percentage)
+    if (isNaN(class10Percent) || class10Percent < 0 || class10Percent > 100) { toast.error('Class 10th percentage must be between 0 and 100'); return false }
+    if (isNaN(class12Percent) || class12Percent < 0 || class12Percent > 100) { toast.error('Class 12th percentage must be between 0 and 100'); return false }
+    if (isNaN(cgpaPercent) || cgpaPercent < 0 || cgpaPercent > 100) { toast.error('CGPA percentage must be between 0 and 100'); return false }
     return true
   }
 
@@ -173,7 +205,7 @@ export default function StudentProfileEdit() {
     setSaving(true)
     setError('')
     try {
-      if (resumeFile || selectedPhoto) {
+      if (resumeFile || selectedPhoto || documentsFile) {
         const fd = new FormData()
         Object.entries({
           ...form,
@@ -181,8 +213,16 @@ export default function StudentProfileEdit() {
           currently_studying: String(!!form.currently_studying),
           education_end_date: form.currently_studying ? '' : (form.education_end_date || '')
         }).forEach(([k, v]) => fd.append(k as string, v as string))
+        // Explicitly preserve existing URLs if files are not being replaced
+        if (!resumeFile && student?.resume_url) {
+          fd.append('resume_url', student.resume_url)
+        }
+        if (!documentsFile && student?.documents_url) {
+          fd.append('documents_url', student.documents_url)
+        }
         if (resumeFile) fd.append('resume', resumeFile)
         if (selectedPhoto) fd.append('profile_photo', selectedPhoto)
+        if (documentsFile) fd.append('documents', documentsFile)
         const token = (await supabase.auth.getSession()).data.session?.access_token
         const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
         const res = await fetch(`${API_BASE_URL}/api/students/${student.id}`, {
@@ -198,7 +238,11 @@ export default function StudentProfileEdit() {
           skills: form.skills.split(',').map(s => s.trim()).filter(Boolean),
           currently_studying: !!form.currently_studying,
           education_end_date: form.currently_studying ? null : (form.education_end_date || null),
+          class_10th_percentage: form.class_10th_percentage ? parseFloat(form.class_10th_percentage) : null,
+          class_12th_percentage: form.class_12th_percentage ? parseFloat(form.class_12th_percentage) : null,
+          cgpa_percentage: form.cgpa_percentage ? parseFloat(form.cgpa_percentage) : null,
           resume_url: student?.resume_url || null,
+          documents_url: student?.documents_url || null,
           updated_at: new Date().toISOString()
         }
         await api.students.update(student.id, payload)
@@ -238,6 +282,10 @@ export default function StudentProfileEdit() {
             <nav className="hidden md:flex items-center space-x-8">
               <Link href="/student/home" className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
                 Home
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
+              </Link>
+              <Link href="/student/dashboard" className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
+                 Dashboard
                 <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
             </nav>
@@ -525,7 +573,7 @@ export default function StudentProfileEdit() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="specialization" className="text-[#000000] font-medium">Specialization *</Label>
+                    <Label htmlFor="specialization" className="text-[#000000] font-medium">Branch(Specialization) *</Label>
                     <Input
                       id="specialization"
                       value={form.specialization}
@@ -718,6 +766,57 @@ export default function StudentProfileEdit() {
                 </div>
               </div>
 
+              {/* Academic Performance */}
+              <div className="space-y-4">
+                <h3 className="text-base font-semibold text-[#000000] flex items-center space-x-2 pb-2 border-b border-[#ECECEC]">
+                  <span>Academic Performance</span>
+                </h3>
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="class_10th_percentage" className="text-[#000000] font-medium">Class 10th Percentage (%) *</Label>
+                    <Input
+                      id="class_10th_percentage"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      placeholder="e.g., 85.5"
+                      value={form.class_10th_percentage}
+                      onChange={(e) => setForm(prev => ({ ...prev, class_10th_percentage: e.target.value }))}
+                      className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="class_12th_percentage" className="text-[#000000] font-medium">Class 12th Percentage (%) *</Label>
+                    <Input
+                      id="class_12th_percentage"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      placeholder="e.g., 88.5"
+                      value={form.class_12th_percentage}
+                      onChange={(e) => setForm(prev => ({ ...prev, class_12th_percentage: e.target.value }))}
+                      className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="cgpa_percentage" className="text-[#000000] font-medium">CGPA Percentage (%) *</Label>
+                    <Input
+                      id="cgpa_percentage"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      placeholder="e.g., 85.5"
+                      value={form.cgpa_percentage}
+                      onChange={(e) => setForm(prev => ({ ...prev, cgpa_percentage: e.target.value }))}
+                      className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]"
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* About */}
               <div className="space-y-4">
                 <h3 className="text-base font-semibold text-[#000000] flex items-center space-x-2 pb-2 border-b border-[#ECECEC]">
@@ -817,6 +916,88 @@ export default function StudentProfileEdit() {
                     </div>
                   )}
                   {resumeError && <Alert variant="destructive"><AlertDescription>{resumeError}</AlertDescription></Alert>}
+                </div>
+              </div>
+
+              {/* Documents Upload */}
+              <div className="space-y-4">
+                <h3 className="text-base font-semibold text-[#000000] flex items-center space-x-2 pb-2 border-b border-[#ECECEC]">
+                  <FileText className="h-5 w-5 text-[#008260]" />
+                  <span>Additional Documents</span>
+                </h3>
+                
+                <div className="space-y-2">
+                  <Label className="text-[#000000] font-medium">Additional Documents (PDF)</Label>
+                  <p className="text-xs text-slate-500 mb-2">Optional - Upload certificates, transcripts, etc. PDF files only, max 20MB</p>
+                  {documentsFile ? (
+                    <div className="p-4 bg-[#ECF2FF] rounded-lg border border-slate-200">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <FileText className="h-5 w-5 text-[#008260] flex-shrink-0" />
+                          <span className="text-sm text-slate-700 break-all">{documentsFile.name}</span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={removeDocuments}
+                          className="text-red-600 border-red-300 hover:bg-red-50 hover:border-red-400 hover:text-red-700 transition-all duration-300 px-2 py-1 h-6 text-xs flex-shrink-0 ml-2"
+                        >
+                          <X className="h-3 w-3 mr-1" />
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  ) : student?.documents_url ? (
+                    <div className="p-4 bg-[#ECF2FF] rounded-lg border border-slate-200">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-5 w-5 text-[#008260]" />
+                          <span className="text-sm text-slate-700">Current documents uploaded</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <input
+                            type="file"
+                            id="documents_change"
+                            accept=".pdf"
+                            onChange={handleDocumentsSelect}
+                            className="hidden"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => document.getElementById('documents_change')?.click()}
+                            className="border-[#008260] text-[#008260] hover:bg-[#ECF2FF] transition-all duration-300 px-3 py-1 h-8 text-xs"
+                          >
+                            Change
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-[#008260] transition-colors">
+                      <input
+                        type="file"
+                        id="documents"
+                        accept=".pdf"
+                        onChange={handleDocumentsSelect}
+                        className="hidden"
+                      />
+                      <label htmlFor="documents" className="cursor-pointer">
+                        <div className="space-y-3">
+                          <div className="mx-auto w-16 h-16 bg-[#E8F5F1] rounded-lg flex items-center justify-center">
+                            <Upload className="h-8 w-8 text-[#008260]" />
+                          </div>
+                          <div>
+                            <p className="text-[#008260] font-medium">Click to upload <span className='text-slate-600'>documents</span></p>
+                            <p className="text-sm text-slate-500">PDF only, max 20MB</p>
+                          </div>
+                        </div>
+                      </label>
+                    </div>
+                  )}
+                  {documentsError && <Alert variant="destructive"><AlertDescription>{documentsError}</AlertDescription></Alert>}
                 </div>
               </div>
 

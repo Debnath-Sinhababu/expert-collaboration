@@ -46,10 +46,15 @@ export default function StudentProfileSetup() {
     resume_url: '',
     linkedin_url: '',
     github_url: '',
-    portfolio_url: ''
+    portfolio_url: '',
+    class_10th_percentage: '',
+    class_12th_percentage: '',
+    cgpa_percentage: ''
   })
   const [resumeFile, setResumeFile] = useState<File | null>(null)
   const [resumeError, setResumeError] = useState('')
+  const [documentsFile, setDocumentsFile] = useState<File | null>(null)
+  const [documentsError, setDocumentsError] = useState('')
   const [degreeOpen, setDegreeOpen] = useState(false)
   const [degreeHighlight, setDegreeHighlight] = useState(0)
   const [photoFile, setPhotoFile] = useState<File | null>(null)
@@ -79,6 +84,16 @@ export default function StudentProfileSetup() {
     if (file.size > 20 * 1024 * 1024) { setResumeError('Max size 20MB'); return }
     setResumeError('')
     setResumeFile(file)
+    e.target.value = ''
+  }
+
+  const handleDocumentsSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.type !== 'application/pdf') { setDocumentsError('Please select a PDF file'); return }
+    if (file.size > 20 * 1024 * 1024) { setDocumentsError('Max size 20MB'); return }
+    setDocumentsError('')
+    setDocumentsFile(file)
     e.target.value = ''
   }
 
@@ -115,6 +130,15 @@ export default function StudentProfileSetup() {
       if (!form.preferred_work_mode) { toast.error('Select preferred work mode'); setSaving(false); return }
       if (!form.education_start_date) { toast.error('Select education start'); setSaving(false); return }
       if (!form.currently_studying && !form.education_end_date) { toast.error('Select education end'); setSaving(false); return }
+      if (!form.class_10th_percentage.trim()) { toast.error('Enter Class 10th percentage'); setSaving(false); return }
+      if (!form.class_12th_percentage.trim()) { toast.error('Enter Class 12th percentage'); setSaving(false); return }
+      if (!form.cgpa_percentage.trim()) { toast.error('Enter CGPA percentage'); setSaving(false); return }
+      const class10Percent = parseFloat(form.class_10th_percentage)
+      const class12Percent = parseFloat(form.class_12th_percentage)
+      const cgpaPercent = parseFloat(form.cgpa_percentage)
+      if (isNaN(class10Percent) || class10Percent < 0 || class10Percent > 100) { toast.error('Class 10th percentage must be between 0 and 100'); setSaving(false); return }
+      if (isNaN(class12Percent) || class12Percent < 0 || class12Percent > 100) { toast.error('Class 12th percentage must be between 0 and 100'); setSaving(false); return }
+      if (isNaN(cgpaPercent) || cgpaPercent < 0 || cgpaPercent > 100) { toast.error('CGPA percentage must be between 0 and 100'); setSaving(false); return }
       if (!resumeFile) { toast.error('Upload resume (PDF)'); setSaving(false); return }
       const token = (await supabase.auth.getSession()).data.session?.access_token
       const fd = new FormData()
@@ -140,10 +164,14 @@ export default function StudentProfileSetup() {
         skills: form.skills,
         linkedin_url: form.linkedin_url || '',
         github_url: form.github_url || '',
-        portfolio_url: form.portfolio_url || ''
+        portfolio_url: form.portfolio_url || '',
+        class_10th_percentage: form.class_10th_percentage || '',
+        class_12th_percentage: form.class_12th_percentage || '',
+        cgpa_percentage: form.cgpa_percentage || ''
       }).forEach(([k, v]) => fd.append(k, v as string))
       if (resumeFile) fd.append('resume', resumeFile)
       if (photoFile) fd.append('profile_photo', photoFile)
+      if (documentsFile) fd.append('documents', documentsFile)
       const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
       const res = await fetch(`${API_BASE_URL}/api/students`, {
         method: 'POST',
@@ -368,7 +396,7 @@ export default function StudentProfileSetup() {
                   <Input placeholder="e.g. 1998" value={form.year} onChange={(e) => setForm(prev => ({ ...prev, year: e.target.value }))} className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]" />
                 </div>
                 <div>
-                  <Label className="text-[#000000] font-medium mb-2 block">Specialization *</Label>
+                  <Label className="text-[#000000] font-medium mb-2 block">Branch(Specialization) *</Label>
                   <Input placeholder="Enter your specialization" value={form.specialization} onChange={(e) => setForm(prev => ({ ...prev, specialization: e.target.value }))} required className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]" />
                 </div>
               </div>
@@ -442,6 +470,57 @@ export default function StudentProfileSetup() {
                 </div>
               </div>
 
+              {/* Academic Performance */}
+              <div className="space-y-4">
+                <h3 className="text-base font-semibold text-[#000000] flex items-center space-x-2 pb-2 border-b border-[#ECECEC]">
+                  <span>Academic Performance</span>
+                </h3>
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div>
+                    <Label className="text-[#000000] font-medium mb-2 block">Class 10th Percentage (%) *</Label>
+                    <Input 
+                      type="number" 
+                      step="0.01" 
+                      min="0" 
+                      max="100" 
+                      placeholder="e.g., 85.5" 
+                      value={form.class_10th_percentage} 
+                      onChange={(e) => setForm(prev => ({ ...prev, class_10th_percentage: e.target.value }))} 
+                      required 
+                      className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]" 
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[#000000] font-medium mb-2 block">Class 12th Percentage (%) *</Label>
+                    <Input 
+                      type="number" 
+                      step="0.01" 
+                      min="0" 
+                      max="100" 
+                      placeholder="e.g., 88.5" 
+                      value={form.class_12th_percentage} 
+                      onChange={(e) => setForm(prev => ({ ...prev, class_12th_percentage: e.target.value }))} 
+                      required 
+                      className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]" 
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[#000000] font-medium mb-2 block">CGPA Percentage (%) *</Label>
+                    <Input 
+                      type="number" 
+                      step="0.01" 
+                      min="0" 
+                      max="100" 
+                      placeholder="e.g., 87.5" 
+                      value={form.cgpa_percentage} 
+                      onChange={(e) => setForm(prev => ({ ...prev, cgpa_percentage: e.target.value }))} 
+                      required 
+                      className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]" 
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <Label className="text-[#000000] font-medium mb-2 block">LinkedIn Profile URL</Label>
@@ -486,6 +565,37 @@ export default function StudentProfileSetup() {
                   </div>
                 )}
                 {resumeError && <Alert variant="destructive"><AlertDescription>{resumeError}</AlertDescription></Alert>}
+              </div>
+
+              {/* Documents Upload */}
+              <div className="space-y-2">
+                <Label className="text-[#000000] font-medium mb-2 block">Additional Documents (PDF)</Label>
+                <p className="text-xs text-[#6A6A6A] mb-2">Optional - Upload certificates, transcripts, etc. PDF files only, max 20MB</p>
+                <div className="border-2 border-dashed border-[#DCDCDC] rounded-lg p-8 text-center hover:border-[#008260] transition-colors">
+                  <input type="file" id="student_documents" accept=".pdf" onChange={handleDocumentsSelect} className="hidden" />
+                  <label htmlFor="student_documents" className="cursor-pointer">
+                    <div className="space-y-3">
+                      <div className="mx-auto w-16 h-16 bg-[#E8F5F1] rounded-lg flex items-center justify-center">
+                        <Upload className="h-8 w-8 text-[#008260]" />
+                      </div>
+                      <div>
+                        <p className="text-[#008260] font-medium">Click to Upload Documents</p>
+                        <p className="text-xs text-[#6A6A6A]">or Drag & Drop</p>
+                      </div>
+                    </div>
+                  </label>
+                </div>
+                {documentsFile && (
+                  <div className="mt-2 p-3 bg-[#F5F5F5] rounded-md border border-[#DCDCDC]">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-[#000000] truncate">{documentsFile.name}</p>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => { setDocumentsFile(null); setDocumentsError('') }} className="text-[#9B0000] hover:text-[#9B0000] hover:bg-transparent">
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                {documentsError && <Alert variant="destructive"><AlertDescription>{documentsError}</AlertDescription></Alert>}
               </div>
 
              

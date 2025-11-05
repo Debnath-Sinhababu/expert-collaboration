@@ -1478,7 +1478,7 @@ app.get('/api/students/me', async (req, res) => {
 });
 
 // Create student profile
-app.post('/api/students', upload.fields([{ name: 'resume', maxCount: 1 }, { name: 'profile_photo', maxCount: 1 }]), async (req, res) => {
+app.post('/api/students', upload.fields([{ name: 'resume', maxCount: 1 }, { name: 'profile_photo', maxCount: 1 }, { name: 'documents', maxCount: 1 }]), async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -1522,6 +1522,21 @@ app.post('/api/students', upload.fields([{ name: 'resume', maxCount: 1 }, { name
       }
     }
 
+    // Handle optional documents upload
+    let documentsUrl = null;
+    let documentsPublicId = null;
+    if (req.files?.documents?.[0]) {
+      const documentsData = await ImageUploadService.uploadPDF(
+        req.files.documents[0].buffer,
+        'student-documents'
+      );
+      if (!documentsData.success) {
+        return res.status(500).json({ error: `Documents upload failed: ${documentsData.error}` });
+      }
+      documentsUrl = documentsData.url;
+      documentsPublicId = documentsData.publicId;
+    }
+
     const payload = {
       user_id: userId,
       name: body.name,
@@ -1557,6 +1572,11 @@ app.post('/api/students', upload.fields([{ name: 'resume', maxCount: 1 }, { name
       profile_photo_public_id: photoData?.publicId || null,
       profile_photo_thumbnail_url: photoData?.thumbnailUrl || null,
       profile_photo_small_url: photoData?.smallUrl || null,
+      class_10th_percentage: body.class_10th_percentage ? parseFloat(body.class_10th_percentage) : null,
+      class_12th_percentage: body.class_12th_percentage ? parseFloat(body.class_12th_percentage) : null,
+      cgpa_percentage: body.cgpa_percentage ? parseFloat(body.cgpa_percentage) : null,
+      documents_url: documentsUrl || null,
+      documents_public_id: documentsPublicId || null,
     };
 
     const { data, error } = await supabaseClient
@@ -1573,7 +1593,7 @@ app.post('/api/students', upload.fields([{ name: 'resume', maxCount: 1 }, { name
 });
 
 // Update student profile
-app.put('/api/students/:id', upload.fields([{ name: 'resume', maxCount: 1 }, { name: 'profile_photo', maxCount: 1 }]), async (req, res) => {
+app.put('/api/students/:id', upload.fields([{ name: 'resume', maxCount: 1 }, { name: 'profile_photo', maxCount: 1 }, { name: 'documents', maxCount: 1 }]), async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -1594,19 +1614,23 @@ app.put('/api/students/:id', upload.fields([{ name: 'resume', maxCount: 1 }, { n
     // Fetch current profile to manage resume replacement if needed
     const { data: currentProfile, error: currentErr } = await supabaseClient
       .from('site_students')
-      .select('id, user_id, resume_public_id, profile_photo_public_id, photo_url')
+      .select('id, user_id, resume_public_id, profile_photo_public_id, photo_url, documents_public_id')
       .eq('id', req.params.id)
       .eq('user_id', userId)
       .maybeSingle();
     if (currentErr) throw currentErr;
     if (!currentProfile) return res.status(404).json({ error: 'Student profile not found' });
 
-    let resumeUrl = (typeof body.resume_url !== 'undefined' && body.resume_url !== null)
+    let resumeUrl = (typeof body.resume_url !== 'undefined' && body.resume_url !== null && body.resume_url !== '')
       ? body.resume_url
       : currentProfile.resume_url || null;
     let resumePublicId = body.resume_public_id || currentProfile.resume_public_id || null;
     let photoUrl = currentProfile.photo_url || null;
     let photoPublicId = currentProfile.profile_photo_public_id || null;
+    let documentsUrl = (typeof body.documents_url !== 'undefined' && body.documents_url !== null && body.documents_url !== '')
+      ? body.documents_url
+      : currentProfile.documents_url || null;
+    let documentsPublicId = body.documents_public_id || currentProfile.documents_public_id || null;
     // If new resume file uploaded, replace existing
     if (req.files?.resume?.[0]) {
       if (currentProfile.resume_public_id) {
@@ -1639,6 +1663,22 @@ app.put('/api/students/:id', upload.fields([{ name: 'resume', maxCount: 1 }, { n
       photoPublicId = uploaded.publicId;
       var photoThumb = uploaded.thumbnailUrl;
       var photoSmall = uploaded.smallUrl;
+    }
+
+    // If new documents file uploaded, replace existing
+    if (req.files?.documents?.[0]) {
+      if (currentProfile.documents_public_id) {
+        try { await ImageUploadService.deleteImage(currentProfile.documents_public_id); } catch (_) {}
+      }
+      const documentsData = await ImageUploadService.uploadPDF(
+        req.files.documents[0].buffer,
+        'student-documents'
+      );
+      if (!documentsData.success) {
+        return res.status(500).json({ error: `Documents upload failed: ${documentsData.error}` });
+      }
+      documentsUrl = documentsData.url;
+      documentsPublicId = documentsData.publicId;
     }
 
     const updates = {
@@ -1675,6 +1715,11 @@ app.put('/api/students/:id', upload.fields([{ name: 'resume', maxCount: 1 }, { n
       profile_photo_public_id: photoPublicId,
       profile_photo_thumbnail_url: typeof photoThumb !== 'undefined' ? photoThumb : currentProfile.profile_photo_thumbnail_url,
       profile_photo_small_url: typeof photoSmall !== 'undefined' ? photoSmall : currentProfile.profile_photo_small_url,
+      class_10th_percentage: body.class_10th_percentage ? parseFloat(body.class_10th_percentage) : null,
+      class_12th_percentage: body.class_12th_percentage ? parseFloat(body.class_12th_percentage) : null,
+      cgpa_percentage: body.cgpa_percentage ? parseFloat(body.cgpa_percentage) : null,
+      documents_url: documentsUrl,
+      documents_public_id: documentsPublicId,
       updated_at: new Date().toISOString()
     };
 
