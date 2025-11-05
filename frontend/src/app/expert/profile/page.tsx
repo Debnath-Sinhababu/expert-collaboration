@@ -4,63 +4,22 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { GraduationCap, DollarSign, ArrowLeft, Save, Edit, User, Shield, Star, Briefcase, Calendar, Globe, Upload, Camera, X, FileText, IndianRupee, Link2, Info, Building2 } from 'lucide-react'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Star, Shield, Phone, Linkedin, User, GraduationCap, IndianRupee, Calendar, Building2, FileText, Edit, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { MultiSelect } from '@/components/ui/multi-select'
-import { EXPERTISE_DOMAINS } from '@/lib/constants'
 import Logo from '@/components/Logo'
 import NotificationBell from '@/components/NotificationBell'
 import ProfileDropdown from '@/components/ProfileDropdown'
+import { Badge } from '@/components/ui/badge'
 
 export default function ExpertProfile() {
   const [user, setUser] = useState<any>(null)
   const [expert, setExpert] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [editing, setEditing] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+  const [leadingInstitutes, setLeadingInstitutes] = useState<any[]>([])
   const router = useRouter()
-  const [copied, setCopied] = useState(false)
-
-  const [formData, setFormData] = useState({
-    name: '',
-    bio: '',
-    qualifications: '',
-    domain_expertise: '',
-    subskills: [] as string[],
-    resume_url: '',
-    hourly_rate: '',
-    photo_url: '',
-    experience_years: '',
-    phone: '',
-    linkedin_url: '',
-    last_working_company: '',
-    expert_types: [] as string[],
-    available_on_demand: false
-  })
-
-  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
-  const [photoPreview, setPhotoPreview] = useState<string>('')
-  const [photoError, setPhotoError] = useState('')
-  
-  const [selectedResume, setSelectedResume] = useState<File | null>(null)
-  const [resumeError, setResumeError] = useState('')
-  
-  const [selectedQualifications, setSelectedQualifications] = useState<File | null>(null)
-  const [qualificationsError, setQualificationsError] = useState('')
-  
-  const [selectedSubskills, setSelectedSubskills] = useState<string[]>([])
-  const [availableSubskills, setAvailableSubskills] = useState<string[]>([])
 
   useEffect(() => {
     const getUser = async () => {
@@ -81,326 +40,98 @@ export default function ExpertProfile() {
     try {
       const expertProfile = await api.experts.getByUserId(userId)
       
-      
-     
-        if (expertProfile) {
-          setExpert(expertProfile)
-          setFormData({
-            name: expertProfile.name || '',
-            bio: expertProfile.bio || '',
-            qualifications: expertProfile.qualifications || '',
-            domain_expertise: expertProfile.domain_expertise[0] || '',
-            subskills: expertProfile.subskills || [],
-            resume_url: expertProfile.resume_url || '',
-            hourly_rate: expertProfile.hourly_rate?.toString() || '',
-            photo_url: expertProfile.photo_url || '',
-            experience_years: expertProfile.experience_years?.toString() || '',
-            phone: expertProfile.phone || '',
-            linkedin_url: expertProfile.linkedin_url || '',
-            last_working_company: expertProfile.last_working_company || '',
-            expert_types: expertProfile.expert_types || [],
-            available_on_demand: expertProfile.available_on_demand || false
-          })
-          
-          // Set subskills state
-          setSelectedSubskills(expertProfile.subskills || [])
-          
-          // Set available subskills based on domain
-          if (expertProfile.domain_expertise && expertProfile.domain_expertise[0]) {
-            const selectedDomain = EXPERTISE_DOMAINS.find(d => d.name === expertProfile.domain_expertise[0])
-            if (selectedDomain) {
-              setAvailableSubskills([...selectedDomain.subskills])
-            }
-          }
-        }
-      
+      if (expertProfile) {
+        setExpert(expertProfile)
+        await loadLeadingInstitutes(expertProfile.id)
+      }
     } catch (error) {
       console.error('Error loading expert data:', error)
     }
   }
 
-  console.log(formData,'formData')
-
-  const handleCopyLink = async () => {
+  const loadLeadingInstitutes = async (expertId: string) => {
     try {
-      const link = `${window.location.origin}/experts/${expert?.id || ''}`
-      await navigator.clipboard.writeText(link)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
-    } catch (e) {
-      // silent
-    }
-  }
+      // Fetch accepted/completed bookings and applications to get institutions
+      const [bookings, applications] = await Promise.all([
+        api.bookings.getAll({ expert_id: expertId, limit: 100 }).catch(() => []),
+        api.applications.getAll({ expert_id: expertId, status: 'accepted', limit: 100 }).catch(() => [])
+      ])
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-  }
-
-  const handleDomainChange = (domain: string) => {
-    setFormData(prev => ({
-      ...prev,
-      domain_expertise: domain,
-      subskills: [] // Reset subskills when domain changes
-    }))
-    
-    // Find the selected domain and update available subskills
-    const selectedDomain = EXPERTISE_DOMAINS.find(d => d.name === domain)
-    if (selectedDomain) {
-      setAvailableSubskills([...selectedDomain.subskills])
-    } else {
-      setAvailableSubskills([])
-    }
-    
-    // Reset selected subskills
-    setSelectedSubskills([])
-  }
-
-  const handleSubskillChange = (newSubskills: string[]) => {
-    setSelectedSubskills(newSubskills)
-    setFormData(prev => ({
-      ...prev,
-      subskills: newSubskills
-    }))
-  }
-
-  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
-    if (!allowedTypes.includes(file.type)) {
-      setPhotoError('Please select a valid image file (JPEG, PNG, or WebP)')
-      return
-    }
-
-    // Validate file size (5MB limit)
-    if (file.size > 5 * 1024 * 1024) {
-      setPhotoError('File size must be less than 5MB')
-      return
-    }
-
-    setPhotoError('')
-    setSelectedPhoto(file)
-    
-    // Create preview
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      setPhotoPreview(e.target?.result as string)
-    }
-    reader.readAsDataURL(file)
-    e.target.value = ''
-  }
-
-  const removePhoto = () => {
-    setSelectedPhoto(null)
-    setPhotoPreview('')
-    setPhotoError('')
-  }
-
-  const handleResumeSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    // Validate file type
-    if (file.type !== 'application/pdf') {
-      setResumeError('Please select a valid PDF file')
-      return
-    }
-
-    // Validate file size (20MB limit)
-    if (file.size > 20 * 1024 * 1024) {
-      setResumeError('File size must be less than 20MB')
-      return
-    }
-
-    setResumeError('')
-    setSelectedResume(file)
-    e.target.value = ''
-  }
-
-  const removeResume = () => {
-    setSelectedResume(null)
-    setResumeError('')
-  }
-
-  const handleQualificationsSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    // Validate file type
-    if (file.type !== 'application/pdf') {
-      setQualificationsError('Please select a valid PDF file')
-      return
-    }
-
-    // Validate file size (20MB limit)
-    if (file.size > 20 * 1024 * 1024) {
-      setQualificationsError('File size must be less than 20MB')
-      return
-    }
-
-    setQualificationsError('')
-    setSelectedQualifications(file)
-    e.target.value = ''
-  }
-
-  const removeQualifications = () => {
-    setSelectedQualifications(null)
-    setQualificationsError('')
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSaving(true)
-    setError('')
-
-    try {
-      if (!formData.name || !formData.bio || !formData.domain_expertise || !formData.hourly_rate) {
-        throw new Error('Please fill in all required fields')
-      }
-
-      if (!formData.last_working_company?.trim()) {
-        throw new Error('Please enter your last working company')
-      }
-
-      if (formData.expert_types.length === 0) {
-        throw new Error('Please select at least one expert type')
-      }
-
-      if (expert?.id) {
-        // Update existing profile
-        if (selectedPhoto || selectedResume || selectedQualifications) {
-          // Handle file uploads for update
-          console.log(formData,'formData')
-          const formDataToSend = new FormData()
-          formDataToSend.append('name', formData.name)
-          formDataToSend.append('bio', formData.bio)
-          formDataToSend.append('phone', formData.phone)
-          formDataToSend.append('qualifications', formData.qualifications)
-          formDataToSend.append('hourly_rate', formData.hourly_rate.toString())
-          formDataToSend.append('experience_years', formData.experience_years)
-          formDataToSend.append('linkedin_url', formData.linkedin_url)
-          formDataToSend.append('domain_expertise', formData.domain_expertise)
-          formDataToSend.append('subskills', JSON.stringify(formData.subskills))
-          formDataToSend.append('last_working_company', formData.last_working_company)
-          formDataToSend.append('expert_types', JSON.stringify(formData.expert_types))
-          formDataToSend.append('available_on_demand', String(formData.available_on_demand))
-
-          // Add the photo file if selected
-          if (selectedPhoto) {
-            formDataToSend.append('profile_photo', selectedPhoto)
+      const institutionsMap = new Map()
+      
+      // Extract institutions from bookings
+      if (Array.isArray(bookings)) {
+        bookings.forEach((booking: any) => {
+          if (booking.institutions && booking.institutions.id) {
+            const inst = booking.institutions
+            if (!institutionsMap.has(inst.id)) {
+              institutionsMap.set(inst.id, {
+                id: inst.id,
+                name: inst.name,
+                logo_url: inst.logo_url,
+                type: booking.projects?.type || 'contract'
+              })
+            }
           }
-          
-          // Add resume PDF if selected
-          if (selectedResume) {
-            formDataToSend.append('resume', selectedResume)
-          }
-          
-          // Add qualifications PDF if selected
-          if (selectedQualifications) {
-            formDataToSend.append('qualifications', selectedQualifications)
-          }
-
-          // Call the API with FormData
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/experts/${expert.id}`, {
-            method: 'PUT',
-            headers: {
-              'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-            },
-            body: formDataToSend
-          })
-
-          if (!response.ok) {
-            const errorData = await response.json()
-            throw new Error(errorData.error || 'Failed to update profile')
-          }
-        } else {
-          // No photo change, use regular API
-          const expertData = {
-            ...formData,
-            domain_expertise: formData.domain_expertise,
-            subskills: formData.subskills,
-            hourly_rate: parseFloat(formData.hourly_rate),
-            experience_years: parseInt(formData.experience_years) || 0,
-            updated_at: new Date().toISOString(),
-          
-          }
-          await api.experts.update(expert.id, expertData)
-        }
-        
-        setSuccess('Profile updated successfully!')
-      } else {
-        // Create new profile
-        if (!selectedPhoto) {
-          throw new Error('Profile photo is required for new profiles')
-        }
-
-        const formDataToSend = new FormData()
-        formDataToSend.append('user_id', user.id)
-        formDataToSend.append('email', user.email)
-        formDataToSend.append('name', formData.name)
-        formDataToSend.append('bio', formData.bio)
-        formDataToSend.append('phone', formData.phone)
-        formDataToSend.append('qualifications', formData.qualifications)
-        formDataToSend.append('domain_expertise', formData.domain_expertise)
-        formDataToSend.append('subskills', JSON.stringify(formData.subskills))
-        formDataToSend.append('hourly_rate', formData.hourly_rate.toString())
-        formDataToSend.append('experience_years', formData.experience_years)
-        formDataToSend.append('linkedin_url', formData.linkedin_url)
-        
-        // Add the photo file
-        formDataToSend.append('profile_photo', selectedPhoto)
-        
-        // Add resume PDF if selected
-        if (selectedResume) {
-          formDataToSend.append('resume', selectedResume)
-        }
-        
-        // Add qualifications PDF if selected
-        if (selectedQualifications) {
-          formDataToSend.append('qualifications', selectedQualifications)
-        }
-
-        // Call the API with FormData
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/experts`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-          },
-          body: formDataToSend
         })
-
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Failed to create profile')
-        }
-
-        setSuccess('Profile created successfully!')
       }
-      
-      await loadExpertData(user.id)
-      setEditing(false)
-      setSelectedPhoto(null)
-      setPhotoPreview('')
-      setSelectedResume(null)
-      setSelectedQualifications(null)
-      
-      setTimeout(() => {
-        setSuccess('')
-      }, 3000)
-    } catch (error: any) {
-      setError(error.message)
-    } finally {
-      setSaving(false)
+
+      // Extract institutions from applications
+      if (Array.isArray(applications)) {
+        applications.forEach((app: any) => {
+          if (app.projects?.institutions && app.projects.institutions.id) {
+            const inst = app.projects.institutions
+            if (!institutionsMap.has(inst.id)) {
+              institutionsMap.set(inst.id, {
+                id: inst.id,
+                name: inst.name,
+                logo_url: inst.logo_url,
+                type: app.projects?.type || 'contract'
+              })
+            }
+          }
+        })
+      }
+
+      setLeadingInstitutes(Array.from(institutionsMap.values()).slice(0, 4))
+    } catch (error) {
+      console.error('Error loading leading institutes:', error)
     }
+  }
+
+  const formatPhoneNumber = (phone: string) => {
+    if (!phone) return ''
+    // Format as +91 XXXXX XXXXX
+    const cleaned = phone.replace(/\D/g, '')
+    if (cleaned.length === 10) {
+      return `+91 ${cleaned.slice(0, 5)} ${cleaned.slice(5)}`
+    }
+    return phone
+  }
+
+  const getExpertTypeLabel = (type: string) => {
+    const typeMap: Record<string, string> = {
+      'Guest Faculty': 'GF',
+      'Visiting Faculty': 'VF',
+      'Industry Experts': 'IE'
+    }
+    return typeMap[type] || type.substring(0, 2).toUpperCase()
+  }
+
+  const getProjectTypeLabel = (type: string) => {
+    const typeMap: Record<string, string> = {
+      'contract': 'Contract',
+      'internship': 'Internship',
+      'freelance': 'Freelance'
+    }
+    return typeMap[type] || type
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-[#ECF2FF] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#008260] mx-auto mb-4"></div>
           <p className="text-slate-600">Loading profile...</p>
         </div>
       </div>
@@ -408,16 +139,14 @@ export default function ExpertProfile() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-        <header className="bg-[#008260] border-b border-slate-200/20 sticky top-0 z-50 shadow-sm">
+    <div className="min-h-screen bg-[#ECF2FF]">
+      <header className="bg-[#008260] border-b border-slate-200/20 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            {/* Logo */}
             <Link href="/expert/home" className="flex items-center group">
               <Logo size="header" />
             </Link>
 
-            {/* Navigation */}
             <nav className="hidden md:flex items-center space-x-8">
               <Link href="/expert/home" className="text-white font-medium transition-colors duration-200 relative group">
                 Home
@@ -429,7 +158,6 @@ export default function ExpertProfile() {
               </Link>
             </nav>
 
-            {/* Right side */}
             <div className="flex items-center space-x-4">
               <div className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors duration-200">
                 <NotificationBell />
@@ -443,645 +171,279 @@ export default function ExpertProfile() {
           </div>
         </div>
       </header>
-      <div className="container mx-auto px-4 max-w-6xl py-8">
-   
-      
 
-     
-
-        <div className="flex flex-col gap-4">
-          {/* Profile Summary Card */}
-          <div className="flex-1">
-  {/* Profile Header - Outside Card */}
-  <div className="flex flex-col items-center mb-6">
-    <div className="relative mb-4">
-      <Avatar className="w-32 h-32 border-4 border-white shadow-lg">
-        <AvatarImage src={expert?.photo_url} />
-        <AvatarFallback className="text-4xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
-          {expert?.name?.charAt(0) || user?.email?.charAt(0) || 'E'}
-        </AvatarFallback>
-      </Avatar>
-    
-    </div>
-    
-    <h2 className="text-2xl font-bold text-slate-900 mb-2">
-      {expert?.name || 'Expert User'}
-    </h2>
-    
-    {/* Rating Stars */}
-    <div className="flex items-center gap-1 mb-3">
-      <Star className="h-5 w-5 text-yellow-400" fill="currentColor" />
-      <Star className="h-5 w-5 text-yellow-400" fill="currentColor" />
-      <Star className="h-5 w-5 text-yellow-400" fill="currentColor" />
-      <Star className="h-5 w-5 text-yellow-400" fill="currentColor" />
-      <Star className="h-5 w-5 text-slate-300" fill="currentColor" />
-      <span className="ml-2 text-lg font-semibold text-slate-900">4.8</span>
-    </div>
-    
-    {/* Status Badge */}
-    {expert?.is_verified && (
-      <div className="inline-flex items-center gap-2 px-4 py-1 bg-[#8FFFA7] rounded-full border border-[#008260]">
-        <div className="w-5 h-5 rounded-full bg-[#008260] flex items-center justify-center">
-          <Shield className="h-3 w-3 text-white" />
-        </div>
-        <span className="text-[12px] text-[#008260] font-medium">Verified</span>
-      </div>
-    )}
-  </div>
-
-  {/* Main Card */}
-  <Card className="bg-white border border-slate-200 rounded-2xl shadow-sm">
-    <CardContent className="p-4 sm:p-6 lg:p-8">
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
-        {/* ABOUT Section */}
-        <div>
-          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
-            ABOUT
-          </h3>
-          
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm text-slate-500 mb-1">Expertise</p>
-              <p className="text-base font-semibold text-slate-900">
-                {expert?.domain_expertise || 'Engineering'}
-              </p>
-            </div>
-            
-            <div>
-              <p className="text-sm text-slate-500 mb-2">Subskills</p>
-              {expert?.subskills && expert.subskills.length > 0 ? (
-                <div className="space-y-1">
-                  {expert.subskills.slice(0, 3).map((skill: string) => (
-                    <p key={skill} className="text-base font-semibold text-slate-900">
-                      {skill}
-                    </p>
-                  ))}
-                  {expert.subskills.length > 3 && (
-                    <p className="text-sm text-slate-500">
-                      +{expert.subskills.length - 3} more
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <p className="text-base font-semibold text-slate-900">
-                  Electrical Systems
-                </p>
-              )}
-            </div>
-            
-            <div>
-              <p className="text-sm text-slate-500 mb-1">Bio</p>
-              <p className="text-base text-slate-900">
-                {expert?.bio || 'Here is the background in my profession.'}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* DETAILS Section */}
-        <div>
-          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
-            DETAILS
-          </h3>
-          
-          <div className="space-y-3 mb-6">
-            <div className="flex items-center gap-3 p-3 bg-[#ECF2FF] rounded-xl">
-              <div className="w-10 h-10 bg-[#008260] rounded-full flex items-center justify-center">
-                <Calendar className="h-5 w-5 text-white" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm text-slate-600">Experience</p>
-                <p className="text-base font-bold text-slate-900">
-                  {expert?.experience_years || 3} years
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-3 p-3 bg-[#ECF2FF] rounded-xl">
-              <div className="w-10 h-10 bg-[#008260] rounded-full flex items-center justify-center">
-                <IndianRupee className="h-5 w-5 text-white" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm text-slate-600">Hourly Rate</p>
-                <p className="text-base font-bold text-slate-900">
-                  ₹{expert?.hourly_rate || 4300}
-                </p>
-              </div>
-            </div>
-
-            {expert?.last_working_company && (
-              <div className="flex items-center gap-3 p-3 bg-[#ECF2FF] rounded-xl">
-                <div className="w-10 h-10 bg-[#008260] rounded-full flex items-center justify-center">
-                  <Building2 className="h-5 w-5 text-white" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm text-slate-600">Last Working Company</p>
-                  <p className="text-base font-bold text-slate-900">
-                    {expert.last_working_company}
-                  </p>
+      <div className="container mx-auto px-4 max-w-7xl py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column - 2/3 width */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Profile Summary Card */}
+            <Card className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+              {/* Light Gray Header Section */}
+              <div className="bg-[#E3E3E3] h-48 relative">
+                {/* Avatar overlapping both sections - positioned on the left */}
+                <div className="absolute left-6 -bottom-12">
+                  <Avatar className="w-32 h-32 border-4 border-white shadow-lg">
+                    <AvatarImage src={expert?.photo_url} />
+                    <AvatarFallback className="text-4xl font-bold bg-gradient-to-r from-[#008260] to-[#006b4f] text-white">
+                      {expert?.name?.charAt(0) || user?.email?.charAt(0) || 'E'}
+                    </AvatarFallback>
+                  </Avatar>
                 </div>
               </div>
-            )}
-          </div>
 
-          {/* Action Buttons */}
-          <div className="space-y-2">
-            <Button
-              onClick={() => {
-                setEditing(!editing)
-                if(editing){
-                  loadExpertData(user.id)
-                }
-              }}
-              className="w-full bg-[#008260] hover:bg-[#006b4f] text-white rounded-xl py-5 font-medium shadow-sm transition-all duration-200"
-            >
-              <Edit className="h-4 w-4 mr-2" />
-              {editing ? 'Cancel Editing' : 'Edit Profile'}
-            </Button>
-            
-            <Button
-              type="button"
-              onClick={handleCopyLink}
-              className="w-full bg-[#008260] hover:bg-[#006b4f] text-white rounded-xl py-5 font-medium shadow-sm transition-all duration-200"
-            >
-              <Link2 className="h-4 w-4 mr-2" />
-              Copy Profile Link
-            </Button>
-          </div>
-          
-          {copied && (
-            <p className="text-xs text-green-600 mt-2 text-center">Link copied!</p>
-          )}
-        </div>
-      </div>
-    </CardContent>
-  </Card>
-</div>
+              {/* White Content Section */}
+              <CardContent className="pt-20 pb-6 px-6">
+                <div className="flex flex-col">
+                  {/* Name and Rating side by side */}
+                  <div className="flex items-center gap-3 mb-2">
+                    <h1 className="text-2xl font-bold text-slate-900">
+                      {expert?.name || 'Expert User'}
+                    </h1>
+                    <div className="flex items-center gap-1">
+                      <Star className="h-5 w-5 text-yellow-400 fill-current" />
+                      <span className="text-base font-semibold text-slate-700">
+                        {expert?.rating?.toFixed(1) || '4.9'}
+                      </span>
+                    </div>
+                  </div>
 
-          {/* Profile Form Card */}
-          <div className="flex-1">
-            <Card className="bg-white hover:border hover:border-[#008260] p-2 rounded-2xl">
-              <CardHeader>
-                <CardTitle className="text-slate-900">Profile Information</CardTitle>
-                <CardDescription className="text-slate-600">
-                  {editing ? 'Update your profile information and photo below' : 'Your current profile information'}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {error && (
-                  <Alert variant="destructive" className="mb-6">
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
-
-                {success && (
-                  <Alert className="mb-6 bg-green-50/90 backdrop-blur-sm border-green-200">
-                    <AlertDescription className="text-green-700">{success}</AlertDescription>
-                  </Alert>
-                )}
-
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  {/* Basic Information */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-slate-800 flex items-center space-x-2">
-                      <User className="h-5 w-5 text-[#008260]" />
-                      <span>Basic Information</span>
-                    </h3>
-                    
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="name" className="text-slate-700">Full Name *</Label>
-                        <Input
-                          id="name"
-                          placeholder="Enter your full name"
-                          value={formData.name}
-                          onChange={(e) => handleInputChange('name', e.target.value)}
-                          className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
-                          required
-                          disabled={!editing}
-                        />
+                  {/* Domain Expertise, Subskills, and Expert Types */}
+                  <div className="space-y-3 mb-4">
+                    {/* Domain Expertise */}
+                    {expert?.domain_expertise?.[0] && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge 
+                          variant="outline"
+                          className="bg-white text-slate-700 border-slate-300 hover:bg-slate-50 px-3 py-1 text-sm font-medium"
+                        >
+                          {expert.domain_expertise[0]}
+                        </Badge>
                       </div>
+                    )}
 
-                      <div className="space-y-2">
-                        <Label htmlFor="phone" className="text-slate-700">Phone Number *</Label>
-                        <Input
-                          id="phone"
-                          placeholder="Enter your phone number"
-                          value={formData.phone}
-                          onChange={(e) => handleInputChange('phone', e.target.value)}
-                          className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
-                          disabled={!editing}
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="bio" className="text-slate-700">Professional Bio *</Label>
-                      <Textarea
-                        id="bio"
-                        placeholder="Describe your professional background, expertise, and what makes you unique..."
-                        value={formData.bio}
-                        onChange={(e) => handleInputChange('bio', e.target.value)}
-                        rows={4}
-                        className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
-                        required
-                        disabled={!editing}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="qualifications" className="text-slate-700">Qualifications & Certifications</Label>
-                      <Textarea
-                        id="qualifications"
-                        placeholder="List your degrees, certifications, and relevant qualifications..."
-                        value={formData.qualifications}
-                        onChange={(e) => handleInputChange('qualifications', e.target.value)}
-                        rows={3}
-                        className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
-                        disabled={!editing}
-                      />
-                      <p className="text-xs text-slate-500">Brief summary of your qualifications (optional)</p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="qualifications_pdf" className="text-slate-700">Qualifications Documents (PDF)</Label>
-                      {editing ? (
-                        <>
-                          <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center transition-all duration-300">
-                            <input
-                              type="file"
-                              id="qualifications_pdf"
-                              accept=".pdf"
-                              onChange={handleQualificationsSelect}
-                              className="hidden"
-                            />
-                            <label htmlFor="qualifications_pdf" className="cursor-pointer">
-                              <FileText className="mx-auto h-12 w-12 text-[#008260] mb-4" />
-                              <p className="text-sm text-slate-600 mb-2">
-                                <span className="font-medium text-[#008260]">
-                                  Click to upload
-                                </span>{' '}
-                                or drag and drop
-                              </p>
-                              <p className="text-xs text-slate-500">PDF files only, max 20MB (optional)</p>
-                            </label>
-                          </div>
-                          
-                          {/* Qualifications PDF Preview */}
-                          {selectedQualifications && (
-                            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center space-x-2">
-                                  <FileText className="h-5 w-5 text-blue-600" />
-                                  <span className="text-sm font-medium text-blue-900 break-all">
-                                    {selectedQualifications.name}
-                                  </span>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={removeQualifications}
-                                  className="text-red-500 hover:text-red-700"
-                                >
-                                  <X className="h-4 w-4" />
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                          
-                          {qualificationsError && (
-                            <Alert variant="destructive" className="mt-2">
-                              <AlertDescription>{qualificationsError}</AlertDescription>
-                            </Alert>
-                          )}
-                        </>
-                      ) : (
-                        <div className="flex items-center space-x-2">
-                          {expert?.qualifications_url ? (
-                            <>
-                              <FileText className="h-5 w-5 text-blue-600" />
-                              <a
-                                href={expert.qualifications_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:text-blue-800 underline"
-                              >
-                                View Qualifications
-                              </a>
-                            </>
-                          ) : (
-                            <span className="text-slate-500 text-sm">No qualifications document uploaded</span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Profile Photo Upload */}
-                    {editing && (
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="profile_photo" className="text-slate-700 flex items-center space-x-2">
-                            <Camera className="h-5 w-5 text-[#008260]" />
-                            <span>Update Profile Photo</span>
-                          </Label>
-                          <p className="text-sm text-slate-500">Upload a new professional photo (JPEG, PNG, or WebP, max 5MB)</p>
-                        </div>
-
-                        {/* Photo Upload Area */}
-                        <div className="space-y-4">
-                          {!photoPreview ? (
-                            <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center">
-                              <input
-                                type="file"
-                                id="profile_photo"
-                                accept="image/jpeg,image/jpg,image/png,image/webp"
-                                onChange={handlePhotoSelect}
-                                className="hidden"
-                              />
-                              <label htmlFor="profile_photo" className="cursor-pointer">
-                                <div className="space-y-3">
-                                  <div className="mx-auto w-16 h-16 bg-[#ECF2FF] rounded-full flex items-center justify-center">
-                                    <Upload className="h-8 w-8 text-[#008260]" />
-                                  </div>
-                                  <div>
-                                    <p className="text-[#008260] font-medium ">Click to upload <span className='text-slate-600'>new photo </span> </p>
-                                    <p className="text-sm text-slate-500">or drag and drop</p>
-                                  </div>
-                                </div>
-                              </label>
-                            </div>
-                          ) : (
-                            <div className="relative">
-                              <div className="p-4 bg-[#ECF2FF] rounded-lg border border-slate-200 overflow-hidden">
-                                {/* Top row: Avatar and Remove button */}
-                                <div className="flex items-center justify-between mb-3">
-                                  <Avatar className="w-20 h-20 border-4 border-[#008260] flex-shrink-0">
-                                    <AvatarImage src={photoPreview} />
-                                    <AvatarFallback className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
-                                      {formData.name?.charAt(0) || 'E'}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={removePhoto}
-                                    className="text-red-600 border-red-300 hover:bg-red-50 hover:border-red-400 hover:text-red-700 transition-all duration-300 px-2 py-1 h-6 text-xs flex-shrink-0"
-                                  >
-                                    <X className="h-3 w-3 mr-1" />
-                                    Remove
-                                  </Button>
-                                </div>
-                                
-                                {/* Bottom row: Image information */}
-                                <div className="text-center sm:text-left w-full min-w-0">
-                                  <p className="text-sm text-slate-600 font-medium">New photo selected</p>
-                                  <div className="w-full overflow-hidden">
-                                    <p className="text-xs text-slate-500 break-all">{selectedPhoto?.name}</p>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {photoError && (
-                            <Alert variant="destructive">
-                              <AlertDescription>{photoError}</AlertDescription>
-                            </Alert>
-                          )}
-                        </div>
+                    {/* Subskills */}
+                    {expert?.subskills && expert.subskills.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        {expert.subskills.slice(0, 6).map((skill: string, index: number) => (
+                          <Badge 
+                            key={index}
+                            variant="outline"
+                            className="bg-white text-slate-700 border-slate-300 hover:bg-slate-50 px-2.5 py-0.5 text-xs font-normal"
+                          >
+                            {skill}
+                          </Badge>
+                        ))}
+                        {expert.subskills.length > 6 && (
+                          <Badge 
+                            variant="outline"
+                            className="bg-white text-slate-500 border-slate-300 hover:bg-slate-50 px-2.5 py-0.5 text-xs font-normal"
+                          >
+                            +{expert.subskills.length - 6} more
+                          </Badge>
+                        )}
                       </div>
                     )}
                   </div>
 
-                  {/* Professional Details */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-slate-800 flex items-center space-x-2">
-                      <Briefcase className="h-5 w-5 text-[#008260]" />
-                      <span>Professional Details</span>
-                    </h3>
-                    
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="domain_expertise" className="text-slate-700">Domain Expertise *</Label>
-                        <Select value={formData.domain_expertise} onValueChange={handleDomainChange} disabled={!editing}>
-                          <SelectTrigger className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300">
-                            <SelectValue placeholder="Select your primary domain" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {EXPERTISE_DOMAINS.map((domain) => (
-                              <SelectItem key={domain.name} value={domain.name}>
-                                {domain.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                  {/* Contact Information */}
+                  <div className="space-y-2 mt-4">
+                    {expert?.phone && (
+                      <div className="flex items-center gap-2 text-slate-700">
+                        <Phone className="h-5 w-5 text-[#008260]" />
+                        <span className="text-base">{formatPhoneNumber(expert.phone)}</span>
                       </div>
-
-                      {/* Subskills Multi-Select */}
-                      {formData.domain_expertise && availableSubskills.length > 0 && (
-                        <div className="space-y-2 min-w-0 max-w-full overflow-hidden">
-                          <Label className="text-slate-700">Specializations & Skills *</Label>
-                          <MultiSelect
-                            options={availableSubskills}
-                            selected={selectedSubskills}
-                            onSelectionChange={handleSubskillChange}
-                            placeholder="Select your specializations..."
-                            className="w-full"
-                            disabled={!editing}
-                          />
-                        </div>
-                      )}
-
-                      <div className="space-y-2">
-                        <Label htmlFor="experience_years" className="text-slate-700">Years of Experience</Label>
-                        <Input
-                          id="experience_years"
-                          type="number"
-                          placeholder="Enter years of experience"
-                          value={formData.experience_years}
-                          onChange={(e) => handleInputChange('experience_years', e.target.value)}
-                          className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
-                          disabled={!editing}
-                        />
+                    )}
+                    {expert?.linkedin_url && (
+                      <div className="flex items-center gap-2 text-slate-700">
+                        <Linkedin className="h-5 w-5 text-[#008260]" />
+                        <a 
+                          href={expert.linkedin_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-base text-[#008260] hover:text-[#006b4f] hover:underline"
+                        >
+                          {expert.linkedin_url.replace(/^https?:\/\//, '').replace(/^www\./, '')}
+                        </a>
                       </div>
-                    </div>
-
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="hourly_rate" className="text-slate-700">Hourly Rate (₹) *</Label>
-                        <div className="relative">
-                          <IndianRupee className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                          <Input
-                            id="hourly_rate"
-                            type="number"
-                            placeholder="Enter your hourly rate"
-                            value={formData.hourly_rate}
-                            onChange={(e) => handleInputChange('hourly_rate', e.target.value)}
-                            className="pl-10 border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300"
-                            required
-                            disabled={!editing}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="linkedin_url" className="text-slate-700">LinkedIn Profile</Label>
-                        <Input
-                          id="linkedin_url"
-                          placeholder="https://linkedin.com/in/yourprofile"
-                          value={formData.linkedin_url}
-                          onChange={(e) => handleInputChange('linkedin_url', e.target.value)}
-                          className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
-                          disabled={!editing}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="last_working_company" className="text-slate-700">Last Working Company *</Label>
-                        <Input
-                          id="last_working_company"
-                          placeholder="Enter your last company name"
-                          value={formData.last_working_company}
-                          onChange={(e) => handleInputChange('last_working_company', e.target.value)}
-                          className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all duration-300"
-                          disabled={!editing}
-                          required
-                        />
-                      </div>
-
-                      <div className="space-y-2 min-w-0 max-w-full overflow-hidden">
-                        <Label className="text-slate-700">Expert Type *</Label>
-                        <MultiSelect
-                          options={['Guest Faculty', 'Visiting Faculty', 'Industry Experts']}
-                          selected={formData.expert_types}
-                          onSelectionChange={(types) => setFormData(prev => ({ ...prev, expert_types: types }))}
-                          placeholder="Select expert types..."
-                          className="w-full min-w-0"
-                          disabled={!editing}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          id="available_on_demand"
-                          checked={formData.available_on_demand}
-                          onChange={(e) => setFormData(prev => ({ ...prev, available_on_demand: e.target.checked }))}
-                          className="w-4 h-4 border-slate-300 rounded text-[#008260] focus:ring-[#008260] focus:ring-offset-0"
-                          disabled={!editing}
-                        />
-                        <Label htmlFor="available_on_demand" className="text-slate-700 cursor-pointer flex items-center gap-2">
-                          Are you available on demand?
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Info className="h-4 w-4 text-slate-400 hover:text-[#008260] cursor-help" />
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-xs">
-                                <p className="text-sm">
-                                  By checking this, you agree to be available immediately when a requirement is posted and will be connected with institutions right away.
-                                </p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </Label>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="resume" className="text-slate-700">Resume/CV (PDF)</Label>
-                      {editing ? (
-                        <>
-                          <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center transition-all duration-300">
-                            <input
-                              type="file"
-                              id="resume"
-                              accept=".pdf"
-                              onChange={handleResumeSelect}
-                              className="hidden"
-                            />
-                            <label htmlFor="resume" className="cursor-pointer">
-                              <FileText className="mx-auto h-12 w-12 text-[#008260] mb-4" />
-                              <p className="text-sm text-slate-600 mb-2">
-                                <span className="font-medium text-[#008260]">
-                                  Click to upload
-                                </span>{' '}
-                                or drag and drop
-                              </p>
-                              <p className="text-xs text-slate-500">PDF files only, max 20MB</p>
-                            </label>
-                          </div>
-                          
-                          {/* Resume Preview */}
-                          {selectedResume && (
-                            <div className="mt-3 p-3 bg-[#ECF2FF] rounded-lg">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center space-x-2">
-                                  <FileText className="h-5 w-5 text-[#008260]" />
-                                  <span className="text-sm font-medium text-[#008260] break-all">
-                                    {selectedResume.name}
-                                  </span>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={removeResume}
-                                  className="text-red-500 hover:text-red-700"
-                                >
-                                  <X className="h-4 w-4" />
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                          
-                          {resumeError && (
-                            <Alert variant="destructive" className="mt-2">
-                              <AlertDescription>{resumeError}</AlertDescription>
-                            </Alert>
-                          )}
-                        </>
-                      ) : (
-                        <div className="flex items-center space-x-2">
-                          {expert?.resume_url ? (
-                            <>
-                              <FileText className="h-5 w-5 text-blue-600" />
-                              <a
-                                href={expert.resume_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:text-blue-800 underline"
-                              >
-                                View Resume
-                              </a>
-                            </>
-                          ) : (
-                            <span className="text-slate-500 text-sm">No resume uploaded</span>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                    )}
                   </div>
-
-                  {editing && (
-                    <div className="flex justify-end pt-6">
-                      <Button
-                        type="submit"
-                         className="bg-[#008260] hover:bg-[#006d51] text-white rounded-md w-[150px]"
-                        disabled={saving}
-                      >
-                        <Save className="h-4 w-4 mr-1" />
-                        {saving ? 'Saving...' : 'Save Changes'}
-                      </Button>
-                    </div>
-                  )}
-                </form>
+                </div>
               </CardContent>
             </Card>
+
+            {/* Professional Bio Card */}
+            <Card className="bg-white border border-slate-200 rounded-xl shadow-sm">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <User className="h-5 w-5 text-[#008260]" />
+                  <h2 className="text-lg font-semibold text-slate-900">Professional Bio</h2>
+                </div>
+                <p className="text-slate-700 leading-relaxed break-words">
+                  {expert?.bio || 'No bio available.'}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Qualifications & Certifications Card */}
+            <Card className="bg-white border border-slate-200 rounded-xl shadow-sm">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <GraduationCap className="h-5 w-5 text-[#008260]" />
+                  <h2 className="text-lg font-semibold text-slate-900">Qualifications & Certifications</h2>
+                </div>
+                {expert?.qualifications ? (
+                  <div className="space-y-2">
+                    {expert.qualifications.split('\n').filter((line: string) => line.trim()).map((line: string, index: number) => (
+                      <div key={index} className="flex items-start gap-2 break-words">
+                        <span className="text-[#008260] mt-1">•</span>
+                        <span className="text-slate-700 flex-1">{line.trim()}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-slate-500">No qualifications listed.</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right Column - 1/3 width */}
+          <div className="space-y-6">
+            {/* Action Buttons Card */}
+            <Card className="bg-white border border-slate-200 rounded-xl shadow-sm">
+              <CardContent className="p-6">
+                <div className="space-y-3">
+                  <Link href="/expert/profile/edit">
+                    <Button className="w-full bg-[#008260] hover:bg-[#006b4f] text-white rounded-lg py-6 font-medium">
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit Profile
+                    </Button>
+                  </Link>
+                  
+                  {expert?.resume_url && (
+                    <a 
+                      href={expert.resume_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="block"
+                    >
+                      <Button variant="outline" className="w-full border-[#008260] text-[#008260] hover:bg-[#ECF2FF] rounded-lg py-6 font-medium">
+                        <FileText className="h-4 w-4 mr-2" />
+                        View Resume (PDF)
+                      </Button>
+                    </a>
+                  )}
+                  
+                  {expert?.qualifications_url && (
+                    <a 
+                      href={expert.qualifications_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="block"
+                    >
+                      <Button variant="outline" className="w-full border-[#008260] text-[#008260] hover:bg-[#ECF2FF] rounded-lg py-6 font-medium">
+                        <FileText className="h-4 w-4 mr-2" />
+                        View Qualifications (PDF)
+                      </Button>
+                    </a>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Professional Details Card */}
+            <Card className="bg-white border border-slate-200 rounded-xl shadow-sm">
+              <CardContent className="p-6">
+                <h2 className="text-lg font-semibold text-slate-900 mb-4">Professional Details</h2>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                    <span className="text-slate-600">Hourly Rate</span>
+                    <span className="text-slate-900 font-semibold flex items-center gap-1">
+                      <IndianRupee className="h-4 w-4" />
+                      {expert?.hourly_rate || '0'}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                    <span className="text-slate-600">Years of Experience</span>
+                    <span className="text-slate-900 font-semibold">
+                      {expert?.experience_years || 0}+ Years
+                    </span>
+                  </div>
+
+                  {expert?.last_working_company && (
+                    <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                      <span className="text-slate-600">Last Working Company</span>
+                      <span className="text-slate-900 font-semibold text-right max-w-[60%]">
+                        {expert.last_working_company}
+                      </span>
+                    </div>
+                  )}
+
+                  {expert?.expert_types && expert.expert_types.length > 0 && (
+                    <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                      <span className="text-slate-600">Expert Type</span>
+                      <span className="text-slate-900 font-semibold">
+                        {expert.expert_types.join(', ')}
+                      </span>
+                    </div>
+                  )}
+
+                  {expert?.available_on_demand !== undefined && (
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-slate-600">Available on Demand</span>
+                      <div className="flex items-center gap-1">
+                        {expert.available_on_demand ? (
+                          <>
+                            <CheckCircle2 className="h-4 w-4 text-green-600" />
+                            <span className="text-green-600 font-semibold">Yes</span>
+                          </>
+                        ) : (
+                          <span className="text-slate-400 font-semibold">No</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Leading Institutes Card */}
+            {leadingInstitutes.length > 0 && (
+              <Card className="bg-white border border-slate-200 rounded-xl shadow-sm">
+                <CardContent className="p-6">
+                  <h2 className="text-lg font-semibold text-slate-900 mb-4">Leading Institutes</h2>
+                  <div className="space-y-3">
+                    {leadingInstitutes.map((institute) => (
+                      <div 
+                        key={institute.id}
+                        className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
+                      >
+                        <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                          {institute.logo_url ? (
+                            <img 
+                              src={institute.logo_url} 
+                              alt={institute.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <Building2 className="h-5 w-5 text-slate-400" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-slate-900 truncate">
+                            {institute.name}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            Specialization: {getProjectTypeLabel(institute.type)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+            </Card>
+            )}
           </div>
         </div>
       </div>
