@@ -281,7 +281,7 @@ app.post('/api/experts', upload.fields([
       qualifications_url: qualificationsData?.url || null,
       qualifications_public_id: qualificationsData?.publicId || null,
       domain_expertise: req.body.domain_expertise ? [req.body.domain_expertise] : [],
-      subskills: req.body.subskills ? JSON.parse(req.body.subskills) : [],
+      subskills: Array.isArray(req.body.subskills) ? req.body.subskills : (req.body.subskills ? JSON.parse(req.body.subskills) : []),
       hourly_rate: req.body.hourly_rate,
       resume_url: resumeData?.url || null,
       resume_public_id: resumeData?.publicId || null,
@@ -402,7 +402,8 @@ app.put('/api/experts/:id', upload.fields([
 
     let updateData = { 
       ...req.body, 
-      domain_expertise: [req.body.domain_expertise.trim()],
+      domain_expertise: req.body.domain_expertise ? [req.body.domain_expertise.trim()] : [],
+      subskills: Array.isArray(req.body.subskills) ? req.body.subskills : (req.body.subskills ? JSON.parse(req.body.subskills) : []),
       last_working_company: req.body.last_working_company || null,
       expert_types: Array.isArray(req.body.expert_types) ? req.body.expert_types : (req.body.expert_types ? JSON.parse(req.body.expert_types) : []),
       available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true
@@ -721,9 +722,15 @@ app.put('/api/institutions/:id', async (req, res) => {
       console.log('PUT /api/institutions/:id - No auth token, using basic client');
     }
     
+    // Convert empty string to null for company_size to satisfy CHECK constraint
+    const updateData = { ...req.body };
+    if (updateData.company_size === '') {
+      updateData.company_size = null;
+    }
+    
     const { data, error } = await supabaseClient
       .from('institutions')
-      .update(req.body)
+      .update(updateData)
       .eq('id', req.params.id)
       .select();
     
@@ -1529,6 +1536,7 @@ app.post('/api/students', upload.fields([{ name: 'resume', maxCount: 1 }, { name
       city: body.city || null,
       state: body.state || null,
       address: body.address || null,
+      about: body.about || null,
       availability: body.availability || null,
       preferred_engagement: body.preferred_engagement || null,
       preferred_work_mode: body.preferred_work_mode || null,
@@ -1646,6 +1654,7 @@ app.put('/api/students/:id', upload.fields([{ name: 'resume', maxCount: 1 }, { n
       city: body.city || null,
       state: body.state || null,
       address: body.address || null,
+      about: body.about || null,
       availability: body.availability || null,
       preferred_engagement: body.preferred_engagement || null,
       preferred_work_mode: body.preferred_work_mode || null,

@@ -8,10 +8,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Eye, EyeOff, ArrowLeft, Shield, Zap, CheckCircle, Users, GraduationCap } from 'lucide-react'
+import { Eye, EyeOff, ArrowLeft, Shield, Zap, CheckCircle, Users, GraduationCap, Menu } from 'lucide-react'
 import Logo from '@/components/Logo'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -91,17 +92,64 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-white relative overflow-hidden">
       {/* Header */}
-      <header className="relative bg-[#008260] shadow-sm">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <header className="bg-landing-header sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center">
-              <Logo size="header" />
-            </Link>
-            <Link href="/contact-us">
-              <Button variant="ghost" className="font-medium text-white hover:text-white hover:bg-white/10 transition-all duration-300 px-4 py-2 text-sm">
-                Contact Us
-              </Button>
-            </Link>
+            {/* Logo & Brand */}
+            <div className="flex flex-col space-y-1 group">
+              <Link href="/">
+                <Logo size="header" />
+              </Link>
+              <p className="text-xs text-blue-100 font-medium group-hover:text-white transition-colors duration-300 hidden sm:block">knowledge sharing networking platform</p>
+            </div>
+            
+            {/* Navigation & CTA - Desktop */}
+            <div className="hidden sm:flex items-center justify-end gap-2">
+              <Link href="/requirements">
+                <Button variant="ghost" className="font-medium text-white/90 hover:text-white hover:bg-white/10 transition-all duration-300 px-3 py-2 text-sm">Requirements</Button>
+              </Link>
+              <Link href="/solutions">
+                <Button variant="ghost" className="font-medium text-white/90 hover:text-white hover:bg-white/10 transition-all duration-300 px-3 py-2 text-sm">Services</Button>
+              </Link>
+              <Link href="/contact-us">
+                <Button variant="ghost" className="font-medium text-white/90 hover:text-white hover:bg-white/10 transition-all duration-300 px-3 py-2 text-sm">Contact Us</Button>
+              </Link>
+              <Link href="/auth/login">
+                <Button variant="ghost" className="font-medium text-white/90 hover:text-white hover:bg-white/10 transition-all duration-300 px-3 py-2 text-sm">Sign in</Button>
+              </Link>
+              <Link href="/auth/signup">
+                <Button className="bg-white text-[#008260] font-semibold px-4 py-2 text-sm rounded-full shadow-none hover:bg-white/90">Get Started</Button>
+              </Link>
+            </div>
+
+            {/* Navigation - Mobile Menu */}
+            <div className="sm:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="font-medium text-white hover:text-blue-100 hover:bg-white/10 border border-transparent hover:border-white/20 transition-all duration-300 px-3 py-2">
+                    <Menu className="h-5 w-5" />
+                    <span className="sr-only">Open menu</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                  <Link href="/requirements">
+                    <DropdownMenuItem className="cursor-pointer">Requirements</DropdownMenuItem>
+                  </Link>
+                  <Link href="/solutions">
+                    <DropdownMenuItem className="cursor-pointer">Services</DropdownMenuItem>
+                  </Link>
+                  <Link href="/contact-us">
+                    <DropdownMenuItem className="cursor-pointer">Contact Us</DropdownMenuItem>
+                  </Link>
+                  <Link href="/auth/login">
+                    <DropdownMenuItem className="cursor-pointer">Sign In</DropdownMenuItem>
+                  </Link>
+                  <Link href="/auth/signup">
+                    <DropdownMenuItem className="cursor-pointer">Sign Up</DropdownMenuItem>
+                  </Link>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
       </header>
