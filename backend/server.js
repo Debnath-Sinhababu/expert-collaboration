@@ -1286,13 +1286,18 @@ app.get('/api/internships/visible', async (req, res) => {
       .select('*')
       .eq('status', 'open')
       .order('created_at', { ascending: false })
-      .range(offset, offset + parseInt(limit) - 1);
+    
 
-    if (viewerInstitutionId) {
+    
+
+    if (viewerInstitutionId || viewerStudentId) {
+      baseQuery = baseQuery.range(offset, offset + parseInt(limit) - 1);
       // filter via visibility: public OR listed
       // We'll fetch public first; for targeted, we will do a secondary filtered pull if needed
       // Simpler: keep single query and post-filter by checking mapping via an RPC-like approach
       // Since PostgREST doesn't easily support EXISTS with param using JS SDK chaining, we'll fetch broader and filter in JS.
+    } else{
+      baseQuery = baseQuery.eq('visibility_scope', 'public').limit(parseInt(limit));
     }
 
     // Apply filters
@@ -1312,7 +1317,8 @@ app.get('/api/internships/visible', async (req, res) => {
     if (error) throw error;
 
     // Post-filter visibility: keep public; if viewerInstitutionId present, include targeted
-    let filtered = rows?.filter(r => r.visibility_scope === 'public') || [];
+    let filtered = rows.filter(r => r.visibility_scope === 'public') || [];
+    
     let targetedIds = new Set();
     if (viewerInstitutionId) {
       const { data: mappings } = await serviceClient
@@ -1342,7 +1348,19 @@ app.get('/api/internships/visible', async (req, res) => {
       filtered = filtered.filter(r => !appliedIds.has(r.id));
     }
 
-    res.json(filtered);
+    // Attach corporate institution information for each internship
+    const internshipsWithCorporate = await Promise.all(
+      filtered.map(async (internship) => {
+        const { data: corp } = await serviceClient
+          .from('institutions')
+          .select('id, name, logo_url, city, state, country')
+          .eq('id', internship.corporate_institution_id)
+          .maybeSingle();
+        return { ...internship, corporate: corp || null };
+      })
+    );
+
+    res.json(internshipsWithCorporate);
   } catch (error) {
     console.error('Visible internships error:', error);
     res.status(500).json({ error: error.message });
