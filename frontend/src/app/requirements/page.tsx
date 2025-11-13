@@ -344,7 +344,7 @@ export default function RequirementsPage() {
                   <CarouselItem key={internship.id} className="pl-4 md:basis-1/2 lg:basis-1/3">
                     <Card className="bg-white border border-[#E0E0E0] rounded-2xl hover:shadow-lg transition-all h-full">
                       <CardContent className="p-6 pb-3">
-                        <div className="flex justify-between items-start mb-6">
+                        <div className="flex justify-between items-start mb-1">
                           <h3 className="text-lg font-bold text-[#000000] truncate flex-1 pr-2">
                             {internship.title}
                           </h3>
@@ -353,8 +353,19 @@ export default function RequirementsPage() {
                           </Badge>
                         </div>
                         
+                        {/* Corporate Name */}
+                        {internship.corporate?.name && (
+                          <div className="mb-3">
+                            <p className="text-sm text-[#6A6A6A]">{internship.corporate.name}</p>
+                          </div>
+                        )}
+                        
+                        {/* Horizontal Separator */}
+                        <hr className="border-[#E0E0E0] mb-4" />
+                        
                         <div className="space-y-3 mb-6">
-                          {internship.paid && internship.stipend_min && (
+                          {/* Stipend or Unpaid */}
+                          {internship.paid && internship.stipend_min ? (
                             <div className="flex items-start">
                               <Clock className="h-5 w-5 text-[#008260] mr-3 mt-0.5 flex-shrink-0" />
                               <div>
@@ -367,7 +378,15 @@ export default function RequirementsPage() {
                                 </p>
                               </div>
                             </div>
-                          )}
+                          ) : !internship.paid ? (
+                            <div className="flex items-start">
+                              <Clock className="h-5 w-5 text-[#008260] mr-3 mt-0.5 flex-shrink-0" />
+                              <div>
+                                <p className="text-xs text-[#6A6A6A] mb-1">Stipend</p>
+                                <p className="text-base font-semibold text-[#008260]">Unpaid</p>
+                              </div>
+                            </div>
+                          ) : null}
 
                           {internship.work_mode && (
                             <div className="flex items-start">
@@ -375,6 +394,17 @@ export default function RequirementsPage() {
                               <div>
                                 <p className="text-xs text-[#6A6A6A] mb-1">Location</p>
                                 <p className="text-base font-medium text-[#000000]">{internship.work_mode}</p>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Duration */}
+                          {internship.duration_value && internship.duration_unit && (
+                            <div className="flex items-start">
+                              <Calendar className="h-5 w-5 text-[#008260] mr-3 mt-0.5 flex-shrink-0" />
+                              <div>
+                                <p className="text-xs text-[#6A6A6A] mb-1">Duration</p>
+                                <p className="text-base font-medium text-[#000000]">{internship.duration_value} {internship.duration_unit}</p>
                               </div>
                             </div>
                           )}
