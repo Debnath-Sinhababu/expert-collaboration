@@ -292,7 +292,7 @@ export default function RequirementsPage() {
                           )}
                            <Button size="lg" className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium rounded-lg"
                            onClick={() => {
-                            router.push(`/auth/login`)
+                           router.push(`/requirements/contract/${project.id}`)
                           }}
                            >
                           Apply Now
@@ -410,7 +410,7 @@ export default function RequirementsPage() {
                           )}
                            <Button size="lg" className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium rounded-lg"
                            onClick={() => {
-                            router.push(`/auth/login`)
+                            router.push(`/requirements/internship/${internship.id}`)
                           }}
                            >
                           Apply Now
@@ -504,7 +504,7 @@ export default function RequirementsPage() {
                           )}
                              <Button size="lg" className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium rounded-lg"
                            onClick={() => {
-                            router.push(`/auth/login`)
+                            router.push(`/requirements/freelance/${project.id}`)
                           }}
                            >
                           Apply Now
