@@ -9,6 +9,7 @@ import { Carousel, CarouselContent,
   CarouselItem,
   CarouselNext,
   CarouselPrevious, } from '@/components/ui/carousel'
+import { Badge } from '@/components/ui/badge'
 import CountUp from 'react-countup'
 import { useInView } from 'react-intersection-observer'
 import { 
@@ -36,7 +37,8 @@ import {
   DollarSign,
   Network,
   Menu,
-  Verified
+  Verified,
+  MapPin
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -62,6 +64,32 @@ export default function Home() {
   const [exploreActiveIdx, setExploreActiveIdx] = useState(0)
   const [studentActiveIdx, setStudentActiveIdx] = useState(0)
   const [associatedStudents, setAssociatedStudents] = useState<any[]>([])
+  const [studentFeedback, setStudentFeedback] = useState<{ student_name: string; pros: string; rating: 'VERY_GOOD' | 'GOOD' }[]>([])
+
+  // Training programs data
+  const trainingPrograms = [
+    { title: 'Oracle Fusion SCM', location: 'Bangalore', status: 'completed' },
+    { title: 'Oracle Fusion Finance', location: 'Mumbai', status: 'completed' },
+    { title: 'Workday Financials', location: 'Delhi', status: 'ongoing' },
+    { title: 'DC-DC & Char-Con Program', location: 'Hyderabad', status: 'completed' },
+    { title: 'Zuora Billing (Cloud-Based Software)', location: 'Pune', status: 'upcoming' },
+    { title: 'Android AOSP', location: 'Chennai', status: 'completed' },
+    { title: 'Digital CRM – SFDC', location: 'Bangalore', status: 'ongoing' },
+    { title: 'OraApps', location: 'Mumbai', status: 'completed' },
+    { title: 'BI - V4-A (S/4 HANA + BW/4 HANA + SAP Analytics)', location: 'Delhi', status: 'completed' },
+    { title: 'BI - V18 (Core BI)', location: 'Hyderabad', status: 'ongoing' },
+    { title: 'C# & Embedded Systems', location: 'Pune', status: 'completed' },
+    { title: 'GenAI Implementation', location: 'Chennai', status: 'upcoming' },
+    { title: 'MIL-STD-1553 Training', location: 'Bangalore', status: 'completed' },
+    { title: 'Ajax-ZK Training', location: 'Mumbai', status: 'completed' },
+    { title: 'AVAYA SBC Training', location: 'Delhi', status: 'ongoing' },
+    { title: 'IBMi Training', location: 'Hyderabad', status: 'completed' },
+    { title: 'SAP Focused Run', location: 'Pune', status: 'completed' },
+    { title: 'SFW Mobileum PS Core Operations', location: 'Chennai', status: 'ongoing' },
+    { title: 'Voice Mail MVM', location: 'Bangalore', status: 'completed' },
+    { title: 'Meta Switch VAS Core Operations', location: 'Mumbai', status: 'completed' },
+    { title: 'Omega LX Tech – VAS Core Operations', location: 'Delhi', status: 'upcoming' },
+  ]
 
   const exploreNav: any = (NAVIGATION as any[]).find((s: any) => s.label === 'Explore Experts')
   const studentNav: any = (NAVIGATION as any[]).find((s: any) => s.label === 'Student Marketplace')
@@ -258,6 +286,21 @@ export default function Home() {
       }
     }
     loadStudents()
+  }, [])
+
+  // Load student feedback
+  useEffect(() => {
+    const loadFeedback = async () => {
+      try {
+        const res = await api.studentFeedback.getByExpertName('', 100)
+        if (res?.success && Array.isArray(res.feedback)) {
+          setStudentFeedback(res.feedback as any)
+        }
+      } catch (error) {
+        console.error('Error loading student feedback:', error)
+      }
+    }
+    loadFeedback()
   }, [])
 
   if (loading) {
@@ -1154,7 +1197,7 @@ export default function Home() {
                 ]}
                 className="w-full max-w-6xl mx-auto"
               >
-                <CarouselContent className="pb-2">
+                <CarouselContent className="">
                   {(featuredExperts.length > 0
                     ? featuredExperts
                     : [
@@ -1223,6 +1266,195 @@ export default function Home() {
                 </CarouselContent>
                 <CarouselPrevious className="text-slate-600 hover:text-slate-900 hidden sm:block" />
                 <CarouselNext className="text-slate-600 hover:text-slate-900 hidden sm:block" />
+              </Carousel>
+            </div>
+          </section>
+
+          {/* Student Feedback Section */}
+          {studentFeedback.length > 0 && (
+            <section className="py-14 bg-[#F0F7FF]">
+              <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                <motion.div
+                  className="text-center mb-12"
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true, amount: 0.3 }}
+                  variants={fadeUp}
+                  transition={transition}
+                >
+                  {/* Tag pill */}
+                  <div className="flex justify-center mb-5">
+                    <div className="px-4 py-2 rounded-full bg-[#DBE5FF] text-[#008260] shadow-[-4px_4px_4px_0px_#E2E8F8] text-sm font-medium inline-flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4" />
+                      Student Voices
+                    </div>
+                  </div>
+                  <h2 className="text-3xl sm:text-4xl font-bold mb-3">
+                    <span className="text-slate-900">Student </span>
+                    <span className="text-[#008260]">Feedback</span>
+                  </h2>
+                  <p className="text-base text-[#000000CC] max-w-2xl mx-auto">
+                    What students loved about the expert sessions
+                  </p>
+                </motion.div>
+
+                <Carousel
+                  opts={{ align: 'start', loop: true }}
+                  plugins={[Autoplay({ delay: 4000 })]}
+                  className="w-full max-w-6xl mx-auto"
+                >
+                  <CarouselContent className="-ml-4">
+                    {studentFeedback.map((fb, idx) => (
+                      <CarouselItem key={idx} className="pl-4 basis-full sm:basis-1/2 pb-4">
+                        <Card className="bg-white border-0 rounded-2xl shadow-[-4px_4px_4px_0px_#A0A0A040,_4px_4px_4px_0px_#A0A0A040] h-full hover:shadow-[-6px_6px_6px_0px_#A0A0A050,_6px_6px_6px_0px_#A0A0A050] transition-all duration-300 group">
+                          <CardContent className="p-8 relative">
+                            {/* Student name with icon and rating badge - same level */}
+                            <div className="flex items-center justify-between mb-4 gap-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#008260] to-[#00a372] flex items-center justify-center flex-shrink-0 shadow-md">
+                                  <span className="text-white font-bold text-sm">
+                                    {fb.student_name?.charAt(0)?.toUpperCase() || 'S'}
+                                  </span>
+                                </div>
+                                <h3 className="font-bold text-xl text-slate-900">
+                                  {fb.student_name}
+                                </h3>
+                              </div>
+                              <Badge 
+                                className={`${
+                                  fb.rating === 'VERY_GOOD' 
+                                    ? 'bg-gradient-to-r from-green-50 to-emerald-50 text-green-700 border-green-300 shadow-sm font-semibold px-3 py-1.5 rounded-full' 
+                                    : 'bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700 border-blue-200 text-sm font-semibold px-3 py-1.5 rounded-full shadow-sm'
+                                } flex-shrink-0 flex items-center gap-1.5`}
+                                variant="outline"
+                              >
+                                {fb.rating === 'VERY_GOOD' ? (
+                                  <>
+                                    <Star className="h-3.5 w-3.5 fill-green-600 text-green-600" />
+                                    Very Good
+                                  </>
+                                ) : (
+                                  <>
+                                    <Star className="h-3.5 w-3.5 fill-blue-600 text-blue-600" />
+                                    Good
+                                  </>
+                                )}
+                              </Badge>
+                            </div>
+
+                            {/* Feedback text */}
+                            <div className="relative">
+                              <p className="text-slate-700 text-base leading-relaxed relative z-10">
+                                "{fb.pros}"
+                              </p>
+                            </div>
+
+                            {/* Decorative bottom accent */}
+                            <div className="mt-6 pt-4 border-t border-slate-100">
+                              <div className="flex items-center gap-2 text-slate-500 text-xs">
+                                <CheckCircle className="h-4 w-4 text-[#008260]" />
+                                <span>Verified Student Feedback</span>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                  <div className="flex items-center justify-center gap-2 mt-6">
+                    <CarouselPrevious className="static translate-y-0 bg-white border-2 border-[#D6D6D6] hover:bg-[#ECF2FF] hover:border-[#008260] text-slate-600 hover:text-[#008260] shadow-sm" />
+                    <CarouselNext className="static translate-y-0 bg-white border-2 border-[#D6D6D6] hover:bg-[#ECF2FF] hover:border-[#008260] text-slate-600 hover:text-[#008260] shadow-sm" />
+                  </div>
+                </Carousel>
+              </div>
+            </section>
+          )}
+
+          {/* Training Programs & Projects Section */}
+          <section className="py-14 bg-white">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+              <motion.div
+                className="text-center mb-12"
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, amount: 0.3 }}
+                variants={fadeUp}
+                transition={transition}
+              >
+                {/* Tag pill */}
+                <div className="flex justify-center mb-5">
+                  <div className="px-4 py-2 rounded-full bg-[#DBE5FF] text-[#008260] shadow-[-4px_4px_4px_0px_#E2E8F8] text-sm font-medium inline-flex items-center gap-2">
+                    <GraduationCap className="h-4 w-4" />
+                    Training & Projects
+                  </div>
+                </div>
+                <h2 className="text-3xl sm:text-4xl font-bold mb-3">
+                  <span className="text-slate-900">Training Programs </span>
+                  <span className="text-[#008260]">& Projects</span>
+                </h2>
+                <p className="text-base text-[#000000CC] max-w-2xl mx-auto">
+                  Comprehensive training programs and projects delivered across India
+                </p>
+              </motion.div>
+
+              <Carousel
+                opts={{ align: 'start', loop: true }}
+                plugins={[Autoplay({ delay: 3500 })]}
+                className="w-full max-w-6xl mx-auto"
+              >
+                <CarouselContent className="-ml-4">
+                  {trainingPrograms.map((program, idx) => (
+                    <CarouselItem key={idx} className="pl-4 basis-full sm:basis-1/2 lg:basis-1/3 pb-4">
+                      <Card className="bg-white border-0 rounded-2xl shadow-[-4px_4px_4px_0px_#A0A0A040,_4px_4px_4px_0px_#A0A0A040] h-full hover:shadow-[-6px_6px_6px_0px_#A0A0A050,_6px_6px_6px_0px_#A0A0A050] transition-all duration-300 group">
+                        <CardContent className="p-5">
+                          {/* Title and Status badge - same level */}
+                          <div className="flex items-start justify-between gap-3 mb-4">
+                            <h3 className="font-bold text-lg text-slate-900 line-clamp-2 flex-1">
+                              {program.title}
+                            </h3>
+                            <Badge 
+                              className={`${
+                                program.status === 'completed' 
+                                  ? 'bg-gradient-to-r from-green-50 to-emerald-50 text-green-700 border-green-300 shadow-sm font-semibold px-3 py-1.5 rounded-full' 
+                                  : program.status === 'ongoing'
+                                  ? 'bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700 border-blue-300 shadow-sm font-semibold px-3 py-1.5 rounded-full'
+                                  : 'bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 border-orange-300 shadow-sm font-semibold px-3 py-1.5 rounded-full'
+                              } flex-shrink-0 flex items-center gap-1.5 capitalize`}
+                              variant="outline"
+                            >
+                              {program.status === 'completed' ? (
+                                <>
+                                  <CheckCircle className="h-3.5 w-3.5 fill-green-600 text-green-600" />
+                                  Completed
+                                </>
+                              ) : program.status === 'ongoing' ? (
+                                <>
+                                  <Clock className="h-3.5 w-3.5 fill-blue-600 text-blue-600" />
+                                  Ongoing
+                                </>
+                              ) : (
+                                <>
+                                  <Zap className="h-3.5 w-3.5 fill-orange-600 text-orange-600" />
+                                  Upcoming
+                                </>
+                              )}
+                            </Badge>
+                          </div>
+
+                          {/* Location */}
+                          <div className="flex items-center gap-2 text-slate-600 text-sm pt-3 border-t border-slate-100">
+                            <MapPin className="h-4 w-4 text-[#008260]" />
+                            <span className="font-medium">{program.location}, India</span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+                <div className="flex items-center justify-center gap-2 mt-6">
+                  <CarouselPrevious className="static translate-y-0 bg-white border-2 border-[#D6D6D6] hover:bg-[#ECF2FF] hover:border-[#008260] text-slate-600 hover:text-[#008260] shadow-sm" />
+                  <CarouselNext className="static translate-y-0 bg-white border-2 border-[#D6D6D6] hover:bg-[#ECF2FF] hover:border-[#008260] text-slate-600 hover:text-[#008260] shadow-sm" />
+                </div>
               </Carousel>
             </div>
           </section>

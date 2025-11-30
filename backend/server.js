@@ -1367,7 +1367,7 @@ app.get('/api/internships/visible', async (req, res) => {
   }
 });
 
-// Get internship by id with visibility checks
+// Get internship by id with visibility checks (public access allowed for public/open internships)
 app.get('/api/internships/:id', async (req, res) => {
   try {
     const internshipId = req.params.id;
@@ -1386,9 +1386,35 @@ app.get('/api/internships/:id', async (req, res) => {
       userId = userData?.user?.id || null;
     }
 
+    // Use service role to fetch internship and perform manual visibility checks
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    const { data: internship, error } = await serviceClient
+      .from('internships')
+      .select('*')
+      .eq('id', internshipId)
+      .single();
+    if (error) throw error;
+    if (!internship) return res.status(404).json({ error: 'Not found' });
+
+    // If internship is public and open, allow public access
+    if (internship.visibility_scope === 'public' && internship.status === 'open') {
+      // Attach corporate institution meta for display
+      const { data: corp } = await serviceClient
+        .from('institutions')
+        .select('id, name, logo_url, city, state, country')
+        .eq('id', internship.corporate_institution_id)
+        .maybeSingle();
+      return res.json({ ...internship, corporate: corp || null });
+    }
+
+    // For non-public or non-open internships, require authentication
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    // Resolve viewer context: prefer institution; fallback to student profile's institution; support viewing public posts without institution
+    // Resolve viewer context: prefer institution; fallback to student profile's institution
     const { data: viewerInst } = await supabaseClient
       .from('institutions')
       .select('id, type')
@@ -1404,20 +1430,6 @@ app.get('/api/internships/:id', async (req, res) => {
         .maybeSingle();
       viewerStudentInstId = student?.institution_id || null;
     }
-
-    // Use service role to fetch internship and perform manual visibility checks
-    const serviceClient = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
-
-    const { data: internship, error } = await serviceClient
-      .from('internships')
-      .select('*')
-      .eq('id', internshipId)
-      .single();
-    if (error) throw error;
-    if (!internship) return res.status(404).json({ error: 'Not found' });
 
     // Visibility rules
     const viewerIsCorporate = ((viewerInst?.type || '').toLowerCase() === 'corporate');
@@ -1452,7 +1464,7 @@ app.get('/api/internships/:id', async (req, res) => {
       .from('institutions')
       .select('id, name, logo_url, city, state, country')
       .eq('id', internship.corporate_institution_id)
-      .single();
+      .maybeSingle();
 
     res.json({ ...internship, corporate: corp || null });
   } catch (error) {

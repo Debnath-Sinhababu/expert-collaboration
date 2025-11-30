@@ -11,7 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Eye, EyeOff, ArrowLeft, Shield, Zap, CheckCircle, Users, GraduationCap, Menu } from 'lucide-react'
 import Logo from '@/components/Logo'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 export default function LoginPage() {
@@ -21,6 +21,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -36,8 +37,58 @@ export default function LoginPage() {
       if (error) throw error
 
       if (data.user) {
+        // Check for return URL first
+        const returnUrl = searchParams?.get('returnUrl')
+        const message = searchParams?.get('message')
+        
+        if (message) {
+          setError(decodeURIComponent(message))
+        }
+        
         const userMetadata = data.user.user_metadata
         const role = userMetadata?.role
+        
+        if (returnUrl) {
+          const decodedReturnUrl = decodeURIComponent(returnUrl)
+          
+          // Check if returnUrl is a public detail page and redirect to authenticated detail page
+          const internshipMatch = decodedReturnUrl.match(/^\/requirements\/internship\/([^\/]+)$/)
+          const freelanceMatch = decodedReturnUrl.match(/^\/requirements\/freelance\/([^\/]+)$/)
+          const contractMatch = decodedReturnUrl.match(/^\/requirements\/contract\/([^\/]+)$/)
+          
+          if (internshipMatch) {
+            if(role === 'student') {
+              router.push(`/student/internships/${internshipMatch[1]}`)
+              return
+            }  else{
+              router.push(`/${role}/home`)
+            }
+            // Redirect student to authenticated internship detail page
+          
+          } else if (freelanceMatch) {
+            if(role === 'student') {
+            // Redirect student to authenticated freelance detail page
+            router.push(`/student/freelance/${freelanceMatch[1]}`)
+            } else{
+              router.push(`/${role}/home`)
+            }
+          
+          } else if (contractMatch) {
+            if(role === 'expert') {
+            // Redirect expert to authenticated contract/project detail page
+            router.push(`/expert/project/${contractMatch[1]}`)
+            return
+            } else{
+              router.push(`/${role}/home`)
+            }
+          } else if (returnUrl) {
+            // For other return URLs or mismatched roles, redirect to return URL
+            // The public detail page will handle the redirect if needed
+            router.push(decodedReturnUrl)
+            return
+          }
+          return
+        }
         
         if (role === 'expert') {
           try {
