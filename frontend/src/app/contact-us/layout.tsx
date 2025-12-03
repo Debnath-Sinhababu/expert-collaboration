@@ -6,10 +6,13 @@ export const metadata: Metadata = {
   keywords: ['contact Calxmap', 'support', 'help', 'customer service'],
   openGraph: {
     title: 'Contact Us | Calxmap',
-    description: 'Get in touch with Calxmap',
-    url: 'https://www.calxmap.in/contact-us',
+    description: 'Get in touch with Calxmap. We\'re here to help you connect with experts, find opportunities, and grow your professional network.',
+    url: `${process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://www.calxmap.in'}/contact-us`,
     siteName: 'Calxmap',
     type: 'website',
+  },
+  alternates: {
+    canonical: `${process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://www.calxmap.in'}/contact-us`,
   },
   twitter: {
     card: 'summary',
