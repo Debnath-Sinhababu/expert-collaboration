@@ -35,7 +35,7 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "Calxmap Team", url: "https://www.calxmap.in" }],
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL || "https://www.calxmap.in"
+    process.env.NEXT_PUBLIC_FRONTEND_URL || "https://www.calxmap.in"
   ),
   alternates: {
     canonical: "https://www.calxmap.in", // ✅ use absolute URL (not "/")
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
     images: [
       {
         url: `${
-          process.env.NEXT_PUBLIC_SITE_URL || "https://www.calxmap.in"
+          process.env.NEXT_PUBLIC_FRONTEND_URL || "https://www.calxmap.in"
         }/images/logo.png`,
         width: 1200,
         height: 630,
@@ -68,7 +68,7 @@ export const metadata: Metadata = {
       "Transforming expertise into influence and connections into opportunities. Join the world's first Expert Networking Platform.",
     images: [
       `${
-        process.env.NEXT_PUBLIC_SITE_URL || "https://www.calxmap.in"
+        process.env.NEXT_PUBLIC_FRONTEND_URL || "https://www.calxmap.in"
       }/images/logo.png`,
     ],
   },

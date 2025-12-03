@@ -426,14 +426,14 @@ export default function Home() {
                   Verified Professionals
                   </div>
               </div>
-              <div
+              <h1
   className="mt-6 text-center text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-[-0.01em] leading-[1.1] text-transparent bg-clip-text"
   style={{
     backgroundImage: 'linear-gradient(90deg, #000000 0%, #008260 76.19%)',
   }}
 >
   Your Trusted Gateway <br /> to India's Top Experts
-</div>
+</h1>
 
             </div>
           </section>
