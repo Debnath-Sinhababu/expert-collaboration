@@ -11,6 +11,9 @@ const nextConfig = {
   generateBuildId: async () => {
     return 'build-' + Date.now()
   },
+  // Turbopack config (empty to silence Next.js 16 warning)
+  // We use webpack for production builds, Turbopack for dev
+  turbopack: {},
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
