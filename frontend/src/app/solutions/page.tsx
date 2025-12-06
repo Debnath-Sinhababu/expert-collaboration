@@ -10,6 +10,7 @@ import { api } from '@/lib/api'
 import Logo from '@/components/Logo'
 import { ChevronDown, ChevronRight, GraduationCap, Building2, Users2, UserPlus, Upload, BarChart3, MousePointerClick, Shield, Star, UserCheck, Users, Server, MailPlus, FileText, Briefcase, FileType, Menu, X, TrendingUp, CheckCircle, Search, Calendar, Award, Target, UserCircle, Zap, BookOpen } from 'lucide-react'
 import Link from 'next/link'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 type Expert = any
 type Student = any
@@ -164,6 +165,37 @@ function SolutionsContent() {
   // Sidebar component to reuse in both desktop and mobile
   const SidebarContent = () => (
     <>
+      {/* Mobile Navigation Links */}
+      <div className="lg:hidden mb-6 pb-6 border-b border-[#DCDCDC]">
+        <div className="space-y-2">
+          <Link href="/requirements" onClick={() => setMobileMenuOpen(false)}>
+            <div className="px-3 py-2 rounded-lg text-sm font-medium text-[#000000] hover:bg-[#ECF2FF] transition-colors">
+              Requirements
+            </div>
+          </Link>
+          <Link href="/solutions" onClick={() => setMobileMenuOpen(false)}>
+            <div className="px-3 py-2 rounded-lg text-sm font-medium text-[#000000] hover:bg-[#ECF2FF] transition-colors">
+              Services
+            </div>
+          </Link>
+          <Link href="/contact-us" onClick={() => setMobileMenuOpen(false)}>
+            <div className="px-3 py-2 rounded-lg text-sm font-medium text-[#000000] hover:bg-[#ECF2FF] transition-colors">
+              Contact Us
+            </div>
+          </Link>
+          <Link href="/auth/login" onClick={() => setMobileMenuOpen(false)}>
+            <div className="px-3 py-2 rounded-lg text-sm font-medium text-[#000000] hover:bg-[#ECF2FF] transition-colors">
+              Sign In
+            </div>
+          </Link>
+          <Link href="/auth/signup" onClick={() => setMobileMenuOpen(false)}>
+            <div className="px-3 py-2 rounded-lg text-sm font-medium text-[#008260] hover:bg-[#ECF2FF] transition-colors">
+              Sign Up
+            </div>
+          </Link>
+        </div>
+      </div>
+      
       {NAV_CATALOG.map((group, gi) => (
         <div key={group.id} className="mb-6">
           <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-[#6A6A6A] mb-3">
@@ -214,31 +246,50 @@ function SolutionsContent() {
 
   return (
     <div className="min-h-screen bg-[#ECF2FF]">
-      <header className="bg-[#008260] sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between lg:justify-between">
-          {/* Mobile Menu Button - Left */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="lg:hidden text-white hover:bg-[#006d51]"
-            onClick={() => setMobileMenuOpen(true)}
-          >
-            <Menu className="h-6 w-6" />
-          </Button>
-
-          {/* Logo - Center on mobile, left on desktop */}
-          <div className="absolute left-1/2 -translate-x-1/2 lg:static lg:translate-x-0">
-            <Link href="/"> 
-              <Logo size="header" />
-            </Link>
-          </div>
-
-          {/* Solutions text - Only on desktop */}
-          <Link href="/contact-us">
-                <Button variant="ghost" className="text-white hover:text-white hover:bg-white/10 transition-colors">
-                  Contact Us
-                </Button>
+      <header className="bg-landing-header sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            {/* Logo & Brand */}
+            <div className="flex flex-col space-y-1 group">
+              <Link href="/">
+                <Logo size="header" />
               </Link>
+              <p className="text-xs text-blue-100 font-medium group-hover:text-white transition-colors duration-300 hidden sm:block">knowledge sharing networking platform</p>
+            </div>
+            
+            {/* Navigation & CTA - Desktop */}
+            <div className="hidden sm:flex items-center justify-end gap-2">
+              <Link href="/requirements">
+                <Button variant="ghost" className="font-medium text-white/90 hover:text-white hover:bg-white/10 transition-all duration-300 px-3 py-2 text-sm">Requirements</Button>
+              </Link>
+              <Link href="/solutions">
+                <Button variant="ghost" className="font-medium text-white/90 hover:text-white hover:bg-white/10 transition-all duration-300 px-3 py-2 text-sm">Services</Button>
+              </Link>
+              <Link href="/contact-us">
+                <Button variant="ghost" className="font-medium text-white/90 hover:text-white hover:bg-white/10 transition-all duration-300 px-3 py-2 text-sm">Contact Us</Button>
+              </Link>
+              <Link href="/auth/login">
+                <Button variant="ghost" className="font-medium text-white/90 hover:text-white hover:bg-white/10 transition-all duration-300 px-3 py-2 text-sm">Sign in</Button>
+              </Link>
+              <Link href="/auth/signup">
+                <Button className="bg-white text-[#008260] font-semibold px-4 py-2 text-sm rounded-full shadow-none hover:bg-white/90">Get Started</Button>
+              </Link>
+            </div>
+
+            {/* Mobile Menu - Navigation Dropdown */}
+            <div className="sm:hidden">
+              {/* Solutions Sidebar Toggle Button */}
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="text-white hover:bg-white/10"
+                onClick={() => setMobileMenuOpen(true)}
+              >
+                <Menu className="h-5 w-5" />
+                <span className="sr-only">Open menu</span>
+              </Button>
+            </div>
+          </div>
         </div>
       </header>
 

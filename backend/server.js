@@ -281,7 +281,7 @@ app.post('/api/experts', upload.fields([
       qualifications_url: qualificationsData?.url || null,
       qualifications_public_id: qualificationsData?.publicId || null,
       domain_expertise: req.body.domain_expertise ? [req.body.domain_expertise] : [],
-      subskills: req.body.subskills ? JSON.parse(req.body.subskills) : [],
+      subskills: Array.isArray(req.body.subskills) ? req.body.subskills : (req.body.subskills ? JSON.parse(req.body.subskills) : []),
       hourly_rate: req.body.hourly_rate,
       resume_url: resumeData?.url || null,
       resume_public_id: resumeData?.publicId || null,
@@ -290,7 +290,10 @@ app.post('/api/experts', upload.fields([
       rating: req.body.rating || 0.00,
       total_ratings: req.body.total_projects || 0,
       experience_years: req.body.experience_years || 0,
-      linkedin_url: req.body.linkedin_url || ''
+      linkedin_url: req.body.linkedin_url || '',
+      last_working_company: req.body.last_working_company || null,
+      expert_types: Array.isArray(req.body.expert_types) ? req.body.expert_types : (req.body.expert_types ? JSON.parse(req.body.expert_types) : []),
+      available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true
     };
     
     const { data, error } = await supabaseClient
@@ -397,7 +400,14 @@ app.put('/api/experts/:id', upload.fields([
 
     if (fetchError) throw fetchError;
 
-    let updateData = { ...req.body, domain_expertise: [req.body.domain_expertise.trim()] };
+    let updateData = { 
+      ...req.body, 
+      domain_expertise: req.body.domain_expertise ? [req.body.domain_expertise.trim()] : [],
+      subskills: Array.isArray(req.body.subskills) ? req.body.subskills : (req.body.subskills ? JSON.parse(req.body.subskills) : []),
+      last_working_company: req.body.last_working_company || null,
+      expert_types: Array.isArray(req.body.expert_types) ? req.body.expert_types : (req.body.expert_types ? JSON.parse(req.body.expert_types) : []),
+      available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true
+    };
     
     // Handle profile photo update if new photo is uploaded
     if (req.files?.profile_photo?.[0]) {
@@ -712,9 +722,15 @@ app.put('/api/institutions/:id', async (req, res) => {
       console.log('PUT /api/institutions/:id - No auth token, using basic client');
     }
     
+    // Convert empty string to null for company_size to satisfy CHECK constraint
+    const updateData = { ...req.body };
+    if (updateData.company_size === '') {
+      updateData.company_size = null;
+    }
+    
     const { data, error } = await supabaseClient
       .from('institutions')
-      .update(req.body)
+      .update(updateData)
       .eq('id', req.params.id)
       .select();
     
@@ -1270,13 +1286,18 @@ app.get('/api/internships/visible', async (req, res) => {
       .select('*')
       .eq('status', 'open')
       .order('created_at', { ascending: false })
-      .range(offset, offset + parseInt(limit) - 1);
+    
 
-    if (viewerInstitutionId) {
+    
+
+    if (viewerInstitutionId || viewerStudentId) {
+      baseQuery = baseQuery.range(offset, offset + parseInt(limit) - 1);
       // filter via visibility: public OR listed
       // We'll fetch public first; for targeted, we will do a secondary filtered pull if needed
       // Simpler: keep single query and post-filter by checking mapping via an RPC-like approach
       // Since PostgREST doesn't easily support EXISTS with param using JS SDK chaining, we'll fetch broader and filter in JS.
+    } else{
+      baseQuery = baseQuery.eq('visibility_scope', 'public').limit(parseInt(limit));
     }
 
     // Apply filters
@@ -1296,7 +1317,8 @@ app.get('/api/internships/visible', async (req, res) => {
     if (error) throw error;
 
     // Post-filter visibility: keep public; if viewerInstitutionId present, include targeted
-    let filtered = rows?.filter(r => r.visibility_scope === 'public') || [];
+    let filtered = rows.filter(r => r.visibility_scope === 'public') || [];
+    
     let targetedIds = new Set();
     if (viewerInstitutionId) {
       const { data: mappings } = await serviceClient
@@ -1326,14 +1348,26 @@ app.get('/api/internships/visible', async (req, res) => {
       filtered = filtered.filter(r => !appliedIds.has(r.id));
     }
 
-    res.json(filtered);
+    // Attach corporate institution information for each internship
+    const internshipsWithCorporate = await Promise.all(
+      filtered.map(async (internship) => {
+        const { data: corp } = await serviceClient
+          .from('institutions')
+          .select('id, name, logo_url, city, state, country')
+          .eq('id', internship.corporate_institution_id)
+          .maybeSingle();
+        return { ...internship, corporate: corp || null };
+      })
+    );
+
+    res.json(internshipsWithCorporate);
   } catch (error) {
     console.error('Visible internships error:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Get internship by id with visibility checks
+// Get internship by id with visibility checks (public access allowed for public/open internships)
 app.get('/api/internships/:id', async (req, res) => {
   try {
     const internshipId = req.params.id;
@@ -1352,9 +1386,35 @@ app.get('/api/internships/:id', async (req, res) => {
       userId = userData?.user?.id || null;
     }
 
+    // Use service role to fetch internship and perform manual visibility checks
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    const { data: internship, error } = await serviceClient
+      .from('internships')
+      .select('*')
+      .eq('id', internshipId)
+      .single();
+    if (error) throw error;
+    if (!internship) return res.status(404).json({ error: 'Not found' });
+
+    // If internship is public and open, allow public access
+    if (internship.visibility_scope === 'public' && internship.status === 'open') {
+      // Attach corporate institution meta for display
+      const { data: corp } = await serviceClient
+        .from('institutions')
+        .select('id, name, logo_url, city, state, country')
+        .eq('id', internship.corporate_institution_id)
+        .maybeSingle();
+      return res.json({ ...internship, corporate: corp || null });
+    }
+
+    // For non-public or non-open internships, require authentication
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    // Resolve viewer context: prefer institution; fallback to student profile's institution; support viewing public posts without institution
+    // Resolve viewer context: prefer institution; fallback to student profile's institution
     const { data: viewerInst } = await supabaseClient
       .from('institutions')
       .select('id, type')
@@ -1370,20 +1430,6 @@ app.get('/api/internships/:id', async (req, res) => {
         .maybeSingle();
       viewerStudentInstId = student?.institution_id || null;
     }
-
-    // Use service role to fetch internship and perform manual visibility checks
-    const serviceClient = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
-
-    const { data: internship, error } = await serviceClient
-      .from('internships')
-      .select('*')
-      .eq('id', internshipId)
-      .single();
-    if (error) throw error;
-    if (!internship) return res.status(404).json({ error: 'Not found' });
 
     // Visibility rules
     const viewerIsCorporate = ((viewerInst?.type || '').toLowerCase() === 'corporate');
@@ -1418,7 +1464,7 @@ app.get('/api/internships/:id', async (req, res) => {
       .from('institutions')
       .select('id, name, logo_url, city, state, country')
       .eq('id', internship.corporate_institution_id)
-      .single();
+      .maybeSingle();
 
     res.json({ ...internship, corporate: corp || null });
   } catch (error) {
@@ -1462,7 +1508,7 @@ app.get('/api/students/me', async (req, res) => {
 });
 
 // Create student profile
-app.post('/api/students', upload.fields([{ name: 'resume', maxCount: 1 }, { name: 'profile_photo', maxCount: 1 }]), async (req, res) => {
+app.post('/api/students', upload.fields([{ name: 'resume', maxCount: 1 }, { name: 'profile_photo', maxCount: 1 }, { name: 'documents', maxCount: 1 }]), async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -1506,6 +1552,21 @@ app.post('/api/students', upload.fields([{ name: 'resume', maxCount: 1 }, { name
       }
     }
 
+    // Handle optional documents upload
+    let documentsUrl = null;
+    let documentsPublicId = null;
+    if (req.files?.documents?.[0]) {
+      const documentsData = await ImageUploadService.uploadPDF(
+        req.files.documents[0].buffer,
+        'student-documents'
+      );
+      if (!documentsData.success) {
+        return res.status(500).json({ error: `Documents upload failed: ${documentsData.error}` });
+      }
+      documentsUrl = documentsData.url;
+      documentsPublicId = documentsData.publicId;
+    }
+
     const payload = {
       user_id: userId,
       name: body.name,
@@ -1520,6 +1581,7 @@ app.post('/api/students', upload.fields([{ name: 'resume', maxCount: 1 }, { name
       city: body.city || null,
       state: body.state || null,
       address: body.address || null,
+      about: body.about || null,
       availability: body.availability || null,
       preferred_engagement: body.preferred_engagement || null,
       preferred_work_mode: body.preferred_work_mode || null,
@@ -1540,6 +1602,11 @@ app.post('/api/students', upload.fields([{ name: 'resume', maxCount: 1 }, { name
       profile_photo_public_id: photoData?.publicId || null,
       profile_photo_thumbnail_url: photoData?.thumbnailUrl || null,
       profile_photo_small_url: photoData?.smallUrl || null,
+      class_10th_percentage: body.class_10th_percentage ? parseFloat(body.class_10th_percentage) : null,
+      class_12th_percentage: body.class_12th_percentage ? parseFloat(body.class_12th_percentage) : null,
+      cgpa_percentage: body.cgpa_percentage ? parseFloat(body.cgpa_percentage) : null,
+      documents_url: documentsUrl || null,
+      documents_public_id: documentsPublicId || null,
     };
 
     const { data, error } = await supabaseClient
@@ -1556,7 +1623,7 @@ app.post('/api/students', upload.fields([{ name: 'resume', maxCount: 1 }, { name
 });
 
 // Update student profile
-app.put('/api/students/:id', upload.fields([{ name: 'resume', maxCount: 1 }, { name: 'profile_photo', maxCount: 1 }]), async (req, res) => {
+app.put('/api/students/:id', upload.fields([{ name: 'resume', maxCount: 1 }, { name: 'profile_photo', maxCount: 1 }, { name: 'documents', maxCount: 1 }]), async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -1577,19 +1644,23 @@ app.put('/api/students/:id', upload.fields([{ name: 'resume', maxCount: 1 }, { n
     // Fetch current profile to manage resume replacement if needed
     const { data: currentProfile, error: currentErr } = await supabaseClient
       .from('site_students')
-      .select('id, user_id, resume_public_id, profile_photo_public_id, photo_url')
+      .select('id, user_id, resume_public_id, profile_photo_public_id, photo_url, documents_public_id')
       .eq('id', req.params.id)
       .eq('user_id', userId)
       .maybeSingle();
     if (currentErr) throw currentErr;
     if (!currentProfile) return res.status(404).json({ error: 'Student profile not found' });
 
-    let resumeUrl = (typeof body.resume_url !== 'undefined' && body.resume_url !== null)
+    let resumeUrl = (typeof body.resume_url !== 'undefined' && body.resume_url !== null && body.resume_url !== '')
       ? body.resume_url
       : currentProfile.resume_url || null;
     let resumePublicId = body.resume_public_id || currentProfile.resume_public_id || null;
     let photoUrl = currentProfile.photo_url || null;
     let photoPublicId = currentProfile.profile_photo_public_id || null;
+    let documentsUrl = (typeof body.documents_url !== 'undefined' && body.documents_url !== null && body.documents_url !== '')
+      ? body.documents_url
+      : currentProfile.documents_url || null;
+    let documentsPublicId = body.documents_public_id || currentProfile.documents_public_id || null;
     // If new resume file uploaded, replace existing
     if (req.files?.resume?.[0]) {
       if (currentProfile.resume_public_id) {
@@ -1624,6 +1695,22 @@ app.put('/api/students/:id', upload.fields([{ name: 'resume', maxCount: 1 }, { n
       var photoSmall = uploaded.smallUrl;
     }
 
+    // If new documents file uploaded, replace existing
+    if (req.files?.documents?.[0]) {
+      if (currentProfile.documents_public_id) {
+        try { await ImageUploadService.deleteImage(currentProfile.documents_public_id); } catch (_) {}
+      }
+      const documentsData = await ImageUploadService.uploadPDF(
+        req.files.documents[0].buffer,
+        'student-documents'
+      );
+      if (!documentsData.success) {
+        return res.status(500).json({ error: `Documents upload failed: ${documentsData.error}` });
+      }
+      documentsUrl = documentsData.url;
+      documentsPublicId = documentsData.publicId;
+    }
+
     const updates = {
       name: body.name,
       email: body.email,
@@ -1637,6 +1724,7 @@ app.put('/api/students/:id', upload.fields([{ name: 'resume', maxCount: 1 }, { n
       city: body.city || null,
       state: body.state || null,
       address: body.address || null,
+      about: body.about || null,
       availability: body.availability || null,
       preferred_engagement: body.preferred_engagement || null,
       preferred_work_mode: body.preferred_work_mode || null,
@@ -1657,6 +1745,11 @@ app.put('/api/students/:id', upload.fields([{ name: 'resume', maxCount: 1 }, { n
       profile_photo_public_id: photoPublicId,
       profile_photo_thumbnail_url: typeof photoThumb !== 'undefined' ? photoThumb : currentProfile.profile_photo_thumbnail_url,
       profile_photo_small_url: typeof photoSmall !== 'undefined' ? photoSmall : currentProfile.profile_photo_small_url,
+      class_10th_percentage: body.class_10th_percentage ? parseFloat(body.class_10th_percentage) : null,
+      class_12th_percentage: body.class_12th_percentage ? parseFloat(body.class_12th_percentage) : null,
+      cgpa_percentage: body.cgpa_percentage ? parseFloat(body.cgpa_percentage) : null,
+      documents_url: documentsUrl,
+      documents_public_id: documentsPublicId,
       updated_at: new Date().toISOString()
     };
 

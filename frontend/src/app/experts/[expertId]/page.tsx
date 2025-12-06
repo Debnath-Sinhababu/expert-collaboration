@@ -7,7 +7,7 @@ import { Card, CardContent, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
-import { Star, Briefcase, Calendar, IndianRupee, ArrowLeft, Shield, CheckCircle } from 'lucide-react'
+import { Star, Briefcase, Calendar, IndianRupee, ArrowLeft, Shield, CheckCircle, Building2 } from 'lucide-react'
 import Link from 'next/link'
 import Logo from '@/components/Logo'
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel'
@@ -25,6 +25,7 @@ type Expert = {
   hourly_rate?: number
   qualifications?: string
   is_verified?: boolean
+  last_working_company?: string
 }
 
 export default function PublicExpertProfile() {
@@ -211,6 +212,20 @@ export default function PublicExpertProfile() {
                       </p>
                     </div>
                   </div>
+
+                  {expert.last_working_company && (
+                    <div className="flex items-center gap-3 p-3 bg-[#ECF2FF] rounded-xl">
+                      <div className="w-10 h-10 bg-[#008260] rounded-full flex items-center justify-center flex-shrink-0">
+                        <Building2 className="h-5 w-5 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm text-slate-600">Last Working Company</p>
+                        <p className="text-base font-bold text-slate-900">
+                          {expert.last_working_company}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

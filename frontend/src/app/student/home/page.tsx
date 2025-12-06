@@ -151,12 +151,13 @@ export default function StudentHome() {
 
             {/* Navigation */}
             <nav className="hidden md:flex items-center space-x-8">
-              <Link href="/student/home" className="text-white font-medium transition-colors duration-200 relative group">
-                Home
+            
+              <Link href="/student/dashboard" className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
+               Internship Dashboard
                 <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
-              <Link href="/student/dashboard" className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
-                Dashboard
+              <Link href="/student/freelance/dashboard" className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
+                Freelance Dashboard
                 <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
             </nav>
@@ -446,6 +447,16 @@ export default function StudentHome() {
           <p className="text-base sm:text-lg text-[#000000CC] font-medium leading-relaxed">
             Connect with top experts and create impactful learning experiences
           </p>
+        </div>
+
+        {/* Browse Freelance Button - Mobile Only */}
+        <div className="md:hidden mb-6">
+          <Link href="/student/freelance">
+            <Button className="w-full bg-[#008260] hover:bg-[#006b4f] text-white font-semibold py-6 text-base rounded-lg shadow-lg">
+              <Briefcase className="h-5 w-5 mr-2" />
+              Browse Freelance Opportunities
+            </Button>
+          </Link>
         </div>
 
         {/* Search and Filters */}

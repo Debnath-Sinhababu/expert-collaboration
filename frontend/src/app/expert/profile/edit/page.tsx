@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
@@ -11,41 +11,19 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { MultiSelect } from '@/components/ui/multi-select'
-import { Upload, Calendar, DollarSign, X, Camera, FileText, Download, Check, IndianRupee, Info } from 'lucide-react'
+import { ArrowLeft, Save, User, Briefcase, Upload, Camera, X, FileText, IndianRupee, Info } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { toast } from 'sonner'
-import Logo from '@/components/Logo'
+import { MultiSelect } from '@/components/ui/multi-select'
 import { EXPERTISE_DOMAINS } from '@/lib/constants'
+import Logo from '@/components/Logo'
+import NotificationBell from '@/components/NotificationBell'
+import ProfileDropdown from '@/components/ProfileDropdown'
 
-const AVAILABILITY_SLOTS = [
-  'Monday Morning',
-  'Monday Afternoon',
-  'Monday Evening',
-  'Tuesday Morning',
-  'Tuesday Afternoon',
-  'Tuesday Evening',
-  'Wednesday Morning',
-  'Wednesday Afternoon',
-  'Wednesday Evening',
-  'Thursday Morning',
-  'Thursday Afternoon',
-  'Thursday Evening',
-  'Friday Morning',
-  'Friday Afternoon',
-  'Friday Evening',
-  'Saturday Morning',
-  'Saturday Afternoon',
-  'Saturday Evening',
-  'Sunday Morning',
-  'Sunday Afternoon',
-  'Sunday Evening'
-]
-
-export default function ExpertProfileSetup() {
+export default function ExpertProfileEdit() {
   const [user, setUser] = useState<any>(null)
+  const [expert, setExpert] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -61,7 +39,6 @@ export default function ExpertProfileSetup() {
     resume_url: '',
     hourly_rate: '',
     photo_url: '',
-    availability: [] as string[],
     experience_years: '',
     phone: '',
     linkedin_url: '',
@@ -73,14 +50,16 @@ export default function ExpertProfileSetup() {
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string>('')
   const [photoError, setPhotoError] = useState('')
-  const [selectedSubskills, setSelectedSubskills] = useState<string[]>([])
-  const [availableSubskills, setAvailableSubskills] = useState<string[]>([])
   
   const [selectedResume, setSelectedResume] = useState<File | null>(null)
   const [resumeError, setResumeError] = useState('')
   
   const [selectedQualifications, setSelectedQualifications] = useState<File | null>(null)
   const [qualificationsError, setQualificationsError] = useState('')
+  
+  const [selectedSubskills, setSelectedSubskills] = useState<string[]>([])
+  const [availableSubskills, setAvailableSubskills] = useState<string[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const getUser = async () => {
@@ -90,11 +69,49 @@ export default function ExpertProfileSetup() {
         return
       }
       setUser(user)
+      await loadExpertData(user.id)
       setLoading(false)
     }
 
     getUser()
   }, [router])
+
+  const loadExpertData = async (userId: string) => {
+    try {
+      const expertProfile = await api.experts.getByUserId(userId)
+      
+      if (expertProfile) {
+        setExpert(expertProfile)
+        setFormData({
+          name: expertProfile.name || '',
+          bio: expertProfile.bio || '',
+          qualifications: expertProfile.qualifications || '',
+          domain_expertise: expertProfile.domain_expertise?.[0] || '',
+          subskills: expertProfile.subskills || [],
+          resume_url: expertProfile.resume_url || '',
+          hourly_rate: expertProfile.hourly_rate?.toString() || '',
+          photo_url: expertProfile.photo_url || '',
+          experience_years: expertProfile.experience_years?.toString() || '',
+          phone: expertProfile.phone || '',
+          linkedin_url: expertProfile.linkedin_url || '',
+          last_working_company: expertProfile.last_working_company || '',
+          expert_types: expertProfile.expert_types || [],
+          available_on_demand: expertProfile.available_on_demand || false
+        })
+        
+        setSelectedSubskills(expertProfile.subskills || [])
+        
+        if (expertProfile.domain_expertise && expertProfile.domain_expertise[0]) {
+          const selectedDomain = EXPERTISE_DOMAINS.find(d => d.name === expertProfile.domain_expertise[0])
+          if (selectedDomain) {
+            setAvailableSubskills([...selectedDomain.subskills])
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading expert data:', error)
+    }
+  }
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -104,10 +121,9 @@ export default function ExpertProfileSetup() {
     setFormData(prev => ({
       ...prev,
       domain_expertise: domain,
-      subskills: [] // Reset subskills when domain changes
+      subskills: []
     }))
     
-    // Find the selected domain and update available subskills
     const selectedDomain = EXPERTISE_DOMAINS.find(d => d.name === domain)
     if (selectedDomain) {
       setAvailableSubskills([...selectedDomain.subskills])
@@ -115,7 +131,6 @@ export default function ExpertProfileSetup() {
       setAvailableSubskills([])
     }
     
-    // Reset selected subskills
     setSelectedSubskills([])
   }
 
@@ -127,27 +142,16 @@ export default function ExpertProfileSetup() {
     }))
   }
 
-  const handleAvailabilityChange = (slot: string, checked: boolean) => {
-    setFormData(prev => ({
-      ...prev,
-      availability: checked
-        ? [...prev.availability, slot]
-        : prev.availability.filter(s => s !== slot)
-    }))
-  }
-
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Validate file type
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
     if (!allowedTypes.includes(file.type)) {
       setPhotoError('Please select a valid image file (JPEG, PNG, or WebP)')
       return
     }
 
-    // Validate file size (5MB limit)
     if (file.size > 5 * 1024 * 1024) {
       setPhotoError('File size must be less than 5MB')
       return
@@ -156,7 +160,6 @@ export default function ExpertProfileSetup() {
     setPhotoError('')
     setSelectedPhoto(file)
     
-    // Create preview
     const reader = new FileReader()
     reader.onload = (e) => {
       setPhotoPreview(e.target?.result as string)
@@ -175,13 +178,11 @@ export default function ExpertProfileSetup() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Validate file type
     if (file.type !== 'application/pdf') {
       setResumeError('Please select a valid PDF file')
       return
     }
 
-    // Validate file size (20MB limit)
     if (file.size > 20 * 1024 * 1024) {
       setResumeError('File size must be less than 20MB')
       return
@@ -201,13 +202,11 @@ export default function ExpertProfileSetup() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Validate file type
     if (file.type !== 'application/pdf') {
       setQualificationsError('Please select a valid PDF file')
       return
     }
 
-    // Validate file size (20MB limit)
     if (file.size > 20 * 1024 * 1024) {
       setQualificationsError('File size must be less than 20MB')
       return
@@ -227,118 +226,80 @@ export default function ExpertProfileSetup() {
     e.preventDefault()
     setSaving(true)
     setError('')
+    setSuccess('')
 
     try {
-      // Validate required fields with toast messages
-      if (!formData.name?.trim()) {
-        toast.error('Please enter your full name')
-        setSaving(false)
-        return
-      }
-
-      if (!formData.bio?.trim()) {
-        toast.error('Please enter your professional bio')
-        setSaving(false)
-        return
-      }
-
-      if (!formData.phone?.trim()) {
-        toast.error('Please enter your phone number')
-        setSaving(false)
-        return
-      }
-
-      if (!formData.domain_expertise) {
-        toast.error('Please select your domain expertise')
-        setSaving(false)
-        return
-      }
-
-      if (formData.subskills.length === 0) {
-        toast.error('Please select at least one specialization/skill')
-        setSaving(false)
-        return
-      }
-
-      if (!formData.hourly_rate) {
-        toast.error('Please enter your hourly rate')
-        setSaving(false)
-        return
+      if (!formData.name || !formData.bio || !formData.domain_expertise || !formData.hourly_rate) {
+        throw new Error('Please fill in all required fields')
       }
 
       if (!formData.last_working_company?.trim()) {
-        toast.error('Please enter your last working company')
-        setSaving(false)
-        return
+        throw new Error('Please enter your last working company')
       }
 
       if (formData.expert_types.length === 0) {
-        toast.error('Please select at least one expert type')
-        setSaving(false)
-        return
+        throw new Error('Please select at least one expert type')
       }
 
-      if (!selectedPhoto) {
-        toast.error('Please upload a profile photo')
-        setSaving(false)
-        return
+      if (!expert?.id) {
+        throw new Error('Expert profile not found')
       }
 
-      console.log(formData,'formData')
-      
+      if (selectedPhoto || selectedResume || selectedQualifications) {
+        const formDataToSend = new FormData()
+        formDataToSend.append('name', formData.name)
+        formDataToSend.append('bio', formData.bio)
+        formDataToSend.append('phone', formData.phone)
+        formDataToSend.append('qualifications', formData.qualifications)
+        formDataToSend.append('hourly_rate', formData.hourly_rate.toString())
+        formDataToSend.append('experience_years', formData.experience_years)
+        formDataToSend.append('linkedin_url', formData.linkedin_url)
+        formDataToSend.append('domain_expertise', formData.domain_expertise)
+        formDataToSend.append('subskills', JSON.stringify(formData.subskills))
+        formDataToSend.append('last_working_company', formData.last_working_company)
+        formDataToSend.append('expert_types', JSON.stringify(formData.expert_types))
+        formDataToSend.append('available_on_demand', String(formData.available_on_demand))
 
-      // Create FormData for file upload
-      const formDataToSend = new FormData()
-      formDataToSend.append('user_id', user.id)
-      formDataToSend.append('email', user.email)
-      formDataToSend.append('name', formData.name)
-      formDataToSend.append('bio', formData.bio)
-      formDataToSend.append('phone', formData.phone)
-      formDataToSend.append('qualifications', formData.qualifications)
-      formDataToSend.append('domain_expertise', formData.domain_expertise)
-      formDataToSend.append('subskills', JSON.stringify(formData.subskills))
-      formDataToSend.append('hourly_rate', formData.hourly_rate.toString())
-      formDataToSend.append('resume_url', formData.resume_url)
-      formDataToSend.append('experience_years', formData.experience_years)
-      formDataToSend.append('linkedin_url', formData.linkedin_url)
-      formDataToSend.append('availability', JSON.stringify(formData.availability))
-      formDataToSend.append('last_working_company', formData.last_working_company)
-      formDataToSend.append('expert_types', JSON.stringify(formData.expert_types))
-      formDataToSend.append('available_on_demand', String(formData.available_on_demand))
-      
-      // Add the photo file
-      if (selectedPhoto) {
-        formDataToSend.append('profile_photo', selectedPhoto)
-      }
-      
-      // Add resume PDF if selected
-      if (selectedResume) {
-        formDataToSend.append('resume', selectedResume)
-      }
-      
-      // Add qualifications PDF if selected
-      if (selectedQualifications) {
-        formDataToSend.append('qualifications', selectedQualifications)
-      }
+        if (selectedPhoto) {
+          formDataToSend.append('profile_photo', selectedPhoto)
+        }
+        
+        if (selectedResume) {
+          formDataToSend.append('resume', selectedResume)
+        }
+        
+        if (selectedQualifications) {
+          formDataToSend.append('qualifications', selectedQualifications)
+        }
 
-      // Call the API with FormData
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/experts`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-        },
-        body: formDataToSend
-      })
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/experts/${expert.id}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+          },
+          body: formDataToSend
+        })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to create profile')
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to update profile')
+        }
+      } else {
+        const expertData = {
+          ...formData,
+          domain_expertise: formData.domain_expertise,
+          subskills: formData.subskills,
+          hourly_rate: parseFloat(formData.hourly_rate),
+          experience_years: parseInt(formData.experience_years) || 0,
+          updated_at: new Date().toISOString(),
+        }
+        await api.experts.update(expert.id, expertData)
       }
-      toast.success('Profile created successfully! Redirecting to dashboard...')
-   
       
-        router.push('/expert/home')
-      
+      setSuccess('Profile updated successfully!')
+      setTimeout(() => {
+        router.push('/expert/profile')
+      }, 1500)
     } catch (error: any) {
       setError(error.message)
     } finally {
@@ -348,60 +309,84 @@ export default function ExpertProfileSetup() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-[#ECF2FF] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading profile setup...</p>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#008260] mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading profile...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#ECF2FF] relative">
-      {/* Background Elements */}
-      <header className="relative bg-[#008260] shadow-sm">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <Logo size="header" />
-            <Link href="/contact-us">
-              <Button variant="ghost" className="font-medium text-white hover:text-white hover:bg-white/10 transition-all duration-300 px-4 py-2 text-sm">
-                Contact Us
-              </Button>
+    <div className="min-h-screen bg-[#ECF2FF]">
+      <header className="bg-[#008260] border-b border-slate-200/20 sticky top-0 z-50 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <Link href="/expert/home" className="flex items-center group">
+              <Logo size="header" />
             </Link>
+
+            <nav className="hidden md:flex items-center space-x-8">
+              <Link href="/expert/home" className="text-white font-medium transition-colors duration-200 relative group">
+                Home
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
+              </Link>
+              <Link href="/expert/dashboard" className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
+                Dashboard
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
+              </Link>
+            </nav>
+
+            <div className="flex items-center space-x-4">
+              <div className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors duration-200">
+                <NotificationBell />
+              </div>
+              <ProfileDropdown 
+                user={user} 
+                expert={expert} 
+                userType="expert" 
+              />
+            </div>
           </div>
         </div>
       </header>
-      <div className='container mx-auto px-4 relative z-10 flex flex-col items-start gap-y-6 mt-20'>
-      <h2 className='text-[#000000] font-semibold text-[42px]'>Welcome Expert</h2>
-       <div>
-        <p className='text-[#000000] font-semibold text-[20px]'>Let’s complete your profile</p>
-        <p className='text-base font-sans text-[#000000] font-normal'>Tell us about your expertise and start receiving project opportunities</p>
-       </div>
-      </div>
-      <div className="container mx-auto px-4  relative z-10 mt-8 pb-10">
-        {/* Header */}
-        {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
 
-              {success && (
-                <Alert>
-                  <AlertDescription>{success}</AlertDescription>
-                </Alert>
-              )}
+      <div className="container mx-auto px-4 max-w-6xl py-8">
+        <div className="mb-6">
+          <Link href="/expert/profile" className="inline-flex items-center text-[#008260] hover:text-[#006b4f] transition-colors">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Profile
+          </Link>
+        </div>
 
-        <Card className="bg-white">
-        
+        <Card className="bg-white border border-slate-200 rounded-2xl shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-slate-900">Edit Profile</CardTitle>
+            <CardDescription className="text-slate-600">
+              Update your profile information and documents
+            </CardDescription>
+          </CardHeader>
           <CardContent>
-            <form className="space-y-6">
-            
+            {error && (
+              <Alert variant="destructive" className="mb-6">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
+            {success && (
+              <Alert className="mb-6 bg-green-50/90 backdrop-blur-sm border-green-200">
+                <AlertDescription className="text-green-700">{success}</AlertDescription>
+              </Alert>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-6">
               {/* Basic Information */}
-              <div className="space-y-4 pt-4">
-                <h3 className="text-lg font-semibold text-slate-800">Basic Information</h3>
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-slate-800 flex items-center space-x-2">
+                  <User className="h-5 w-5 text-[#008260]" />
+                  <span>Basic Information</span>
+                </h3>
                 
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -411,7 +396,7 @@ export default function ExpertProfileSetup() {
                       placeholder="Enter your full name"
                       value={formData.name}
                       onChange={(e) => handleInputChange('name', e.target.value)}
-                      className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300"
+                      className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
                       required
                     />
                   </div>
@@ -423,7 +408,7 @@ export default function ExpertProfileSetup() {
                       placeholder="Enter your phone number"
                       value={formData.phone}
                       onChange={(e) => handleInputChange('phone', e.target.value)}
-                      className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300"
+                      className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
                       required
                     />
                   </div>
@@ -457,7 +442,7 @@ export default function ExpertProfileSetup() {
 
                 <div className="space-y-2">
                   <Label htmlFor="qualifications_pdf" className="text-slate-700">Qualifications Documents (PDF)</Label>
-                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center hover:border-[#008260] transition-colors">
+                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center transition-all duration-300 hover:border-[#008260]">
                     <input
                       type="file"
                       id="qualifications_pdf"
@@ -466,9 +451,9 @@ export default function ExpertProfileSetup() {
                       className="hidden"
                     />
                     <label htmlFor="qualifications_pdf" className="cursor-pointer">
-                      <FileText className="mx-auto h-12 w-12 text-slate-400 mb-4" />
+                      <FileText className="mx-auto h-12 w-12 text-[#008260] mb-4" />
                       <p className="text-sm text-slate-600 mb-2">
-                        <span className="font-medium text-[#008260] hover:text-[#006d51]">
+                        <span className="font-medium text-[#008260]">
                           Click to upload
                         </span>{' '}
                         or drag and drop
@@ -477,13 +462,12 @@ export default function ExpertProfileSetup() {
                     </label>
                   </div>
                   
-                  {/* Qualifications PDF Preview */}
                   {selectedQualifications && (
-                    <div className="mt-3 p-3 bg-[#008260]/10 border border-[#008260]/30 rounded-lg">
+                    <div className="mt-3 p-3 bg-[#ECF2FF] border border-[#008260] rounded-lg">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
                           <FileText className="h-5 w-5 text-[#008260]" />
-                          <span className="text-sm font-medium text-slate-900 break-all">
+                          <span className="text-sm font-medium text-[#008260] break-all">
                             {selectedQualifications.name}
                           </span>
                         </div>
@@ -503,49 +487,34 @@ export default function ExpertProfileSetup() {
                       <AlertDescription>{qualificationsError}</AlertDescription>
                     </Alert>
                   )}
+
+                  {expert?.qualifications_url && !selectedQualifications && (
+                    <div className="mt-2 flex items-center space-x-2 text-sm text-slate-600">
+                      <FileText className="h-4 w-4 text-[#008260]" />
+                      <span>Current file uploaded</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Profile Photo Upload */}
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="profile_photo" className="text-slate-700 flex items-center space-x-2">
-                      <Camera className="h-4 w-4" />
-                      <span>Profile Photo *</span>
+                      <Camera className="h-5 w-5 text-[#008260]" />
+                      <span>Profile Photo</span>
                     </Label>
                     <p className="text-sm text-slate-500">Upload a professional photo (JPEG, PNG, or WebP, max 5MB)</p>
                   </div>
 
-                  {/* Photo Upload Area */}
                   <div className="space-y-4">
-                    {!photoPreview ? (
-                      <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center hover:border-[#008260] transition-colors duration-300">
-                        <input
-                          type="file"
-                          id="profile_photo"
-                          accept="image/jpeg,image/jpg,image/png,image/webp"
-                          onChange={handlePhotoSelect}
-                          className="hidden"
-                        />
-                        <label htmlFor="profile_photo" className="cursor-pointer">
-                          <div className="space-y-3">
-                            <div className="mx-auto w-16 h-16 bg-[#008260]/10 rounded-full flex items-center justify-center">
-                              <Upload className="h-8 w-8 text-[#008260]" />
-                            </div>
-                            <div>
-                              <p className="text-slate-600 font-medium">Click to upload photo</p>
-                              <p className="text-sm text-slate-500">or drag and drop</p>
-                            </div>
-                          </div>
-                        </label>
-                      </div>
-                    ) : (
+                    {selectedPhoto ? (
+                      // Show preview when a new photo is selected
                       <div className="relative">
-                        <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 overflow-hidden">
-                          {/* Top row: Avatar and Remove button */}
+                        <div className="p-4 bg-[#ECF2FF] rounded-lg border border-slate-200 overflow-hidden">
                           <div className="flex items-center justify-between mb-3">
-                            <Avatar className="w-20 h-20 border-4 border-[#008260]/30 flex-shrink-0">
+                            <Avatar className="w-20 h-20 border-4 border-[#008260] flex-shrink-0">
                               <AvatarImage src={photoPreview} />
-                              <AvatarFallback className="text-2xl font-bold bg-[#008260] text-white">
+                              <AvatarFallback className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
                                 {formData.name?.charAt(0) || 'E'}
                               </AvatarFallback>
                             </Avatar>
@@ -561,14 +530,70 @@ export default function ExpertProfileSetup() {
                             </Button>
                           </div>
                           
-                          {/* Bottom row: Image information */}
                           <div className="text-center sm:text-left w-full min-w-0">
-                            <p className="text-sm text-slate-600 font-medium">Photo selected</p>
-                            <div className="w-full overflow-hidden">
-                              <p className="text-xs text-slate-500 break-all">{selectedPhoto?.name}</p>
-                            </div>
+                            <p className="text-sm text-slate-600 font-medium">New photo selected</p>
+                            <p className="text-xs text-slate-500 break-all">{selectedPhoto.name}</p>
                           </div>
                         </div>
+                      </div>
+                    ) : expert?.photo_url ? (
+                      // Show current photo with option to change
+                      <div className="relative">
+                        <div className="p-4 bg-[#ECF2FF] rounded-lg border border-slate-200 overflow-hidden">
+                          <div className="flex items-center justify-between mb-3">
+                            <Avatar className="w-20 h-20 border-4 border-[#008260] flex-shrink-0">
+                              <AvatarImage src={expert.photo_url} />
+                              <AvatarFallback className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+                                {formData.name?.charAt(0) || 'E'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex gap-2">
+                              <input
+                                ref={fileInputRef}
+                                type="file"
+                                id="profile_photo_change"
+                                accept="image/jpeg,image/jpg,image/png,image/webp"
+                                onChange={handlePhotoSelect}
+                                className="hidden"
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => fileInputRef.current?.click()}
+                                className="border-[#008260] text-[#008260] hover:bg-[#ECF2FF] transition-all duration-300 px-3 py-1 h-8 text-xs flex-shrink-0"
+                              >
+                                Change
+                              </Button>
+                            </div>
+                          </div>
+                          
+                          <div className="text-center sm:text-left w-full min-w-0">
+                            <p className="text-sm text-slate-600 font-medium">Current photo</p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      // Show upload area when no photo exists
+                      <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center hover:border-[#008260] transition-colors">
+                        <input
+                          type="file"
+                          id="profile_photo"
+                          accept="image/jpeg,image/jpg,image/png,image/webp"
+                          onChange={handlePhotoSelect}
+                          className="hidden"
+                        />
+                        <label htmlFor="profile_photo" className="cursor-pointer">
+                          <div className="space-y-3">
+                            <div className="mx-auto w-16 h-16 bg-[#ECF2FF] rounded-full flex items-center justify-center">
+                              <Upload className="h-8 w-8 text-[#008260]" />
+                            </div>
+                            <div>
+                              <p className="text-[#008260] font-medium">Click to upload <span className='text-slate-600'>new photo</span></p>
+                              <p className="text-sm text-slate-500">or drag and drop</p>
+                            </div>
+                          </div>
+                        </label>
                       </div>
                     )}
 
@@ -582,19 +607,11 @@ export default function ExpertProfileSetup() {
               </div>
 
               {/* Professional Details */}
-            
-
-              {/* Availability */}
-           
-
-             
-            </form>
-          </CardContent>
-        </Card>
-        <Card className="bg-white mt-3">
-         <CardContent>
-         <div className="space-y-4 pt-4">
-                <h3 className="text-lg font-semibold text-slate-800">Professional Details</h3>
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-slate-800 flex items-center space-x-2">
+                  <Briefcase className="h-5 w-5 text-[#008260]" />
+                  <span>Professional Details</span>
+                </h3>
                 
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -613,17 +630,15 @@ export default function ExpertProfileSetup() {
                     </Select>
                   </div>
 
-                  {/* Subskills Multi-Select */}
                   {formData.domain_expertise && availableSubskills.length > 0 && (
                     <div className="space-y-2 min-w-0 max-w-full overflow-hidden">
                       <Label className="text-slate-700">Specializations & Skills *</Label>
-      
                       <MultiSelect
                         options={availableSubskills}
                         selected={selectedSubskills}
                         onSelectionChange={handleSubskillChange}
                         placeholder="Select your specializations..."
-                        className="w-full min-w-0"
+                        className="w-full"
                       />
                     </div>
                   )}
@@ -636,7 +651,7 @@ export default function ExpertProfileSetup() {
                       placeholder="Enter years of experience"
                       value={formData.experience_years}
                       onChange={(e) => handleInputChange('experience_years', e.target.value)}
-                      className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300"
+                      className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
                     />
                   </div>
                 </div>
@@ -645,7 +660,7 @@ export default function ExpertProfileSetup() {
                   <div className="space-y-2">
                     <Label htmlFor="hourly_rate" className="text-slate-700">Hourly Rate (₹) *</Label>
                     <div className="relative">
-                    <IndianRupee className="absolute left-3 top-3 h-4 w-4 text-[#008260]" />
+                      <IndianRupee className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                       <Input
                         id="hourly_rate"
                         type="number"
@@ -665,7 +680,7 @@ export default function ExpertProfileSetup() {
                       placeholder="https://linkedin.com/in/yourprofile"
                       value={formData.linkedin_url}
                       onChange={(e) => handleInputChange('linkedin_url', e.target.value)}
-                      className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300"
+                      className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
                     />
                   </div>
                 </div>
@@ -678,7 +693,7 @@ export default function ExpertProfileSetup() {
                       placeholder="Enter your last company name"
                       value={formData.last_working_company}
                       onChange={(e) => handleInputChange('last_working_company', e.target.value)}
-                      className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300"
+                      className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
                       required
                     />
                   </div>
@@ -724,7 +739,7 @@ export default function ExpertProfileSetup() {
 
                 <div className="space-y-2">
                   <Label htmlFor="resume" className="text-slate-700">Resume/CV (PDF)</Label>
-                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center hover:border-[#008260] transition-colors">
+                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center transition-all duration-300 hover:border-[#008260]">
                     <input
                       type="file"
                       id="resume"
@@ -733,9 +748,9 @@ export default function ExpertProfileSetup() {
                       className="hidden"
                     />
                     <label htmlFor="resume" className="cursor-pointer">
-                      <FileText className="mx-auto h-12 w-12 text-slate-400 mb-4" />
+                      <FileText className="mx-auto h-12 w-12 text-[#008260] mb-4" />
                       <p className="text-sm text-slate-600 mb-2">
-                        <span className="font-medium text-[#008260] hover:text-[#006d51]">
+                        <span className="font-medium text-[#008260]">
                           Click to upload
                         </span>{' '}
                         or drag and drop
@@ -744,13 +759,12 @@ export default function ExpertProfileSetup() {
                     </label>
                   </div>
                   
-                  {/* Resume Preview */}
                   {selectedResume && (
-                    <div className="mt-3 p-3 bg-[#008260]/10 border border-[#008260]/30 rounded-lg">
+                    <div className="mt-3 p-3 bg-[#ECF2FF] border border-[#008260] rounded-lg">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
                           <FileText className="h-5 w-5 text-[#008260]" />
-                          <span className="text-sm font-medium text-slate-900 break-all">
+                          <span className="text-sm font-medium text-[#008260] break-all">
                             {selectedResume.name}
                           </span>
                         </div>
@@ -770,26 +784,40 @@ export default function ExpertProfileSetup() {
                       <AlertDescription>{resumeError}</AlertDescription>
                     </Alert>
                   )}
+
+                  {expert?.resume_url && !selectedResume && (
+                    <div className="mt-2 flex items-center space-x-2 text-sm text-slate-600">
+                      <FileText className="h-4 w-4 text-[#008260]" />
+                      <span>Current resume uploaded</span>
+                    </div>
+                  )}
                 </div>
               </div>
-         </CardContent>
-        </Card>
-        <div className="flex justify-end pt-6 flex-wrap gap-3">
-                <Link href="/auth/login">
-                  <Button variant="outline" className="bg-white rounded-md w-[150px]">
-                    Back 
+
+              <div className="flex justify-end gap-4 pt-6">
+                <Link href="/expert/profile">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="border-slate-300 hover:bg-slate-50"
+                  >
+                    Cancel
                   </Button>
                 </Link>
                 <Button
-                  type="button"
-                  className="bg-[#008260] hover:bg-[#006d51] text-white rounded-md w-[150px]"
+                  type="submit"
+                  className="bg-[#008260] hover:bg-[#006d51] text-white rounded-md px-6"
                   disabled={saving}
-                  onClick={handleSubmit}
                 >
-                  {saving ? 'Saving...' : 'Save'}
+                  <Save className="h-4 w-4 mr-2" />
+                  {saving ? 'Saving...' : 'Save Changes'}
                 </Button>
               </div>
+            </form>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )
 }
+

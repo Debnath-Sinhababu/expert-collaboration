@@ -159,11 +159,11 @@ export default function InstitutionProfileSetup() {
           setSaving(false)
           return
         }
-        if (!formData.cin?.trim()) {
-          toast.error('Please enter CIN')
-          setSaving(false)
-          return
-        }
+        // if (!formData.cin?.trim()) {
+        //   toast.error('Please enter CIN')
+        //   setSaving(false)
+        //   return
+        // }
         // Format validations for GSTIN, PAN, CIN
         const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]$/
         const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/
@@ -179,7 +179,7 @@ export default function InstitutionProfileSetup() {
           setSaving(false)
           return
         }
-        if (!cinRegex.test(formData.cin)) {
+        if (formData.cin?.trim() && !cinRegex.test(formData.cin)) {
           toast.error('Please enter a valid CIN (21 characters)')
           setSaving(false)
           return
@@ -370,7 +370,7 @@ export default function InstitutionProfileSetup() {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label>CIN *</Label>
+                          <Label>CIN</Label>
                           <Input
                             placeholder="Corporate Identification Number"
                             value={formData.cin}
@@ -379,7 +379,7 @@ export default function InstitutionProfileSetup() {
                               const upper = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')
                               handleInputChange('cin', upper)
                             }}
-                            required
+                         
                           />
                         </div>
                         

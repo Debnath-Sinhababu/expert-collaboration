@@ -44,7 +44,7 @@ import {
   Briefcase
 } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { toast } from 'sonner'
 
 type UserMeta = { role?: string; name?: string }
@@ -166,6 +166,7 @@ export default function InstitutionHome() {
   }, [hasMoreExperts, expertsListLoading, loadMoreExperts, allExperts])
 
   const router = useRouter()
+  const pathname = usePathname()
 
   // Reuse existing getUser pattern from dashboard
   const getUser = async (): Promise<SessionUser | null> => {
@@ -680,30 +681,123 @@ export default function InstitutionHome() {
               <Logo size="header" />
             </Link>
 
-            {/* Navigation */}
-          
+            {/* Navigation - Desktop only */}
+            <nav className="hidden md:flex items-center space-x-6">
+              {/* Dashboard Link */}
+              <Link 
+                href="/institution/dashboard"
+                className={`text-sm font-medium transition-colors duration-200 relative group ${
+                  pathname?.startsWith('/institution/dashboard') && !pathname?.startsWith('/institution/internships') && !pathname?.startsWith('/institution/freelance')
+                    ? 'text-white' 
+                    : 'text-white/80 hover:text-white'
+                }`}
+              >
+                Dashboard
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
+              </Link>
+
+              {/* Internship Dashboard - Only for corporate institutions */}
+              {institution?.type && institution.type.toLowerCase() === 'corporate' && (
+                <Link 
+                  href="/institution/internships/dashboard"
+                  className={`text-sm font-medium transition-colors duration-200 relative group ${
+                    pathname?.startsWith('/institution/internships')
+                      ? 'text-white' 
+                      : 'text-white/80 hover:text-white'
+                  }`}
+                >
+                  Internship Dashboard
+                  <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
+                </Link>
+              )}
+
+              {/* Freelance Dashboard - Only for corporate institutions */}
+              {institution?.type && institution.type.toLowerCase() === 'corporate' && (
+                <Link 
+                  href="/institution/freelance/dashboard"
+                  className={`text-sm font-medium transition-colors duration-200 relative group ${
+                    pathname?.startsWith('/institution/freelance')
+                      ? 'text-white' 
+                      : 'text-white/80 hover:text-white'
+                  }`}
+                >
+                  Freelance Dashboard
+                  <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
+                </Link>
+              )}
+
+              {/* Browse Internships - Only for non-corporate institutions */}
+              {institution?.type && institution.type !== 'Corporate' && (
+                <Link 
+                  href="/institution/internships/opportunities"
+                  className="text-sm font-medium text-white/80 hover:text-white transition-colors duration-200 relative group"
+                >
+                  Browse Internships
+                  <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
+                </Link>
+              )}
+            </nav>
 
             {/* Right side */}
             <div className="flex items-center space-x-4">
-             
-            {institution?.type && institution.type !== 'Corporate' && (
-                <Link href="/institution/internships/opportunities">
-                  <p className="hidden md:inline-flex text-white text-[15px] font-medium">Browse Internships</p>
-                </Link>
-              )}
-          
-                <ProfileDropdown 
+              <ProfileDropdown 
                 user={user} 
                 institution={institution} 
                 userType="institution" 
               />
-               <div className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors duration-200">
+              <div className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors duration-200">
                 <NotificationBell />
               </div>
             </div>
           </div>
         </div>
       </header>
+
+      {/* Quick Actions / Hero CTAs (no white background) */}
+      {
+        institution?.type && institution.type.toLowerCase() === 'corporate' && 
+        <section className="mt-6 sm:mt-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-4 sm:gap-6">
+            <h2 className="text-lg sm:text-2xl font-semibold text-slate-900">What would you like to do today?</h2>
+
+            {/* Inline CTA row */}
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4 md:gap-5 py-2 sm:py-3">
+              {/* Hire Experts */}
+              <Link href="/institution/post-requirement?tab=contract">
+                <Button className="bg-[#008260] hover:bg-[#006d51] text-white rounded-full px-5 sm:px-6 py-2.5 sm:py-3 h-auto text-sm sm:text-base">
+                  <UserCheck className="h-4 w-4 mr-2" />
+                Hire Experts
+                </Button>
+              </Link>
+
+              {/* Internship (corporate only) */}
+              {institution?.type && institution.type.toLowerCase() === 'corporate' && (
+                <Link href="/institution/post-requirement?tab=internship">
+                  <Button className="bg-[#008260] hover:bg-[#006d51] text-white rounded-full px-5 sm:px-6 py-2.5 sm:py-3 h-auto text-sm sm:text-base">
+                    <GraduationCap className="h-4 w-4 mr-2" />
+                    Create Internship
+                  </Button>
+                </Link>
+              )}
+
+              {/* Freelance (corporate only) */}
+              {institution?.type && institution.type.toLowerCase() === 'corporate' && (
+                <Link href="/institution/post-requirement?tab=freelance">
+                  <Button className="bg-[#008260] hover:bg-[#006d51] text-white rounded-full px-5 sm:px-6 py-2.5 sm:py-3 h-auto text-sm sm:text-base">
+                    <Briefcase className="h-4 w-4 mr-2" />
+                    Create Freelance
+                  </Button>
+                </Link>
+              )}
+
+           
+            </div>
+          </div>
+        </div>
+      </section>
+      }
+   
 
       {/* Mobile Browse Internships Button */}
       {institution?.type && institution.type !== 'Corporate' && (
@@ -719,7 +813,7 @@ export default function InstitutionHome() {
 
       {/* Partnered Institutions Banner */}
       {partneredInstitutions.length > 0 && (
-        <div className="bg-gradient-to-r from-slate-50 via-blue-50 to-indigo-100 py-8">
+        <div className="bg-gradient-to-r from-slate-50 via-blue-50 to-indigo-100 py-8 mt-3">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-6">
               <h2 className="text-2xl sm:text-[28px] font-semibold text-[#000000] mb-1">
@@ -1054,8 +1148,8 @@ export default function InstitutionHome() {
           <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-2">
             <div>
               <h2 className="text-2xl font-bold text-black mb-1">Post a New Requirement</h2>
-              <p className="text-[#000000CC] text-lg font-normal">
-                Create opportunities for experts to collaborate with your institution
+              <p className="text-[#000000CC] text-base font-normal">
+              Access top and verified experts or skilled students for hourly, internship, or freelance projects.
               </p>
             </div>
             <Dialog open={false}>
@@ -1751,25 +1845,23 @@ export default function InstitutionHome() {
                   {institutionProjects.map((proj) => {
                     const isSelected = quickSelectedProjectId === proj.id
                     return (
-                      <label key={proj.id} className="block">
-                        <div
-                          className={`flex items-start gap-3 p-4 rounded-xl border bg-white transition-all duration-200 cursor-pointer ${isSelected ? 'border-[#008260] bg-[#E8F5F1] shadow-md' : 'border-[#E0E0E0] hover:border-[#008260] hover:shadow-sm'}`}
-                          onClick={() => setQuickSelectedProjectId(isSelected ? null : proj.id)}
-                        >
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={(checked) => setQuickSelectedProjectId(checked ? proj.id : null)}
-                            className="mt-1 border-2 rounded-md border-[#DCDCDC] data-[state=checked]:bg-[#008260] data-[state=checked]:border-[#008260]"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-2 mb-2">
-                              <h4 className="font-semibold text-[#000000] truncate">{proj.title}</h4>
-                              {proj.type && <Badge className="capitalize text-xs flex-shrink-0 bg-[#E8F5F1] text-[#008260] border border-[#008260]">{proj.type}</Badge>}
-                            </div>
-                            <p className="text-sm text-[#6A6A6A] line-clamp-2">{proj.description}</p>
+                      <div 
+                        key={proj.id} 
+                        className={`flex items-start gap-3 p-4 rounded-xl border bg-white transition-all duration-200 cursor-pointer ${isSelected ? 'border-[#008260] bg-[#E8F5F1] shadow-md' : 'border-[#E0E0E0] hover:border-[#008260] hover:shadow-sm'}`}
+                        onClick={() => setQuickSelectedProjectId(isSelected ? null : proj.id)}
+                      >
+                        <Checkbox
+                          checked={isSelected}
+                          className="mt-1 border-2 rounded-md border-[#DCDCDC] data-[state=checked]:bg-[#008260] data-[state=checked]:border-[#008260] pointer-events-none"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <h4 className="font-semibold text-[#000000] truncate">{proj.title}</h4>
+                            {proj.type && <Badge className="capitalize text-xs flex-shrink-0 bg-[#E8F5F1] text-[#008260] border border-[#008260]">{proj.type}</Badge>}
                           </div>
+                          <p className="text-sm text-[#6A6A6A] line-clamp-2">{proj.description}</p>
                         </div>
-                      </label>
+                      </div>
                     )
                   })}
                 </div>

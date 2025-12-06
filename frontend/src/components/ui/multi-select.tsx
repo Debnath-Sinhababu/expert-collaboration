@@ -55,7 +55,7 @@ const MultiSelect = React.forwardRef<HTMLDivElement, MultiSelectProps>(
               variant="outline"
               role="combobox"
               aria-expanded={open}
-              className="w-full justify-between h-10 px-3 py-2 border-slate-200 focus:border-blue-500 focus:ring-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-300 bg-transparent"
+              className="w-full justify-between h-10 px-3 py-2 border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300 bg-transparent hover:bg-transparent"
               disabled={disabled}
             >
               <div className="flex items-center gap-1 flex-1 min-w-0">
@@ -65,7 +65,7 @@ const MultiSelect = React.forwardRef<HTMLDivElement, MultiSelectProps>(
                       <Badge
                         key={item}
                         variant="secondary"
-                        className="shrink-0 text-xs whitespace-nowrap"
+                        className="shrink-0 text-xs whitespace-nowrap bg-[#008260]/10 text-[#008260] border-[#008260]/20"
                       >
                         {item}
                         <button
@@ -74,7 +74,7 @@ const MultiSelect = React.forwardRef<HTMLDivElement, MultiSelectProps>(
                             e.stopPropagation()
                             handleRemove(item)
                           }}
-                          className="ml-1 hover:text-destructive"
+                          className="ml-1 hover:text-red-600"
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -82,7 +82,7 @@ const MultiSelect = React.forwardRef<HTMLDivElement, MultiSelectProps>(
                     ))}
                   </div>
                 ) : (
-                  <span className="text-muted-foreground truncate">
+                  <span className="text-slate-400 truncate">
                     {placeholder}
                   </span>
                 )}
@@ -91,15 +91,15 @@ const MultiSelect = React.forwardRef<HTMLDivElement, MultiSelectProps>(
             </Button>
           </PopoverTrigger>
 
-          <PopoverContent className="w-full p-0" align="start">
+          <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 border-[#D6D6D6]" align="start">
             <div className="max-h-60 overflow-y-auto">
               {selected.length > 0 && (
-                <div className="p-2 border-b">
+                <div className="p-2 border-b border-[#D6D6D6]">
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={handleClearAll}
-                    className="h-8 px-2 text-xs"
+                    className="h-8 px-2 text-xs text-[#008260] hover:bg-[#008260]/10"
                   >
                     Clear all
                   </Button>
@@ -109,7 +109,7 @@ const MultiSelect = React.forwardRef<HTMLDivElement, MultiSelectProps>(
                 {options.map((option) => (
                   <div
                     key={option}
-                    className="flex items-center space-x-2 rounded-sm px-2 py-1.5 hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                    className="flex items-center space-x-2 rounded-sm px-2 py-1.5 hover:bg-[#008260]/10 cursor-pointer"
                     onMouseDown={(e) => e.preventDefault()} // ✅ Prevent popover from closing
                     onClick={() => handleToggle(option)}
                   >
@@ -117,10 +117,11 @@ const MultiSelect = React.forwardRef<HTMLDivElement, MultiSelectProps>(
                       checked={selected.includes(option)}
                       onCheckedChange={() => handleToggle(option)}
                       onMouseDown={(e) => e.preventDefault()} // ✅ Same here
+                      className="border-slate-300 data-[state=checked]:bg-[#008260] data-[state=checked]:border-[#008260]"
                     />
-                    <span className="flex-1 text-sm">{option}</span>
+                    <span className="flex-1 text-sm text-slate-700">{option}</span>
                     {selected.includes(option) && (
-                      <Check className="h-4 w-4 text-primary" />
+                      <Check className="h-4 w-4 text-[#008260]" />
                     )}
                   </div>
                 ))}
