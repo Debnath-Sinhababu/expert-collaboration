@@ -39,6 +39,7 @@ app.use(cors({
     'http://localhost:3001',
     process.env.FRONTEND_URL,
    'https://calxmap.in',
+   'https://www.calxmap.in',
    'expert-collaboration.vercel.app',
    'https://expert-collaboration-g75b.onrender.com'
   ].filter(Boolean),
