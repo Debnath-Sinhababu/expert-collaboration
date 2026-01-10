@@ -4618,6 +4618,132 @@ app.get('/api/admin/profiles/students', async (req, res) => {
   }
 });
 
+// Admin: Create expert profile (without user_id requirement)
+app.post('/api/admin/experts', upload.fields([
+  { name: 'profile_photo', maxCount: 1 },
+  { name: 'resume', maxCount: 1 },
+  { name: 'qualifications', maxCount: 1 }
+]), async (req, res) => {
+  try {
+    // Check admin authentication
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Authorization required' });
+    }
+
+    const token = authHeader.substring(7);
+    if (!token.includes('debnathsinhababu2017@gmail.com')) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Validate required fields
+    if (!req.body.name || !req.body.email || !req.body.phone) {
+      return res.status(400).json({ 
+        error: 'Name, email, and phone are required fields' 
+      });
+    }
+
+    if (!req.files?.profile_photo?.[0]) {
+      return res.status(400).json({ 
+        error: 'Profile photo is required' 
+      });
+    }
+
+    // Use service role to bypass RLS
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    // Upload files to Cloudinary
+    let photoData = null;
+    let resumeData = null;
+    let qualificationsData = null;
+
+    // Handle profile photo upload
+    if (req.files?.profile_photo?.[0]) {
+      photoData = await ImageUploadService.uploadImage(
+        req.files.profile_photo[0].buffer, 
+        'expert-profiles'
+      );
+      
+      if (!photoData.success) {
+        return res.status(500).json({ 
+          error: `Photo upload failed: ${photoData.error}` 
+        });
+      }
+    }
+
+    // Handle resume PDF upload
+    if (req.files?.resume?.[0]) {
+      resumeData = await ImageUploadService.uploadPDF(
+        req.files.resume[0].buffer, 
+        'expert-documents'
+      );
+      
+      if (!resumeData.success) {
+        return res.status(500).json({ 
+          error: `Resume upload failed: ${resumeData.error}` 
+        });
+      }
+    }
+
+    // Handle qualifications PDF upload
+    if (req.files?.qualifications?.[0]) {
+      qualificationsData = await ImageUploadService.uploadPDF(
+        req.files.qualifications[0].buffer, 
+        'expert-documents'
+      );
+      
+      if (!qualificationsData.success) {
+        return res.status(500).json({ 
+          error: `Qualifications upload failed: ${qualificationsData.error}` 
+        });
+      }
+    }
+    
+    const expertData = {
+      user_id: null, // Admin can create without user_id
+      name: req.body.name,
+      email: req.body.email,
+      phone: req.body.phone,
+      bio: req.body.bio || '',
+      photo_url: photoData?.url || null,
+      profile_photo_public_id: photoData?.publicId || null,
+      profile_photo_thumbnail_url: photoData?.thumbnailUrl || null,
+      profile_photo_small_url: photoData?.smallUrl || null,
+      qualifications: req.body.qualifications || '',
+      qualifications_url: qualificationsData?.url || null,
+      qualifications_public_id: qualificationsData?.publicId || null,
+      domain_expertise: req.body.domain_expertise ? [req.body.domain_expertise] : [],
+      subskills: Array.isArray(req.body.subskills) ? req.body.subskills : (req.body.subskills ? JSON.parse(req.body.subskills) : []),
+      hourly_rate: req.body.hourly_rate ? parseFloat(req.body.hourly_rate) : null,
+      resume_url: resumeData?.url || null,
+      resume_public_id: resumeData?.publicId || null,
+      availability: req.body.availability ? (Array.isArray(req.body.availability) ? req.body.availability : JSON.parse(req.body.availability)) : [],
+      is_verified: true, // Auto-verify for admin-created profiles
+      rating: 0.00,
+      total_ratings: 0,
+      experience_years: req.body.experience_years ? parseInt(req.body.experience_years) : null,
+      linkedin_url: req.body.linkedin_url || '',
+      last_working_company: req.body.last_working_company || null,
+      expert_types: Array.isArray(req.body.expert_types) ? req.body.expert_types : (req.body.expert_types ? JSON.parse(req.body.expert_types) : []),
+      available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true
+    };
+    
+    const { data, error } = await serviceClient
+      .from('experts')
+      .insert([expertData])
+      .select();
+    
+    if (error) throw error;
+    res.status(201).json(data[0]);
+  } catch (error) {
+    console.error('Admin create expert error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ========================================
 // ADMIN REQUIREMENTS TRACKING ROUTES
 // ========================================
