@@ -49,6 +49,10 @@ export default function AdminCreateExpert() {
   const [photoError, setPhotoError] = useState('')
   const [selectedSubskills, setSelectedSubskills] = useState<string[]>([])
   const [availableSubskills, setAvailableSubskills] = useState<string[]>([])
+  const [customDomains, setCustomDomains] = useState<any[]>([])
+  const [isCustomDomain, setIsCustomDomain] = useState(false)
+  const [customDomainInput, setCustomDomainInput] = useState('')
+  const [customSubskillInput, setCustomSubskillInput] = useState('')
   
   const [selectedResume, setSelectedResume] = useState<File | null>(null)
   const [resumeError, setResumeError] = useState('')
@@ -63,8 +67,21 @@ export default function AdminCreateExpert() {
     const storedAuth = localStorage.getItem('admin_auth')
     if (storedAuth === 'debnathsinhababu2017@gmail.com') {
       setIsAuthenticated(true)
+      loadCustomDomains()
     }
   }, [])
+
+  const loadCustomDomains = async () => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/admin/custom-domains`)
+      if (response.ok) {
+        const data = await response.json()
+        setCustomDomains(Array.isArray(data) ? data : [])
+      }
+    } catch (error) {
+      console.error('Error loading custom domains:', error)
+    }
+  }
 
   const handleAuth = () => {
     if (email === 'debnathsinhababu2017@gmail.com') {
@@ -80,20 +97,71 @@ export default function AdminCreateExpert() {
   }
 
   const handleDomainChange = (domain: string) => {
+    // Check if "Custom" option is selected
+    if (domain === '__custom__') {
+      setIsCustomDomain(true)
+      setFormData(prev => ({
+        ...prev,
+        domain_expertise: '',
+        subskills: []
+      }))
+      setAvailableSubskills([])
+      setSelectedSubskills([])
+      return
+    }
+    
+    setIsCustomDomain(false)
+    setCustomDomainInput('')
     setFormData(prev => ({
       ...prev,
       domain_expertise: domain,
       subskills: []
     }))
     
+    // Check predefined domains
     const selectedDomain = EXPERTISE_DOMAINS.find(d => d.name === domain)
     if (selectedDomain) {
       setAvailableSubskills([...selectedDomain.subskills])
     } else {
-      setAvailableSubskills([])
+      // Check custom domains
+      const customDomain = customDomains.find(d => d.name === domain)
+      if (customDomain && customDomain.subskills) {
+        setAvailableSubskills([...customDomain.subskills])
+      } else {
+        setAvailableSubskills([])
+      }
     }
     
     setSelectedSubskills([])
+  }
+
+  const handleCustomDomainInput = (value: string) => {
+    setCustomDomainInput(value)
+    setFormData(prev => ({
+      ...prev,
+      domain_expertise: value
+    }))
+  }
+
+  const handleAddCustomSubskill = () => {
+    if (customSubskillInput.trim()) {
+      const newSubskills = [...selectedSubskills, customSubskillInput.trim()]
+      setSelectedSubskills(newSubskills)
+      setFormData(prev => ({
+        ...prev,
+        subskills: newSubskills
+      }))
+      setCustomSubskillInput('')
+    }
+  }
+
+  const handleRemoveCustomSubskill = (subskill: string) => {
+    const newSubskills = selectedSubskills.filter(s => s !== subskill)
+    setSelectedSubskills(newSubskills)
+    setFormData(prev => ({
+      ...prev,
+      subskills: newSubskills
+    }))
   }
 
   const handleSubskillChange = (newSubskills: string[]) => {
@@ -210,14 +278,14 @@ export default function AdminCreateExpert() {
         return
       }
 
-      if (!formData.domain_expertise) {
-        toast.error('Please select domain expertise')
+      if (!formData.domain_expertise || (isCustomDomain && !customDomainInput.trim())) {
+        toast.error('Please select or enter domain expertise')
         setSaving(false)
         return
       }
 
       if (formData.subskills.length === 0) {
-        toast.error('Please select at least one specialization/skill')
+        toast.error('Please add at least one specialization/skill')
         setSaving(false)
         return
       }
@@ -319,6 +387,9 @@ export default function AdminCreateExpert() {
       setSelectedQualifications(null)
       setSelectedSubskills([])
       setAvailableSubskills([])
+      setIsCustomDomain(false)
+      setCustomDomainInput('')
+      setCustomSubskillInput('')
       
     } catch (error: any) {
       setError(error.message)
@@ -638,7 +709,10 @@ export default function AdminCreateExpert() {
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="domain_expertise" className="text-slate-700">Domain Expertise *</Label>
-                    <Select value={formData.domain_expertise} onValueChange={handleDomainChange}>
+                    <Select 
+                      value={isCustomDomain ? '__custom__' : formData.domain_expertise} 
+                      onValueChange={handleDomainChange}
+                    >
                       <SelectTrigger className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300">
                         <SelectValue placeholder="Select primary domain" />
                       </SelectTrigger>
@@ -648,11 +722,32 @@ export default function AdminCreateExpert() {
                             {domain.name}
                           </SelectItem>
                         ))}
+                        {customDomains.map((domain) => (
+                          <SelectItem key={domain.id} value={domain.name}>
+                            {domain.name} (Custom)
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="__custom__">+ Add Custom Domain</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
-                  {formData.domain_expertise && availableSubskills.length > 0 && (
+                  {/* Custom Domain Input */}
+                  {isCustomDomain && (
+                    <div className="space-y-2">
+                      <Label htmlFor="custom_domain" className="text-slate-700">Custom Domain Name *</Label>
+                      <Input
+                        id="custom_domain"
+                        placeholder="Enter custom domain name"
+                        value={customDomainInput}
+                        onChange={(e) => handleCustomDomainInput(e.target.value)}
+                        className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300"
+                      />
+                    </div>
+                  )}
+
+                  {/* Predefined or Custom Domain Subskills */}
+                  {formData.domain_expertise && !isCustomDomain && availableSubskills.length > 0 && (
                     <div className="space-y-2 min-w-0 max-w-full overflow-hidden">
                       <Label className="text-slate-700">Specializations & Skills *</Label>
                       <MultiSelect
@@ -662,6 +757,55 @@ export default function AdminCreateExpert() {
                         placeholder="Select specializations..."
                         className="w-full min-w-0"
                       />
+                    </div>
+                  )}
+
+                  {/* Custom Subskills Input */}
+                  {isCustomDomain && formData.domain_expertise && (
+                    <div className="space-y-2 min-w-0 max-w-full overflow-hidden">
+                      <Label className="text-slate-700">Custom Specializations & Skills *</Label>
+                      <div className="space-y-2">
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Enter specialization/skill"
+                            value={customSubskillInput}
+                            onChange={(e) => setCustomSubskillInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                handleAddCustomSubskill()
+                              }
+                            }}
+                            className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300"
+                          />
+                          <Button
+                            type="button"
+                            onClick={handleAddCustomSubskill}
+                            className="bg-[#008260] hover:bg-[#006d51] text-white"
+                          >
+                            Add
+                          </Button>
+                        </div>
+                        {selectedSubskills.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {selectedSubskills.map((subskill, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-center gap-1 px-3 py-1 bg-[#008260]/10 border border-[#008260]/30 rounded-md text-sm"
+                              >
+                                <span>{subskill}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveCustomSubskill(subskill)}
+                                  className="ml-1 text-red-500 hover:text-red-700"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
 

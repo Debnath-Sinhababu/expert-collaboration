@@ -268,6 +268,58 @@ app.post('/api/experts', upload.fields([
       }
     }
     
+    // Check if domain is custom (not in predefined list)
+    const domainName = req.body.domain_expertise;
+    const STANDARD_DOMAINS = [
+      "Computer Science & IT", "Engineering", "Business & Management", 
+      "Finance & Economics", "Healthcare & Medicine", "Education & Training",
+      "Research & Development", "Marketing & Sales", "Data Science & Analytics",
+      "Design & Creative", "Law & Legal", "Other"
+    ];
+    const isCustomDomain = domainName && !STANDARD_DOMAINS.includes(domainName);
+    
+    // Use service role client for custom domain operations
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+    
+    // If custom domain, save it to custom_domains table
+    if (isCustomDomain && domainName) {
+      const subskillsArray = Array.isArray(req.body.subskills) 
+        ? req.body.subskills 
+        : (req.body.subskills ? JSON.parse(req.body.subskills) : []);
+      
+      // Check if custom domain already exists
+      const { data: existingDomain } = await serviceClient
+        .from('custom_domains')
+        .select('*')
+        .eq('name', domainName)
+        .single();
+      
+      if (!existingDomain) {
+        // Insert new custom domain
+        await serviceClient
+          .from('custom_domains')
+          .insert([{
+            name: domainName,
+            subskills: subskillsArray
+          }]);
+      } else {
+        // Update existing custom domain with new subskills (merge unique)
+        const existingSubskills = existingDomain.subskills || [];
+        const mergedSubskills = [...new Set([...existingSubskills, ...subskillsArray])];
+        
+        await serviceClient
+          .from('custom_domains')
+          .update({ 
+            subskills: mergedSubskills,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingDomain.id);
+      }
+    }
+    
     const expertData = {
       user_id: req.body.user_id,
       name: req.body.name,
@@ -400,6 +452,58 @@ app.put('/api/experts/:id', upload.fields([
       .single();
 
     if (fetchError) throw fetchError;
+
+    // Check if domain is custom (not in predefined list)
+    const domainName = req.body.domain_expertise ? req.body.domain_expertise.trim() : null;
+    const STANDARD_DOMAINS = [
+      "Computer Science & IT", "Engineering", "Business & Management", 
+      "Finance & Economics", "Healthcare & Medicine", "Education & Training",
+      "Research & Development", "Marketing & Sales", "Data Science & Analytics",
+      "Design & Creative", "Law & Legal", "Other"
+    ];
+    const isCustomDomain = domainName && !STANDARD_DOMAINS.includes(domainName);
+    
+    // Use service role client for custom domain operations
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+    
+    // If custom domain, save it to custom_domains table
+    if (isCustomDomain && domainName) {
+      const subskillsArray = Array.isArray(req.body.subskills) 
+        ? req.body.subskills 
+        : (req.body.subskills ? JSON.parse(req.body.subskills) : []);
+      
+      // Check if custom domain already exists
+      const { data: existingDomain } = await serviceClient
+        .from('custom_domains')
+        .select('*')
+        .eq('name', domainName)
+        .single();
+      
+      if (!existingDomain) {
+        // Insert new custom domain
+        await serviceClient
+          .from('custom_domains')
+          .insert([{
+            name: domainName,
+            subskills: subskillsArray
+          }]);
+      } else {
+        // Update existing custom domain with new subskills (merge unique)
+        const existingSubskills = existingDomain.subskills || [];
+        const mergedSubskills = [...new Set([...existingSubskills, ...subskillsArray])];
+        
+        await serviceClient
+          .from('custom_domains')
+          .update({ 
+            subskills: mergedSubskills,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingDomain.id);
+      }
+    }
 
     let updateData = { 
       ...req.body, 
@@ -4702,6 +4806,53 @@ app.post('/api/admin/experts', upload.fields([
       }
     }
     
+    // Check if domain is custom (not in predefined list)
+    const domainName = req.body.domain_expertise;
+    // Standard domains list (matching frontend constants)
+    const STANDARD_DOMAINS = [
+      "Computer Science & IT", "Engineering", "Business & Management", 
+      "Finance & Economics", "Healthcare & Medicine", "Education & Training",
+      "Research & Development", "Marketing & Sales", "Data Science & Analytics",
+      "Design & Creative", "Law & Legal", "Other"
+    ];
+    const isCustomDomain = domainName && !STANDARD_DOMAINS.includes(domainName);
+    
+    // If custom domain, save it to custom_domains table
+    if (isCustomDomain && domainName) {
+      const subskillsArray = Array.isArray(req.body.subskills) 
+        ? req.body.subskills 
+        : (req.body.subskills ? JSON.parse(req.body.subskills) : []);
+      
+      // Check if custom domain already exists
+      const { data: existingDomain } = await serviceClient
+        .from('custom_domains')
+        .select('*')
+        .eq('name', domainName)
+        .single();
+      
+      if (!existingDomain) {
+        // Insert new custom domain
+        await serviceClient
+          .from('custom_domains')
+          .insert([{
+            name: domainName,
+            subskills: subskillsArray
+          }]);
+      } else {
+        // Update existing custom domain with new subskills (merge unique)
+        const existingSubskills = existingDomain.subskills || [];
+        const mergedSubskills = [...new Set([...existingSubskills, ...subskillsArray])];
+        
+        await serviceClient
+          .from('custom_domains')
+          .update({ 
+            subskills: mergedSubskills,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingDomain.id);
+      }
+    }
+    
     const expertData = {
       user_id: null, // Admin can create without user_id
       name: req.body.name,
@@ -4740,6 +4891,28 @@ app.post('/api/admin/experts', upload.fields([
     res.status(201).json(data[0]);
   } catch (error) {
     console.error('Admin create expert error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: Get all custom domains
+app.get('/api/admin/custom-domains', async (req, res) => {
+  try {
+    // Use service role to bypass RLS
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    const { data, error } = await serviceClient
+      .from('custom_domains')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json(Array.isArray(data) ? data : []);
+  } catch (error) {
+    console.error('Admin get custom domains error:', error);
     res.status(500).json({ error: error.message });
   }
 });
