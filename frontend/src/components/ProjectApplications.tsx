@@ -15,6 +15,7 @@ import {
   XCircle,
   Star
 } from 'lucide-react'
+import { getInstitutionRate } from '@/lib/utils'
 
 interface ProjectApplicationsProps {
   projectId: string
@@ -207,7 +208,7 @@ export default function ProjectApplications({ projectId, projectTitle, onClose, 
                         </div>
                         <div>
                           <h3 className="font-semibold text-slate-900">{expert?.name || 'Unknown Expert'}</h3>
-                          <p className="text-sm text-slate-600">${expert?.hourly_rate || 0}/hr</p>
+                          <p className="text-sm text-slate-600">₹{getInstitutionRate(expert?.hourly_rate)}/hr</p>
                         </div>
                       </div>
                       <Badge 
@@ -236,7 +237,7 @@ export default function ProjectApplications({ projectId, projectTitle, onClose, 
                         </div>
                         <div>
                           <span className="text-slate-500">Hourly Rate:</span>
-                          <p className="font-medium text-slate-700">₹{expert?.hourly_rate || 0}/hr</p>
+                          <p className="font-medium text-slate-700">₹{getInstitutionRate(expert?.hourly_rate)}/hr</p>
                         </div>
                         <div>
                           <span className="text-slate-500">Experience:</span>
@@ -349,7 +350,7 @@ export default function ProjectApplications({ projectId, projectTitle, onClose, 
                                   </div>
                                   <div>
                                     <h4 className="font-medium mb-1">Hourly Rate</h4>
-                                    <p className="text-sm">₹{expert?.hourly_rate || 0}</p>
+                                    <p className="text-sm">₹{getInstitutionRate(expert?.hourly_rate)}</p>
                                   </div>
                                   <div>
                                     <h4 className="font-medium mb-1">Experience</h4>

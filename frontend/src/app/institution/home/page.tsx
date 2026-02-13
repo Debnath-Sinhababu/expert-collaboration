@@ -5,6 +5,16 @@ import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
 import { EXPERTISE_DOMAINS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
+
+const STATES = [
+  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
+  'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram',
+  'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu',
+  'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+  'Andaman and Nicobar Islands', 'Chandigarh', 'Dadra and Nagar Haveli and Daman and Diu',
+  'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry'
+]
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -21,6 +31,7 @@ import { usePagination } from '@/hooks/usePagination'
 import NotificationBell from '@/components/NotificationBell'
 import ProfileDropdown from '@/components/ProfileDropdown'
 import Logo from '@/components/Logo'
+import { getInstitutionRate } from '@/lib/utils'
 import { 
   Search, 
   Filter, 
@@ -87,7 +98,9 @@ export default function InstitutionHome() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
   const [selectedDomain, setSelectedDomain] = useState('')
+  const [selectedState, setSelectedState] = useState('')
   const [minRate, setMinRate] = useState('')
   const [maxRate, setMaxRate] = useState('')
   const [showProjectForm, setShowProjectForm] = useState(false)
@@ -127,14 +140,15 @@ export default function InstitutionHome() {
         limit: 10,
         is_verified: true
       }
-      if (searchTerm) params.search = searchTerm
+      if (debouncedSearchTerm) params.subskill_search = debouncedSearchTerm
       if (selectedDomain && selectedDomain !== 'all') params.domain_expertise = selectedDomain
+      if (selectedState && selectedState !== 'all') params.state = selectedState
       if (minRate) params.min_hourly_rate = parseFloat(minRate)
       if (maxRate) params.max_hourly_rate = parseFloat(maxRate)
       const data = await api.experts.getAll(params)
       return Array.isArray(data) ? data : (data?.data || [])
     },
-    [searchTerm, selectedDomain, minRate, maxRate]
+    [debouncedSearchTerm, selectedDomain, selectedState, minRate, maxRate]
   )
   
   // Expert selection modal state
@@ -211,8 +225,9 @@ export default function InstitutionHome() {
         is_verified: true
       }
       
-      if (searchTerm) params.search = searchTerm
+      if (debouncedSearchTerm) params.subskill_search = debouncedSearchTerm
       if (selectedDomain && selectedDomain !== 'all') params.domain_expertise = selectedDomain
+      if (selectedState && selectedState !== 'all') params.state = selectedState
       if (minRate) params.min_hourly_rate = parseFloat(minRate)
       if (maxRate) params.max_hourly_rate = parseFloat(maxRate)
 
@@ -258,6 +273,15 @@ export default function InstitutionHome() {
       console.error('Error loading institution projects:', e)
     }
   }
+
+  // Debounce search term with 500ms delay
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm)
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [searchTerm])
 
   useEffect(() => {
     const initializeUser = async () => {
@@ -307,7 +331,7 @@ export default function InstitutionHome() {
     if (institution) {
       refreshExpertsList()
     }
-  }, [searchTerm, selectedDomain, minRate, maxRate])
+  }, [debouncedSearchTerm, selectedDomain, selectedState, minRate, maxRate])
 
   // useEffect(()=>{
   //    loadRecommendedExperts('cb2b9213-077c-4115-845d-8699d489d2d6')
@@ -929,7 +953,7 @@ export default function InstitutionHome() {
                               <Star className="h-4 w-4 mr-1 fill-yellow-400 text-yellow-400" />
                               {expert.rating?.toFixed(1) || '0.0'} ({expert.total_ratings || 0})
                             </div>
-                            <div className="flex items-center text-slate-600 text-sm">₹{expert.hourly_rate}/hour</div>
+                            <div className="flex items-center text-slate-600 text-sm">₹{getInstitutionRate(expert.hourly_rate)}/hour</div>
                             </div>
                           </div>
                         </div>
@@ -946,6 +970,14 @@ export default function InstitutionHome() {
                                 <Badge variant="secondary" className="text-xs">+{expert.domain_expertise.length - 2} more</Badge>
                               )}
                             </div>
+                            {expert.subskills && expert.subskills.length > 0 && (
+                              <p className="text-sm text-slate-700 font-medium mt-2 line-clamp-2">
+                                {expert.subskills.slice(0, 3).join(', ')}
+                                {expert.subskills.length > 3 && (
+                                  <span className="text-slate-500"> +{expert.subskills.length - 3} more</span>
+                                )}
+                              </p>
+                            )}
                           </div>
                         )}
                         <div className="flex space-x-2">
@@ -988,7 +1020,7 @@ export default function InstitutionHome() {
                                   </div>
                                   <div>
                                     <h4 className="font-medium mb-1">Hourly Rate</h4>
-                                    <p className="text-sm">₹{expert.hourly_rate}</p>
+                                    <p className="text-sm">₹{getInstitutionRate(expert.hourly_rate)}</p>
                                   </div>
                                   <div>
                                     <h4 className="font-medium mb-1">Experience</h4>
@@ -1322,14 +1354,14 @@ export default function InstitutionHome() {
 
         {/* Search and Filters */}
         <div className="bg-white rounded-2xl border-2 border-[#D6D6D6] p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
               <Label htmlFor="search">Search Experts</Label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
                 <Input
                   id="search"
-                  placeholder="Search experts..."
+                  placeholder="Search by skills (e.g., CSS, React, Python)..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -1348,6 +1380,23 @@ export default function InstitutionHome() {
                   {EXPERTISE_DOMAINS.map((domain) => (
                     <SelectItem key={domain.name} value={domain.name}>
                       {domain.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="state">State</Label>
+              <Select value={selectedState} onValueChange={setSelectedState}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All states" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All states</SelectItem>
+                  {STATES.map((state) => (
+                    <SelectItem key={state} value={state}>
+                      {state}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1419,8 +1468,16 @@ export default function InstitutionHome() {
                           <Badge key={i} className={`text-xs bg-[#EBDA98] hover:bg-[#EBDA98] rounded-sm text-black py-[6px]`}>{d}</Badge>
                         ))}
                       </div>
+                      {expert.subskills && expert.subskills.length > 0 && (
+                        <p className="text-sm text-slate-700 font-medium mt-2 line-clamp-2">
+                          {expert.subskills.slice(0, 3).join(', ')}
+                          {expert.subskills.length > 3 && (
+                            <span className="text-slate-500"> +{expert.subskills.length - 3} more</span>
+                          )}
+                        </p>
+                      )}
                       <div className="flex items-center gap-4 text-sm text-slate-600 mt-2">
-                        <span>₹{expert.hourly_rate}/hour</span>
+                        <span>₹{getInstitutionRate(expert.hourly_rate)}/hour</span>
                         {expert.experience_years ? <span>{expert.experience_years}+ yrs</span> : null}
                       </div>
                       
@@ -1464,7 +1521,7 @@ export default function InstitutionHome() {
                                   <span className="text-gray-500 ml-1">({expert.total_ratings || 0})</span>
                                 </div>
                                 <div className="text-lg font-bold text-green-600">
-                                  ₹{expert.hourly_rate}/hour
+                                  ₹{getInstitutionRate(expert.hourly_rate)}/hour
                                 </div>
                               </div>
                               <div className="mb-4">
@@ -1535,8 +1592,16 @@ export default function InstitutionHome() {
                             <Badge key={i} className={`text-xs bg-[#EBDA98] hover:bg-[#EBDA98] rounded-sm text-black py-[6px]`}>{d}</Badge>
                           ))}
                         </div>
+                        {expert.subskills && expert.subskills.length > 0 && (
+                          <p className="text-sm text-slate-700 font-medium mt-2 line-clamp-2">
+                            {expert.subskills.slice(0, 3).join(', ')}
+                            {expert.subskills.length > 3 && (
+                              <span className="text-slate-500"> +{expert.subskills.length - 3} more</span>
+                            )}
+                          </p>
+                        )}
                         <div className="flex items-center gap-4 text-sm text-[#6A6A6A] font-medium mt-3">
-                          <span>₹{expert.hourly_rate}/hour</span>
+                          <span>₹{getInstitutionRate(expert.hourly_rate)}/hour</span>
                           {expert.experience_years ? <span>{expert.experience_years}+ yrs</span> : null}
                         </div>
                       </div>
@@ -1581,7 +1646,7 @@ export default function InstitutionHome() {
                                 </div>
                                 <div>
                                   <h4 className="font-medium mb-1">Hourly Rate</h4>
-                                  <p className="text-sm">₹{expert.hourly_rate}</p>
+                                  <p className="text-sm">₹{getInstitutionRate(expert.hourly_rate)}</p>
                                 </div>
                                 <div>
                                   <h4 className="font-medium mb-1">Experience</h4>
@@ -1732,7 +1797,7 @@ export default function InstitutionHome() {
                               </div>
                               
                               <div className="flex flex-col sm:flex-row items-center text-slate-600 text-sm mb-2 gap-1 sm:gap-0">
-                                <span className="font-medium">₹{expert.hourly_rate}/hour</span>
+                                <span className="font-medium">₹{getInstitutionRate(expert.hourly_rate)}/hour</span>
                                 <span className="hidden sm:inline mx-2">•</span>
                                 <span>{expert.experience_years || 0} years experience</span>
                                 <span className="hidden sm:inline mx-2">•</span>

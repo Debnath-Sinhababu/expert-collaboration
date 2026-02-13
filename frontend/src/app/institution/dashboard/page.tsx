@@ -21,6 +21,7 @@ import { MultiSelect } from '@/components/ui/multi-select'
 import { Drawer } from '@/components/ui/drawer'
 import ProfileDropdown from '@/components/ProfileDropdown'
 import Logo from '@/components/Logo'
+import { getInstitutionRate } from '@/lib/utils'
 import { 
   Building, 
   Plus, 
@@ -970,7 +971,7 @@ export default function InstitutionDashboard() {
                               </div>
                               
                               <div className="flex flex-col sm:flex-row items-center text-slate-600 text-sm mb-2 gap-1 sm:gap-0">
-                                <span className="font-medium">₹{expert.hourly_rate}/hour</span>
+                                <span className="font-medium">₹{getInstitutionRate(expert.hourly_rate)}/hour</span>
                                 <span className="hidden sm:inline mx-2">•</span>
                                 <span>{expert.experience_years || 0} years experience</span>
                                 <span className="hidden sm:inline mx-2">•</span>

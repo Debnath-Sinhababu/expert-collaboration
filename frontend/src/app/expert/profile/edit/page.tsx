@@ -19,6 +19,16 @@ import { MultiSelect } from '@/components/ui/multi-select'
 import { EXPERTISE_DOMAINS } from '@/lib/constants'
 import Logo from '@/components/Logo'
 import NotificationBell from '@/components/NotificationBell'
+
+const STATES = [
+  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
+  'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram',
+  'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu',
+  'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+  'Andaman and Nicobar Islands', 'Chandigarh', 'Dadra and Nagar Haveli and Daman and Diu',
+  'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry'
+]
 import ProfileDropdown from '@/components/ProfileDropdown'
 
 export default function ExpertProfileEdit() {
@@ -44,7 +54,9 @@ export default function ExpertProfileEdit() {
     linkedin_url: '',
     last_working_company: '',
     expert_types: [] as string[],
-    available_on_demand: false
+    available_on_demand: false,
+    city: '',
+    state: ''
   })
 
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
@@ -120,7 +132,9 @@ export default function ExpertProfileEdit() {
           linkedin_url: expertProfile.linkedin_url || '',
           last_working_company: expertProfile.last_working_company || '',
           expert_types: expertProfile.expert_types || [],
-          available_on_demand: expertProfile.available_on_demand || false
+          available_on_demand: expertProfile.available_on_demand || false,
+          city: expertProfile.city || '',
+          state: expertProfile.state || ''
         })
         
         setSelectedSubskills(expertProfile.subskills || [])
@@ -329,6 +343,10 @@ export default function ExpertProfileEdit() {
         throw new Error('Please add at least one specialization/skill')
       }
 
+      if (!formData.experience_years || parseFloat(formData.experience_years) <= 0) {
+        throw new Error('Please enter your years of experience')
+      }
+
       if (!formData.last_working_company?.trim()) {
         throw new Error('Please enter your last working company')
       }
@@ -355,6 +373,8 @@ export default function ExpertProfileEdit() {
         formDataToSend.append('last_working_company', formData.last_working_company)
         formDataToSend.append('expert_types', JSON.stringify(formData.expert_types))
         formDataToSend.append('available_on_demand', String(formData.available_on_demand))
+        formDataToSend.append('city', formData.city || '')
+        formDataToSend.append('state', formData.state || '')
 
         if (selectedPhoto) {
           formDataToSend.append('profile_photo', selectedPhoto)
@@ -507,6 +527,35 @@ export default function ExpertProfileEdit() {
                       className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
                       required
                     />
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="city" className="text-slate-700">City</Label>
+                    <Input
+                      id="city"
+                      placeholder="Enter your city"
+                      value={formData.city}
+                      onChange={(e) => handleInputChange('city', e.target.value)}
+                      className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="state" className="text-slate-700">State</Label>
+                    <Select value={formData.state} onValueChange={(value) => handleInputChange('state', value)}>
+                      <SelectTrigger className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300">
+                        <SelectValue placeholder="Select state" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STATES.map((state) => (
+                          <SelectItem key={state} value={state}>
+                            {state}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
@@ -813,7 +862,7 @@ export default function ExpertProfileEdit() {
                   )}
 
                   <div className="space-y-2">
-                    <Label htmlFor="experience_years" className="text-slate-700">Years of Experience</Label>
+                    <Label htmlFor="experience_years" className="text-slate-700">Years of Experience *</Label>
                     <Input
                       id="experience_years"
                       type="number"
@@ -821,6 +870,8 @@ export default function ExpertProfileEdit() {
                       value={formData.experience_years}
                       onChange={(e) => handleInputChange('experience_years', e.target.value)}
                       className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
+                      required
+                      min="0"
                     />
                   </div>
                 </div>

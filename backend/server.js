@@ -105,9 +105,11 @@ app.get('/api/experts', async (req, res) => {
       page = 1, 
       limit = 10, 
       search = '', 
+      subskill_search = '',
       domain_expertise = '', 
       min_hourly_rate = '', 
       max_hourly_rate = '',
+      state = '',
       is_verified = '',
       min_rating = '',
       sort_by = '',
@@ -133,10 +135,19 @@ app.get('/api/experts', async (req, res) => {
       );
     }
     
+    // If subskill_search is used, we need to fetch more data first, filter, then paginate
+    // Fetch a larger batch (1000) when searching by subskills to ensure we can filter properly
     let query = supabaseClient
       .from('experts')
-      .select('*')
-      .range(offset, offset + parseInt(limit) - 1);
+      .select('*');
+    
+    if (subskill_search) {
+      // Fetch up to 1000 experts for filtering (then paginate after filtering)
+      query = query.range(0, 999);
+    } else {
+      // Normal pagination when not searching by subskills
+      query = query.range(offset, offset + parseInt(limit) - 1);
+    }
     
     if (search) {
       query = query.or(`name.ilike.%${search}%,bio.ilike.%${search}%`);
@@ -162,6 +173,10 @@ app.get('/api/experts', async (req, res) => {
       query = query.lte('hourly_rate', parseFloat(max_hourly_rate));
     }
     
+    if (state) {
+      query = query.eq('state', state);
+    }
+    
     if (is_verified) {
       query = query.eq('is_verified', is_verified === 'true');
     }
@@ -182,7 +197,25 @@ app.get('/api/experts', async (req, res) => {
     console.log('GET /api/experts - Supabase response error:', error);
     
     if (error) throw error;
-    res.json(data);
+    
+    // Filter by subskill search (case-insensitive partial match)
+    let filteredData = data || [];
+    if (subskill_search) {
+      const searchLower = String(subskill_search).toLowerCase().trim();
+      filteredData = filteredData.filter(expert => {
+        if (!expert.subskills || !Array.isArray(expert.subskills)) return false;
+        return expert.subskills.some(skill => 
+          String(skill).toLowerCase().includes(searchLower)
+        );
+      });
+      
+      // Apply pagination after filtering
+      const startIndex = offset;
+      const endIndex = offset + parseInt(limit);
+      filteredData = filteredData.slice(startIndex, endIndex);
+    }
+    
+    res.json(filteredData);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -346,7 +379,9 @@ app.post('/api/experts', upload.fields([
       linkedin_url: req.body.linkedin_url || '',
       last_working_company: req.body.last_working_company || null,
       expert_types: Array.isArray(req.body.expert_types) ? req.body.expert_types : (req.body.expert_types ? JSON.parse(req.body.expert_types) : []),
-      available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true
+      available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true,
+      city: req.body.city || null,
+      state: req.body.state || null
     };
     
     const { data, error } = await supabaseClient
@@ -511,7 +546,9 @@ app.put('/api/experts/:id', upload.fields([
       subskills: Array.isArray(req.body.subskills) ? req.body.subskills : (req.body.subskills ? JSON.parse(req.body.subskills) : []),
       last_working_company: req.body.last_working_company || null,
       expert_types: Array.isArray(req.body.expert_types) ? req.body.expert_types : (req.body.expert_types ? JSON.parse(req.body.expert_types) : []),
-      available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true
+      available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true,
+      city: req.body.city || null,
+      state: req.body.state || null
     };
     
     // Handle profile photo update if new photo is uploaded
@@ -4879,7 +4916,9 @@ app.post('/api/admin/experts', upload.fields([
       linkedin_url: req.body.linkedin_url || '',
       last_working_company: req.body.last_working_company || null,
       expert_types: Array.isArray(req.body.expert_types) ? req.body.expert_types : (req.body.expert_types ? JSON.parse(req.body.expert_types) : []),
-      available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true
+      available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true,
+      city: req.body.city || null,
+      state: req.body.state || null
     };
     
     const { data, error } = await serviceClient
@@ -4913,6 +4952,75 @@ app.get('/api/admin/custom-domains', async (req, res) => {
     res.json(Array.isArray(data) ? data : []);
   } catch (error) {
     console.error('Admin get custom domains error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: Bulk import experts from Google Sheets
+app.post('/api/admin/experts/bulk-import', async (req, res) => {
+  try {
+    // Check admin authentication
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Authorization required' });
+    }
+
+    const token = authHeader.substring(7);
+    // You can customize this admin check
+    if (!token.includes('debnathsinhababu2017@gmail.com')) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const { spreadsheetId, range, gid, usePublicAccess = false, delayBetweenRows = 500 } = req.body;
+
+    if (!spreadsheetId) {
+      return res.status(400).json({ error: 'spreadsheetId is required' });
+    }
+
+    // Import services
+    const GoogleSheetsService = require('./services/googleSheetsService');
+    const BulkImportService = require('./services/bulkImportService');
+
+    // Read data from Google Sheet
+    let rows;
+    try {
+      if (usePublicAccess) {
+        rows = await GoogleSheetsService.readPublicSheet(spreadsheetId, range, gid);
+      } else {
+        rows = await GoogleSheetsService.readSheet(spreadsheetId, range);
+      }
+    } catch (error) {
+      return res.status(400).json({ 
+        error: `Failed to read Google Sheet: ${error.message}` 
+      });
+    }
+
+    if (!rows || rows.length === 0) {
+      return res.status(400).json({ error: 'No data found in the sheet' });
+    }
+
+    // Process bulk import
+    const results = await BulkImportService.processBulkImport(rows, {
+      delayBetweenRows: parseInt(delayBetweenRows) || 500
+    });
+
+    res.json({
+      success: true,
+      summary: {
+        total: results.total,
+        successful: results.successful,
+        failed: results.failed
+      },
+      details: results.details.map(detail => ({
+        rowNumber: detail.rowNumber,
+        success: detail.success,
+        expertId: detail.expert?.id || null,
+        expertName: detail.expert?.name || null,
+        errors: detail.errors
+      }))
+    });
+  } catch (error) {
+    console.error('Bulk import error:', error);
     res.status(500).json({ error: error.message });
   }
 });

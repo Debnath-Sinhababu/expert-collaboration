@@ -58,9 +58,11 @@ export const api = {
       page?: number; 
       limit?: number; 
       search?: string; 
+      subskill_search?: string;
       domain_expertise?: string; 
       min_hourly_rate?: number; 
       max_hourly_rate?: number;
+      state?: string;
       is_verified?: boolean;
       min_rating?: number;
       sort_by?: string;

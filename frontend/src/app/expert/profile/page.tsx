@@ -6,7 +6,7 @@ import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Star, Shield, Phone, Linkedin, User, GraduationCap, IndianRupee, Calendar, Building2, FileText, Edit, CheckCircle2 } from 'lucide-react'
+import { Star, Shield, Phone, Linkedin, User, GraduationCap, IndianRupee, Calendar, Building2, FileText, Edit, CheckCircle2, MapPin } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Logo from '@/components/Logo'
@@ -305,6 +305,32 @@ export default function ExpertProfile() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Location Card */}
+            {(expert?.city || expert?.state) && (
+              <Card className="bg-white border border-slate-200 rounded-xl shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <MapPin className="h-5 w-5 text-[#008260]" />
+                    <h2 className="text-lg font-semibold text-slate-900">Location</h2>
+                  </div>
+                  <div className="space-y-3">
+                    {expert?.city && (
+                      <div className="flex items-center gap-2 text-slate-700">
+                        <span className="text-slate-600 font-medium">City:</span>
+                        <span className="text-slate-900">{expert.city}</span>
+                      </div>
+                    )}
+                    {expert?.state && (
+                      <div className="flex items-center gap-2 text-slate-700">
+                        <span className="text-slate-600 font-medium">State:</span>
+                        <span className="text-slate-900">{expert.state}</span>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Right Column - 1/3 width */}

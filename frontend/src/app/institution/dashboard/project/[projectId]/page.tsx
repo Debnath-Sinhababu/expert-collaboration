@@ -18,6 +18,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import ProfileDropdown from '@/components/ProfileDropdown'
 import Logo from '@/components/Logo'
 import NotificationBell from '@/components/NotificationBell'
+import { getInstitutionRate } from '@/lib/utils'
 import { 
   ArrowLeft,
   Building, 
@@ -758,7 +759,7 @@ export default function ProjectDetailsPage() {
                               </Avatar>
                               <div className="min-w-0">
                                 <h3 className="font-semibold text-black text-sm sm:text-base truncate">{application.experts?.name || 'Unknown Expert'}</h3>
-                                <p className="text-xs sm:text-sm text-black">₹{application.experts?.hourly_rate || 0}/hr</p>
+                                <p className="text-xs sm:text-sm text-black">₹{getInstitutionRate(application.experts?.hourly_rate)}/hr</p>
                               </div>
                             </div>
                             <Badge className='bg-[#FFF6D3] text-xs font-semibold text-[#967800] flex-shrink-0'>
@@ -895,7 +896,7 @@ export default function ProjectDetailsPage() {
                     </Avatar>
                     <div className="min-w-0">
                       <h3 className="font-semibold text-black text-sm sm:text-base truncate">{application.experts?.name || 'Unknown Expert'}</h3>
-                      <p className="text-xs sm:text-sm text-black">₹{application.experts?.hourly_rate || 0}/hr</p>
+                      <p className="text-xs sm:text-sm text-black">₹{getInstitutionRate(application.experts?.hourly_rate)}/hr</p>
                     </div>
                   </div>
                   <Badge className='bg-[#FFF6D3] text-xs font-semibold text-[#967800] flex-shrink-0'>
@@ -1033,7 +1034,7 @@ export default function ProjectDetailsPage() {
                     </Avatar>
                     <div className="min-w-0">
                       <h3 className="font-semibold text-black text-sm sm:text-base truncate">{application.experts?.name || 'Unknown Expert'}</h3>
-                      <p className="text-xs sm:text-sm text-black">₹{application.experts?.hourly_rate || 0}/hr</p>
+                      <p className="text-xs sm:text-sm text-black">₹{getInstitutionRate(application.experts?.hourly_rate)}/hr</p>
                     </div>
                   </div>
                   <Badge className={`${getStatusColor(application.status)} flex-shrink-0`}>
@@ -1227,7 +1228,7 @@ export default function ProjectDetailsPage() {
                     </div>
                     <div>
                       <h4 className="font-medium text-sm text-[#666666] mb-1">Hourly Rate</h4>
-                      <p className="text-sm text-[#000000]">₹{booking.experts?.hourly_rate || 0}</p>
+                      <p className="text-sm text-[#000000]">₹{getInstitutionRate(booking.experts?.hourly_rate)}</p>
                     </div>
                     <div>
                       <h4 className="font-medium text-sm text-[#666666] mb-1">Experience</h4>

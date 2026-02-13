@@ -20,6 +20,16 @@ import { toast } from 'sonner'
 import Logo from '@/components/Logo'
 import { EXPERTISE_DOMAINS } from '@/lib/constants'
 
+const STATES = [
+  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
+  'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram',
+  'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu',
+  'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+  'Andaman and Nicobar Islands', 'Chandigarh', 'Dadra and Nagar Haveli and Daman and Diu',
+  'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry'
+]
+
 const AVAILABILITY_SLOTS = [
   'Monday Morning',
   'Monday Afternoon',
@@ -67,7 +77,9 @@ export default function ExpertProfileSetup() {
     linkedin_url: '',
     last_working_company: '',
     expert_types: [] as string[],
-    available_on_demand: false
+    available_on_demand: false,
+    city: '',
+    state: ''
   })
 
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
@@ -344,6 +356,12 @@ export default function ExpertProfileSetup() {
         return
       }
 
+      if (!formData.experience_years || parseFloat(formData.experience_years) <= 0) {
+        toast.error('Please enter your years of experience')
+        setSaving(false)
+        return
+      }
+
       if (!selectedPhoto) {
         toast.error('Please upload a profile photo')
         setSaving(false)
@@ -371,6 +389,8 @@ export default function ExpertProfileSetup() {
       formDataToSend.append('last_working_company', formData.last_working_company)
       formDataToSend.append('expert_types', JSON.stringify(formData.expert_types))
       formDataToSend.append('available_on_demand', String(formData.available_on_demand))
+      formDataToSend.append('city', formData.city || '')
+      formDataToSend.append('state', formData.state || '')
       
       // Add the photo file
       if (selectedPhoto) {
@@ -492,6 +512,35 @@ export default function ExpertProfileSetup() {
                       className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300"
                       required
                     />
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="city" className="text-slate-700">City</Label>
+                    <Input
+                      id="city"
+                      placeholder="Enter your city"
+                      value={formData.city}
+                      onChange={(e) => handleInputChange('city', e.target.value)}
+                      className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="state" className="text-slate-700">State</Label>
+                    <Select value={formData.state} onValueChange={(value) => handleInputChange('state', value)}>
+                      <SelectTrigger className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300">
+                        <SelectValue placeholder="Select state" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STATES.map((state) => (
+                          <SelectItem key={state} value={state}>
+                            {state}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
@@ -767,7 +816,7 @@ export default function ExpertProfileSetup() {
                   )}
 
                   <div className="space-y-2">
-                    <Label htmlFor="experience_years" className="text-slate-700">Years of Experience</Label>
+                    <Label htmlFor="experience_years" className="text-slate-700">Years of Experience *</Label>
                     <Input
                       id="experience_years"
                       type="number"
@@ -775,6 +824,8 @@ export default function ExpertProfileSetup() {
                       value={formData.experience_years}
                       onChange={(e) => handleInputChange('experience_years', e.target.value)}
                       className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300"
+                      required
+                      min="0"
                     />
                   </div>
                 </div>

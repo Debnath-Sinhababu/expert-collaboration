@@ -18,6 +18,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
+import { getInstitutionRate } from '@/lib/utils'
 
 export default function ContractForm() {
   const router = useRouter()
@@ -394,7 +395,7 @@ export default function ContractForm() {
                             <p className="text-xs text-[#6A6A6A] line-clamp-2">{expert.bio}</p>
                           )}
                           {expert.hourly_rate && (
-                            <p className="text-xs text-[#000000] font-medium mt-2">₹{expert.hourly_rate}/hour</p>
+                            <p className="text-xs text-[#000000] font-medium mt-2">₹{getInstitutionRate(expert.hourly_rate)}/hour</p>
                           )}
                         </div>
                       </div>
