@@ -198,15 +198,18 @@ app.get('/api/experts', async (req, res) => {
     
     if (error) throw error;
     
-    // Filter by subskill search (case-insensitive partial match)
+    // Filter by subskill_search: matches subskills OR current_designation (case-insensitive partial match)
     let filteredData = data || [];
     if (subskill_search) {
       const searchLower = String(subskill_search).toLowerCase().trim();
       filteredData = filteredData.filter(expert => {
-        if (!expert.subskills || !Array.isArray(expert.subskills)) return false;
-        return expert.subskills.some(skill => 
-          String(skill).toLowerCase().includes(searchLower)
-        );
+        // Match subskills
+        const subskillMatch = expert.subskills && Array.isArray(expert.subskills) &&
+          expert.subskills.some(skill => String(skill).toLowerCase().includes(searchLower));
+        // Match current_designation (current role)
+        const designationMatch = expert.current_designation &&
+          String(expert.current_designation).toLowerCase().includes(searchLower);
+        return subskillMatch || designationMatch;
       });
       
       // Apply pagination after filtering
@@ -378,6 +381,7 @@ app.post('/api/experts', upload.fields([
       experience_years: req.body.experience_years || 0,
       linkedin_url: req.body.linkedin_url || '',
       last_working_company: req.body.last_working_company || null,
+      current_designation: req.body.current_designation || null,
       expert_types: Array.isArray(req.body.expert_types) ? req.body.expert_types : (req.body.expert_types ? JSON.parse(req.body.expert_types) : []),
       available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true,
       city: req.body.city || null,
@@ -545,6 +549,7 @@ app.put('/api/experts/:id', upload.fields([
       domain_expertise: req.body.domain_expertise ? [req.body.domain_expertise.trim()] : [],
       subskills: Array.isArray(req.body.subskills) ? req.body.subskills : (req.body.subskills ? JSON.parse(req.body.subskills) : []),
       last_working_company: req.body.last_working_company || null,
+      current_designation: req.body.current_designation || null,
       expert_types: Array.isArray(req.body.expert_types) ? req.body.expert_types : (req.body.expert_types ? JSON.parse(req.body.expert_types) : []),
       available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true,
       city: req.body.city || null,
@@ -697,7 +702,7 @@ app.get('/api/institutions', async (req, res) => {
   }
 });
 
-app.post('/api/institutions', async (req, res) => {
+app.post('/api/institutions', upload.single('logo'), async (req, res) => {
   try {
     console.log('=== INSTITUTION CREATION DEBUG ===');
     console.log('Headers:', req.headers);
@@ -734,13 +739,22 @@ app.post('/api/institutions', async (req, res) => {
       console.log('No auth token provided');
     }
     
+    let logoUrl = req.body.logo_url || null;
+    if (req.file) {
+      const logoData = await ImageUploadService.uploadImage(req.file.buffer, 'institution-logos');
+      if (!logoData.success) {
+        return res.status(500).json({ error: `Logo upload failed: ${logoData.error}` });
+      }
+      logoUrl = logoData.url;
+    }
+
     const institutionData = {
       user_id: authenticatedUserId,
       name: req.body.name,
       email: req.body.contact_email || req.body.email,
       type: req.body.type,
       description: req.body.description,
-      logo_url: req.body.logo_url || null,
+      logo_url: logoUrl,
       website_url: req.body.website_url,
       address: req.body.address,
       city: req.body.city,
@@ -841,7 +855,7 @@ app.get('/api/institutions/user/:userId', async (req, res) => {
   }
 });
 
-app.put('/api/institutions/:id', async (req, res) => {
+app.put('/api/institutions/:id', upload.single('logo'), async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(' ')[1];
@@ -868,6 +882,29 @@ app.put('/api/institutions/:id', async (req, res) => {
     const updateData = { ...req.body };
     if (updateData.company_size === '') {
       updateData.company_size = null;
+    }
+
+    // Parse array fields from FormData (multipart sends all values as strings)
+    if (typeof updateData.preferred_engagements === 'string') {
+      const val = updateData.preferred_engagements.trim();
+      if (val.startsWith('[')) {
+        try {
+          updateData.preferred_engagements = JSON.parse(val);
+        } catch {
+          updateData.preferred_engagements = val ? val.split(',').map(s => s.trim()).filter(Boolean) : null;
+        }
+      } else {
+        updateData.preferred_engagements = val ? val.split(',').map(s => s.trim()).filter(Boolean) : null;
+      }
+    }
+
+    // Handle logo upload if new file provided
+    if (req.file) {
+      const logoData = await ImageUploadService.uploadImage(req.file.buffer, 'institution-logos');
+      if (!logoData.success) {
+        return res.status(500).json({ error: `Logo upload failed: ${logoData.error}` });
+      }
+      updateData.logo_url = logoData.url;
     }
     
     const { data, error } = await supabaseClient
@@ -4915,6 +4952,7 @@ app.post('/api/admin/experts', upload.fields([
       experience_years: req.body.experience_years ? parseInt(req.body.experience_years) : null,
       linkedin_url: req.body.linkedin_url || '',
       last_working_company: req.body.last_working_company || null,
+      current_designation: req.body.current_designation || null,
       expert_types: Array.isArray(req.body.expert_types) ? req.body.expert_types : (req.body.expert_types ? JSON.parse(req.body.expert_types) : []),
       available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true,
       city: req.body.city || null,

@@ -316,21 +316,25 @@ export const api = {
       }
       return json
     },
-    create: async (data: any) => {
+    create: async (data: any, formData?: FormData) => {
       const headers = await getAuthHeaders()
-      return fetch(`${API_BASE_URL}/api/institutions`, {
+      const isFormData = formData && formData instanceof FormData
+      const fetchOpts: RequestInit = {
         method: 'POST',
-        headers,
-        body: JSON.stringify(data)
-      }).then(res => res.json())
+        headers: isFormData ? { Authorization: (headers as any).Authorization } : headers,
+        body: isFormData ? formData : JSON.stringify(data)
+      }
+      return fetch(`${API_BASE_URL}/api/institutions`, fetchOpts).then(res => res.json())
     },
-    update: async (id: string, data: any) => {
+    update: async (id: string, data: any, formData?: FormData) => {
       const headers = await getAuthHeaders()
-      return fetch(`${API_BASE_URL}/api/institutions/${id}`, {
+      const isFormData = formData && formData instanceof FormData
+      const fetchOpts: RequestInit = {
         method: 'PUT',
-        headers,
-        body: JSON.stringify(data)
-      }).then(res => res.json())
+        headers: isFormData ? { Authorization: (headers as any).Authorization } : headers,
+        body: isFormData ? formData : JSON.stringify(data)
+      }
+      return fetch(`${API_BASE_URL}/api/institutions/${id}`, fetchOpts).then(res => res.json())
     }
   },
 

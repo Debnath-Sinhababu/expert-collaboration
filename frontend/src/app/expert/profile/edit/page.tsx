@@ -53,6 +53,7 @@ export default function ExpertProfileEdit() {
     phone: '',
     linkedin_url: '',
     last_working_company: '',
+    current_designation: '',
     expert_types: [] as string[],
     available_on_demand: false,
     city: '',
@@ -131,6 +132,7 @@ export default function ExpertProfileEdit() {
           phone: expertProfile.phone || '',
           linkedin_url: expertProfile.linkedin_url || '',
           last_working_company: expertProfile.last_working_company || '',
+          current_designation: expertProfile.current_designation || '',
           expert_types: expertProfile.expert_types || [],
           available_on_demand: expertProfile.available_on_demand || false,
           city: expertProfile.city || '',
@@ -351,6 +353,10 @@ export default function ExpertProfileEdit() {
         throw new Error('Please enter your last working company')
       }
 
+      if (!formData.current_designation?.trim()) {
+        throw new Error('Please enter your current designation')
+      }
+
       if (formData.expert_types.length === 0) {
         throw new Error('Please select at least one expert type')
       }
@@ -371,6 +377,7 @@ export default function ExpertProfileEdit() {
         formDataToSend.append('domain_expertise', formData.domain_expertise)
         formDataToSend.append('subskills', JSON.stringify(formData.subskills))
         formDataToSend.append('last_working_company', formData.last_working_company)
+        formDataToSend.append('current_designation', formData.current_designation)
         formDataToSend.append('expert_types', JSON.stringify(formData.expert_types))
         formDataToSend.append('available_on_demand', String(formData.available_on_demand))
         formDataToSend.append('city', formData.city || '')
@@ -759,6 +766,17 @@ export default function ExpertProfileEdit() {
                 </h3>
                 
                 <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="current_designation" className="text-slate-700">Current Designation *</Label>
+                    <Input
+                      id="current_designation"
+                      placeholder="e.g. Teacher, Developer, CTO, Professor, Senior Engineer — your current job title or role"
+                      value={formData.current_designation}
+                      onChange={(e) => handleInputChange('current_designation', e.target.value)}
+                      className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300"
+                      required
+                    />
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="domain_expertise" className="text-slate-700">Domain Expertise *</Label>
                     <Select 

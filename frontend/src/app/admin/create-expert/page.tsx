@@ -40,6 +40,7 @@ export default function AdminCreateExpert() {
     experience_years: '',
     linkedin_url: '',
     last_working_company: '',
+    current_designation: '',
     expert_types: [] as string[],
     available_on_demand: false
   })
@@ -302,6 +303,12 @@ export default function AdminCreateExpert() {
         return
       }
 
+      if (!formData.current_designation?.trim()) {
+        toast.error('Please enter current designation')
+        setSaving(false)
+        return
+      }
+
       if (formData.expert_types.length === 0) {
         toast.error('Please select at least one expert type')
         setSaving(false)
@@ -327,6 +334,7 @@ export default function AdminCreateExpert() {
       formDataToSend.append('experience_years', formData.experience_years)
       formDataToSend.append('linkedin_url', formData.linkedin_url)
       formDataToSend.append('last_working_company', formData.last_working_company)
+      formDataToSend.append('current_designation', formData.current_designation)
       formDataToSend.append('expert_types', JSON.stringify(formData.expert_types))
       formDataToSend.append('available_on_demand', String(formData.available_on_demand))
       
@@ -378,6 +386,7 @@ export default function AdminCreateExpert() {
         experience_years: '',
         linkedin_url: '',
         last_working_company: '',
+        current_designation: '',
         expert_types: [],
         available_on_demand: false
       })
@@ -707,6 +716,17 @@ export default function AdminCreateExpert() {
                 <h3 className="text-lg font-semibold text-slate-800">Professional Details</h3>
                 
                 <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="current_designation" className="text-slate-700">Current Designation *</Label>
+                    <Input
+                      id="current_designation"
+                      placeholder="e.g. Teacher, Developer, CTO, Professor, Senior Engineer — your current job title or role"
+                      value={formData.current_designation}
+                      onChange={(e) => handleInputChange('current_designation', e.target.value)}
+                      className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300"
+                      required
+                    />
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="domain_expertise" className="text-slate-700">Domain Expertise *</Label>
                     <Select 

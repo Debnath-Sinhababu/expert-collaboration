@@ -219,13 +219,13 @@ export default function Home() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Load featured universities dynamically (limit 5), reuse existing logo assets
+  // Load featured universities dynamically (limit 5), use institution logo_url when available
   useEffect(() => {
     const loadInstitutions = async () => {
       try {
         const res = await api.institutions.getAll({ limit: 5 })
         const institutions = Array.isArray(res) ? res : (res?.data ?? [])
-        const logos = [
+        const fallbackLogos = [
           '/images/universitylogo3.jpeg',
           '/images/universityimage5.webp',
           '/images/universityimage6.jpeg',
@@ -236,7 +236,7 @@ export default function Home() {
         const mapped = institutions.slice(0, 5).map((inst: any, idx: number) => ({
           name: inst?.name || 'University',
           desc: inst?.description || 'Leading educational institution collaborating with experts',
-          logo: logos[idx % logos.length],
+          logo: inst?.logo_url || fallbackLogos[idx % fallbackLogos.length],
           color: colors[idx % colors.length],
           city: inst?.city || '',
           state: inst?.state || '',

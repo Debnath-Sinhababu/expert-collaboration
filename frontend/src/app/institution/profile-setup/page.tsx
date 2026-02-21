@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Building, Globe, MapPin } from 'lucide-react'
+import { Building, Globe, MapPin, ImageIcon } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -49,6 +49,9 @@ export default function InstitutionProfileSetup() {
   const [success, setSuccess] = useState('')
   const router = useRouter()
 
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoPreview, setLogoPreview] = useState<string>('')
+  const [logoError, setLogoError] = useState('')
   const [formData, setFormData] = useState({
     name: '',
     type: '',
@@ -137,6 +140,12 @@ export default function InstitutionProfileSetup() {
         return
       }
 
+      if (!logoFile) {
+        toast.error('Please upload your institution logo')
+        setSaving(false)
+        return
+      }
+
       // If Corporate, validate a few key corporate fields
       if (formData.type === 'Corporate') {
         if (!formData.industry?.trim()) {
@@ -190,7 +199,6 @@ export default function InstitutionProfileSetup() {
 
       const institutionData = {
         ...formData,
-        // normalize types for backend
         requires_po: formData.requires_po === 'true',
         nda_required: formData.nda_required === 'true',
         preferred_engagements: formData.preferred_engagements
@@ -205,8 +213,25 @@ export default function InstitutionProfileSetup() {
         rating: 0,
         total_projects: 0
       }
+
+      const formDataToSend = new FormData()
+      Object.entries(institutionData).forEach(([key, value]) => {
+        if (value === undefined || value === null) return
+        if (key === 'preferred_engagements' && Array.isArray(value)) {
+          formDataToSend.append(key, value.join(','))
+        } else if (typeof value !== 'object') {
+          formDataToSend.append(key, String(value))
+        } else if (Array.isArray(value)) {
+          formDataToSend.append(key, JSON.stringify(value))
+        } else {
+          formDataToSend.append(key, JSON.stringify(value))
+        }
+      })
+      if (logoFile) {
+        formDataToSend.append('logo', logoFile)
+      }
       
-      await api.institutions.create(institutionData)
+      await api.institutions.create(institutionData, formDataToSend)
       toast.success('Institution profile created successfully! Redirecting to dashboard...')
       
         router.push('/institution/home')
@@ -576,6 +601,48 @@ export default function InstitutionProfileSetup() {
                 </div>
               </div>
 
+              {/* Institution Logo - Mandatory for all types */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-slate-900">Institution Logo *</h3>
+                <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-[#008260] transition-colors">
+                  <input
+                    type="file"
+                    id="logo"
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        if (file.size > 5 * 1024 * 1024) {
+                          setLogoError('Logo must be under 5MB')
+                          return
+                        }
+                        setLogoError('')
+                        setLogoFile(file)
+                        setLogoPreview(URL.createObjectURL(file))
+                      }
+                    }}
+                    className="hidden"
+                  />
+                  <label htmlFor="logo" className="cursor-pointer block">
+                    {logoPreview ? (
+                      <div className="space-y-2">
+                        <img src={logoPreview} alt="Logo preview" className="mx-auto h-24 w-auto max-w-[200px] object-contain rounded" />
+                        <p className="text-sm text-[#008260] font-medium">Click to change logo</p>
+                      </div>
+                    ) : (
+                      <>
+                        <ImageIcon className="mx-auto h-12 w-12 text-slate-400 mb-2" />
+                        <p className="text-sm text-slate-600 mb-1">
+                          <span className="font-medium text-[#008260]">Click to upload</span> or drag and drop
+                        </p>
+                        <p className="text-xs text-slate-500">PNG, JPG, WebP. Max 5MB</p>
+                      </>
+                    )}
+                  </label>
+                  {logoError && <p className="text-sm text-red-500 mt-2">{logoError}</p>}
+                </div>
+              </div>
+
               {/* Additional Information */}
               {
                 formData.type !== 'Corporate' && (
@@ -605,17 +672,6 @@ export default function InstitutionProfileSetup() {
                         className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
                       />
                     </div>
-                  </div>
-  
-                  <div className="space-y-2">
-                    <Label htmlFor="logo_url">Logo URL</Label>
-                    <Input
-                      id="logo_url"
-                      placeholder="Link to your institution logo"
-                      value={formData.logo_url}
-                      onChange={(e) => handleInputChange('logo_url', e.target.value)}
-                      className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
-                    />
                   </div>
                 </div>
                 )

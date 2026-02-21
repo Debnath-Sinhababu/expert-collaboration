@@ -207,6 +207,13 @@ export default function ExpertProfile() {
                     </div>
                   </div>
 
+                  {/* Current Designation - highlighted */}
+                  {expert?.current_designation && (
+                    <span className="inline-block w-fit mb-3 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-[#008260] text-white shadow-sm">
+                      {expert.current_designation}
+                    </span>
+                  )}
+
                   {/* Domain Expertise, Subskills, and Expert Types */}
                   <div className="space-y-3 mb-4">
                     {/* Domain Expertise */}

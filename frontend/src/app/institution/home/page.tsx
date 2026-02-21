@@ -84,6 +84,7 @@ export default function InstitutionHome() {
     rating?: number
     total_ratings?: number
     is_verified?: boolean
+    current_designation?: string
     domain_expertise?: string[]
     subskills?: string[]
     experience_years?: number
@@ -367,11 +368,11 @@ export default function InstitutionHome() {
   const loadPartneredInstitutions = async () => {
     try {
       setInstitutionsLoading(true)
-      const data = await api.institutions.getAll({ limit: 8 })
+      const data = await api.institutions.getAll({ limit: 20 })
       const institutions = Array.isArray(data) ? data : (data?.data || [])
       
-      // Filter out current institution if institution is loaded
-      const filteredInstitutions = institution?.id 
+      // Filter: exclude current institution only
+      let filteredInstitutions = institution?.id
         ? institutions.filter((inst: any) => inst.id !== institution.id)
         : institutions
       
@@ -866,45 +867,64 @@ export default function InstitutionHome() {
                 className="w-full max-w-7xl mx-auto"
               >
                 <CarouselContent className="-ml-2">
-                  {partneredInstitutions.map((institution, index) => {
-                    // Use real institution banner images from public folder
+                  {partneredInstitutions.map((inst: any, index: number) => {
                     const institutionImages = [
                       '/images/universitylogo1.jpeg',
-                      '/images/universitylogo2.jpeg', 
+                      '/images/universitylogo2.jpeg',
                       '/images/universitylogo3.jpeg',
-                      '/images/universitylogo1.jpeg', // Reuse for more than 3
+                      '/images/universitylogo1.jpeg',
                       '/images/universitylogo2.jpeg'
                     ]
-                    
-                    return (
-                      <CarouselItem key={institution.id} className="pl-2 basis-full sm:basis-1/2 lg:basis-1/2">
-                        <div className="relative h-64 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 group">
-                          {/* Background Image */}
-                          <div 
-                            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-                            style={{
-                              backgroundImage: `url('${institutionImages[index % institutionImages.length]}')`
-                            }}
-                          >
-                            {/* Overlay */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
-                          </div>
-                          
-                          {/* Institution Name */}
-                          <div className="absolute bottom-0 left-0 right-0 p-6">
-                            <h3 className="text-white font-bold text-xl mb-2 group-hover:text-blue-200 transition-colors duration-300">
-                              {institution.name}
-                            </h3>
-                            <p className="text-white/90 text-base mb-1">
-                              {institution.institution_type || 'Educational Institution'}
-                            </p>
-                            <p className="text-white/80 text-sm">
-                              {[institution.city, institution.state, institution.country].filter(Boolean).join(', ') || 'India'}
-                            </p>
-                          </div>
+                    const bgImage = inst.logo_url || institutionImages[index % institutionImages.length]
+                    const hasLogo = !!inst.logo_url
 
-                          {/* Hover Effect */}
-                          <div className="absolute inset-0 bg-[#008260]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    return (
+                      <CarouselItem key={inst.id} className="pl-2 basis-full sm:basis-1/2 lg:basis-1/2">
+                        <div className="relative h-64 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 group">
+                          {hasLogo ? (
+                            /* With logo: full-bleed background image (logo fills card), name overlay at bottom */
+                            <>
+                              <div
+                                className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+                                style={{ backgroundImage: `url('${inst.logo_url}')` }}
+                              >
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
+                              </div>
+                              <div className="absolute bottom-0 left-0 right-0 p-6">
+                                <h3 className="text-white font-bold text-xl mb-2 group-hover:text-blue-200 transition-colors duration-300">
+                                  {inst.name}
+                                </h3>
+                                <p className="text-white/90 text-base mb-1">
+                                  {inst.type || inst.institution_type || 'Educational Institution'}
+                                </p>
+                                <p className="text-white/80 text-sm">
+                                  {[inst.city, inst.state, inst.country].filter(Boolean).join(', ') || 'India'}
+                                </p>
+                              </div>
+                            </>
+                          ) : (
+                            /* Without logo: same layout as before, with hardcoded fallback images */
+                            <>
+                              <div
+                                className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+                                style={{ backgroundImage: `url('${bgImage}')` }}
+                              >
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
+                              </div>
+                              <div className="absolute bottom-0 left-0 right-0 p-6">
+                                <h3 className="text-white font-bold text-xl mb-2 group-hover:text-blue-200 transition-colors duration-300">
+                                  {inst.name}
+                                </h3>
+                                <p className="text-white/90 text-base mb-1">
+                                  {inst.type || inst.institution_type || 'Educational Institution'}
+                                </p>
+                                <p className="text-white/80 text-sm">
+                                  {[inst.city, inst.state, inst.country].filter(Boolean).join(', ') || 'India'}
+                                </p>
+                              </div>
+                            </>
+                          )}
+                          <div className="absolute inset-0 bg-[#008260]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
                         </div>
                       </CarouselItem>
                     )
@@ -948,7 +968,12 @@ export default function InstitutionHome() {
                           </Avatar>
                           <div className="flex-1 min-w-0">
                             <CardTitle className="text-lg line-clamp-1">{expert.name}</CardTitle>
-                            <div className='flex gap-2 flex-wrap'>
+                            {expert.current_designation && (
+                              <span className="inline-block mt-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-[#008260] text-white shadow-sm">
+                                {expert.current_designation}
+                              </span>
+                            )}
+                            <div className='flex gap-2 flex-wrap mt-1.5'>
                             <div className="flex items-center text-slate-600 text-sm">
                               <Star className="h-4 w-4 mr-1 fill-yellow-400 text-yellow-400" />
                               {expert.rating?.toFixed(1) || '0.0'} ({expert.total_ratings || 0})
@@ -1006,7 +1031,12 @@ export default function InstitutionHome() {
                                   </Avatar>
                                   <div className="min-w-0 flex-1">
                                     <h4 className="font-semibold text-lg truncate">{expert.name}</h4>
-                                    <p className="text-sm text-gray-600 truncate">{expert.domain_expertise?.join(', ')}</p>
+                                    {expert.current_designation && (
+                                      <span className="inline-block mt-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-[#008260] text-white shadow-sm">
+                                        {expert.current_designation}
+                                      </span>
+                                    )}
+                                    <p className="text-sm text-gray-600 truncate mt-1">{expert.domain_expertise?.join(', ')}</p>
                                   </div>
                                 </div>
                                 <div className="max-h-32 overflow-y-auto">
@@ -1014,6 +1044,12 @@ export default function InstitutionHome() {
                                   <p className="text-sm text-gray-600 leading-relaxed">{expert.bio}</p>
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                  {expert.current_designation && (
+                                    <div>
+                                      <h4 className="font-medium mb-1">Current Designation</h4>
+                                      <p className="text-sm font-semibold text-[#008260]">{expert.current_designation}</p>
+                                    </div>
+                                  )}
                                   <div>
                                     <h4 className="font-medium mb-1">Domain Expertise</h4>
                                     <p className="text-sm">{expert.domain_expertise?.join(', ')}</p>
@@ -1361,7 +1397,7 @@ export default function InstitutionHome() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
                 <Input
                   id="search"
-                  placeholder="Search by skills (e.g., CSS, React, Python)..."
+                  placeholder="Search by skills or designation (e.g., CSS, React, Teacher, CTO)..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -1511,7 +1547,12 @@ export default function InstitutionHome() {
                                 </Avatar>
                                 <div className="min-w-0 flex-1">
                                   <h4 className="font-semibold text-lg truncate">{expert.name}</h4>
-                                  <p className="text-sm text-gray-600 truncate">{expert.domain_expertise?.join(', ')}</p>
+                                  {expert.current_designation && (
+                                    <span className="inline-block mt-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-[#008260] text-white shadow-sm">
+                                      {expert.current_designation}
+                                    </span>
+                                  )}
+                                  <p className="text-sm text-gray-600 truncate mt-1">{expert.domain_expertise?.join(', ')}</p>
                                 </div>
                               </div>
                               <div className="flex items-center space-x-4 mb-4">
@@ -1581,6 +1622,11 @@ export default function InstitutionHome() {
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-start gap-2">
                           <h3 className="text-lg font-semibold text-[#000000] truncate">{expert.name}</h3>
+                          {expert.current_designation && (
+                            <span className="inline-block px-2.5 py-0.5 rounded-md text-xs font-semibold bg-[#008260] text-white shadow-sm">
+                              {expert.current_designation}
+                            </span>
+                          )}
                           <div className="flex items-center text-[#000000] font-semibold text-sm">
                             <Star className="h-4 w-4 mr-1 fill-yellow-400 text-yellow-400" />
                             {expert.rating?.toFixed(1) || '0.0'} ({expert.total_ratings || 0})
@@ -1632,7 +1678,12 @@ export default function InstitutionHome() {
                                 </Avatar>
                                 <div className="min-w-0 flex-1">
                                   <h4 className="font-semibold text-lg truncate">{expert.name}</h4>
-                                  <p className="text-sm text-gray-600 truncate">{expert.domain_expertise?.join(', ')}</p>
+                                  {expert.current_designation && (
+                                    <span className="inline-block mt-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-[#008260] text-white shadow-sm">
+                                      {expert.current_designation}
+                                    </span>
+                                  )}
+                                  <p className="text-sm text-gray-600 truncate mt-1">{expert.domain_expertise?.join(', ')}</p>
                                 </div>
                               </div>
                               <div className="max-h-32 overflow-y-auto">
@@ -1640,6 +1691,12 @@ export default function InstitutionHome() {
                                 <p className="text-sm text-gray-600 leading-relaxed">{expert.bio}</p>
                               </div>
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {expert.current_designation && (
+                                  <div>
+                                    <h4 className="font-medium mb-1">Current Designation</h4>
+                                    <p className="text-sm font-semibold text-[#008260]">{expert.current_designation}</p>
+                                  </div>
+                                )}
                                 <div>
                                   <h4 className="font-medium mb-1">Domain Expertise</h4>
                                   <p className="text-sm">{expert.domain_expertise?.join(', ')}</p>

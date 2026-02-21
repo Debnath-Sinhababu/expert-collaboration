@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { ArrowLeft, Save, Building, MapPin, Users, Award } from 'lucide-react'
+import { ArrowLeft, Save, Building, MapPin, Users, Award, ImageIcon } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -52,6 +52,9 @@ export default function InstitutionProfileEdit() {
   const [success, setSuccess] = useState('')
   const router = useRouter()
 
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoPreview, setLogoPreview] = useState<string>('')
+  const [logoError, setLogoError] = useState('')
   const [formData, setFormData] = useState({
     name: '',
     type: '',
@@ -101,6 +104,7 @@ export default function InstitutionProfileEdit() {
       
       if (institutionProfile) {
         setInstitution(institutionProfile)
+        setLogoPreview(institutionProfile.logo_url || '')
         setFormData({
           name: institutionProfile.name || '',
           type: institutionProfile.type || '',
@@ -222,6 +226,12 @@ export default function InstitutionProfileEdit() {
         throw new Error('Institution profile not found')
       }
 
+      if (!logoFile && !formData.logo_url?.trim()) {
+        toast.error('Please upload your institution logo')
+        setSaving(false)
+        return
+      }
+
       const isCorporate = formData.type === 'Corporate'
       
       // Prepare update data - only include corporate fields if type is Corporate
@@ -270,7 +280,22 @@ export default function InstitutionProfileEdit() {
         updateData.work_mode_preference = null
       }
 
-      await api.institutions.update(institution.id, updateData)
+      if (logoFile) {
+        const formDataToSend = new FormData()
+        Object.entries(updateData).forEach(([key, value]) => {
+          if (value !== undefined && value !== null && typeof value !== 'object') {
+            formDataToSend.append(key, String(value))
+          } else if (Array.isArray(value)) {
+            formDataToSend.append(key, JSON.stringify(value))
+          } else if (typeof value === 'object' && value !== null) {
+            formDataToSend.append(key, JSON.stringify(value))
+          }
+        })
+        formDataToSend.append('logo', logoFile)
+        await api.institutions.update(institution.id, updateData, formDataToSend)
+      } else {
+        await api.institutions.update(institution.id, updateData)
+      }
       
       toast.success('Profile updated successfully!')
       setTimeout(() => {
@@ -574,14 +599,44 @@ export default function InstitutionProfileEdit() {
                 )}
 
                 <div className="space-y-2">
-                  <Label htmlFor="logo_url" className="text-[#000000] font-medium">Logo URL</Label>
-                  <Input
-                    id="logo_url"
-                    placeholder="Link to your institution logo"
-                    value={formData.logo_url}
-                    onChange={(e) => handleInputChange('logo_url', e.target.value)}
-                    className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260] transition-all duration-300"
-                  />
+                  <Label className="text-[#000000] font-medium">Institution Logo *</Label>
+                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-[#008260] transition-colors">
+                    <input
+                      type="file"
+                      id="logo"
+                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          if (file.size > 5 * 1024 * 1024) {
+                            setLogoError('Logo must be under 5MB')
+                            return
+                          }
+                          setLogoError('')
+                          setLogoFile(file)
+                          setLogoPreview(URL.createObjectURL(file))
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    <label htmlFor="logo" className="cursor-pointer block">
+                      {logoPreview ? (
+                        <div className="space-y-2">
+                          <img src={logoPreview} alt="Logo preview" className="mx-auto h-24 w-auto max-w-[200px] object-contain rounded" />
+                          <p className="text-sm text-[#008260] font-medium">Click to change logo</p>
+                        </div>
+                      ) : (
+                        <>
+                          <ImageIcon className="mx-auto h-12 w-12 text-slate-400 mb-2" />
+                          <p className="text-sm text-slate-600 mb-1">
+                            <span className="font-medium text-[#008260]">Click to upload</span> or drag and drop
+                          </p>
+                          <p className="text-xs text-slate-500">PNG, JPG, WebP. Max 5MB</p>
+                        </>
+                      )}
+                    </label>
+                    {logoError && <p className="text-sm text-red-500 mt-2">{logoError}</p>}
+                  </div>
                 </div>
               </div>
 

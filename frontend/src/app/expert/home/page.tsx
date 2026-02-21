@@ -548,30 +548,24 @@ export default function ExpertHome() {
                      >
                        <CarouselContent className="-ml-2">
                          {universities.map((university, index) => {
-                           // Use real university images from public folder
                            const universityImages = [
                              '/images/universitylogo1.jpeg',
                              '/images/universitylogo2.jpeg', 
                              '/images/universitylogo3.jpeg',
-                             '/images/universitylogo1.jpeg', // Reuse for more than 3
+                             '/images/universitylogo1.jpeg',
                              '/images/universitylogo2.jpeg'
                            ]
+                           const bgImage = university.logo_url || universityImages[index % universityImages.length]
                            
                            return (
                              <CarouselItem key={university.id || index} className="pl-2 basis-full sm:basis-1/2 lg:basis-1/2">
                               <div className="relative h-64 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 group">
-                                {/* Background Image */}
                                 <div 
                                   className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-                                  style={{
-                                    backgroundImage: `url('${universityImages[index % universityImages.length]}')`
-                                  }}
+                                  style={{ backgroundImage: `url('${bgImage}')` }}
                                 >
-                                  {/* Overlay */}
                                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
                                 </div>
-                                
-                                {/* University Name */}
                                 <div className="absolute bottom-0 left-0 right-0 p-6">
                                   <h3 className="text-white font-bold text-xl mb-2 transition-colors duration-300">
                                     {university.name}
@@ -583,8 +577,6 @@ export default function ExpertHome() {
                                     {[university.city, university.state, university.country].filter(Boolean).join(', ') || 'India'}
                                   </p>
                                 </div>
-      
-                                {/* Hover Effect */}
                                 <div className="absolute inset-0 bg-[#008260]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                               </div>
                             </CarouselItem>
@@ -635,7 +627,6 @@ export default function ExpertHome() {
                     >
                       <CarouselContent className="-ml-2">
                         {corporates.map((corporate, index) => {
-                          // Use corporate images
                           const corporateImages = [
                             '/images/universityimage5.webp',
                             '/images/universityimage6.jpeg', 
@@ -643,22 +634,17 @@ export default function ExpertHome() {
                             '/images/universityimage9.webp',
                             '/images/universityimage5.webp'
                           ]
+                          const bgImage = corporate.logo_url || corporateImages[index % corporateImages.length]
                           
                           return (
                             <CarouselItem key={corporate.id || index} className="pl-2 basis-full sm:basis-1/2 lg:basis-1/2">
                              <div className="relative h-64 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 group">
-                               {/* Background Image */}
                                <div 
                                  className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-                                 style={{
-                                   backgroundImage: `url('${corporateImages[index % corporateImages.length]}')`
-                                 }}
+                                 style={{ backgroundImage: `url('${bgImage}')` }}
                                >
-                                 {/* Overlay */}
                                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
                                </div>
-                               
-                               {/* Corporate Name */}
                                <div className="absolute bottom-0 left-0 right-0 p-6">
                                  <h3 className="text-white font-bold text-xl mb-2 transition-colors duration-300">
                                    {corporate.name}
@@ -670,8 +656,6 @@ export default function ExpertHome() {
                                    {[corporate.city, corporate.state, corporate.country].filter(Boolean).join(', ') || 'India'}
                                  </p>
                                </div>
-     
-                               {/* Hover Effect */}
                                <div className="absolute inset-0 bg-[#008260]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                              </div>
                            </CarouselItem>
