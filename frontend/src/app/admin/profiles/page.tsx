@@ -397,13 +397,29 @@ export default function AdminProfilesPage() {
               <h1 className="text-2xl font-bold">Profile Management</h1>
               <p className="text-white/90 text-sm mt-1">View and manage all platform profiles</p>
             </div>
-            <Button
-              variant="ghost"
-              className="text-white hover:bg-white/10"
-              onClick={() => router.push('/')}
-            >
-              Back to Home
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                className="text-white hover:bg-white/10"
+                onClick={() => router.push('/admin/create-expert')}
+              >
+                Create Expert
+              </Button>
+              <Button
+                variant="ghost"
+                className="text-white hover:bg-white/10"
+                onClick={() => router.push('/admin/bulk-import')}
+              >
+                Bulk Import
+              </Button>
+              <Button
+                variant="ghost"
+                className="text-white hover:bg-white/10"
+                onClick={() => router.push('/')}
+              >
+                Back to Home
+              </Button>
+            </div>
           </div>
         </div>
       </header>

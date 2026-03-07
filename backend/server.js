@@ -5009,7 +5009,7 @@ app.post('/api/admin/experts/bulk-import', async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    const { spreadsheetId, range, gid, usePublicAccess = false, delayBetweenRows = 500 } = req.body;
+    const { spreadsheetId, range, gid, usePublicAccess = false, delayBetweenRows = 500, defaultPassword } = req.body;
 
     if (!spreadsheetId) {
       return res.status(400).json({ error: 'spreadsheetId is required' });
@@ -5037,9 +5037,10 @@ app.post('/api/admin/experts/bulk-import', async (req, res) => {
       return res.status(400).json({ error: 'No data found in the sheet' });
     }
 
-    // Process bulk import
+    // Process bulk import (defaultPassword from body or env BULK_IMPORT_DEFAULT_PASSWORD)
     const results = await BulkImportService.processBulkImport(rows, {
-      delayBetweenRows: parseInt(delayBetweenRows) || 500
+      delayBetweenRows: parseInt(delayBetweenRows) || 500,
+      defaultPassword
     });
 
     res.json({

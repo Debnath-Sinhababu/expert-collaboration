@@ -479,6 +479,11 @@ export default function AdminCreateExpert() {
                   View Profiles
                 </Button>
               </Link>
+              <Link href="/admin/bulk-import">
+                <Button variant="ghost" className="font-medium text-white hover:text-white hover:bg-white/10 transition-all duration-300 px-4 py-2 text-sm">
+                  Bulk Import
+                </Button>
+              </Link>
               <Link href="/">
                 <Button variant="ghost" className="font-medium text-white hover:text-white hover:bg-white/10 transition-all duration-300 px-4 py-2 text-sm">
                   Home
