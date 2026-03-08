@@ -54,7 +54,7 @@ class GoogleSheetsService {
       }
 
       // First row is headers
-      const headers = rows[0].map(h => h.trim().toLowerCase().replace(/\s+/g, '_'));
+      const headers = rows[0].map(h => (h || '').trim().toLowerCase().replace(/[\s-]+/g, '_').replace(/_+/g, '_'));
       
       // Convert rows to objects
       const data = rows.slice(1).map((row, index) => {
@@ -152,7 +152,7 @@ class GoogleSheetsService {
         return result;
       };
 
-      const headers = parseCSVLine(lines[0]).map(h => h.trim().toLowerCase().replace(/\s+/g, '_'));
+      const headers = parseCSVLine(lines[0]).map(h => (h || '').trim().toLowerCase().replace(/[\s-]+/g, '_').replace(/_+/g, '_'));
       
       const data = lines.slice(1).map((line, index) => {
         const values = parseCSVLine(line);

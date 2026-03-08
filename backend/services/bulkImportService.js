@@ -78,43 +78,56 @@ class BulkImportService {
       experience_years: ['experience', 'experience_years', 'years_of_experience', 'yoe'],
       qualifications: ['qualifications', 'education', 'degree', 'qualification'],
       linkedin_url: ['linkedin', 'linkedin_url', 'linkedin_profile'],
-      last_working_company: ['company', 'last_company', 'current_company', 'organization'],
+      last_working_company: ['last_working_company', 'company', 'last_company', 'current_company', 'organization'],
       current_designation: ['current_designation', 'designation', 'job_title', 'role', 'current_role', 'position'],
       expert_types: ['expert_types', 'type', 'expert_type'],
       available_on_demand: ['available_on_demand', 'on_demand', 'available'],
-      profile_photo_url: ['photo', 'photo_url', 'profile_photo', 'image', 'profile_image', 'photo_url_(google_drive_link)'],
-      resume_url: ['resume', 'resume_url', 'cv', 'cv_url', 'resume_pdf'],
+      profile_photo_url: ['profile_photo_url', 'photo', 'photo_url', 'profile_photo', 'image', 'profile_image', 'photo_url_(google_drive_link)'],
+      resume_url: ['resume_url', 'resume', 'cv', 'cv_url', 'resume_pdf'],
       qualifications_url: ['qualifications_url', 'qualifications_pdf', 'certificates']
     };
 
     const expertData = {};
 
-    // Helper to find value by multiple possible keys
-    const findValue = (keys) => {
+    // Normalize header key (matches googleSheetsService: lowercase, spaces/hyphens to underscore)
+    const normalizeKey = (k) => (k || '').trim().toLowerCase().replace(/[\s-]+/g, '_').replace(/_+/g, '_');
+
+    // Helper to find value by multiple possible keys, with fallback: scan row keys for normalized match
+    const findValue = (keys, targetNormalized) => {
       for (const key of keys) {
         if (row[key] !== undefined && row[key] !== '') {
           return row[key];
         }
       }
+      // Fallback: row may have key like "Current-Designation" or "current  designation" - scan all row keys
+      if (targetNormalized) {
+        for (const rowKey of Object.keys(row)) {
+          if (rowKey === '_rowNumber') continue;
+          if (normalizeKey(rowKey) === targetNormalized && row[rowKey] !== undefined && row[rowKey] !== '') {
+            return row[rowKey];
+          }
+        }
+      }
       return null;
     };
 
-    expertData.name = findValue(map.name);
-    expertData.email = findValue(map.email);
-    expertData.phone = findValue(map.phone);
-    expertData.bio = findValue(map.bio) || '';
-    expertData.domain_expertise = findValue(map.domain_expertise);
-    expertData.subskills = findValue(map.subskills);
-    expertData.hourly_rate = findValue(map.hourly_rate);
-    expertData.experience_years = findValue(map.experience_years);
-    expertData.qualifications = findValue(map.qualifications) || '';
-    expertData.linkedin_url = findValue(map.linkedin_url) || '';
-    expertData.last_working_company = findValue(map.last_working_company);
-    expertData.expert_types = findValue(map.expert_types);
-    expertData.available_on_demand = findValue(map.available_on_demand);
-    expertData.profile_photo_url = findValue(map.profile_photo_url);
-    expertData.resume_url = findValue(map.resume_url);
-    expertData.qualifications_url = findValue(map.qualifications_url);
+    expertData.name = findValue(map.name, 'name');
+    expertData.email = findValue(map.email, 'email');
+    expertData.phone = findValue(map.phone, 'phone');
+    expertData.bio = findValue(map.bio, 'bio') || '';
+    expertData.domain_expertise = findValue(map.domain_expertise, 'domain_expertise');
+    expertData.subskills = findValue(map.subskills, 'subskills');
+    expertData.hourly_rate = findValue(map.hourly_rate, 'hourly_rate');
+    expertData.experience_years = findValue(map.experience_years, 'experience_years');
+    expertData.qualifications = findValue(map.qualifications, 'qualifications') || '';
+    expertData.linkedin_url = findValue(map.linkedin_url, 'linkedin_url') || '';
+    expertData.last_working_company = findValue(map.last_working_company, 'last_working_company');
+    expertData.current_designation = findValue(map.current_designation, 'current_designation');
+    expertData.expert_types = findValue(map.expert_types, 'expert_types');
+    expertData.available_on_demand = findValue(map.available_on_demand, 'available_on_demand');
+    expertData.profile_photo_url = findValue(map.profile_photo_url, 'profile_photo_url');
+    expertData.resume_url = findValue(map.resume_url, 'resume_url');
+    expertData.qualifications_url = findValue(map.qualifications_url, 'qualifications_url');
 
     // Parse arrays (comma-separated values)
     if (expertData.subskills && typeof expertData.subskills === 'string') {
