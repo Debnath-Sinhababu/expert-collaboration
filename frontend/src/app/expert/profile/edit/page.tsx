@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { ArrowLeft, Save, User, Briefcase, Upload, Camera, X, FileText, IndianRupee, Info } from 'lucide-react'
+import { ArrowLeft, Save, User, Briefcase, Upload, Camera, X, FileText, IndianRupee, Info, Video } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -30,6 +30,10 @@ const STATES = [
   'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry'
 ]
 import ProfileDropdown from '@/components/ProfileDropdown'
+
+const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]$/
+const PROFILE_VIDEO_MAX_BYTES = 20 * 1024 * 1024
+const ALLOWED_PROFILE_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'] as const
 
 export default function ExpertProfileEdit() {
   const [user, setUser] = useState<any>(null)
@@ -57,7 +61,8 @@ export default function ExpertProfileEdit() {
     expert_types: [] as string[],
     available_on_demand: false,
     city: '',
-    state: ''
+    state: '',
+    pan_number: ''
   })
 
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
@@ -69,6 +74,10 @@ export default function ExpertProfileEdit() {
   
   const [selectedQualifications, setSelectedQualifications] = useState<File | null>(null)
   const [qualificationsError, setQualificationsError] = useState('')
+
+  const [selectedProfileVideo, setSelectedProfileVideo] = useState<File | null>(null)
+  const [profileVideoError, setProfileVideoError] = useState('')
+  const [profileVideoPreviewUrl, setProfileVideoPreviewUrl] = useState('')
   
   const [selectedSubskills, setSelectedSubskills] = useState<string[]>([])
   const [availableSubskills, setAvailableSubskills] = useState<string[]>([])
@@ -92,6 +101,14 @@ export default function ExpertProfileEdit() {
 
     getUser()
   }, [router])
+
+  useEffect(() => {
+    return () => {
+      if (profileVideoPreviewUrl) {
+        URL.revokeObjectURL(profileVideoPreviewUrl)
+      }
+    }
+  }, [profileVideoPreviewUrl])
 
   const loadCustomDomains = async () => {
     try {
@@ -136,7 +153,8 @@ export default function ExpertProfileEdit() {
           expert_types: expertProfile.expert_types || [],
           available_on_demand: expertProfile.available_on_demand || false,
           city: expertProfile.city || '',
-          state: expertProfile.state || ''
+          state: expertProfile.state || '',
+          pan_number: expertProfile.pan_number || ''
         })
         
         setSelectedSubskills(expertProfile.subskills || [])
@@ -326,6 +344,43 @@ export default function ExpertProfileEdit() {
     setQualificationsError('')
   }
 
+  const handlePanChange = (value: string) => {
+    const normalized = value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10)
+    setFormData(prev => ({ ...prev, pan_number: normalized }))
+  }
+
+  const handleProfileVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!ALLOWED_PROFILE_VIDEO_TYPES.includes(file.type as (typeof ALLOWED_PROFILE_VIDEO_TYPES)[number])) {
+      setProfileVideoError('Please use MP4, WebM, or MOV (QuickTime)')
+      return
+    }
+
+    if (file.size > PROFILE_VIDEO_MAX_BYTES) {
+      setProfileVideoError('Video must be 20MB or smaller')
+      return
+    }
+
+    setProfileVideoError('')
+    setSelectedProfileVideo(file)
+    setProfileVideoPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return URL.createObjectURL(file)
+    })
+    e.target.value = ''
+  }
+
+  const removeProfileVideo = () => {
+    setProfileVideoError('')
+    setSelectedProfileVideo(null)
+    setProfileVideoPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return ''
+    })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
@@ -365,58 +420,59 @@ export default function ExpertProfileEdit() {
         throw new Error('Expert profile not found')
       }
 
-      if (selectedPhoto || selectedResume || selectedQualifications) {
-        const formDataToSend = new FormData()
-        formDataToSend.append('name', formData.name)
-        formDataToSend.append('bio', formData.bio)
-        formDataToSend.append('phone', formData.phone)
-        formDataToSend.append('qualifications', formData.qualifications)
-        formDataToSend.append('hourly_rate', formData.hourly_rate.toString())
-        formDataToSend.append('experience_years', formData.experience_years)
-        formDataToSend.append('linkedin_url', formData.linkedin_url)
-        formDataToSend.append('domain_expertise', formData.domain_expertise)
-        formDataToSend.append('subskills', JSON.stringify(formData.subskills))
-        formDataToSend.append('last_working_company', formData.last_working_company)
-        formDataToSend.append('current_designation', formData.current_designation)
-        formDataToSend.append('expert_types', JSON.stringify(formData.expert_types))
-        formDataToSend.append('available_on_demand', String(formData.available_on_demand))
-        formDataToSend.append('city', formData.city || '')
-        formDataToSend.append('state', formData.state || '')
+      const panNormalized = formData.pan_number.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10)
+      if (panNormalized.length > 0 && !PAN_REGEX.test(panNormalized)) {
+        throw new Error('Enter a valid 10-character PAN or leave blank')
+      }
 
-        if (selectedPhoto) {
-          formDataToSend.append('profile_photo', selectedPhoto)
-        }
-        
-        if (selectedResume) {
-          formDataToSend.append('resume', selectedResume)
-        }
-        
-        if (selectedQualifications) {
-          formDataToSend.append('qualifications', selectedQualifications)
-        }
+      const formDataToSend = new FormData()
+      formDataToSend.append('name', formData.name)
+      formDataToSend.append('bio', formData.bio)
+      formDataToSend.append('phone', formData.phone)
+      formDataToSend.append('qualifications', formData.qualifications)
+      formDataToSend.append('hourly_rate', formData.hourly_rate.toString())
+      formDataToSend.append('experience_years', formData.experience_years)
+      formDataToSend.append('linkedin_url', formData.linkedin_url)
+      formDataToSend.append('domain_expertise', formData.domain_expertise)
+      formDataToSend.append('subskills', JSON.stringify(formData.subskills))
+      formDataToSend.append('last_working_company', formData.last_working_company)
+      formDataToSend.append('current_designation', formData.current_designation)
+      formDataToSend.append('expert_types', JSON.stringify(formData.expert_types))
+      formDataToSend.append('available_on_demand', String(formData.available_on_demand))
+      formDataToSend.append('city', formData.city || '')
+      formDataToSend.append('state', formData.state || '')
+      formDataToSend.append('pan_number', panNormalized)
+      formDataToSend.append('resume_url', formData.resume_url || '')
+      formDataToSend.append('photo_url', formData.photo_url || '')
+      formDataToSend.append('qualifications_url', expert?.qualifications_url || '')
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/experts/${expert.id}`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-          },
-          body: formDataToSend
-        })
+      if (selectedPhoto) {
+        formDataToSend.append('profile_photo', selectedPhoto)
+      }
 
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Failed to update profile')
-        }
-      } else {
-        const expertData = {
-          ...formData,
-          domain_expertise: formData.domain_expertise,
-          subskills: formData.subskills,
-          hourly_rate: parseFloat(formData.hourly_rate),
-          experience_years: parseInt(formData.experience_years) || 0,
-          updated_at: new Date().toISOString(),
-        }
-        await api.experts.update(expert.id, expertData)
+      if (selectedResume) {
+        formDataToSend.append('resume', selectedResume)
+      }
+
+      if (selectedQualifications) {
+        formDataToSend.append('qualifications', selectedQualifications)
+      }
+
+      if (selectedProfileVideo) {
+        formDataToSend.append('profile_video', selectedProfileVideo)
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/experts/${expert.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+        },
+        body: formDataToSend
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to update profile')
       }
       
       setSuccess('Profile updated successfully!')
@@ -535,6 +591,20 @@ export default function ExpertProfileEdit() {
                       required
                     />
                   </div>
+                </div>
+
+                <div className="space-y-2 max-w-md">
+                  <Label htmlFor="pan_number" className="text-slate-700">PAN (Permanent Account Number)</Label>
+                  <Input
+                    id="pan_number"
+                    placeholder="e.g. ABCDE1234F (optional for legacy profiles)"
+                    value={formData.pan_number}
+                    onChange={(e) => handlePanChange(e.target.value)}
+                    autoComplete="off"
+                    maxLength={10}
+                    className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300 uppercase font-mono tracking-wide"
+                  />
+                  <p className="text-xs text-slate-500">10 characters if provided. Leave blank only if your profile predates this field.</p>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4">
@@ -755,6 +825,63 @@ export default function ExpertProfileEdit() {
                       </Alert>
                     )}
                   </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="profile_video_edit" className="text-slate-700 flex items-center space-x-2">
+                      <Video className="h-5 w-5 text-[#008260]" />
+                      <span>Profile intro video</span>
+                    </Label>
+                    <p className="text-sm text-slate-500">Replace with MP4, WebM, or MOV (max 20MB, same as PDFs). Optional if you already have a video on file.</p>
+                  </div>
+                  {expert?.profile_video_url && !selectedProfileVideo && (
+                    <div className="rounded-lg border border-slate-200 overflow-hidden bg-black">
+                      <video
+                        src={expert.profile_video_url}
+                        controls
+                        className="w-full max-h-64"
+                      />
+                      <p className="text-xs text-slate-500 p-2 bg-slate-50">Current intro video</p>
+                    </div>
+                  )}
+                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center transition-all duration-300 hover:border-[#008260]">
+                    <input
+                      type="file"
+                      id="profile_video_edit"
+                      accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
+                      onChange={handleProfileVideoSelect}
+                      className="hidden"
+                    />
+                    <label htmlFor="profile_video_edit" className="cursor-pointer">
+                      <FileText className="mx-auto h-10 w-10 text-[#008260] mb-2" />
+                      <p className="text-sm text-slate-600 mb-1">
+                        <span className="font-medium text-[#008260]">Click to upload</span> a new intro video
+                      </p>
+                      <p className="text-xs text-slate-500">MP4, WebM, or MOV — max 20MB</p>
+                    </label>
+                  </div>
+                  {profileVideoPreviewUrl && selectedProfileVideo && (
+                    <div className="p-3 bg-[#ECF2FF] border border-[#008260]/30 rounded-lg space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium text-slate-900 break-all">{selectedProfileVideo.name}</span>
+                        <button
+                          type="button"
+                          onClick={removeProfileVideo}
+                          className="text-red-500 hover:text-red-700 shrink-0"
+                          aria-label="Remove new video selection"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <video src={profileVideoPreviewUrl} controls className="w-full max-h-64 rounded-md bg-black" />
+                    </div>
+                  )}
+                  {profileVideoError && (
+                    <Alert variant="destructive">
+                      <AlertDescription>{profileVideoError}</AlertDescription>
+                    </Alert>
+                  )}
                 </div>
               </div>
 

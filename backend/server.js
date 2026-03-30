@@ -32,6 +32,16 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY || 'your-supabase-anon-key'
 );
 
+const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+function normalizePan(value) {
+  if (value == null) return null;
+  const s = String(value).trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return s === '' ? null : s;
+}
+function isValidPan(pan) {
+  return typeof pan === 'string' && PAN_REGEX.test(pan);
+}
+
 app.use(helmet());
 app.use(cors({
   origin: [
@@ -227,11 +237,19 @@ app.get('/api/experts', async (req, res) => {
 app.post('/api/experts', upload.fields([
   { name: 'profile_photo', maxCount: 1 },
   { name: 'resume', maxCount: 1 },
-  { name: 'qualifications', maxCount: 1 }
+  { name: 'qualifications', maxCount: 1 },
+  { name: 'profile_video', maxCount: 1 }
 ]), async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     let supabaseClient = supabase;
+
+    const panNormalized = normalizePan(req.body.pan_number);
+    if (!isValidPan(panNormalized)) {
+      return res.status(400).json({
+        error: 'Invalid PAN format. Use 10 characters: five letters, four digits, one letter (e.g. ABCDE1234F).'
+      });
+    }
 
     
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -261,6 +279,7 @@ app.post('/api/experts', upload.fields([
     let photoData = null;
     let resumeData = null;
     let qualificationsData = null;
+    let profileVideoData = null;
 
     // Handle profile photo upload
     if (req.files?.profile_photo?.[0]) {
@@ -300,6 +319,20 @@ app.post('/api/experts', upload.fields([
       if (!qualificationsData.success) {
         return res.status(500).json({ 
           error: `Qualifications upload failed: ${qualificationsData.error}` 
+        });
+      }
+    }
+
+    if (req.files?.profile_video?.[0]) {
+      profileVideoData = await ImageUploadService.uploadVideo(
+        req.files.profile_video[0].buffer,
+        'expert-profile-videos',
+        null,
+        req.files.profile_video[0].mimetype
+      );
+      if (!profileVideoData.success) {
+        return res.status(500).json({
+          error: `Profile video upload failed: ${profileVideoData.error}`
         });
       }
     }
@@ -385,7 +418,10 @@ app.post('/api/experts', upload.fields([
       expert_types: Array.isArray(req.body.expert_types) ? req.body.expert_types : (req.body.expert_types ? JSON.parse(req.body.expert_types) : []),
       available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true,
       city: req.body.city || null,
-      state: req.body.state || null
+      state: req.body.state || null,
+      pan_number: panNormalized,
+      profile_video_url: profileVideoData?.url || null,
+      profile_video_public_id: profileVideoData?.publicId || null
     };
     
     const { data, error } = await supabaseClient
@@ -456,7 +492,8 @@ app.get('/api/experts/user/:userId', async (req, res) => {
 app.put('/api/experts/:id', upload.fields([
   { name: 'profile_photo', maxCount: 1 },
   { name: 'resume', maxCount: 1 },
-  { name: 'qualifications', maxCount: 1 }
+  { name: 'qualifications', maxCount: 1 },
+  { name: 'profile_video', maxCount: 1 }
 ]), async (req, res) => {
   try {
     console.log('PUT /api/experts/:id - Request body:', req.body);
@@ -486,11 +523,21 @@ app.put('/api/experts/:id', upload.fields([
     // Get current expert data to check if files need updating
     const { data: currentExpert, error: fetchError } = await supabaseClient
       .from('experts')
-      .select('photo_url, profile_photo_public_id, resume_public_id, qualifications_public_id')
+      .select('photo_url, profile_photo_public_id, resume_public_id, qualifications_public_id, profile_video_public_id')
       .eq('id', req.params.id)
       .single();
 
     if (fetchError) throw fetchError;
+
+    const panFromBody = req.body.pan_number;
+    if (panFromBody !== undefined && panFromBody !== null && String(panFromBody).trim() !== '') {
+      const p = normalizePan(panFromBody);
+      if (!isValidPan(p)) {
+        return res.status(400).json({
+          error: 'Invalid PAN format. Use 10 characters: five letters, four digits, one letter (e.g. ABCDE1234F).'
+        });
+      }
+    }
 
     // Check if domain is custom (not in predefined list)
     const domainName = req.body.domain_expertise ? req.body.domain_expertise.trim() : null;
@@ -555,6 +602,16 @@ app.put('/api/experts/:id', upload.fields([
       city: req.body.city || null,
       state: req.body.state || null
     };
+
+    delete updateData.profile_video;
+
+    if (panFromBody !== undefined) {
+      if (panFromBody === null || String(panFromBody).trim() === '') {
+        updateData.pan_number = null;
+      } else {
+        updateData.pan_number = normalizePan(panFromBody);
+      }
+    }
     
     // Handle profile photo update if new photo is uploaded
     if (req.files?.profile_photo?.[0]) {
@@ -628,6 +685,28 @@ app.put('/api/experts/:id', upload.fields([
       // Update qualifications fields
       updateData.qualifications_url = qualificationsData.url;
       updateData.qualifications_public_id = qualificationsData.publicId;
+    }
+
+    if (req.files?.profile_video?.[0]) {
+      if (currentExpert?.profile_video_public_id) {
+        await ImageUploadService.deleteVideo(currentExpert.profile_video_public_id);
+      }
+
+      const videoData = await ImageUploadService.uploadVideo(
+        req.files.profile_video[0].buffer,
+        'expert-profile-videos',
+        null,
+        req.files.profile_video[0].mimetype
+      );
+
+      if (!videoData.success) {
+        return res.status(500).json({
+          error: `Profile video upload failed: ${videoData.error}`
+        });
+      }
+
+      updateData.profile_video_url = videoData.url;
+      updateData.profile_video_public_id = videoData.publicId;
     }
     
     const { data, error } = await supabaseClient
@@ -4800,7 +4879,8 @@ app.get('/api/admin/profiles/students', async (req, res) => {
 app.post('/api/admin/experts', upload.fields([
   { name: 'profile_photo', maxCount: 1 },
   { name: 'resume', maxCount: 1 },
-  { name: 'qualifications', maxCount: 1 }
+  { name: 'qualifications', maxCount: 1 },
+  { name: 'profile_video', maxCount: 1 }
 ]), async (req, res) => {
   try {
     // Check admin authentication
@@ -4837,6 +4917,7 @@ app.post('/api/admin/experts', upload.fields([
     let photoData = null;
     let resumeData = null;
     let qualificationsData = null;
+    let profileVideoData = null;
 
     // Handle profile photo upload
     if (req.files?.profile_photo?.[0]) {
@@ -4876,6 +4957,31 @@ app.post('/api/admin/experts', upload.fields([
       if (!qualificationsData.success) {
         return res.status(500).json({ 
           error: `Qualifications upload failed: ${qualificationsData.error}` 
+        });
+      }
+    }
+
+    if (req.files?.profile_video?.[0]) {
+      profileVideoData = await ImageUploadService.uploadVideo(
+        req.files.profile_video[0].buffer,
+        'expert-profile-videos',
+        null,
+        req.files.profile_video[0].mimetype
+      );
+      if (!profileVideoData.success) {
+        return res.status(500).json({
+          error: `Profile video upload failed: ${profileVideoData.error}`
+        });
+      }
+    }
+
+    const adminPan = req.body.pan_number;
+    let adminPanNormalized = null;
+    if (adminPan !== undefined && adminPan !== null && String(adminPan).trim() !== '') {
+      adminPanNormalized = normalizePan(adminPan);
+      if (!isValidPan(adminPanNormalized)) {
+        return res.status(400).json({
+          error: 'Invalid PAN format. Use 10 characters: five letters, four digits, one letter (e.g. ABCDE1234F).'
         });
       }
     }
@@ -4956,7 +5062,10 @@ app.post('/api/admin/experts', upload.fields([
       expert_types: Array.isArray(req.body.expert_types) ? req.body.expert_types : (req.body.expert_types ? JSON.parse(req.body.expert_types) : []),
       available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true,
       city: req.body.city || null,
-      state: req.body.state || null
+      state: req.body.state || null,
+      pan_number: adminPanNormalized,
+      profile_video_url: profileVideoData?.url || null,
+      profile_video_public_id: profileVideoData?.publicId || null
     };
     
     const { data, error } = await serviceClient
