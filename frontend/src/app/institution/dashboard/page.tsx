@@ -594,7 +594,17 @@ export default function InstitutionDashboard() {
       console.log('Project data:', projectData)
    
 
-      const response = await api.projects.create(projectData)
+      const formData = new FormData()
+      Object.entries(projectData).forEach(([key, value]) => {
+        if (value === undefined || value === null) return
+        if (Array.isArray(value)) {
+          formData.append(key, value.join(','))
+          return
+        }
+        formData.append(key, String(value))
+      })
+
+      const response = await api.projects.create(formData)
       
       // Reset form
       setProjectForm({

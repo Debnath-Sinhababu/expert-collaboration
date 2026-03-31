@@ -1067,7 +1067,9 @@ app.get('/api/projects', async (req, res) => {
   }
 });
 
-app.post('/api/projects', async (req, res) => {
+app.post('/api/projects', upload.fields([
+  { name: 'requirement_pdf', maxCount: 1 }
+]), async (req, res) => {
   try {
     console.log('=== PROJECT CREATION DEBUG ===');
     console.log('Headers:', req.headers);
@@ -1078,7 +1080,6 @@ app.post('/api/projects', async (req, res) => {
     
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
-      console.log('Token received:', token.substring(0, 50) + '...');
       
       supabaseClient = createClient(
         process.env.SUPABASE_URL,
@@ -1106,6 +1107,7 @@ app.post('/api/projects', async (req, res) => {
         console.log('User institution:', institutionData);
         console.log('Requested institution_id:', req.body.institution_id);
         console.log('Institution match:', institutionData?.id === req.body.institution_id);
+        console.log('Institution error:', instError);
         if (!institutionData) {
           return res.status(403).json({ error: 'Unauthorized' });
         }
@@ -1116,9 +1118,56 @@ app.post('/api/projects', async (req, res) => {
     
     console.log('Institution ID from request:', req.body.institution_id);
     
+    // Normalize array-like fields that may arrive as comma-separated strings
+    const rawBody = req.body || {};
+
+    const normalizeArrayField = (value) => {
+      if (Array.isArray(value)) return value;
+      if (typeof value === 'string' && value.trim().length > 0) {
+        return value
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+      return [];
+    };
+
+    const projectPayload = {
+      ...rawBody,
+      required_expertise: normalizeArrayField(rawBody.required_expertise),
+      subskills: normalizeArrayField(rawBody.subskills)
+    };
+
+    // Handle optional requirement PDF upload
+    let requirementPdfData = null;
+    const requirementPdfFile = req.files?.requirement_pdf?.[0];
+    if (requirementPdfFile) {
+      try {
+        requirementPdfData = await ImageUploadService.uploadPDF(
+          requirementPdfFile.buffer,
+          'institution-contract-requirements'
+        );
+      } catch (e) {
+        console.error('Requirement PDF upload exception:', e);
+        return res.status(500).json({ error: 'Requirement PDF upload failed' });
+      }
+
+      if (!requirementPdfData?.success) {
+        return res.status(500).json({
+          error: `Requirement PDF upload failed: ${requirementPdfData?.error || 'Unknown error'}`
+        });
+      }
+    }
+
+    const insertPayload = {
+      ...projectPayload,
+      requirement_pdf_url: requirementPdfData?.url || null,
+      requirement_pdf_public_id: requirementPdfData?.publicId || null
+    };
+
     const { data, error } = await supabaseClient
       .from('projects')
-      .insert([req.body])
+      .insert([insertPayload])
       .select();
     
     console.log('Insert result:', { data, error });
