@@ -415,14 +415,21 @@ export default function ExpertProfileEdit() {
       if (formData.expert_types.length === 0) {
         throw new Error('Please select at least one expert type')
       }
+      if (!formData.pan_number?.trim()) {
+        throw new Error('Please enter your PAN number')
+      }
 
       if (!expert?.id) {
         throw new Error('Expert profile not found')
       }
 
-      const panNormalized = formData.pan_number.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10)
-      if (panNormalized.length > 0 && !PAN_REGEX.test(panNormalized)) {
-        throw new Error('Enter a valid 10-character PAN or leave blank')
+      const panNormalized = formData.pan_number
+        .trim()
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .slice(0, 10)
+      if (!panNormalized || !PAN_REGEX.test(panNormalized)) {
+        throw new Error('Enter a valid 10-character PAN (e.g. ABCDE1234F)')
       }
 
       const formDataToSend = new FormData()
@@ -594,17 +601,22 @@ export default function ExpertProfileEdit() {
                 </div>
 
                 <div className="space-y-2 max-w-md">
-                  <Label htmlFor="pan_number" className="text-slate-700">PAN (Permanent Account Number)</Label>
+                  <Label htmlFor="pan_number" className="text-slate-700">
+                    PAN (Permanent Account Number) *
+                  </Label>
                   <Input
                     id="pan_number"
-                    placeholder="e.g. ABCDE1234F (optional for legacy profiles)"
+                    placeholder="e.g. ABCDE1234F"
                     value={formData.pan_number}
                     onChange={(e) => handlePanChange(e.target.value)}
                     autoComplete="off"
                     maxLength={10}
+                    required
                     className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300 uppercase font-mono tracking-wide"
                   />
-                  <p className="text-xs text-slate-500">10 characters if provided. Leave blank only if your profile predates this field.</p>
+                  <p className="text-xs text-slate-500">
+                    10 characters: five letters, four digits, one letter (as on your PAN card).
+                  </p>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4">

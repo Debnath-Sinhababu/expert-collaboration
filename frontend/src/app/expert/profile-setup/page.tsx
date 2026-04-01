@@ -431,7 +431,16 @@ export default function ExpertProfileSetup() {
         return
       }
 
-      const panNormalized = formData.pan_number.trim().toUpperCase()
+      const panNormalized = formData.pan_number
+        .trim()
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .slice(0, 10)
+      if (!panNormalized) {
+        toast.error('Please enter your PAN number')
+        setSaving(false)
+        return
+      }
       if (!PAN_REGEX.test(panNormalized)) {
         toast.error('Enter a valid 10-character PAN (e.g. ABCDE1234F)')
         setSaving(false)

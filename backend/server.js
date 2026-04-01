@@ -245,6 +245,11 @@ app.post('/api/experts', upload.fields([
     let supabaseClient = supabase;
 
     const panNormalized = normalizePan(req.body.pan_number);
+    if (!panNormalized) {
+      return res.status(400).json({
+        error: 'PAN is required. Enter a valid 10-character PAN (e.g. ABCDE1234F).'
+      });
+    }
     if (!isValidPan(panNormalized)) {
       return res.status(400).json({
         error: 'Invalid PAN format. Use 10 characters: five letters, four digits, one letter (e.g. ABCDE1234F).'
@@ -498,6 +503,25 @@ app.put('/api/experts/:id', upload.fields([
   try {
     console.log('PUT /api/experts/:id - Request body:', req.body);
     console.log('PUT /api/experts/:id - Expert ID:', req.params.id);
+
+     // Validate required fields
+     if (!req.body.name || !req.body.phone || !req.files) {
+      return res.status(400).json({ 
+        error: 'Name, phone, and profile photo are required fields' 
+      });
+    }
+
+    const panNormalized = normalizePan(req.body.pan_number);
+    if (!panNormalized) {
+      return res.status(400).json({
+        error: 'PAN is required. Enter a valid 10-character PAN (e.g. ABCDE1234F).'
+      });
+    }
+    if (!isValidPan(panNormalized)) {
+      return res.status(400).json({
+        error: 'Invalid PAN format. Use 10 characters: five letters, four digits, one letter (e.g. ABCDE1234F).'
+      });
+    }
     
     const authHeader = req.headers.authorization;
     let supabaseClient = supabase;
@@ -523,21 +547,11 @@ app.put('/api/experts/:id', upload.fields([
     // Get current expert data to check if files need updating
     const { data: currentExpert, error: fetchError } = await supabaseClient
       .from('experts')
-      .select('photo_url, profile_photo_public_id, resume_public_id, qualifications_public_id, profile_video_public_id')
+      .select('photo_url, profile_photo_public_id, resume_public_id, qualifications_public_id, profile_video_public_id, pan_number')
       .eq('id', req.params.id)
       .single();
 
     if (fetchError) throw fetchError;
-
-    const panFromBody = req.body.pan_number;
-    if (panFromBody !== undefined && panFromBody !== null && String(panFromBody).trim() !== '') {
-      const p = normalizePan(panFromBody);
-      if (!isValidPan(p)) {
-        return res.status(400).json({
-          error: 'Invalid PAN format. Use 10 characters: five letters, four digits, one letter (e.g. ABCDE1234F).'
-        });
-      }
-    }
 
     // Check if domain is custom (not in predefined list)
     const domainName = req.body.domain_expertise ? req.body.domain_expertise.trim() : null;
@@ -604,15 +618,22 @@ app.put('/api/experts/:id', upload.fields([
     };
 
     delete updateData.profile_video;
+    delete updateData.pan_number;
 
-    if (panFromBody !== undefined) {
-      if (panFromBody === null || String(panFromBody).trim() === '') {
-        updateData.pan_number = null;
-      } else {
-        updateData.pan_number = normalizePan(panFromBody);
-      }
+    // PAN is mandatory: use body value, or keep existing when pan_number omitted from request
+    const panInBody = req.body.pan_number;
+    let effectivePan =
+      panInBody === undefined
+        ? normalizePan(currentExpert.pan_number)
+        : normalizePan(panInBody);
+    if (!effectivePan || !isValidPan(effectivePan)) {
+      return res.status(400).json({
+        error:
+          'PAN is required. Enter a valid 10-character PAN (e.g. ABCDE1234F).'
+      });
     }
-    
+    updateData.pan_number = effectivePan;
+
     // Handle profile photo update if new photo is uploaded
     if (req.files?.profile_photo?.[0]) {
       // Delete old photo from Cloudinary if exists
