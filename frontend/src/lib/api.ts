@@ -15,18 +15,6 @@ const getAuthHeaders = async () => {
 
 export const api = {
   auth: {
-    checkEmail: async (email: string) => {
-      const headers = await getAuthHeaders()
-      return fetch(`${API_BASE_URL}/api/auth/check-email`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ email })
-      }).then(async (res) => {
-        const json = await res.json().catch(() => ({}))
-        if (!res.ok) throw new Error(json?.error || 'Failed to check email')
-        return json
-      })
-    },
     forgotPassword: async (email: string) => {
       const headers = await getAuthHeaders()
       return fetch(`${API_BASE_URL}/api/auth/forgot-password`, {

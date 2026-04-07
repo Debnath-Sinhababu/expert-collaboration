@@ -91,12 +91,6 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    // Check if email exists in any profile table
-    const exists = await checkEmailExists(email);
-    if (!exists) {
-      return res.status(400).json({ error: 'No account found with this email address' });
-    }
-
     const redirectTo = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/reset-password`;
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -108,55 +102,6 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     }
 
     res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Check if email exists in profile tables
-async function checkEmailExists(email) {
-  try {
-    // Check experts
-    const { data: expert, error: expertError } = await supabase
-      .from('experts')
-      .select('id')
-      .eq('email', email)
-      .single();
-    if (expert && !expertError) return true;
-
-    // Check institutions
-    const { data: inst, error: instError } = await supabase
-      .from('institutions')
-      .select('id')
-      .eq('email', email)
-      .single();
-    if (inst && !instError) return true;
-
-    // Check site_students
-    const { data: student, error: studentError } = await supabase
-      .from('site_students')
-      .select('id')
-      .eq('email', email)
-      .single();
-    if (student && !studentError) return true;
-
-    return false;
-  } catch (err) {
-    console.error('Error checking email existence:', err);
-    return false;
-  }
-}
-
-// Check if email exists
-app.post('/api/auth/check-email', async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
-    }
-
-    const exists = await checkEmailExists(email);
-    res.json({ exists });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

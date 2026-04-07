@@ -24,7 +24,7 @@ export default function ForgotPasswordPage() {
     setSuccess('')
     try {
       await api.auth.forgotPassword(email)
-      setSuccess('Reset link sent successfully. Please check your email.')
+      setSuccess('If the email exists, a reset link has been sent.')
     } catch (err: any) {
       setError(err.message || 'Failed to send reset email')
     } finally {

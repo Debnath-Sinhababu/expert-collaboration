@@ -78,13 +78,7 @@ export default function Signup() {
     }
 
     try {
-      // Check if email already exists
-      const checkResult = await api.auth.checkEmail(email)
-      if (checkResult.exists) {
-        toast.error('An account with this email already exists. Please try logging in instead.')
-        setLoading(false)
-        return
-      }
+       
 
       const { data, error } = await supabase.auth.signUp({
         email,
