@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
+import { isCommonEmailProvider } from '@/lib/utils'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 export const dynamic = 'force-dynamic'
@@ -73,6 +74,12 @@ export default function Signup() {
 
     if (!validatePassword(password)) {
       setError('Password does not meet the required strength criteria')
+      setLoading(false)
+      return
+    }
+
+    if (selectedRole === 'institution' && isCommonEmailProvider(email)) {
+      setError('Institution signups require an institution or corporate email address. Personal email providers like gmail.com, yahoo.com, hotmail.com, outlook.com, icloud.com are not allowed.')
       setLoading(false)
       return
     }

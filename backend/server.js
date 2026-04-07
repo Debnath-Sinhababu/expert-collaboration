@@ -41,6 +41,28 @@ function normalizePan(value) {
 function isValidPan(pan) {
   return typeof pan === 'string' && PAN_REGEX.test(pan);
 }
+function isCommonEmailProvider(email) {
+  if (!email || typeof email !== 'string') return false;
+  const commonDomains = [
+    'gmail.com',
+    'yahoo.com',
+    'hotmail.com',
+    'outlook.com',
+    'icloud.com',
+    'aol.com',
+    'live.com',
+    'msn.com',
+    'protonmail.com',
+    'gmx.com',
+    'zoho.com',
+    'mail.com',
+    'yandex.com'
+  ];
+  const normalized = email.trim().toLowerCase();
+  if (!normalized.includes('@')) return false;
+  const domain = normalized.split('@').pop();
+  return !!domain && commonDomains.some(common => domain === common || domain.endsWith(`.${common}`));
+}
 
 app.use(helmet());
 app.use(cors({
@@ -848,10 +870,20 @@ app.post('/api/institutions', upload.single('logo'), async (req, res) => {
       logoUrl = logoData.url;
     }
 
+    const institutionEmail = String(req.body.contact_email || req.body.email || '').trim();
+    if (!institutionEmail) {
+      return res.status(400).json({ error: 'Institution contact email is required.' });
+    }
+    if (isCommonEmailProvider(institutionEmail)) {
+      return res.status(400).json({
+        error: 'Institution profiles must use an institution or corporate email address. Personal email providers like gmail.com, yahoo.com, hotmail.com, outlook.com, icloud.com are not allowed.'
+      });
+    }
+
     const institutionData = {
       user_id: authenticatedUserId,
       name: req.body.name,
-      email: req.body.contact_email || req.body.email,
+      email: institutionEmail,
       type: req.body.type,
       description: req.body.description,
       logo_url: logoUrl,

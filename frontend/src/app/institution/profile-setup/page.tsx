@@ -14,6 +14,7 @@ import { Building, Globe, MapPin, ImageIcon } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import { isCommonEmailProvider } from '@/lib/utils'
 import Logo from '@/components/Logo'
 
 const INSTITUTION_TYPES = [
@@ -131,6 +132,16 @@ export default function InstitutionProfileSetup() {
       }
       if (!formData.city?.trim()) {
         toast.error('Please enter city')
+        setSaving(false)
+        return
+      }
+      if (!formData.contact_email?.trim()) {
+        toast.error('Please enter contact email')
+        setSaving(false)
+        return
+      }
+      if (isCommonEmailProvider(formData.contact_email)) {
+        toast.error('Please use an institution or corporate email address for contact email. Personal providers like gmail.com, yahoo.com, hotmail.com, outlook.com, icloud.com are not allowed.')
         setSaving(false)
         return
       }
