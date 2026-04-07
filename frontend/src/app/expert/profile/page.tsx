@@ -6,7 +6,7 @@ import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Star, Shield, Phone, Linkedin, User, GraduationCap, IndianRupee, Calendar, Building2, FileText, Edit, CheckCircle2, MapPin } from 'lucide-react'
+import { Star, Shield, Phone, Linkedin, User, GraduationCap, IndianRupee, Calendar, Building2, FileText, Edit, CheckCircle2, MapPin, Video } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Logo from '@/components/Logo'
@@ -338,6 +338,45 @@ export default function ExpertProfile() {
                 </CardContent>
               </Card>
             )}
+
+              {/* Intro video — dedicated card */}
+              {expert?.profile_video_url && (
+              <Card className="overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-100">
+                <CardContent className="p-0">
+                  <div className="border-b border-slate-100 bg-gradient-to-r from-[#008260]/[0.07] via-[#008260]/[0.03] to-transparent px-5 py-4 sm:px-6">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#008260]/12 text-[#008260] shadow-sm"
+                          aria-hidden
+                        >
+                          <Video className="h-5 w-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <h2 className="text-lg font-semibold tracking-tight text-slate-900">
+                            Intro video
+                          </h2>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-4 sm:p-6">
+                    <div className="relative overflow-hidden rounded-xl bg-slate-950 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] ring-1 ring-slate-200/90">
+                      <video
+                        className="aspect-video w-full object-cover"
+                        src={expert.profile_video_url}
+                        muted
+                        loop
+                        playsInline
+                        autoPlay
+                        aria-label="Intro video"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
           </div>
 
           {/* Right Column - 1/3 width */}

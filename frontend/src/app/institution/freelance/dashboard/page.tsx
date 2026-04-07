@@ -86,7 +86,9 @@ export default function FreelanceDashboard() {
     <div className="min-h-screen bg-[#ECF2FF]">
       <header className="bg-[#008260] backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <Logo size="header" />
+          <Link href="/institution/home" className="flex items-center group">
+            <Logo size="header" />
+          </Link>
           <div className="flex items-center space-x-6">
             <NotificationBell />
             <ProfileDropdown user={user} institution={institution} userType="institution" />

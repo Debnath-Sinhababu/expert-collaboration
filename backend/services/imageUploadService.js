@@ -58,6 +58,49 @@ class ImageUploadService {
   }
 
   /**
+   * Upload a profile intro video to Cloudinary
+   * @param {Buffer} videoBuffer
+   * @param {string} folder
+   * @param {string|null} publicId
+   * @param {string} mimeType e.g. video/mp4
+   */
+  static async uploadVideo(videoBuffer, folder = 'expert-profile-videos', publicId = null, mimeType = 'video/mp4') {
+    try {
+      const safeMime =
+        mimeType && typeof mimeType === 'string' && mimeType.startsWith('video/')
+          ? mimeType
+          : 'video/mp4';
+      const base64Video = `data:${safeMime};base64,${videoBuffer.toString('base64')}`;
+
+      const uploadOptions = {
+        folder: folder,
+        resource_type: 'video',
+      };
+
+      if (publicId) {
+        uploadOptions.public_id = publicId;
+      }
+
+      const result = await cloudinary.uploader.upload(base64Video, uploadOptions);
+
+      return {
+        success: true,
+        url: result.secure_url,
+        publicId: result.public_id,
+        format: result.format,
+        size: result.bytes,
+        duration: result.duration,
+      };
+    } catch (error) {
+      console.error('Video upload error:', error);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  }
+
+  /**
    * Upload PDF to Cloudinary
    * @param {Buffer} pdfBuffer - PDF buffer from multer
    * @param {string} folder - Cloudinary folder (e.g., 'expert-documents')
@@ -116,6 +159,29 @@ class ImageUploadService {
       };
     } catch (error) {
       console.error('Image deletion error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Delete a video asset from Cloudinary (must pass resource_type video)
+   * @param {string} publicId
+   */
+  static async deleteVideo(publicId) {
+    if (!publicId) {
+      return { success: true, result: null };
+    }
+    try {
+      const result = await cloudinary.uploader.destroy(publicId, { resource_type: 'video' });
+      return {
+        success: true,
+        result: result
+      };
+    } catch (error) {
+      console.error('Video deletion error:', error);
       return {
         success: false,
         error: error.message

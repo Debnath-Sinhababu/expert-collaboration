@@ -12,13 +12,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { MultiSelect } from '@/components/ui/multi-select'
-import { Upload, Calendar, DollarSign, X, Camera, FileText, Download, Check, IndianRupee, Info } from 'lucide-react'
+import { Upload, Calendar, DollarSign, X, Camera, FileText, Download, Check, IndianRupee, Info, Video } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import Logo from '@/components/Logo'
 import { EXPERTISE_DOMAINS } from '@/lib/constants'
+
+/** Indian PAN: five letters, four digits, one letter (normalized uppercase). */
+const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]$/
+const PROFILE_VIDEO_MAX_BYTES = 20 * 1024 * 1024
+const ALLOWED_PROFILE_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'] as const
 
 const STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
@@ -80,7 +85,8 @@ export default function ExpertProfileSetup() {
     expert_types: [] as string[],
     available_on_demand: false,
     city: '',
-    state: ''
+    state: '',
+    pan_number: ''
   })
 
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
@@ -98,6 +104,18 @@ export default function ExpertProfileSetup() {
   
   const [selectedQualifications, setSelectedQualifications] = useState<File | null>(null)
   const [qualificationsError, setQualificationsError] = useState('')
+
+  const [selectedProfileVideo, setSelectedProfileVideo] = useState<File | null>(null)
+  const [profileVideoError, setProfileVideoError] = useState('')
+  const [profileVideoPreviewUrl, setProfileVideoPreviewUrl] = useState('')
+
+  useEffect(() => {
+    return () => {
+      if (profileVideoPreviewUrl) {
+        URL.revokeObjectURL(profileVideoPreviewUrl)
+      }
+    }
+  }, [profileVideoPreviewUrl])
 
   useEffect(() => {
     const getUser = async () => {
@@ -303,6 +321,43 @@ export default function ExpertProfileSetup() {
     setQualificationsError('')
   }
 
+  const handlePanChange = (value: string) => {
+    const normalized = value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10)
+    setFormData(prev => ({ ...prev, pan_number: normalized }))
+  }
+
+  const handleProfileVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!ALLOWED_PROFILE_VIDEO_TYPES.includes(file.type as (typeof ALLOWED_PROFILE_VIDEO_TYPES)[number])) {
+      setProfileVideoError('Please use MP4, WebM, or MOV (QuickTime)')
+      return
+    }
+
+    if (file.size > PROFILE_VIDEO_MAX_BYTES) {
+      setProfileVideoError('Video must be 20MB or smaller')
+      return
+    }
+
+    setProfileVideoError('')
+    setSelectedProfileVideo(file)
+    setProfileVideoPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return URL.createObjectURL(file)
+    })
+    e.target.value = ''
+  }
+
+  const removeProfileVideo = () => {
+    setProfileVideoError('')
+    setSelectedProfileVideo(null)
+    setProfileVideoPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return ''
+    })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
@@ -376,6 +431,22 @@ export default function ExpertProfileSetup() {
         return
       }
 
+      const panNormalized = formData.pan_number
+        .trim()
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .slice(0, 10)
+      if (!panNormalized) {
+        toast.error('Please enter your PAN number')
+        setSaving(false)
+        return
+      }
+      if (!PAN_REGEX.test(panNormalized)) {
+        toast.error('Enter a valid 10-character PAN (e.g. ABCDE1234F)')
+        setSaving(false)
+        return
+      }
+
       console.log(formData,'formData')
       
 
@@ -400,6 +471,7 @@ export default function ExpertProfileSetup() {
       formDataToSend.append('available_on_demand', String(formData.available_on_demand))
       formDataToSend.append('city', formData.city || '')
       formDataToSend.append('state', formData.state || '')
+      formDataToSend.append('pan_number', panNormalized)
       
       // Add the photo file
       if (selectedPhoto) {
@@ -414,6 +486,10 @@ export default function ExpertProfileSetup() {
       // Add qualifications PDF if selected
       if (selectedQualifications) {
         formDataToSend.append('qualifications', selectedQualifications)
+      }
+
+      if (selectedProfileVideo) {
+        formDataToSend.append('profile_video', selectedProfileVideo)
       }
 
       // Call the API with FormData
@@ -522,6 +598,21 @@ export default function ExpertProfileSetup() {
                       required
                     />
                   </div>
+                </div>
+
+                <div className="space-y-2 max-w-md">
+                  <Label htmlFor="pan_number" className="text-slate-700">PAN (Permanent Account Number) *</Label>
+                  <Input
+                    id="pan_number"
+                    placeholder="e.g. ABCDE1234F"
+                    value={formData.pan_number}
+                    onChange={(e) => handlePanChange(e.target.value)}
+                    autoComplete="off"
+                    maxLength={10}
+                    className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300 uppercase font-mono tracking-wide"
+                    required
+                  />
+                  <p className="text-xs text-slate-500">10 characters: five letters, four digits, one letter. Used for verification only.</p>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4">
@@ -702,6 +793,57 @@ export default function ExpertProfileSetup() {
                       </Alert>
                     )}
                   </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="profile_video" className="text-slate-700 flex items-center space-x-2">
+                      <Video className="h-4 w-4" />
+                      <span>Profile intro video (optional)</span>
+                    </Label>
+                    <p className="text-sm text-slate-500">Short introduction — MP4, WebM, or MOV — max 20MB (same as PDF uploads)</p>
+                  </div>
+                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center hover:border-[#008260] transition-colors">
+                    <input
+                      type="file"
+                      id="profile_video"
+                      accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
+                      onChange={handleProfileVideoSelect}
+                      className="hidden"
+                    />
+                    <label htmlFor="profile_video" className="cursor-pointer">
+                      <FileText className="mx-auto h-10 w-10 text-slate-400 mb-2" />
+                      <p className="text-sm text-slate-600 mb-1">
+                        <span className="font-medium text-[#008260] hover:text-[#006d51]">Click to upload</span> your intro video
+                      </p>
+                      <p className="text-xs text-slate-500">MP4, WebM, or MOV — max 20MB</p>
+                    </label>
+                  </div>
+                  {profileVideoPreviewUrl && selectedProfileVideo && (
+                    <div className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2 w-fit">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium text-slate-900 break-all">{selectedProfileVideo.name}</span>
+                        <button
+                          type="button"
+                          onClick={removeProfileVideo}
+                          className="text-red-500 hover:text-red-700 shrink-0"
+                          aria-label="Remove video"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <video
+                        src={profileVideoPreviewUrl}
+                        controls
+                        className="max-h-64 rounded-md bg-black"
+                      />
+                    </div>
+                  )}
+                  {profileVideoError && (
+                    <Alert variant="destructive">
+                      <AlertDescription>{profileVideoError}</AlertDescription>
+                    </Alert>
+                  )}
                 </div>
               </div>
 
