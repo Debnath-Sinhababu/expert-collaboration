@@ -52,7 +52,8 @@ import {
   GraduationCap,
   CheckCircle,
   Award,
-  Briefcase
+  Briefcase,
+  Lock
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
@@ -136,6 +137,7 @@ export default function InstitutionHome() {
     refresh: refreshExpertsList
   } = usePagination(
     async (page: number) => {
+      if (page > 1) return []
       const params: any = {
         page,
         limit: 10,
@@ -180,13 +182,19 @@ export default function InstitutionHome() {
     'Thanks,'
   ].join('\n')
   const contactMailtoHref = `mailto:${contactEmail}?subject=${encodeURIComponent(contactSubject)}&body=${encodeURIComponent(contactBody)}`
+  const maxExperts = 10
 
   useEffect(() => {
     const el = expertsListEndRef.current
     if (!el) return
     const observer = new IntersectionObserver((entries) => {
       const entry = entries[0]
-      if (entry.isIntersecting && hasMoreExperts && !expertsListLoading) {
+      if (
+        entry.isIntersecting &&
+        hasMoreExperts &&
+        !expertsListLoading &&
+        (allExperts?.length || 0) < maxExperts
+      ) {
         loadMoreExperts()
       }
     }, { root: null, rootMargin: '200px', threshold: 0.1 })
@@ -708,6 +716,10 @@ export default function InstitutionHome() {
       </div>
     )
   }
+
+  const visibleExperts = (allExperts || []).slice(0, 10)
+  const lockedPreviewExperts = (allExperts || []).slice(10, 14)
+  const showLockedExperts = (allExperts || []).length > 10 || hasMoreExperts
 
   return (
     <div className="bg-[#ECF2FF]">
@@ -1521,7 +1533,7 @@ export default function InstitutionHome() {
         <div className="mb-12">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-[#000000]">All Experts</h2>
-            <span className="text-slate-600">{(allExperts || []).length} loaded</span>
+            <span className="text-slate-600">{visibleExperts.length} shown</span>
           </div>
           {(!allExperts || allExperts.length === 0) && !expertsListLoading ? (
             <div className="text-center py-12">
@@ -1531,7 +1543,7 @@ export default function InstitutionHome() {
             </div>
           ) : (
             <div className="space-y-4">
-              {allExperts?.map((expert: any) => (
+              {visibleExperts.map((expert: any) => (
                 <Card key={expert.id} className="transition-all duration-300 border-2 border-[#D6D6D6] bg-white rounded-[18px]">
                   <CardContent className="p-4">
                     {/* Mobile Layout */}
@@ -1809,6 +1821,42 @@ export default function InstitutionHome() {
                   </CardContent>
                 </Card>
               ))}
+               {showLockedExperts && (
+                <Card className="relative overflow-hidden border-2 border-dashed border-[#BFE5DA] bg-white/90 rounded-[18px] shadow-[0_8px_30px_rgba(0,0,0,0.08)]">
+                  <CardContent className="p-5">
+                    <div className="space-y-3 blur-[2px]">
+                      {(lockedPreviewExperts.length > 0 ? lockedPreviewExperts : new Array(3).fill(null)).map((item, index) => (
+                        <div key={item?.id || index} className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 bg-slate-50/60">
+                          <div className="w-10 h-10 rounded-full bg-slate-200" />
+                          <div className="flex-1">
+                            <div className="h-3 w-40 bg-slate-200 rounded-full mb-2" />
+                            <div className="h-2 w-28 bg-slate-200 rounded-full" />
+                          </div>
+                          <div className="h-7 w-20 bg-slate-200 rounded-md" />
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
+                      <div className="inline-flex items-center gap-2 bg-[#E8F5F1] text-[#008260] text-xs font-semibold px-3 py-1 rounded-full border border-[#BFE5DA]">
+                        <Lock className="h-3.5 w-3.5" />
+                        More experts hidden
+                      </div>
+                      <h3 className="mt-3 text-lg font-semibold text-[#0F172A]">Unlock full expert list</h3>
+                      <p className="mt-2 text-sm text-[#475569] max-w-md">
+                        Contact our team for complete profiles and tailored expert recommendations for your institution.
+                      </p>
+                      <a
+                        href={contactMailtoHref}
+                        className="mt-4 inline-flex items-center justify-center rounded-md bg-[#008260] text-white px-4 py-2 text-sm font-semibold hover:bg-[#006B4F] transition-colors"
+                      >
+                        Contact Here
+                      </a>
+                      <p className="mt-2 text-xs text-slate-500">{contactEmail}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
               {/* Infinite sentinel */}
               <div ref={expertsListEndRef} />
               {expertsListLoading && (
@@ -1965,10 +2013,10 @@ export default function InstitutionHome() {
                           </div>
                         </div>
                       </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
+                </Card>
+              ))}
+            </div>
+          )}
             </div>
             
             {/* Modal Footer */}
