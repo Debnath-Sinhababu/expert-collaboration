@@ -3322,44 +3322,13 @@ function calculateProjectMatchScore(expert, project) {
 // Get recommended experts for a project based on project requirements
 app.get('/api/experts/recommended/:projectId', async (req, res) => {
   try {
-    console.log('GET /api/experts/recommended - Project ID:', req.params.projectId);
+    const { data, error } = await supabase.rpc('get_recommended_experts', {
+      project_id: req.params.projectId
+    });
 
-    // Get project details
-    const { data: projectData, error: projectError } = await supabase
-      .from('projects')
-      .select('*')
-      .eq('id', req.params.projectId)
-      .single();
+    if (error) throw error;
 
-    if (projectError) throw projectError;
-    if (!projectData) {
-      return res.status(404).json({ error: 'Project not found' });
-    }
-
-    // Get all verified experts
-    const { data: expertsData, error: expertsError } = await supabase
-      .from('experts')
-      .select('*')
-      .eq('is_verified', true)
-      .order('rating', { ascending: false });
-
-    if (expertsError) throw expertsError;
-
-    // Calculate match scores for each expert
-    const recommendations = expertsData.map(expert => {
-      const matchScore = calculateExpertMatchScore(expert, projectData);
-      return {
-        ...expert,
-        matchScore: Math.round(matchScore)
-      };
-    })
-    .filter(rec => rec.matchScore >= 40) // Only show experts with 60%+ match
-    .sort((a, b) => b.matchScore - a.matchScore)
-    .slice(0, 10); // Top 10 recommendations
-
-    console.log(`Expert recommendations generated: ${recommendations.length} experts for project ${req.params.projectId}`);
-    res.json(recommendations);
-
+    res.json(data);
   } catch (error) {
     console.error('GET /api/experts/recommended error:', error);
     res.status(500).json({ error: error.message });

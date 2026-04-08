@@ -166,6 +166,20 @@ export default function InstitutionHome() {
   const [sendingQuickMessage, setSendingQuickMessage] = useState(false)
   // Infinite list sentinel
   const expertsListEndRef = useRef<HTMLDivElement | null>(null)
+  const contactEmail = 'info@calxmap.in'
+  const contactSubject = `Request for more expert details - ${institution?.name || 'Institution'}`
+  const contactBody = [
+    'Hello Calxmap Team,',
+    '',
+    'I would like more details about the featured experts.',
+    '',
+    `Institution: ${institution?.name || 'N/A'}`,
+    `Institution Email: ${institution?.email || 'N/A'}`,
+    `Institution Type: ${institution?.type || 'N/A'}`,
+    '',
+    'Thanks,'
+  ].join('\n')
+  const contactMailtoHref = `mailto:${contactEmail}?subject=${encodeURIComponent(contactSubject)}&body=${encodeURIComponent(contactBody)}`
 
   useEffect(() => {
     const el = expertsListEndRef.current
@@ -957,19 +971,19 @@ export default function InstitutionHome() {
               <CarouselContent className="-ml-2 md:-ml-4 pb-4">
                 {featuredExperts.map((expert) => (
                   <CarouselItem key={expert.id} className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3">
-                    <Card className="bg-[#ECF2FF]  shadow-[-4px_4px_4px_0px_#A0A0A040,_4px_4px_4px_0px_#A0A0A040] rounded-xl transition-all duration-300 group border-2 border-[#D6D6D6]">
-                      <CardHeader>
+                    <Card className="bg-white/90 backdrop-blur border border-[#E0E0E0] shadow-[0_8px_30px_rgba(0,0,0,0.08)] rounded-2xl transition-all duration-300 group hover:-translate-y-1 hover:shadow-[0_14px_40px_rgba(0,0,0,0.12)] h-full flex flex-col gap-2 justify-between">
+                      <CardHeader className="pb-3">
                         <div className="flex items-start space-x-3">
-                          <Avatar className="w-12 h-12">
+                          <Avatar className="w-12 h-12 ring-2 ring-[#E8F5F1]">
                             <AvatarImage src={expert.photo_url} alt={expert.name} />
                             <AvatarFallback className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">
                               {expert.name?.charAt(0) || 'E'}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1 min-w-0">
-                            <CardTitle className="text-lg line-clamp-1">{expert.name}</CardTitle>
+                            <CardTitle className="text-lg line-clamp-1 text-[#0F172A]">{expert.name}</CardTitle>
                             {expert.current_designation && (
-                              <span className="inline-block mt-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-[#008260] text-white shadow-sm">
+                              <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#E8F5F1] text-[#008260] border border-[#BFE5DA]">
                                 {expert.current_designation}
                               </span>
                             )}
@@ -983,13 +997,15 @@ export default function InstitutionHome() {
                           </div>
                         </div>
                       </CardHeader>
-                      <CardContent>
-                        <CardDescription className="truncate mb-4">{expert.bio}</CardDescription>
+                      <CardContent className="pt-0">
+                        <CardDescription className="line-clamp-2 mb-4 text-[#475569]">{expert.bio}</CardDescription>
                         {expert.domain_expertise && expert.domain_expertise.length > 0 && (
                           <div className="mb-4">
                             <div className="flex flex-wrap gap-1">
                               {expert.domain_expertise.slice(0, 2).map((domain: string, index: number) => (
-                                <Badge key={index} className={`text-xs bg-[#EBDA98] hover:bg-[#EBDA98] rounded-sm text-black py-[6px]`}>{domain}</Badge>
+                                <Badge key={index} className="text-xs bg-[#F8E9B3] hover:bg-[#F8E9B3] rounded-full text-[#111827] py-1 px-2">
+                                  {domain}
+                                </Badge>
                               ))}
                               {expert.domain_expertise.length > 2 && (
                                 <Badge variant="secondary" className="text-xs">+{expert.domain_expertise.length - 2} more</Badge>
@@ -1012,7 +1028,7 @@ export default function InstitutionHome() {
                           </Button>
                           <Dialog>
                             <DialogTrigger asChild>
-                              <Button variant="outline" size="icon" className="border-2 border-slate-300 bg-[#ECF2FF] transition-all duration-300">
+                              <Button variant="outline" size="icon" className="border-2 border-slate-200 bg-white/80 transition-all duration-300 hover:border-[#008260]">
                                 <Eye className="h-4 w-4 text-[#008260]" />
                               </Button>
                             </DialogTrigger>
@@ -1107,6 +1123,44 @@ export default function InstitutionHome() {
                     </Card>
                   </CarouselItem>
                 ))}
+                <CarouselItem key="featured-contact-card" className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3">
+                  <Card className="relative overflow-hidden bg-white/90 backdrop-blur border border-dashed border-[#BFE5DA] rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.08)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_14px_40px_rgba(0,0,0,0.12)] h-full flex flex-col gap-2 justify-between">
+                    <div className="p-6 blur-[2px]">
+                      <div className="flex items-center gap-3 mb-5">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#E8F5F1] to-[#CFEDE5]" />
+                        <div className="flex-1">
+                          <div className="h-3 w-32 bg-slate-200 rounded-full mb-2" />
+                          <div className="h-2 w-24 bg-slate-200 rounded-full" />
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        <div className="h-3 w-full bg-slate-200 rounded-full" />
+                        <div className="h-3 w-5/6 bg-slate-200 rounded-full" />
+                        <div className="h-3 w-4/6 bg-slate-200 rounded-full" />
+                      </div>
+                      <div className="mt-5 flex gap-2">
+                        <div className="h-8 w-24 bg-slate-200 rounded-md" />
+                        <div className="h-8 w-10 bg-slate-200 rounded-md" />
+                      </div>
+                    </div>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
+                      <div className="inline-flex items-center gap-2 bg-[#E8F5F1] text-[#008260] text-xs font-semibold px-3 py-1 rounded-full border border-[#BFE5DA]">
+                        More experts available
+                      </div>
+                      <h3 className="mt-3 text-lg font-semibold text-[#0F172A]">Need deeper expert details?</h3>
+                      <p className="mt-2 text-sm text-[#475569] max-w-xs">
+                        Contact our team for complete profiles and a tailored shortlist.
+                      </p>
+                      <a
+                        href={contactMailtoHref}
+                        className="mt-4 inline-flex items-center justify-center rounded-md bg-[#008260] text-white px-4 py-2 text-sm font-semibold hover:bg-[#006B4F] transition-colors"
+                      >
+                        Contact Here
+                      </a>
+                      <p className="mt-2 text-xs text-slate-500">{contactEmail}</p>
+                    </div>
+                  </Card>
+                </CarouselItem>
               </CarouselContent>
               <CarouselPrevious className='text-slate-600 hover:text-slate-900 hidden sm:block' />
               <CarouselNext className='text-slate-600 hover:text-slate-900 hidden sm:block' />
