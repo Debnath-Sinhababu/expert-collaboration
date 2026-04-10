@@ -7,13 +7,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Eye, EyeOff, Users, BookOpen, Building, ArrowLeft, Shield, Zap, CheckCircle, Star, Globe, Award, MapPin, Clock, IndianRupee, ArrowRight, Menu } from 'lucide-react'
+import { Eye, EyeOff, Users, BookOpen, Building, ArrowLeft, Shield, Zap, CheckCircle, Star, Globe, Award, MapPin, Clock, IndianRupee, ArrowRight, Menu, Check, X } from 'lucide-react'
 import Logo from '@/components/Logo'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
+import { isCommonEmailProvider } from '@/lib/utils'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 export const dynamic = 'force-dynamic'
@@ -29,10 +30,35 @@ export default function Signup() {
   const [selectedRole, setSelectedRole] = useState<'student' | 'expert' | 'institution'>('expert')
   const [topProjects, setTopProjects] = useState<any[]>([])
   const [loadingTop, setLoadingTop] = useState<boolean>(false)
+  const [passwordValidation, setPasswordValidation] = useState({
+    minLength: false,
+    hasUppercase: false,
+    hasLowercase: false,
+    hasNumber: false,
+    hasSpecialChar: false,
+  })
   const desktopScrollRef = useRef<HTMLDivElement>(null)
   const mobileScrollRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const searchParam = useSearchParams()
+
+  const validatePassword = (pwd: string) => {
+    const validation = {
+      minLength: pwd.length >= 8,
+      hasUppercase: /[A-Z]/.test(pwd),
+      hasLowercase: /[a-z]/.test(pwd),
+      hasNumber: /[0-9]/.test(pwd),
+      hasSpecialChar: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd),
+    }
+    setPasswordValidation(validation)
+    return Object.values(validation).every(Boolean)
+  }
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const pwd = e.target.value
+    setPassword(pwd)
+    validatePassword(pwd)
+  }
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,13 +72,21 @@ export default function Signup() {
       return
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long')
+    if (!validatePassword(password)) {
+      setError('Password does not meet the required strength criteria')
+      setLoading(false)
+      return
+    }
+
+    if (selectedRole === 'institution' && isCommonEmailProvider(email)) {
+      setError('Institution signups require an institution or corporate email address. Personal email providers like gmail.com, yahoo.com, hotmail.com, outlook.com, icloud.com are not allowed.')
       setLoading(false)
       return
     }
 
     try {
+       
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -63,7 +97,6 @@ export default function Signup() {
           emailRedirectTo:`${process.env.NEXT_PUBLIC_FRONTEND_URL}/confirmemail`
         },
       })
-
       if (error) throw error
 
       if (data.user) {
@@ -360,7 +393,7 @@ export default function Signup() {
                         type={showPassword ? 'text' : 'password'}
                         placeholder="Create a strong password"
                         value={password}
-                        onChange={(e) => setPassword(e.target.value)}
+                        onChange={handlePasswordChange}
                         className="h-11 text-sm border-slate-300 focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260] pr-10 rounded-lg"
                         required
                       />
@@ -378,6 +411,61 @@ export default function Signup() {
                         )}
                       </Button>
                     </div>
+                    {password && (
+                      <div className="mt-3 p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+                        <p className="text-xs font-semibold text-slate-700 mb-2">Password Requirements:</p>
+                        <div className="flex items-center space-x-2">
+                          {passwordValidation.minLength ? (
+                            <Check className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <X className="h-4 w-4 text-red-500" />
+                          )}
+                          <span className={`text-xs ${passwordValidation.minLength ? 'text-green-600' : 'text-red-500'}`}>
+                            At least 8 characters
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {passwordValidation.hasUppercase ? (
+                            <Check className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <X className="h-4 w-4 text-red-500" />
+                          )}
+                          <span className={`text-xs ${passwordValidation.hasUppercase ? 'text-green-600' : 'text-red-500'}`}>
+                            At least 1 uppercase letter (A-Z)
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {passwordValidation.hasLowercase ? (
+                            <Check className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <X className="h-4 w-4 text-red-500" />
+                          )}
+                          <span className={`text-xs ${passwordValidation.hasLowercase ? 'text-green-600' : 'text-red-500'}`}>
+                            At least 1 lowercase letter (a-z)
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {passwordValidation.hasNumber ? (
+                            <Check className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <X className="h-4 w-4 text-red-500" />
+                          )}
+                          <span className={`text-xs ${passwordValidation.hasNumber ? 'text-green-600' : 'text-red-500'}`}>
+                            At least 1 number (0-9)
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {passwordValidation.hasSpecialChar ? (
+                            <Check className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <X className="h-4 w-4 text-red-500" />
+                          )}
+                          <span className={`text-xs ${passwordValidation.hasSpecialChar ? 'text-green-600' : 'text-red-500'}`}>
+                            At least 1 special character (!@#$%^&*)
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">

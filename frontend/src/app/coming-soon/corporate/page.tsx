@@ -16,22 +16,27 @@ export default function CorporateComingSoon() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[28rem] h-[28rem] bg-gradient-to-r from-blue-500/5 to-indigo-500/5 rounded-full blur-3xl" />
       </div>
 
-      <div className="container mx-auto px-4 py-8 relative z-10">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <Link href="/" className="inline-flex items-center group">
-            <Logo size="lg" />
-          </Link>
-          <Link href="/">
-            <Button variant="ghost" className="border border-transparent hover:border-slate-200">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Home
-            </Button>
-          </Link>
+      {/* Clean Modern Header */}
+      <header className="bg-landing-header sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <Link href="/" className="inline-flex items-center group">
+              <Logo size="header" />
+            </Link>
+            <Link href="/">
+              <Button variant="ghost" className="font-medium text-white/90 hover:text-white hover:bg-white/10 transition-all duration-300 px-3 py-2 text-sm">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Home
+              </Button>
+            </Link>
+          </div>
         </div>
+      </header>
+
+      <div className="container mx-auto relative z-10">
 
         {/* Content */}
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-3xl mx-auto pt-12">
           <Card className="border-2 border-slate-200 bg-white shadow-sm">
             <CardContent className="p-10">
               <div className="text-center">

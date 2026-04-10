@@ -41,6 +41,28 @@ function normalizePan(value) {
 function isValidPan(pan) {
   return typeof pan === 'string' && PAN_REGEX.test(pan);
 }
+function isCommonEmailProvider(email) {
+  if (!email || typeof email !== 'string') return false;
+  const commonDomains = [
+    'gmail.com',
+    'yahoo.com',
+    'hotmail.com',
+    'outlook.com',
+    'icloud.com',
+    'aol.com',
+    'live.com',
+    'msn.com',
+    'protonmail.com',
+    'gmx.com',
+    'zoho.com',
+    'mail.com',
+    'yandex.com'
+  ];
+  const normalized = email.trim().toLowerCase();
+  if (!normalized.includes('@')) return false;
+  const domain = normalized.split('@').pop();
+  return !!domain && commonDomains.some(common => domain === common || domain.endsWith(`.${common}`));
+}
 
 app.use(helmet());
 app.use(cors({
@@ -848,10 +870,20 @@ app.post('/api/institutions', upload.single('logo'), async (req, res) => {
       logoUrl = logoData.url;
     }
 
+    const institutionEmail = String(req.body.contact_email || req.body.email || '').trim();
+    if (!institutionEmail) {
+      return res.status(400).json({ error: 'Institution contact email is required.' });
+    }
+    if (isCommonEmailProvider(institutionEmail)) {
+      return res.status(400).json({
+        error: 'Institution profiles must use an institution or corporate email address. Personal email providers like gmail.com, yahoo.com, hotmail.com, outlook.com, icloud.com are not allowed.'
+      });
+    }
+
     const institutionData = {
       user_id: authenticatedUserId,
       name: req.body.name,
-      email: req.body.contact_email || req.body.email,
+      email: institutionEmail,
       type: req.body.type,
       description: req.body.description,
       logo_url: logoUrl,
@@ -3339,44 +3371,13 @@ function calculateProjectMatchScore(expert, project) {
 // Get recommended experts for a project based on project requirements
 app.get('/api/experts/recommended/:projectId', async (req, res) => {
   try {
-    console.log('GET /api/experts/recommended - Project ID:', req.params.projectId);
+    const { data, error } = await supabase.rpc('get_recommended_experts', {
+      project_id: req.params.projectId
+    });
 
-    // Get project details
-    const { data: projectData, error: projectError } = await supabase
-      .from('projects')
-      .select('*')
-      .eq('id', req.params.projectId)
-      .single();
+    if (error) throw error;
 
-    if (projectError) throw projectError;
-    if (!projectData) {
-      return res.status(404).json({ error: 'Project not found' });
-    }
-
-    // Get all verified experts
-    const { data: expertsData, error: expertsError } = await supabase
-      .from('experts')
-      .select('*')
-      .eq('is_verified', true)
-      .order('rating', { ascending: false });
-
-    if (expertsError) throw expertsError;
-
-    // Calculate match scores for each expert
-    const recommendations = expertsData.map(expert => {
-      const matchScore = calculateExpertMatchScore(expert, projectData);
-      return {
-        ...expert,
-        matchScore: Math.round(matchScore)
-      };
-    })
-    .filter(rec => rec.matchScore >= 40) // Only show experts with 60%+ match
-    .sort((a, b) => b.matchScore - a.matchScore)
-    .slice(0, 10); // Top 10 recommendations
-
-    console.log(`Expert recommendations generated: ${recommendations.length} experts for project ${req.params.projectId}`);
-    res.json(recommendations);
-
+    res.json(data);
   } catch (error) {
     console.error('GET /api/experts/recommended error:', error);
     res.status(500).json({ error: error.message });
