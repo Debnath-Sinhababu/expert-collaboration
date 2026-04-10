@@ -362,6 +362,26 @@ export default function ExpertProjectPage() {
               <p className="text-[#6A6A6A] text-sm sm:text-base leading-relaxed whitespace-pre-line">{project.description}</p>
             </div>
 
+            {project.requirement_pdf_url && (
+              <div>
+                <h3 className="text-base font-semibold text-black mb-3">Requirement PDF</h3>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="border-[#008260] text-[#008260] hover:bg-[#E8F5F1]"
+                >
+                  <a
+                    href={project.requirement_pdf_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    View requirement PDF
+                  </a>
+                </Button>
+              </div>
+            )}
+
             {/* Project Description (repeated as in image) */}
             <div>
               <h2 className="text-lg sm:text-xl font-semibold text-black mb-4">Project Description</h2>

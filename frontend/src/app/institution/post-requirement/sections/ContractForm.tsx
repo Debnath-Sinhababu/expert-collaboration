@@ -51,6 +51,9 @@ export default function ContractForm() {
     subskills: [] as string[]
   })
 
+  const [requirementPdf, setRequirementPdf] = useState<File | null>(null)
+  const [requirementPdfError, setRequirementPdfError] = useState<string | null>(null)
+
   useEffect(() => {
     const init = async () => {
       try {
@@ -214,6 +217,10 @@ export default function ContractForm() {
 
   const submit = async () => {
     if (!validate()) return
+    if (requirementPdfError) {
+      toast.error(requirementPdfError)
+      return
+    }
     setSubmitting(true)
     try {
       const payload = {
@@ -224,7 +231,21 @@ export default function ContractForm() {
         duration_hours: parseInt(form.duration_hours),
         required_expertise: form.required_expertise.split(',').map(s => s.trim()).filter(Boolean)
       }
-      const response = await api.projects.create(payload)
+      const formData = new FormData()
+      Object.entries(payload).forEach(([key, value]) => {
+        if (value === undefined || value === null) return
+        if (Array.isArray(value)) {
+          formData.append(key, value.join(','))
+          return
+        }
+        formData.append(key, String(value))
+      })
+
+      if (requirementPdf) {
+        formData.append('requirement_pdf', requirementPdf)
+      }
+
+      const response = await api.projects.create(formData)
       toast.success('Requirement posted successfully!')
       
       // Load recommended experts for the new project
@@ -314,6 +335,43 @@ export default function ContractForm() {
               <MultiSelect options={availableSubskills} selected={selectedSubskills} onSelectionChange={handleSubskillChange} placeholder="Select required specializations..." className="w-full min-w-0" />
             </div>
           )}
+
+          <div className="mt-4">
+            <Label className="text-[#000000] font-medium mb-2 block">Requirement PDF (optional)</Label>
+            <Input
+              type="file"
+              accept=".pdf"
+              className="border-[#DCDCDC]"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                setRequirementPdfError(null)
+                if (!file) {
+                  setRequirementPdf(null)
+                  return
+                }
+                if (file.type !== 'application/pdf') {
+                  setRequirementPdf(null)
+                  setRequirementPdfError('Only PDF files are allowed.')
+                  return
+                }
+                const maxSizeBytes = 20 * 1024 * 1024
+                if (file.size > maxSizeBytes) {
+                  setRequirementPdf(null)
+                  setRequirementPdfError('File size must be 20MB or less.')
+                  return
+                }
+                setRequirementPdf(file)
+              }}
+            />
+            {requirementPdf && !requirementPdfError && (
+              <p className="mt-1 text-xs text-[#6A6A6A]">
+                Selected file: <span className="font-medium text-[#000000]">{requirementPdf.name}</span>
+              </p>
+            )}
+            {requirementPdfError && (
+              <p className="mt-1 text-xs text-red-600">{requirementPdfError}</p>
+            )}
+          </div>
 
           <div className="mt-4">
             <Label className="text-[#000000] font-medium mb-2 block">Description*</Label>

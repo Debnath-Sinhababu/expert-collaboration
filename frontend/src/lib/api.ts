@@ -369,13 +369,23 @@ export const api = {
       const query = new URLSearchParams({ _t: Date.now().toString() }).toString()
       return fetch(`${API_BASE_URL}/api/projects/${id}?${query}`, { headers }).then(res => res.json())
     },
-    create: async (data: any) => {
-      const headers = await getAuthHeaders()
-      return fetch(`${API_BASE_URL}/api/projects`, {
+    create: async (formData: FormData) => {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch(`${API_BASE_URL}/api/projects`, {
         method: 'POST',
-        headers,
-        body: JSON.stringify(data)
-      }).then(res => res.json())
+        headers: { Authorization: `Bearer ${session?.access_token || ''}` },
+        body: formData
+      })
+
+      const text = await res.text().catch(() => '')
+      let json: any = {}
+      try {
+        json = text ? JSON.parse(text) : {}
+      } catch {
+        json = {}
+      }
+      if (!res.ok) throw new Error(json?.error || text || 'Failed to create project')
+      return json
     },
     update: async (id: string, data: any) => {
       const headers = await getAuthHeaders()
