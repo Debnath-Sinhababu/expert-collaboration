@@ -14,6 +14,7 @@ dotenv.config();
 const notificationService = require('./services/notificationService');
 const socketService = require('./services/socketService');
 const institutionAccess = require('./auth/institutionAccess');
+const expertAccess = require('./auth/expertAccess');
 
 console.log('Environment variables loaded:');
 console.log('UPSTASH_REDIS_REST_URL:', process.env.UPSTASH_REDIS_REST_URL ? 'Set' : 'Not set');
@@ -563,6 +564,15 @@ app.put('/api/experts/:id', upload.fields([
           }
         }
       );
+      const { data: userData } = await supabaseClient.auth.getUser();
+      const role = userData?.user?.user_metadata?.role;
+      if (role === 'super_admin') {
+        const access = await expertAccess.resolveExpertAccess(req, req.params.id);
+        if (!access) {
+          return res.status(403).json({ error: 'Unauthorized' });
+        }
+        supabaseClient = expertAccess.getWriteClientForExpert(access);
+      }
     } else {
       console.log('PUT /api/experts/:id - No auth token, using basic client');
     }
@@ -3570,6 +3580,12 @@ app.get('/api/applications', async (req, res) => {
         return res.status(403).json({ error: 'Unauthorized' });
       }
       queryClient = institutionAccess.getWriteClientForInstitution(access);
+    } else if (expert_id) {
+      const access = await expertAccess.resolveExpertAccess(req, String(expert_id));
+      if (!access) {
+        return res.status(403).json({ error: 'Unauthorized' });
+      }
+      queryClient = expertAccess.getWriteClientForExpert(access);
     }
 
     let query = queryClient
@@ -3727,6 +3743,12 @@ app.get('/api/applications/counts', async (req, res) => {
         return res.status(403).json({ error: 'Unauthorized' });
       }
       queryClient = institutionAccess.getWriteClientForInstitution(access);
+    } else if (expert_id) {
+      const access = await expertAccess.resolveExpertAccess(req, String(expert_id));
+      if (!access) {
+        return res.status(403).json({ error: 'Unauthorized' });
+      }
+      queryClient = expertAccess.getWriteClientForExpert(access);
     }
 
     let query = queryClient
@@ -3790,21 +3812,36 @@ app.post('/api/applications', async (req, res) => {
       console.log('User error:', userError);
       
       if (userData?.user?.id) {
-        const { data: expertData, error: expertError } = await supabaseClient
-          .from('experts')
-          .select('id, user_id')
-          .eq('user_id', userData.user.id)
-          .single();
-        
-        console.log('User expert profile:', expertData);
-        console.log('Expert error:', expertError);
-        
-        if (expertData?.id) {
-          req.body.expert_id = expertData.id;
-          console.log('Added expert_id to request:', expertData.id);
+        const role = userData.user.user_metadata?.role;
+        if (role === 'super_admin') {
+          const actingExpertId = expertAccess.parseActingExpertId(req);
+          if (!actingExpertId) {
+            return res.status(400).json({ error: 'X-Acting-Expert-Id is required for super admin' });
+          }
+          const access = await expertAccess.resolveExpertAccess(req, actingExpertId);
+          if (!access) {
+            return res.status(403).json({ error: 'Unauthorized' });
+          }
+          req.body.expert_id = access.expert.id;
+          supabaseClient = expertAccess.getWriteClientForExpert(access);
+          console.log('Super admin acting as expert:', req.body.expert_id);
         } else {
-          console.log('No expert profile found for user');
-          return res.status(400).json({ error: 'Expert profile not found. Please complete your profile setup first.' });
+          const { data: expertData, error: expertError } = await supabaseClient
+            .from('experts')
+            .select('id, user_id')
+            .eq('user_id', userData.user.id)
+            .single();
+          
+          console.log('User expert profile:', expertData);
+          console.log('Expert error:', expertError);
+          
+          if (expertData?.id) {
+            req.body.expert_id = expertData.id;
+            console.log('Added expert_id to request:', expertData.id);
+          } else {
+            console.log('No expert profile found for user');
+            return res.status(400).json({ error: 'Expert profile not found. Please complete your profile setup first.' });
+          }
         }
       } else {
         console.log('No authenticated user found');
@@ -4124,6 +4161,12 @@ app.get('/api/bookings', async (req, res) => {
         return res.status(403).json({ error: 'Unauthorized' });
       }
       queryClient = institutionAccess.getWriteClientForInstitution(access);
+    } else if (expert_id) {
+      const access = await expertAccess.resolveExpertAccess(req, String(expert_id));
+      if (!access) {
+        return res.status(403).json({ error: 'Unauthorized' });
+      }
+      queryClient = expertAccess.getWriteClientForExpert(access);
     }
 
     let query = queryClient
@@ -4292,6 +4335,12 @@ app.get('/api/bookings/counts', async (req, res) => {
         return res.status(403).json({ error: 'Unauthorized' });
       }
       queryClient = institutionAccess.getWriteClientForInstitution(access);
+    } else if (expert_id) {
+      const access = await expertAccess.resolveExpertAccess(req, String(expert_id));
+      if (!access) {
+        return res.status(403).json({ error: 'Unauthorized' });
+      }
+      queryClient = expertAccess.getWriteClientForExpert(access);
     }
 
     let query = queryClient

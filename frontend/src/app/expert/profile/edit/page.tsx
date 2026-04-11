@@ -15,6 +15,9 @@ import { ArrowLeft, Save, User, Briefcase, Upload, Camera, X, FileText, IndianRu
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useExpertWorkspace } from '@/contexts/ExpertWorkspaceContext'
+import { fetchExpertForWorkspace } from '@/lib/expertWorkspace'
+import { getAuthHeadersForFormData } from '@/lib/api'
 import { MultiSelect } from '@/components/ui/multi-select'
 import { EXPERTISE_DOMAINS } from '@/lib/constants'
 import Logo from '@/components/Logo'
@@ -43,6 +46,7 @@ export default function ExpertProfileEdit() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const router = useRouter()
+  const { viewer, actingExpertId, basePath } = useExpertWorkspace()
 
   const [formData, setFormData] = useState({
     name: '',
@@ -94,13 +98,17 @@ export default function ExpertProfileEdit() {
         router.push('/auth/login')
         return
       }
+      if (viewer === 'super_admin' && user.user_metadata?.role !== 'super_admin') {
+        router.push('/')
+        return
+      }
       setUser(user)
       await loadExpertData(user.id)
       setLoading(false)
     }
 
     getUser()
-  }, [router])
+  }, [router, viewer, actingExpertId])
 
   useEffect(() => {
     return () => {
@@ -130,7 +138,7 @@ export default function ExpertProfileEdit() {
       // Load custom domains first
       const loadedCustomDomains = await loadCustomDomains()
       
-      const expertProfile = await api.experts.getByUserId(userId)
+      const expertProfile = await fetchExpertForWorkspace(userId, viewer, actingExpertId)
       
       if (expertProfile) {
         setExpert(expertProfile)
@@ -469,11 +477,10 @@ export default function ExpertProfileEdit() {
         formDataToSend.append('profile_video', selectedProfileVideo)
       }
 
+      const authHeaders = await getAuthHeadersForFormData()
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/experts/${expert.id}`, {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-        },
+        headers: authHeaders,
         body: formDataToSend
       })
 
@@ -484,7 +491,7 @@ export default function ExpertProfileEdit() {
       
       setSuccess('Profile updated successfully!')
       setTimeout(() => {
-        router.push('/expert/profile')
+        router.push(`${basePath}/profile`)
       }, 1500)
     } catch (error: any) {
       setError(error.message)
@@ -509,16 +516,16 @@ export default function ExpertProfileEdit() {
       <header className="bg-[#008260] border-b border-slate-200/20 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <Link href="/expert/home" className="flex items-center group">
+            <Link href={`${basePath}/home`} className="flex items-center group">
               <Logo size="header" />
             </Link>
 
             <nav className="hidden md:flex items-center space-x-8">
-              <Link href="/expert/home" className="text-white font-medium transition-colors duration-200 relative group">
+              <Link href={`${basePath}/home`} className="text-white font-medium transition-colors duration-200 relative group">
                 Home
                 <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
-              <Link href="/expert/dashboard" className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
+              <Link href={`${basePath}/dashboard`} className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
                 Dashboard
                 <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
@@ -531,7 +538,7 @@ export default function ExpertProfileEdit() {
               <ProfileDropdown 
                 user={user} 
                 expert={expert} 
-                userType="expert" 
+                userType={viewer === 'super_admin' ? 'super_admin' : 'expert'} 
               />
             </div>
           </div>
@@ -540,7 +547,7 @@ export default function ExpertProfileEdit() {
 
       <div className="container mx-auto px-4 max-w-6xl py-8">
         <div className="mb-6">
-          <Link href="/expert/profile" className="inline-flex items-center text-[#008260] hover:text-[#006b4f] transition-colors">
+          <Link href={`${basePath}/profile`} className="inline-flex items-center text-[#008260] hover:text-[#006b4f] transition-colors">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Profile
           </Link>
@@ -1172,7 +1179,7 @@ export default function ExpertProfileEdit() {
               </div>
 
               <div className="flex justify-end gap-4 pt-6">
-                <Link href="/expert/profile">
+                <Link href={`${basePath}/profile`}>
                   <Button
                     type="button"
                     variant="outline"

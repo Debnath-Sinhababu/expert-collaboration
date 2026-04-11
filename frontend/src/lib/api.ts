@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import { SUPERADMIN_ACTING_INSTITUTION_KEY } from './superAdminActing'
+import { SUPERADMIN_ACTING_INSTITUTION_KEY, SUPERADMIN_ACTING_EXPERT_KEY } from './superAdminActing'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -13,13 +13,27 @@ const getAuthHeaders = async () => {
 
   const role = session?.user?.user_metadata?.role as string | undefined
   if (role === 'super_admin' && typeof window !== 'undefined') {
-    const acting = sessionStorage.getItem(SUPERADMIN_ACTING_INSTITUTION_KEY)
-    if (acting) {
-      headers['X-Acting-Institution-Id'] = acting
+    const actingExpert = sessionStorage.getItem(SUPERADMIN_ACTING_EXPERT_KEY)
+    const actingInstitution = sessionStorage.getItem(SUPERADMIN_ACTING_INSTITUTION_KEY)
+    if (actingExpert) {
+      headers['X-Acting-Expert-Id'] = actingExpert
+    } else if (actingInstitution) {
+      headers['X-Acting-Institution-Id'] = actingInstitution
     }
   }
   
   return headers
+}
+
+/** Authorization + acting headers only (no Content-Type). Use for multipart FormData requests. */
+export async function getAuthHeadersForFormData() {
+  const headers = await getAuthHeaders()
+  const out: Record<string, string> = {
+    Authorization: headers.Authorization || ''
+  }
+  if (headers['X-Acting-Expert-Id']) out['X-Acting-Expert-Id'] = headers['X-Acting-Expert-Id']
+  if (headers['X-Acting-Institution-Id']) out['X-Acting-Institution-Id'] = headers['X-Acting-Institution-Id']
+  return out
 }
 
 export const api = {

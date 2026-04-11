@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import Logo from '@/components/Logo'
 import ProfileDropdown from '@/components/ProfileDropdown'
-import { Building2, MapPin, Search, Shield, ArrowRight } from 'lucide-react'
+import { Building2, MapPin, Search, Shield, ArrowRight, User } from 'lucide-react'
 
 type InstitutionRow = {
   id: string
@@ -21,11 +21,22 @@ type InstitutionRow = {
   logo_url?: string
 }
 
+type ExpertRow = {
+  id: string
+  name?: string
+  city?: string
+  state?: string
+  domain_expertise?: string[]
+  rating?: number
+}
+
 export default function SuperAdminHome() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
+  const [institutionSearch, setInstitutionSearch] = useState('')
+  const [expertSearch, setExpertSearch] = useState('')
   const [institutions, setInstitutions] = useState<InstitutionRow[]>([])
+  const [experts, setExperts] = useState<ExpertRow[]>([])
   const [sessionUser, setSessionUser] = useState<any>(null)
 
   useEffect(() => {
@@ -50,7 +61,7 @@ export default function SuperAdminHome() {
     if (loading) return
     const load = async () => {
       try {
-        const res = await api.institutions.getAll({ page: 1, limit: 500, search: search.trim() || undefined })
+        const res = await api.institutions.getAll({ page: 1, limit: 500, search: institutionSearch.trim() || undefined })
         const list = Array.isArray(res) ? res : (res as any)?.data || []
         setInstitutions(list)
       } catch (e) {
@@ -58,9 +69,25 @@ export default function SuperAdminHome() {
         setInstitutions([])
       }
     }
-    const t = setTimeout(load, search ? 300 : 0)
+    const t = setTimeout(load, institutionSearch ? 300 : 0)
     return () => clearTimeout(t)
-  }, [loading, search])
+  }, [loading, institutionSearch])
+
+  useEffect(() => {
+    if (loading) return
+    const loadExperts = async () => {
+      try {
+        const res = await api.experts.getAll({ page: 1, limit: 500, search: expertSearch.trim() || undefined })
+        const list = Array.isArray(res) ? res : (res as any)?.data || []
+        setExperts(list)
+      } catch (e) {
+        console.error(e)
+        setExperts([])
+      }
+    }
+    const t = setTimeout(loadExperts, expertSearch ? 300 : 0)
+    return () => clearTimeout(t)
+  }, [loading, expertSearch])
 
   if (loading) {
     return (
@@ -116,8 +143,8 @@ export default function SuperAdminHome() {
             <div className="relative max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                value={institutionSearch}
+                onChange={(e) => setInstitutionSearch(e.target.value)}
                 placeholder="Search institutions..."
                 className="pl-10 bg-[#F8FAFF] border-slate-200"
               />
@@ -173,6 +200,85 @@ export default function SuperAdminHome() {
           <Card className="border-dashed border-slate-300 bg-white/60">
             <CardContent className="py-12 text-center text-slate-600">
               No institutions match your search.
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="mt-16 mb-8">
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+            Experts
+          </h2>
+          <p className="mt-2 text-slate-600 max-w-2xl">
+            Open an expert workspace to view their dashboard, profile, and applications on their behalf.
+          </p>
+        </div>
+
+        <Card className="border border-slate-200/80 shadow-md bg-white/95 backdrop-blur-sm mb-8">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg text-slate-900">Search experts</CardTitle>
+            <CardDescription>Filter by name or skills</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                value={expertSearch}
+                onChange={(e) => setExpertSearch(e.target.value)}
+                placeholder="Search experts..."
+                className="pl-10 bg-[#F8FAFF] border-slate-200"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {experts.map((ex) => (
+            <Card
+              key={ex.id}
+              className="border border-slate-200/80 shadow-md hover:shadow-lg transition-shadow bg-white/95 overflow-hidden group"
+            >
+              <CardHeader className="pb-2">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#008260]/10 text-[#008260]">
+                    <User className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <CardTitle className="text-base leading-snug text-slate-900 line-clamp-2">
+                      {ex.name || 'Unnamed expert'}
+                    </CardTitle>
+                    {ex.domain_expertise && ex.domain_expertise[0] && (
+                      <p className="text-xs text-slate-500 mt-1 line-clamp-2">{ex.domain_expertise[0]}</p>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-0">
+                {(ex.city || ex.state) && (
+                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                    <MapPin className="h-4 w-4 shrink-0 text-[#008260]" />
+                    <span className="line-clamp-1">
+                      {[ex.city, ex.state].filter(Boolean).join(', ')}
+                    </span>
+                  </div>
+                )}
+                <Button
+                  asChild
+                  className="w-full bg-[#008260] hover:bg-[#006b4f] text-white font-semibold"
+                >
+                  <Link href={`/superadmin/experts/${ex.id}/home`}>
+                    Open workspace
+                    <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {experts.length === 0 && (
+          <Card className="border-dashed border-slate-300 bg-white/60">
+            <CardContent className="py-12 text-center text-slate-600">
+              No experts match your search.
             </CardContent>
           </Card>
         )}

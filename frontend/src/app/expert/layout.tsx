@@ -1,4 +1,5 @@
 import { Metadata } from 'next'
+import { ExpertWorkspaceShell } from '@/components/expert/ExpertWorkspaceShell'
 
 export const metadata: Metadata = {
   title: 'Expert Dashboard',
@@ -31,5 +32,5 @@ export default function ExpertLayout({
 }: {
   children: React.ReactNode
 }) {
-  return children
+  return <ExpertWorkspaceShell>{children}</ExpertWorkspaceShell>
 }

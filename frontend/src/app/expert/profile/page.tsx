@@ -9,6 +9,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Star, Shield, Phone, Linkedin, User, GraduationCap, IndianRupee, Calendar, Building2, FileText, Edit, CheckCircle2, MapPin, Video } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useExpertWorkspace } from '@/contexts/ExpertWorkspaceContext'
+import { fetchExpertForWorkspace } from '@/lib/expertWorkspace'
 import Logo from '@/components/Logo'
 import NotificationBell from '@/components/NotificationBell'
 import ProfileDropdown from '@/components/ProfileDropdown'
@@ -20,6 +22,7 @@ export default function ExpertProfile() {
   const [loading, setLoading] = useState(true)
   const [leadingInstitutes, setLeadingInstitutes] = useState<any[]>([])
   const router = useRouter()
+  const { viewer, actingExpertId, basePath } = useExpertWorkspace()
 
   useEffect(() => {
     const getUser = async () => {
@@ -28,17 +31,21 @@ export default function ExpertProfile() {
         router.push('/auth/login')
         return
       }
+      if (viewer === 'super_admin' && user.user_metadata?.role !== 'super_admin') {
+        router.push('/')
+        return
+      }
       setUser(user)
       await loadExpertData(user.id)
       setLoading(false)
     }
 
     getUser()
-  }, [router])
+  }, [router, viewer, actingExpertId])
 
   const loadExpertData = async (userId: string) => {
     try {
-      const expertProfile = await api.experts.getByUserId(userId)
+      const expertProfile = await fetchExpertForWorkspace(userId, viewer, actingExpertId)
       
       if (expertProfile) {
         setExpert(expertProfile)
@@ -143,16 +150,16 @@ export default function ExpertProfile() {
       <header className="bg-[#008260] border-b border-slate-200/20 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <Link href="/expert/home" className="flex items-center group">
+            <Link href={`${basePath}/home`} className="flex items-center group">
               <Logo size="header" />
             </Link>
 
             <nav className="hidden md:flex items-center space-x-8">
-              <Link href="/expert/home" className="text-white font-medium transition-colors duration-200 relative group">
+              <Link href={`${basePath}/home`} className="text-white font-medium transition-colors duration-200 relative group">
                 Home
                 <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
-              <Link href="/expert/dashboard" className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
+              <Link href={`${basePath}/dashboard`} className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
                 Dashboard
                 <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
@@ -165,7 +172,7 @@ export default function ExpertProfile() {
               <ProfileDropdown 
                 user={user} 
                 expert={expert} 
-                userType="expert" 
+                userType={viewer === 'super_admin' ? 'super_admin' : 'expert'} 
               />
             </div>
           </div>
@@ -385,7 +392,7 @@ export default function ExpertProfile() {
             <Card className="bg-white border border-slate-200 rounded-xl shadow-sm">
               <CardContent className="p-6">
                 <div className="space-y-3">
-                  <Link href="/expert/profile/edit">
+                  <Link href={`${basePath}/profile/edit`}>
                     <Button className="w-full bg-[#008260] hover:bg-[#006b4f] text-white rounded-lg py-6 font-medium">
                       <Edit className="h-4 w-4 mr-2" />
                       Edit Profile

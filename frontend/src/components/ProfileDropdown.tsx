@@ -31,11 +31,19 @@ function getSuperAdminInstitutionBasePath(pathname: string | null | undefined): 
   return m ? `/superadmin/institutions/${m[1]}` : null
 }
 
+/** When super admin is under /superadmin/experts/[id]/..., return that base path for workspace links. */
+function getSuperAdminExpertBasePath(pathname: string | null | undefined): string | null {
+  if (!pathname) return null
+  const m = pathname.match(/^\/superadmin\/experts\/([^/]+)/)
+  return m ? `/superadmin/experts/${m[1]}` : null
+}
+
 export default function ProfileDropdown({ user, expert, institution, student, userType, extraItems }: ProfileDropdownProps) {
   const router = useRouter()
   const pathname = usePathname()
 
   const superAdminInstitutionBase = userType === 'super_admin' ? getSuperAdminInstitutionBasePath(pathname) : null
+  const superAdminExpertBase = userType === 'super_admin' ? getSuperAdminExpertBasePath(pathname) : null
 
   const handleLogout = async () => {
     try {
@@ -51,6 +59,7 @@ export default function ProfileDropdown({ user, expert, institution, student, us
     if (userType === 'institution') return '/institution/profile'
     if (userType === 'super_admin') {
       if (superAdminInstitutionBase) return `${superAdminInstitutionBase}/profile`
+      if (superAdminExpertBase) return `${superAdminExpertBase}/profile`
       return '/superadmin/home'
     }
     return '/student/profile'
@@ -66,6 +75,7 @@ export default function ProfileDropdown({ user, expert, institution, student, us
     if (userType === 'student') return '/student/dashboard'
     if (userType === 'super_admin') {
       if (superAdminInstitutionBase) return `${superAdminInstitutionBase}/dashboard`
+      if (superAdminExpertBase) return `${superAdminExpertBase}/dashboard`
       return '/superadmin/home'
     }
     // For institutions, always route primary to expert dashboard
@@ -77,6 +87,7 @@ export default function ProfileDropdown({ user, expert, institution, student, us
     if (userType === 'institution') return '/institution/home'
     if (userType === 'super_admin') {
       if (superAdminInstitutionBase) return `${superAdminInstitutionBase}/home`
+      if (superAdminExpertBase) return `${superAdminExpertBase}/home`
       return '/superadmin/home'
     }
     return '/student/home'
@@ -91,7 +102,7 @@ export default function ProfileDropdown({ user, expert, institution, student, us
     if (userType === 'expert') return pathname.startsWith('/expert/dashboard')
     if (userType === 'student') return pathname.startsWith('/student/dashboard') || pathname.startsWith('/student/freelance/dashboard')
     if (userType === 'super_admin') {
-      return pathname.startsWith('/superadmin/institutions')
+      return pathname.startsWith('/superadmin/institutions') || pathname.startsWith('/superadmin/experts')
     }
     // institution
     return pathname.startsWith('/institution/dashboard') || pathname.startsWith('/institution/internships/dashboard') || pathname.startsWith('/institution/freelance/dashboard')

@@ -16,6 +16,8 @@ import { Upload, Calendar, DollarSign, X, Camera, FileText, Download, Check, Ind
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useExpertWorkspace } from '@/contexts/ExpertWorkspaceContext'
+import { getAuthHeadersForFormData } from '@/lib/api'
 import { toast } from 'sonner'
 import Logo from '@/components/Logo'
 import { EXPERTISE_DOMAINS } from '@/lib/constants'
@@ -66,6 +68,7 @@ export default function ExpertProfileSetup() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const router = useRouter()
+  const { viewer, basePath } = useExpertWorkspace()
 
   const [formData, setFormData] = useState({
     name: '',
@@ -119,6 +122,10 @@ export default function ExpertProfileSetup() {
 
   useEffect(() => {
     const getUser = async () => {
+      if (viewer === 'super_admin') {
+        router.replace('/superadmin/home')
+        return
+      }
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         router.push('/auth/login')
@@ -130,7 +137,7 @@ export default function ExpertProfileSetup() {
     }
 
     getUser()
-  }, [router])
+  }, [router, viewer])
 
   const loadCustomDomains = async () => {
     try {
@@ -492,12 +499,10 @@ export default function ExpertProfileSetup() {
         formDataToSend.append('profile_video', selectedProfileVideo)
       }
 
-      // Call the API with FormData
+      const authHeaders = await getAuthHeadersForFormData()
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/experts`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-        },
+        headers: authHeaders,
         body: formDataToSend
       })
 
@@ -508,7 +513,7 @@ export default function ExpertProfileSetup() {
       toast.success('Profile created successfully! Redirecting to dashboard...')
    
       
-        router.push('/expert/home')
+        router.push(`${basePath}/home`)
       
     } catch (error: any) {
       setError(error.message)
