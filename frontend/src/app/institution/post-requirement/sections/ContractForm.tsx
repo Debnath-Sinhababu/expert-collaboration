@@ -19,9 +19,12 @@ import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
 import { getInstitutionRate } from '@/lib/utils'
+import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
+import { fetchInstitutionForWorkspace } from '@/lib/institutionWorkspace'
 
 export default function ContractForm() {
   const router = useRouter()
+  const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
   const [user, setUser] = useState<any>(null)
   const [institution, setInstitution] = useState<any>(null)
   const [error, setError] = useState('')
@@ -60,12 +63,12 @@ export default function ContractForm() {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) { router.push('/auth/login'); return }
         setUser(user)
-        const inst = await api.institutions.getByUserId(user.id)
+        const inst = await fetchInstitutionForWorkspace(user.id, viewer, actingInstitutionId)
         setInstitution(inst)
       } catch (e: any) { setError(e.message || 'Failed to load context') }
     }
     init()
-  }, [router])
+  }, [router, viewer, actingInstitutionId])
 
   const handleDomainChange = (domain: string) => {
     setForm(prev => ({ ...prev, domain_expertise: domain, subskills: [] }))
@@ -206,7 +209,7 @@ export default function ContractForm() {
       toast.success(message)
       setShowExpertSelectionModal(false)
       setSelectedExperts([])
-      router.push('/institution/dashboard')
+      router.push(`${basePath}/dashboard`)
     } catch (error) {
       console.error('Error notifying experts:', error)
       toast.error('Failed to notify some experts')
@@ -252,7 +255,7 @@ export default function ContractForm() {
       if (response && response.id) {
         await loadRecommendedExperts(response.id)
       } else {
-        router.push('/institution/dashboard')
+        router.push(`${basePath}/dashboard`)
       }
     } catch (e: any) {
       toast.error(e.message || 'Failed to create project')
@@ -406,7 +409,7 @@ export default function ContractForm() {
                 <Button 
                   onClick={() => {
                     setShowExpertSelectionModal(false)
-                    router.push('/institution/dashboard')
+                    router.push(`${basePath}/dashboard`)
                   }}
                   className="mt-4 bg-[#008260] hover:bg-[#006B4F] text-white"
                 >
@@ -473,7 +476,7 @@ export default function ContractForm() {
                 variant="outline" 
                 onClick={() => {
                   setShowExpertSelectionModal(false)
-                  router.push('/institution/dashboard')
+                  router.push(`${basePath}/dashboard`)
                 }}
                 className="border border-[#DCDCDC] hover:border-[#008260] hover:bg-[#E8F5F1] text-[#000000] hover:text-[#008260]"
               >

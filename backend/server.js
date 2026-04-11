@@ -13,6 +13,7 @@ dotenv.config();
 // Import services after environment variables are loaded
 const notificationService = require('./services/notificationService');
 const socketService = require('./services/socketService');
+const institutionAccess = require('./auth/institutionAccess');
 
 console.log('Environment variables loaded:');
 console.log('UPSTASH_REDIS_REST_URL:', process.env.UPSTASH_REDIS_REST_URL ? 'Set' : 'Not set');
@@ -989,26 +990,12 @@ app.get('/api/institutions/user/:userId', async (req, res) => {
 
 app.put('/api/institutions/:id', upload.single('logo'), async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1];
-    
-    let supabaseClient = supabase;
-    if (token) {
-      console.log('PUT /api/institutions/:id - Using authenticated client with token');
-      supabaseClient = createClient(
-        process.env.SUPABASE_URL,
-        process.env.SUPABASE_ANON_KEY,
-        {
-          global: {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          }
-        }
-      );
-    } else {
-      console.log('PUT /api/institutions/:id - No auth token, using basic client');
+    const access = await institutionAccess.resolveInstitutionAccess(req, req.params.id);
+    if (!access) {
+      return res.status(403).json({ error: 'Unauthorized' });
     }
+
+    const supabaseClient = institutionAccess.getWriteClientForInstitution(access);
     
     // Convert empty string to null for company_size to satisfy CHECK constraint
     const updateData = { ...req.body };
@@ -1206,49 +1193,15 @@ app.post('/api/projects', upload.fields([
     console.log('=== PROJECT CREATION DEBUG ===');
     console.log('Headers:', req.headers);
     console.log('Body:', req.body);
-    
-    const authHeader = req.headers.authorization;
-    let supabaseClient = supabase;
-    
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
-      
-      supabaseClient = createClient(
-        process.env.SUPABASE_URL,
-        process.env.SUPABASE_ANON_KEY,
-        {
-          global: {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          }
-        }
-      );
-      
-      const { data: userData, error: userError } = await supabaseClient.auth.getUser();
-      console.log('Authenticated user:', userData?.user?.id);
-      console.log('User error:', userError);
-      
-      if (userData?.user?.id) {
-        const { data: institutionData, error: instError } = await supabaseClient
-          .from('institutions')
-          .select('id, user_id')
-          .eq('user_id', userData.user.id)
-          .single();
-        
-        console.log('User institution:', institutionData);
-        console.log('Requested institution_id:', req.body.institution_id);
-        console.log('Institution match:', institutionData?.id === req.body.institution_id);
-        console.log('Institution error:', instError);
-        if (!institutionData) {
-          return res.status(403).json({ error: 'Unauthorized' });
-        }
-      }
-    } else {
-      console.log('No auth token provided');
+
+    const institutionIdFromBody = req.body.institution_id;
+
+    const access = await institutionAccess.resolveInstitutionAccess(req, institutionIdFromBody);
+    if (!access) {
+      return res.status(403).json({ error: 'Unauthorized' });
     }
-    
-    console.log('Institution ID from request:', req.body.institution_id);
+
+    const supabaseClient = institutionAccess.getWriteClientForInstitution(access);
     
     // Normalize array-like fields that may arrive as comma-separated strings
     const rawBody = req.body || {};
@@ -1379,38 +1332,39 @@ app.get('/api/projects/:id', async (req, res) => {
 
 app.put('/api/projects/:id', async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    let supabaseClient = supabase;
-    
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
-      supabaseClient = createClient(
-        process.env.SUPABASE_URL,
-        process.env.SUPABASE_ANON_KEY,
-        {
-          global: {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          }
-        }
-      );
+    const service = institutionAccess.getServiceClient();
+    const { data: projectRow, error: projErr } = await service
+      .from('projects')
+      .select('id, institution_id')
+      .eq('id', req.params.id)
+      .maybeSingle();
+
+    if (projErr) throw projErr;
+    if (!projectRow) {
+      return res.status(404).json({ error: 'Project not found' });
     }
-    
+
+    const access = await institutionAccess.resolveInstitutionAccess(req, projectRow.institution_id);
+    if (!access) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const supabaseClient = institutionAccess.getWriteClientForInstitution(access);
+
     const { data, error } = await supabaseClient
       .from('projects')
       .update(req.body)
       .eq('id', req.params.id)
       .select();
-    
+
     if (error) throw error;
-    
+
     console.log('Update result:', { data, error });
-    
+
     if (!data || data.length === 0) {
       return res.status(404).json({ error: 'Project not found' });
     }
-    
+
     res.json(data[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -3608,8 +3562,17 @@ app.get('/api/applications', async (req, res) => {
     } else {
       console.log('Using unauthenticated client for applications fetch');
     }
-    
-    let query = supabaseClient
+
+    let queryClient = supabaseClient;
+    if (institution_id) {
+      const access = await institutionAccess.resolveInstitutionAccess(req, String(institution_id));
+      if (!access) {
+        return res.status(403).json({ error: 'Unauthorized' });
+      }
+      queryClient = institutionAccess.getWriteClientForInstitution(access);
+    }
+
+    let query = queryClient
       .from('applications')
       .select(`
         *,
@@ -3697,16 +3660,16 @@ app.get('/api/applications', async (req, res) => {
     if (error) throw error;
 
     // Get counts for all statuses for the same filters
-    let countQuery = supabaseClient
+    let countQuery = queryClient
       .from('applications')
       .select('status');
-    
+
     if (expert_id) countQuery = countQuery.eq('expert_id', expert_id);
     if (project_id) countQuery = countQuery.eq('project_id', project_id);
     if (institution_id) countQuery = countQuery.eq('institution_id', institution_id);
-    
+
     const { data: allApplications, error: countError } = await countQuery;
-    
+
     if (countError) {
       console.log('Count query error:', countError);
       res.json(data);
@@ -3719,7 +3682,7 @@ app.get('/api/applications', async (req, res) => {
         accepted: allApplications?.filter(a => a.status === 'accepted').length || 0,
         rejected: allApplications?.filter(a => a.status === 'rejected').length || 0
       };
-      
+
       res.json({
         data: data,
         counts: counts
@@ -3756,21 +3719,30 @@ app.get('/api/applications/counts', async (req, res) => {
     if (userError) throw userError;
 
     const { expert_id, project_id, institution_id, status } = req.query;
-    
-    let query = supabaseClient
+
+    let queryClient = supabaseClient;
+    if (institution_id) {
+      const access = await institutionAccess.resolveInstitutionAccess(req, String(institution_id));
+      if (!access) {
+        return res.status(403).json({ error: 'Unauthorized' });
+      }
+      queryClient = institutionAccess.getWriteClientForInstitution(access);
+    }
+
+    let query = queryClient
       .from('applications')
       .select('status');
-    
+
     if (expert_id) query = query.eq('expert_id', expert_id);
     if (project_id) query = query.eq('project_id', project_id);
     if (institution_id) query = query.eq('institution_id', institution_id);
     // Only filter by status if specifically requested
     if (status) query = query.eq('status', status);
-    
+
     const { data, error } = await query;
-    
+
     if (error) throw error;
-    
+
     // Calculate counts by status
     const applicationCounts = {
       total: data?.length || 0,
@@ -3779,7 +3751,7 @@ app.get('/api/applications/counts', async (req, res) => {
       accepted: data?.filter(a => a.status === 'accepted').length || 0,
       rejected: data?.filter(a => a.status === 'rejected').length || 0
     };
-    
+
     console.log('Application counts fetched:', applicationCounts);
     res.json(applicationCounts);
   } catch (error) {
@@ -3916,27 +3888,33 @@ app.post('/api/applications', async (req, res) => {
 
 app.put('/api/applications/:id', async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    let supabaseClient = supabase;
-   
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
-      supabaseClient = createClient(
-        process.env.SUPABASE_URL,
-        process.env.SUPABASE_ANON_KEY,
-        {
-          global: {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          }
-        }
-      );
+    const service = institutionAccess.getServiceClient();
+    const { data: appRow, error: appErr } = await service
+      .from('applications')
+      .select('id, project_id')
+      .eq('id', req.params.id)
+      .maybeSingle();
+    if (appErr) throw appErr;
+    if (!appRow) {
+      return res.status(404).json({ error: 'Application not found' });
     }
 
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser();
-    console.log('Authenticated user:', userData?.user?.id);
-    console.log('User error:', userError);
+    const { data: projRow, error: projErr } = await service
+      .from('projects')
+      .select('institution_id')
+      .eq('id', appRow.project_id)
+      .maybeSingle();
+    if (projErr) throw projErr;
+    if (!projRow) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const access = await institutionAccess.resolveInstitutionAccess(req, projRow.institution_id);
+    if (!access) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const supabaseClient = institutionAccess.getWriteClientForInstitution(access);
 
     // Handle interview_date field if provided
     const updateData = { ...req.body };
@@ -3944,15 +3922,15 @@ app.put('/api/applications/:id', async (req, res) => {
       // Convert to proper timestamp format
       updateData.interview_date = new Date(updateData.interview_date).toISOString();
     }
-    
+
     const { data, error } = await supabaseClient
       .from('applications')
       .update(updateData)
       .eq('id', req.params.id)
       .select();
-    
+
     if (error) throw error;
-    
+
     // Send notification to expert about application status change
     try {
       if (req.body.status === 'interview') {
@@ -4138,7 +4116,17 @@ app.get('/api/bookings', async (req, res) => {
 
     const { expert_id, institution_id, project_id, page = 1, limit = 10 } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
-    let query = supabaseClient
+
+    let queryClient = supabaseClient;
+    if (institution_id) {
+      const access = await institutionAccess.resolveInstitutionAccess(req, String(institution_id));
+      if (!access) {
+        return res.status(403).json({ error: 'Unauthorized' });
+      }
+      queryClient = institutionAccess.getWriteClientForInstitution(access);
+    }
+
+    let query = queryClient
       .from('bookings')
       .select(`
         *,
@@ -4237,7 +4225,7 @@ app.get('/api/bookings', async (req, res) => {
     console.log('Bookings fetched:', data?.length || 0);
     
     // Get counts for all bookings for the same filters
-    let countQuery = supabaseClient
+    let countQuery = queryClient
       .from('bookings')
       .select('status');
     
@@ -4296,19 +4284,28 @@ app.get('/api/bookings/counts', async (req, res) => {
     if (userError) throw userError;
 
     const { expert_id, institution_id, project_id } = req.query;
-    
-    let query = supabaseClient
+
+    let queryClient = supabaseClient;
+    if (institution_id) {
+      const access = await institutionAccess.resolveInstitutionAccess(req, String(institution_id));
+      if (!access) {
+        return res.status(403).json({ error: 'Unauthorized' });
+      }
+      queryClient = institutionAccess.getWriteClientForInstitution(access);
+    }
+
+    let query = queryClient
       .from('bookings')
       .select('status');
-    
+
     if (expert_id) query = query.eq('expert_id', expert_id);
     if (institution_id) query = query.eq('institution_id', institution_id);
     if (project_id) query = query.eq('project_id', project_id);
-    
+
     const { data, error } = await query;
-    
+
     if (error) throw error;
-    
+
     // Calculate counts by status
     const bookingCounts = {
       total: data?.length || 0,
@@ -4317,7 +4314,7 @@ app.get('/api/bookings/counts', async (req, res) => {
       cancelled: data?.filter(b => b.status === 'cancelled').length || 0,
       pending: data?.filter(b => b.status === 'pending').length || 0
     };
-    
+
     console.log('Booking counts fetched:', bookingCounts);
     res.json(bookingCounts);
   } catch (error) {
@@ -4588,6 +4585,11 @@ app.put('/api/bookings/:id', async (req, res) => {
 // Delete a booking (only from bookings table)
 app.delete('/api/bookings/:id', async (req, res) => {
   try {
+    const { user: delUser } = await institutionAccess.getAuthedUserFromRequest(req);
+    if (delUser && institutionAccess.getRole(delUser) === 'super_admin') {
+      return res.status(403).json({ error: 'Super admin delete is not allowed' });
+    }
+
     const authHeader = req.headers.authorization;
     let supabaseClient = supabase;
    

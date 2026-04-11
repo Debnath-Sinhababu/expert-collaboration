@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { SUPERADMIN_ACTING_INSTITUTION_KEY } from './superAdminActing'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -8,6 +9,14 @@ const getAuthHeaders = async () => {
   
   if (session?.access_token) {
     headers['Authorization'] = `Bearer ${session.access_token}`
+  }
+
+  const role = session?.user?.user_metadata?.role as string | undefined
+  if (role === 'super_admin' && typeof window !== 'undefined') {
+    const acting = sessionStorage.getItem(SUPERADMIN_ACTING_INSTITUTION_KEY)
+    if (acting) {
+      headers['X-Acting-Institution-Id'] = acting
+    }
   }
   
   return headers
@@ -321,7 +330,14 @@ export const api = {
       const isFormData = formData && formData instanceof FormData
       const fetchOpts: RequestInit = {
         method: 'POST',
-        headers: isFormData ? { Authorization: (headers as any).Authorization } : headers,
+        headers: isFormData
+          ? {
+              Authorization: headers.Authorization || '',
+              ...(headers['X-Acting-Institution-Id']
+                ? { 'X-Acting-Institution-Id': headers['X-Acting-Institution-Id'] }
+                : {})
+            }
+          : headers,
         body: isFormData ? formData : JSON.stringify(data)
       }
       return fetch(`${API_BASE_URL}/api/institutions`, fetchOpts).then(res => res.json())
@@ -331,7 +347,14 @@ export const api = {
       const isFormData = formData && formData instanceof FormData
       const fetchOpts: RequestInit = {
         method: 'PUT',
-        headers: isFormData ? { Authorization: (headers as any).Authorization } : headers,
+        headers: isFormData
+          ? {
+              Authorization: headers.Authorization || '',
+              ...(headers['X-Acting-Institution-Id']
+                ? { 'X-Acting-Institution-Id': headers['X-Acting-Institution-Id'] }
+                : {})
+            }
+          : headers,
         body: isFormData ? formData : JSON.stringify(data)
       }
       return fetch(`${API_BASE_URL}/api/institutions/${id}`, fetchOpts).then(res => res.json())
@@ -370,10 +393,15 @@ export const api = {
       return fetch(`${API_BASE_URL}/api/projects/${id}?${query}`, { headers }).then(res => res.json())
     },
     create: async (formData: FormData) => {
-      const { data: { session } } = await supabase.auth.getSession()
+      const headers = await getAuthHeaders()
       const res = await fetch(`${API_BASE_URL}/api/projects`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${session?.access_token || ''}` },
+        headers: {
+          Authorization: headers.Authorization || '',
+          ...(headers['X-Acting-Institution-Id']
+            ? { 'X-Acting-Institution-Id': headers['X-Acting-Institution-Id'] }
+            : {})
+        },
         body: formData
       })
 
