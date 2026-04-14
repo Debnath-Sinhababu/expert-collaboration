@@ -19,7 +19,7 @@ import { useExpertWorkspace } from '@/contexts/ExpertWorkspaceContext'
 import { fetchExpertForWorkspace } from '@/lib/expertWorkspace'
 import { getAuthHeadersForFormData } from '@/lib/api'
 import { MultiSelect } from '@/components/ui/multi-select'
-import { EXPERTISE_DOMAINS } from '@/lib/constants'
+import { EXPERTISE_DOMAINS, EXPERT_TYPES, EXPERT_SERVICES } from '@/lib/constants'
 import Logo from '@/components/Logo'
 import NotificationBell from '@/components/NotificationBell'
 
@@ -63,6 +63,7 @@ export default function ExpertProfileEdit() {
     last_working_company: '',
     current_designation: '',
     expert_types: [] as string[],
+    expert_services: [] as string[],
     available_on_demand: false,
     city: '',
     state: '',
@@ -159,6 +160,7 @@ export default function ExpertProfileEdit() {
           last_working_company: expertProfile.last_working_company || '',
           current_designation: expertProfile.current_designation || '',
           expert_types: expertProfile.expert_types || [],
+          expert_services: expertProfile.expert_services || [],
           available_on_demand: expertProfile.available_on_demand || false,
           city: expertProfile.city || '',
           state: expertProfile.state || '',
@@ -453,6 +455,7 @@ export default function ExpertProfileEdit() {
       formDataToSend.append('last_working_company', formData.last_working_company)
       formDataToSend.append('current_designation', formData.current_designation)
       formDataToSend.append('expert_types', JSON.stringify(formData.expert_types))
+      formDataToSend.append('expert_services', JSON.stringify(formData.expert_services))
       formDataToSend.append('available_on_demand', String(formData.available_on_demand))
       formDataToSend.append('city', formData.city || '')
       formDataToSend.append('state', formData.state || '')
@@ -1069,7 +1072,7 @@ export default function ExpertProfileEdit() {
                   </div>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-4">
+                <div className="grid md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="last_working_company" className="text-slate-700">Last Working Company *</Label>
                     <Input
@@ -1085,10 +1088,21 @@ export default function ExpertProfileEdit() {
                   <div className="space-y-2 min-w-0 max-w-full overflow-hidden">
                     <Label className="text-slate-700">Expert Type *</Label>
                     <MultiSelect
-                      options={['Guest Faculty', 'Visiting Faculty', 'Industry Experts']}
+                      options={EXPERT_TYPES}
                       selected={formData.expert_types}
                       onSelectionChange={(types) => setFormData(prev => ({ ...prev, expert_types: types }))}
                       placeholder="Select expert types..."
+                      className="w-full min-w-0"
+                    />
+                  </div>
+
+                  <div className="space-y-2 min-w-0 max-w-full overflow-hidden">
+                    <Label className="text-slate-700">Expert Services</Label>
+                    <MultiSelect
+                      options={EXPERT_SERVICES}
+                      selected={formData.expert_services}
+                      onSelectionChange={(services) => setFormData(prev => ({ ...prev, expert_services: services }))}
+                      placeholder="Select expert services..."
                       className="w-full min-w-0"
                     />
                   </div>

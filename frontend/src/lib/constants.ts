@@ -9,6 +9,22 @@ export const PROJECT_TYPES = [
   'other'
 ] as const;
 
+export const EXPERT_TYPES = [
+  'Guest Faculty',
+  'Visiting Faculty',
+  'Industry Experts',
+  'Freelancer'
+] as const;
+
+export const EXPERT_SERVICES = [
+  'Consultant',
+  'Interviewer Service',
+  'Referral',
+  '1 on 1 Meeting',
+  'Webinar',
+  'CXOmeet up'
+] as const;
+
 export const EXPERTISE_DOMAINS = [
   {
     name: "Computer Science & IT",

@@ -445,6 +445,7 @@ app.post('/api/experts', upload.fields([
       last_working_company: req.body.last_working_company || null,
       current_designation: req.body.current_designation || null,
       expert_types: Array.isArray(req.body.expert_types) ? req.body.expert_types : (req.body.expert_types ? JSON.parse(req.body.expert_types) : []),
+      expert_services: Array.isArray(req.body.expert_services) ? req.body.expert_services : (req.body.expert_services ? JSON.parse(req.body.expert_services) : []),
       available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true,
       city: req.body.city || null,
       state: req.body.state || null,
@@ -645,6 +646,7 @@ app.put('/api/experts/:id', upload.fields([
       last_working_company: req.body.last_working_company || null,
       current_designation: req.body.current_designation || null,
       expert_types: Array.isArray(req.body.expert_types) ? req.body.expert_types : (req.body.expert_types ? JSON.parse(req.body.expert_types) : []),
+      expert_services: Array.isArray(req.body.expert_services) ? req.body.expert_services : (req.body.expert_services ? JSON.parse(req.body.expert_services) : []),
       available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true,
       city: req.body.city || null,
       state: req.body.state || null
@@ -5182,6 +5184,7 @@ app.post('/api/admin/experts', upload.fields([
       last_working_company: req.body.last_working_company || null,
       current_designation: req.body.current_designation || null,
       expert_types: Array.isArray(req.body.expert_types) ? req.body.expert_types : (req.body.expert_types ? JSON.parse(req.body.expert_types) : []),
+      expert_services: Array.isArray(req.body.expert_services) ? req.body.expert_services : (req.body.expert_services ? JSON.parse(req.body.expert_services) : []),
       available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true,
       city: req.body.city || null,
       state: req.body.state || null,

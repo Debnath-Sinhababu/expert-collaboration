@@ -88,6 +88,7 @@ export default function InstitutionHomePage() {
     rating?: number
     total_ratings?: number
     is_verified?: boolean
+    expert_services?: string[]
     current_designation?: string
     domain_expertise?: string[]
     subskills?: string[]
@@ -1127,6 +1128,20 @@ export default function InstitutionHomePage() {
                                     </div>
                                   </div>
                                 )}
+                                {expert.expert_services && expert.expert_services.length > 0 && (
+                                  <div>
+                                    <h4 className="font-medium mb-2">Expert Services</h4>
+                                    <div className="max-h-24 overflow-y-auto">
+                                      <div className="flex flex-wrap gap-2">
+                                        {expert.expert_services.map((service: string, index: number) => (
+                                          <Badge key={index} variant="secondary" className="text-xs">
+                                            {service}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
                                 {expert.qualifications && (
                                   <div>
                                     <h4 className="font-medium mb-1">Qualifications</h4>
@@ -1672,6 +1687,20 @@ export default function InstitutionHomePage() {
                                   <p className="text-sm text-gray-600">{expert.experience_years}+ years</p>
                                 </div>
                               )}
+                              {expert.expert_services && expert.expert_services.length > 0 && (
+                                <div>
+                                  <h4 className="font-medium mb-2">Expert Services</h4>
+                                  <div className="max-h-24 overflow-y-auto">
+                                    <div className="flex flex-wrap gap-2">
+                                      {expert.expert_services.map((service: string, index: number) => (
+                                        <Badge key={index} variant="secondary" className="text-xs">
+                                          {service}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
                               {expert.certifications && expert.certifications.length > 0 && (
                                 <div className="mb-4">
                                   <h5 className="font-medium mb-2">Certifications</h5>
@@ -1806,6 +1835,20 @@ export default function InstitutionHomePage() {
                                       {expert.subskills.map((skill: string, index: number) => (
                                         <Badge key={index} variant="secondary" className="text-xs">
                                           {skill}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                              {expert.expert_services && expert.expert_services.length > 0 && (
+                                <div>
+                                  <h4 className="font-medium mb-2">Expert Services</h4>
+                                  <div className="max-h-24 overflow-y-auto">
+                                    <div className="flex flex-wrap gap-2">
+                                      {expert.expert_services.map((service: string, index: number) => (
+                                        <Badge key={index} variant="secondary" className="text-xs">
+                                          {service}
                                         </Badge>
                                       ))}
                                     </div>

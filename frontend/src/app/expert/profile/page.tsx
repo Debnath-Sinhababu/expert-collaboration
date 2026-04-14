@@ -120,7 +120,8 @@ export default function ExpertProfile() {
     const typeMap: Record<string, string> = {
       'Guest Faculty': 'GF',
       'Visiting Faculty': 'VF',
-      'Industry Experts': 'IE'
+      'Industry Experts': 'IE',
+      'Freelancer': 'FR'
     }
     return typeMap[type] || type.substring(0, 2).toUpperCase()
   }
@@ -464,6 +465,15 @@ export default function ExpertProfile() {
                       <span className="text-slate-600">Expert Type</span>
                       <span className="text-slate-900 font-semibold">
                         {expert.expert_types.join(', ')}
+                      </span>
+                    </div>
+                  )}
+
+                  {expert?.expert_services && expert.expert_services.length > 0 && (
+                    <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                      <span className="text-slate-600">Expert Services</span>
+                      <span className="text-slate-900 font-semibold text-right max-w-[60%]">
+                        {expert.expert_services.join(', ')}
                       </span>
                     </div>
                   )}
