@@ -106,12 +106,12 @@ export default function SuperAdminHome() {
   const [sessionUser, setSessionUser] = useState<any>(null)
 
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedInstSearch(institutionSearch), 300)
+    const t = setTimeout(() => setDebouncedInstSearch(institutionSearch), 2000)
     return () => clearTimeout(t)
   }, [institutionSearch])
 
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedExpertSearch(expertSearch), 300)
+    const t = setTimeout(() => setDebouncedExpertSearch(expertSearch), 2000)
     return () => clearTimeout(t)
   }, [expertSearch])
 
