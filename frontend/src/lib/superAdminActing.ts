@@ -21,3 +21,10 @@ export function setSuperAdminActingExpertId(id: string | null) {
     sessionStorage.removeItem(SUPERADMIN_ACTING_EXPERT_KEY)
   }
 }
+
+/** Clear acting institution and expert (e.g. when leaving workspace without signing out). */
+export function clearSuperAdminActingWorkspace() {
+  if (typeof window === 'undefined') return
+  sessionStorage.removeItem(SUPERADMIN_ACTING_INSTITUTION_KEY)
+  sessionStorage.removeItem(SUPERADMIN_ACTING_EXPERT_KEY)
+}

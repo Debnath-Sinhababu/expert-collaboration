@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import Link from 'next/link'
 import Logo from '@/components/Logo'
+import { clearSuperAdminActingWorkspace } from '@/lib/superAdminActing'
 
 interface ProfileDropdownProps {
   user: any,
@@ -45,8 +46,17 @@ export default function ProfileDropdown({ user, expert, institution, student, us
   const superAdminInstitutionBase = userType === 'super_admin' ? getSuperAdminInstitutionBasePath(pathname) : null
   const superAdminExpertBase = userType === 'super_admin' ? getSuperAdminExpertBasePath(pathname) : null
 
+  const isSuperAdminInWorkspace =
+    user?.user_metadata?.role === 'super_admin' &&
+    (pathname?.startsWith('/superadmin/institutions/') || pathname?.startsWith('/superadmin/experts/'))
+
   const handleLogout = async () => {
     try {
+      if (isSuperAdminInWorkspace) {
+        clearSuperAdminActingWorkspace()
+        router.push('/superadmin/home')
+        return
+      }
       await supabase.auth.signOut()
       router.push('/')
     } catch (error) {
@@ -275,11 +285,17 @@ export default function ProfileDropdown({ user, expert, institution, student, us
           <DropdownMenuSeparator className="border-slate-200 my-1 sm:my-2" />
 
           <DropdownMenuItem 
-            className="w-full justify-start px-3 sm:px-4 py-2.5 sm:py-3 text-red-600 focus:bg-red-50 focus:text-red-700 data-[highlighted]:bg-red-50 data-[highlighted]:text-red-700"
+            className={`w-full justify-start px-3 sm:px-4 py-2.5 sm:py-3 focus:bg-red-50 focus:text-red-700 data-[highlighted]:bg-red-50 data-[highlighted]:text-red-700 ${
+              isSuperAdminInWorkspace
+                ? 'text-amber-800'
+                : 'text-red-600'
+            }`}
             onClick={handleLogout}
           >
             <LogOut className="h-4 w-4 mr-2 sm:mr-3" />
-            <span className="text-sm sm:text-base">Sign Out</span>
+            <span className="text-sm sm:text-base">
+              {isSuperAdminInWorkspace ? 'Exit workspace' : 'Sign out'}
+            </span>
           </DropdownMenuItem>
         </div>
       </DropdownMenuContent>
