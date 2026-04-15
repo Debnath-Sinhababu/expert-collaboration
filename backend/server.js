@@ -66,6 +66,23 @@ function isCommonEmailProvider(email) {
   return !!domain && commonDomains.some(common => domain === common || domain.endsWith(`.${common}`));
 }
 
+const ADMIN_AUTH_EMAIL = 'debnathsinhababu2017@gmail.com';
+function requireAdminAuth(req, res) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    res.status(401).json({ error: 'Authorization required' });
+    return null;
+  }
+
+  const token = authHeader.substring(7);
+  if (!token.includes(ADMIN_AUTH_EMAIL)) {
+    res.status(403).json({ error: 'Access denied' });
+    return null;
+  }
+
+  return token;
+}
+
 app.use(helmet());
 app.use(cors({
   origin: [
@@ -5202,6 +5219,145 @@ app.post('/api/admin/experts', upload.fields([
     res.status(201).json(data[0]);
   } catch (error) {
     console.error('Admin create expert error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: List super admin users
+app.get('/api/admin/super-admins', async (req, res) => {
+  const token = requireAdminAuth(req, res);
+  if (!token) return;
+
+  try {
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    const { data, error } = await serviceClient.auth.admin.listUsers({ perPage: 1000, page: 1 });
+    if (error) throw error;
+
+    const users = Array.isArray(data?.users) ? data.users : [];
+    const superAdmins = users
+      .filter((user) => user.user_metadata?.role === 'super_admin')
+      .map((user) => ({
+        id: user.id,
+        email: user.email,
+        role: user.user_metadata?.role || 'super_admin',
+        created_at: user.created_at
+      }));
+
+    res.json(superAdmins);
+  } catch (error) {
+    console.error('Admin get super admins error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: Create a new super admin user
+app.post('/api/admin/super-admins/create', async (req, res) => {
+  const token = requireAdminAuth(req, res);
+  if (!token) return;
+
+  try {
+    const email = String((req.body?.email || '').trim()).toLowerCase();
+    const password = String(req.body?.password || '');
+
+    if (!email || !email.includes('@') || !email.includes('.')) {
+      return res.status(400).json({ error: 'Valid email is required' });
+    }
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required to create a new super admin' });
+    }
+
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    const { data: listData, error: listError } = await serviceClient.auth.admin.listUsers({ perPage: 1000, page: 1 });
+    if (listError) throw listError;
+
+    const users = Array.isArray(listData?.users) ? listData.users : [];
+    const existingUser = users.find((user) => user.email?.toLowerCase() === email);
+    if (existingUser) {
+      return res.status(409).json({ error: 'User already exists. Use the promote endpoint for existing accounts.' });
+    }
+
+    const { data: createData, error: createError } = await serviceClient.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        role: 'super_admin'
+      }
+    });
+    if (createError) throw createError;
+
+    const newUser = createData.user;
+    res.status(201).json({
+      success: true,
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+        role: newUser.user_metadata?.role || 'super_admin',
+        created_at: newUser.created_at
+      }
+    });
+  } catch (error) {
+    console.error('Admin create super admin error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: Promote an existing user to super admin
+app.post('/api/admin/super-admins/promote', async (req, res) => {
+  const token = requireAdminAuth(req, res);
+  if (!token) return;
+
+  try {
+    const email = String((req.body?.email || '').trim()).toLowerCase();
+
+    if (!email || !email.includes('@') || !email.includes('.')) {
+      return res.status(400).json({ error: 'Valid email is required' });
+    }
+
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    const { data: listData, error: listError } = await serviceClient.auth.admin.listUsers({ perPage: 1000, page: 1 });
+    if (listError) throw listError;
+
+    const users = Array.isArray(listData?.users) ? listData.users : [];
+    const existingUser = users.find((user) => user.email?.toLowerCase() === email);
+    if (!existingUser) {
+      return res.status(404).json({ error: 'User not found. Please use an existing registered email to promote to super admin.' });
+    }
+
+    const updatePayload = {
+      user_metadata: {
+        ...(existingUser.user_metadata || {}),
+        role: 'super_admin'
+      }
+    };
+
+    const { data: updateData, error: updateError } = await serviceClient.auth.admin.updateUserById(existingUser.id, updatePayload);
+    if (updateError) throw updateError;
+
+    const updatedUser = updateData.user || existingUser;
+    res.json({
+      success: true,
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        role: updatedUser.user_metadata?.role || 'super_admin',
+        created_at: updatedUser.created_at
+      }
+    });
+  } catch (error) {
+    console.error('Admin promote super admin error:', error);
     res.status(500).json({ error: error.message });
   }
 });
