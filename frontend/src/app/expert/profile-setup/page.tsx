@@ -91,6 +91,8 @@ export default function ExpertProfileSetup() {
     city: '',
     state: '',
     pan_number: ''
+    ,interested_in_services: false,
+    service_price: ''
   })
 
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
@@ -112,6 +114,10 @@ export default function ExpertProfileSetup() {
   const [selectedProfileVideo, setSelectedProfileVideo] = useState<File | null>(null)
   const [profileVideoError, setProfileVideoError] = useState('')
   const [profileVideoPreviewUrl, setProfileVideoPreviewUrl] = useState('')
+
+  const [selectedCourseVideo, setSelectedCourseVideo] = useState<File | null>(null)
+  const [courseVideoError, setCourseVideoError] = useState('')
+  const [courseVideoPreviewUrl, setCourseVideoPreviewUrl] = useState('')
 
   useEffect(() => {
     return () => {
@@ -366,6 +372,38 @@ export default function ExpertProfileSetup() {
     })
   }
 
+  const handleCourseVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!ALLOWED_PROFILE_VIDEO_TYPES.includes(file.type as (typeof ALLOWED_PROFILE_VIDEO_TYPES)[number])) {
+      setCourseVideoError('Please use MP4, WebM, or MOV (QuickTime)')
+      return
+    }
+
+    if (file.size > PROFILE_VIDEO_MAX_BYTES) {
+      setCourseVideoError('Video must be 20MB or smaller')
+      return
+    }
+
+    setCourseVideoError('')
+    setSelectedCourseVideo(file)
+    setCourseVideoPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return URL.createObjectURL(file)
+    })
+    e.target.value = ''
+  }
+
+  const removeCourseVideo = () => {
+    setCourseVideoError('')
+    setSelectedCourseVideo(null)
+    setCourseVideoPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return ''
+    })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
@@ -478,6 +516,8 @@ export default function ExpertProfileSetup() {
       formDataToSend.append('expert_types', JSON.stringify(formData.expert_types))
       formDataToSend.append('expert_services', JSON.stringify(formData.expert_services))
       formDataToSend.append('available_on_demand', String(formData.available_on_demand))
+      formDataToSend.append('interested_in_services', String(formData.interested_in_services))
+      formDataToSend.append('service_price', String(formData.service_price || ''))
       formDataToSend.append('city', formData.city || '')
       formDataToSend.append('state', formData.state || '')
       formDataToSend.append('pan_number', panNormalized)
@@ -499,6 +539,10 @@ export default function ExpertProfileSetup() {
 
       if (selectedProfileVideo) {
         formDataToSend.append('profile_video', selectedProfileVideo)
+      }
+
+      if (selectedCourseVideo) {
+        formDataToSend.append('course_video', selectedCourseVideo)
       }
 
       const authHeaders = await getAuthHeadersForFormData()
@@ -1092,6 +1136,64 @@ export default function ExpertProfileSetup() {
                     </Label>
                   </div>
                 </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="interested_in_services"
+                          checked={formData.interested_in_services}
+                          onChange={(e) => setFormData(prev => ({ ...prev, interested_in_services: e.target.checked }))}
+                          className="w-4 h-4 border-slate-300 rounded text-[#008260] focus:ring-[#008260] focus:ring-offset-0"
+                        />
+                        <Label htmlFor="interested_in_services" className="text-slate-700 cursor-pointer">Interested in providing services and courses?</Label>
+                      </div>
+
+                      {formData.interested_in_services && (
+                        <div className="space-y-3">
+                          <div>
+                            <Label className="text-slate-700">Course sample video (optional)</Label>
+                            <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 text-center hover:border-[#008260] transition-colors">
+                              <input type="file" id="course_video" accept="video/*" onChange={handleCourseVideoSelect} className="hidden" />
+                              <label htmlFor="course_video" className="cursor-pointer">
+                                <Video className="mx-auto h-12 w-12 text-slate-400 mb-2" />
+                                <p className="text-sm text-slate-600">Upload a short course preview (max 20MB)</p>
+                              </label>
+                            </div>
+
+                            {selectedCourseVideo && (
+                              <div className="mt-3 p-3 bg-[#008260]/10 border border-[#008260]/30 rounded-lg">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-2">
+                                    <Video className="h-5 w-5 text-[#008260]" />
+                                    <span className="text-sm font-medium text-slate-900 break-all">{selectedCourseVideo.name}</span>
+                                  </div>
+                                  <button type="button" onClick={removeCourseVideo} className="text-red-500 hover:text-red-700"><X className="h-4 w-4"/></button>
+                                </div>
+                              </div>
+                            )}
+
+                            {courseVideoError && (
+                              <Alert variant="destructive" className="mt-2"><AlertDescription>{courseVideoError}</AlertDescription></Alert>
+                            )}
+                          </div>
+
+                          <div>
+                            <Label className="text-slate-700">Service price (optional)</Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              step={1}
+                              placeholder="Enter a single numeric price (INR)"
+                              value={formData.service_price}
+                              onChange={(e) => setFormData(prev => ({ ...prev, service_price: e.target.value }))}
+                              className="border-slate-200 focus:border-[#008260]"
+                            />
+                            <p className="text-xs text-slate-500">Optional: a single numeric price for your services/courses.</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="resume" className="text-slate-700">Resume/CV (PDF)</Label>

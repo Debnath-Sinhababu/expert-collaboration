@@ -87,6 +87,7 @@ export const api = {
       max_hourly_rate?: number;
       state?: string;
       is_verified?: boolean;
+      interested?: boolean;
       min_rating?: number;
       sort_by?: string;
       sort_order?: 'asc' | 'desc';
@@ -150,6 +151,18 @@ export const api = {
       } catch (parseError) {
         return { success: true }
       }
+    }
+    ,
+    setCalxbookVisibility: async (id: string, visible: boolean) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/experts/${id}/calxbook-visibility`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ calxbook_verified: visible })
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to update calxbook visibility')
+      return json
     }
   },
 

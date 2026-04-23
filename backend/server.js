@@ -231,6 +231,10 @@ app.get('/api/experts', async (req, res) => {
     if (is_verified) {
       query = query.eq('is_verified', is_verified === 'true');
     }
+
+    if (req.query.interested !== undefined) {
+      query = query.eq('interested_in_services', String(req.query.interested) === 'true');
+    }
     
     if (min_rating) {
       query = query.gte('rating', parseFloat(min_rating));
@@ -279,7 +283,8 @@ app.post('/api/experts', upload.fields([
   { name: 'profile_photo', maxCount: 1 },
   { name: 'resume', maxCount: 1 },
   { name: 'qualifications', maxCount: 1 },
-  { name: 'profile_video', maxCount: 1 }
+  { name: 'profile_video', maxCount: 1 },
+  { name: 'course_video', maxCount: 1 }
 ]), async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
@@ -382,6 +387,22 @@ app.post('/api/experts', upload.fields([
         });
       }
     }
+
+    // Course video (short sample to show course quality)
+    let courseVideoData = null;
+    if (req.files?.course_video?.[0]) {
+      courseVideoData = await ImageUploadService.uploadVideo(
+        req.files.course_video[0].buffer,
+        'expert-course-videos',
+        null,
+        req.files.course_video[0].mimetype
+      );
+      if (!courseVideoData.success) {
+        return res.status(500).json({
+          error: `Course video upload failed: ${courseVideoData.error}`
+        });
+      }
+    }
     
     // Check if domain is custom (not in predefined list)
     const domainName = req.body.domain_expertise;
@@ -468,9 +489,25 @@ app.post('/api/experts', upload.fields([
       state: req.body.state || null,
       pan_number: panNormalized,
       profile_video_url: profileVideoData?.url || null,
-      profile_video_public_id: profileVideoData?.publicId || null
+      profile_video_public_id: profileVideoData?.publicId || null,
+      interested_in_services: req.body.interested_in_services === 'true' || req.body.interested_in_services === true,
+      course_video_url: courseVideoData?.url || null,
+      course_video_public_id: courseVideoData?.publicId || null,
+      service_price: req.body.service_price ? parseFloat(String(req.body.service_price)) : null
+      ,
+      calxbook_verified: false
     };
     
+    const { data: existingByEmail } = await supabaseClient
+      .from('experts')
+      .select('id')
+      .eq('email', expertData.email)
+      .limit(1);
+
+    if (existingByEmail && existingByEmail.length > 0) {
+      return res.status(409).json({ error: 'An expert with this email already exists. Use the profile edit flow to update the profile.' });
+    }
+
     const { data, error } = await supabaseClient
       .from('experts')
       .insert([expertData])
@@ -540,7 +577,8 @@ app.put('/api/experts/:id', upload.fields([
   { name: 'profile_photo', maxCount: 1 },
   { name: 'resume', maxCount: 1 },
   { name: 'qualifications', maxCount: 1 },
-  { name: 'profile_video', maxCount: 1 }
+  { name: 'profile_video', maxCount: 1 },
+  { name: 'course_video', maxCount: 1 }
 ]), async (req, res) => {
   try {
     console.log('PUT /api/experts/:id - Request body:', req.body);
@@ -567,6 +605,7 @@ app.put('/api/experts/:id', upload.fields([
     
     const authHeader = req.headers.authorization;
     let supabaseClient = supabase;
+    let isSuperAdmin = false;
     
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
@@ -589,6 +628,7 @@ app.put('/api/experts/:id', upload.fields([
         if (!access) {
           return res.status(403).json({ error: 'Unauthorized' });
         }
+        isSuperAdmin = true;
         supabaseClient = expertAccess.getWriteClientForExpert(access);
       }
     } else {
@@ -665,12 +705,35 @@ app.put('/api/experts/:id', upload.fields([
       expert_types: Array.isArray(req.body.expert_types) ? req.body.expert_types : (req.body.expert_types ? JSON.parse(req.body.expert_types) : []),
       expert_services: Array.isArray(req.body.expert_services) ? req.body.expert_services : (req.body.expert_services ? JSON.parse(req.body.expert_services) : []),
       available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true,
+      interested_in_services: req.body.interested_in_services === 'true' || req.body.interested_in_services === true,
+      service_price: req.body.service_price !== undefined && req.body.service_price !== '' ? parseFloat(String(req.body.service_price)) : undefined,
       city: req.body.city || null,
       state: req.body.state || null
     };
 
     delete updateData.profile_video;
     delete updateData.pan_number;
+
+    // Handle explicit removal flags for videos (sent from form as 'true')
+    const removeProfileVideoFlag = req.body.remove_profile_video === 'true' || req.body.remove_profile_video === true
+    const removeCourseVideoFlag = req.body.remove_course_video === 'true' || req.body.remove_course_video === true
+
+    if (removeProfileVideoFlag) {
+      if (currentExpert?.profile_video_public_id) {
+        await ImageUploadService.deleteVideo(currentExpert.profile_video_public_id);
+      }
+      updateData.profile_video_url = null
+      updateData.profile_video_public_id = null
+    }
+
+    // Only allow super admin to change verification status
+    if (!isSuperAdmin && updateData.hasOwnProperty('is_verified')) {
+      delete updateData.is_verified;
+    }
+    // Only allow super admin to change Calxbook visibility flag
+    if (!isSuperAdmin && updateData.hasOwnProperty('calxbook_verified')) {
+      delete updateData.calxbook_verified;
+    }
 
     // PAN is mandatory: use body value, or keep existing when pan_number omitted from request
     const panInBody = req.body.pan_number;
@@ -781,6 +844,38 @@ app.put('/api/experts/:id', upload.fields([
       updateData.profile_video_url = videoData.url;
       updateData.profile_video_public_id = videoData.publicId;
     }
+
+    // Handle course video update if uploaded
+    if (req.files?.course_video?.[0]) {
+      if (currentExpert?.course_video_public_id) {
+        await ImageUploadService.deleteVideo(currentExpert.course_video_public_id);
+      }
+
+      const courseVideoData = await ImageUploadService.uploadVideo(
+        req.files.course_video[0].buffer,
+        'expert-course-videos',
+        null,
+        req.files.course_video[0].mimetype
+      );
+
+      if (!courseVideoData.success) {
+        return res.status(500).json({
+          error: `Course video upload failed: ${courseVideoData.error}`
+        });
+      }
+
+      updateData.course_video_url = courseVideoData.url;
+      updateData.course_video_public_id = courseVideoData.publicId;
+    }
+
+    // Handle explicit removal of course video
+    if (removeCourseVideoFlag && !req.files?.course_video?.[0]) {
+      if (currentExpert?.course_video_public_id) {
+        await ImageUploadService.deleteVideo(currentExpert.course_video_public_id);
+      }
+      updateData.course_video_url = null
+      updateData.course_video_public_id = null
+    }
     
     const { data, error } = await supabaseClient
       .from('experts')
@@ -803,6 +898,64 @@ app.put('/api/experts/:id', upload.fields([
   } catch (error) {
     console.log('PUT /api/experts/:id - Error:', error.message);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Dedicated endpoint for superadmins to toggle Calxbook visibility for an expert
+app.put('/api/experts/:id/calxbook-visibility', async (req, res) => {
+  try {
+    const expertId = req.params.id;
+
+    // Parse token and verify role directly
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Authorization required' });
+    }
+    const token = authHeader.substring(7);
+
+    const userClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY,
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      }
+    );
+
+    const { data: userData, error: userErr } = await userClient.auth.getUser();
+    if (userErr || !userData || !userData.user) {
+      return res.status(403).json({ error: 'Invalid token' });
+    }
+
+    const role = userData.user.user_metadata?.role;
+    if (role !== 'super_admin') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    // Use service-role client to perform the update
+    const writeClient = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+    if (req.body.calxbook_verified === undefined) {
+      return res.status(400).json({ error: 'calxbook_verified boolean is required' });
+    }
+
+    const value = req.body.calxbook_verified === true || req.body.calxbook_verified === 'true';
+
+    const { data, error } = await writeClient
+      .from('experts')
+      .update({ calxbook_verified: value })
+      .eq('id', expertId)
+      .select();
+
+    if (error) throw error;
+    if (!data || data.length === 0) return res.status(404).json({ error: 'Expert not found' });
+    res.json(data[0]);
+  } catch (err) {
+    console.error('Calxbook visibility update error:', err?.message || err);
+    res.status(500).json({ error: err.message || 'Failed to update calxbook visibility' });
   }
 });
 

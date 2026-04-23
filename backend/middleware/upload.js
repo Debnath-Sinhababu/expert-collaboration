@@ -7,20 +7,22 @@ const storage = multer.memoryStorage();
 // PDFs (resume, qualifications) and profile video share the same 20MB cap per file.
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
 
-// File filter: images/PDFs for most fields; MP4/WebM/MOV for profile_video
+// File filter: images/PDFs for most fields; MP4/WebM/MOV for profile_video and course_video
 const fileFilter = (req, file, cb) => {
-  if (file.fieldname === 'profile_video') {
+  // Accept video files for profile_video and course_video
+  if (file.fieldname === 'profile_video' || file.fieldname === 'course_video') {
     const videoExts = ['.mp4', '.webm', '.mov'];
     const ext = path.extname(file.originalname).toLowerCase();
     const okExt = videoExts.includes(ext);
-    const videoMimes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo'];
+    const videoMimes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/ogg'];
     const okMime = videoMimes.includes(file.mimetype);
     if (okExt && okMime) {
       return cb(null, true);
     }
-    return cb(new Error('Profile video must be MP4, WebM, or MOV'), false);
+    return cb(new Error('Video must be MP4, WebM, or MOV'), false);
   }
 
+  // Otherwise accept images and PDFs
   const allowedTypes = /jpeg|jpg|png|webp|pdf/;
   const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
   const mimetype = allowedTypes.test(file.mimetype) || file.mimetype === 'application/pdf';

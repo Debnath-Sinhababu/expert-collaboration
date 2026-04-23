@@ -218,6 +218,9 @@ export default function SuperAdminHome() {
                 <Shield className="h-3.5 w-3.5" />
                 Elevated access
               </div>
+              <div className="hidden sm:flex items-center gap-3">
+                <Link href="/superadmin/experts/interested" className="text-white/90 text-sm font-medium hover:underline">Interested Experts</Link>
+              </div>
               {sessionUser && (
                 <ProfileDropdown user={sessionUser} userType="super_admin" />
               )}

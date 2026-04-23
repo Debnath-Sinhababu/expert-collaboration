@@ -204,9 +204,22 @@ export default function ExpertProfile() {
                 <div className="flex flex-col">
                   {/* Name and Rating side by side */}
                   <div className="flex items-center gap-3 mb-2">
-                    <h1 className="text-2xl font-bold text-slate-900">
-                      {expert?.name || 'Expert User'}
-                    </h1>
+                    <div className="flex items-center gap-3">
+                      <h1 className="text-2xl font-bold text-slate-900">
+                        {expert?.name || 'Expert User'}
+                      </h1>
+                      {expert?.calxbook_verified ? (
+                        <span className="inline-flex items-center gap-2 px-2 py-0.5 rounded-md text-sm font-medium bg-green-100 text-green-800">
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                          Listed on Calxbook
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-2 px-2 py-0.5 rounded-md text-sm font-medium bg-slate-100 text-slate-600">
+                          <Shield className="h-4 w-4 text-slate-500" />
+                          Not listed on Calxbook
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-1">
                       <Star className="h-5 w-5 text-yellow-400 fill-current" />
                       <span className="text-base font-semibold text-slate-700">
@@ -472,9 +485,15 @@ export default function ExpertProfile() {
                   {expert?.expert_services && expert.expert_services.length > 0 && (
                     <div className="flex items-center justify-between py-2 border-b border-slate-100">
                       <span className="text-slate-600">Expert Services</span>
-                      <span className="text-slate-900 font-semibold text-right max-w-[60%]">
-                        {expert.expert_services.join(', ')}
-                      </span>
+                      <div className="text-slate-900 font-semibold text-right max-w-[60%]">
+                        {expert.service_price !== undefined && expert.service_price !== null ? (
+                          <div className="space-y-1 text-right">
+                            <div className="text-sm">₹{expert.service_price}</div>
+                          </div>
+                        ) : (
+                          <span>{expert.expert_services.join(', ')}</span>
+                        )}
+                      </div>
                     </div>
                   )}
 
