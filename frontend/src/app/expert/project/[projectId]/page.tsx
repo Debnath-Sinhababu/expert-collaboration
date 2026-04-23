@@ -35,6 +35,8 @@ import {
   IndianRupee
 } from 'lucide-react'
 import Link from 'next/link'
+import { useExpertWorkspace } from '@/contexts/ExpertWorkspaceContext'
+import { fetchExpertForWorkspace, expertProfileSetupPath } from '@/lib/expertWorkspace'
 
 type UserMeta = { role?: string; name?: string }
 type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }
@@ -92,6 +94,7 @@ export default function ExpertProjectPage() {
   const params = useParams()
   const router = useRouter()
   const projectId = params.projectId as string
+  const { viewer, actingExpertId, basePath } = useExpertWorkspace()
 
   const [user, setUser] = useState<any>(null)
   const [expert, setExpert] = useState<ExpertProfile | null>(null)
@@ -126,16 +129,23 @@ export default function ExpertProjectPage() {
       if (!currentUser) return
 
       const userRole = currentUser.user_metadata?.role
-      if (userRole !== 'expert') {
+      if (userRole !== 'expert' && userRole !== 'super_admin') {
+        router.push('/')
+        return
+      }
+      if (userRole === 'super_admin' && viewer !== 'super_admin') {
+        router.push('/superadmin/home')
+        return
+      }
+      if (viewer === 'super_admin' && userRole !== 'super_admin') {
         router.push('/')
         return
       }
 
-      // Get expert profile
-      const expertProfile = await api.experts.getByUserId(currentUser.id)
-      
+      const expertProfile = await fetchExpertForWorkspace(currentUser.id, viewer, actingExpertId)
+
       if (!expertProfile) {
-        router.push('/expert/profile-setup')
+        router.push(expertProfileSetupPath(viewer))
         return
       }
       
@@ -219,7 +229,7 @@ export default function ExpertProjectPage() {
 
   useEffect(() => {
     loadExpertData()
-  }, [])
+  }, [viewer, actingExpertId])
 
   useEffect(() => {
     if (expert) {
@@ -281,7 +291,7 @@ export default function ExpertProjectPage() {
             <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Project Not Found</h2>
             <p className="text-gray-600 mb-4">{error}</p>
-            <Button onClick={() => router.push('/expert/home')} className="bg-[#008260] hover:bg-[#006d51]">
+            <Button onClick={() => router.push(`${basePath}/home`)} className="bg-[#008260] hover:bg-[#006d51]">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Home
             </Button>
@@ -300,17 +310,17 @@ export default function ExpertProjectPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
-            <Link href="/expert/home" className="flex items-center group">
+            <Link href={`${basePath}/home`} className="flex items-center group">
               <Logo size="header" />
             </Link>
 
             {/* Navigation */}
             <nav className="hidden md:flex items-center space-x-8">
-              <Link href="/expert/home" className="text-white font-medium transition-colors duration-200 relative group">
+              <Link href={`${basePath}/home`} className="text-white font-medium transition-colors duration-200 relative group">
                 Home
                 <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
-              <Link href="/expert/dashboard" className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
+              <Link href={`${basePath}/dashboard`} className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
                 Dashboard
                 <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
@@ -325,7 +335,7 @@ export default function ExpertProjectPage() {
               <ProfileDropdown 
                 user={user} 
                 expert={expert} 
-                userType="expert" 
+                userType={viewer === 'super_admin' ? 'super_admin' : 'expert'} 
               />
             </div>
           </div>
@@ -561,7 +571,7 @@ export default function ExpertProjectPage() {
                         
                         <div className="flex items-center justify-between">
                           <div className="text-2xl font-bold text-[#008260]">₹{proj.hourly_rate}/hr</div>
-                          <Link href={`/expert/project/${proj.id}`}>
+                          <Link href={`${basePath}/project/${proj.id}`}>
                             <Button className="bg-[#008260] hover:bg-[#006d51] text-white rounded-lg w-20">
                               View
                             </Button>
@@ -600,7 +610,7 @@ export default function ExpertProjectPage() {
                       
                       <div className="flex items-center justify-between">
                         <div className="text-2xl font-bold text-[#008260]">₹{proj.hourly_rate}/hr</div>
-                        <Link href={`/expert/project/${proj.id}`}>
+                        <Link href={`${basePath}/project/${proj.id}`}>
                           <Button className="bg-[#008260] hover:bg-[#006d51] text-white rounded-lg w-20">
                             View
                           </Button>

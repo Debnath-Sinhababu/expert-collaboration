@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS experts (
     experience_years INTEGER, 
     qualifications TEXT,
     domain_expertise TEXT[],
+    expert_types TEXT[] DEFAULT '{}',
+    expert_services TEXT[] DEFAULT '{}',
     hourly_rate DECIMAL(10,2),
     resume_url TEXT,
     availability JSONB, -- Store weekly availability as JSON

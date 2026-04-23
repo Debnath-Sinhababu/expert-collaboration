@@ -484,6 +484,11 @@ export default function AdminCreateExpert() {
                   Bulk Import
                 </Button>
               </Link>
+              <Link href="/admin/super-admins">
+                <Button variant="ghost" className="font-medium text-white hover:text-white hover:bg-white/10 transition-all duration-300 px-4 py-2 text-sm">
+                  Super Admins
+                </Button>
+              </Link>
               <Link href="/">
                 <Button variant="ghost" className="font-medium text-white hover:text-white hover:bg-white/10 transition-all duration-300 px-4 py-2 text-sm">
                   Home

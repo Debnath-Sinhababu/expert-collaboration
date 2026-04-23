@@ -13,6 +13,8 @@ dotenv.config();
 // Import services after environment variables are loaded
 const notificationService = require('./services/notificationService');
 const socketService = require('./services/socketService');
+const institutionAccess = require('./auth/institutionAccess');
+const expertAccess = require('./auth/expertAccess');
 
 console.log('Environment variables loaded:');
 console.log('UPSTASH_REDIS_REST_URL:', process.env.UPSTASH_REDIS_REST_URL ? 'Set' : 'Not set');
@@ -62,6 +64,23 @@ function isCommonEmailProvider(email) {
   if (!normalized.includes('@')) return false;
   const domain = normalized.split('@').pop();
   return !!domain && commonDomains.some(common => domain === common || domain.endsWith(`.${common}`));
+}
+
+const ADMIN_AUTH_EMAIL = 'debnathsinhababu2017@gmail.com';
+function requireAdminAuth(req, res) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    res.status(401).json({ error: 'Authorization required' });
+    return null;
+  }
+
+  const token = authHeader.substring(7);
+  if (!token.includes(ADMIN_AUTH_EMAIL)) {
+    res.status(403).json({ error: 'Access denied' });
+    return null;
+  }
+
+  return token;
 }
 
 app.use(helmet());
@@ -212,6 +231,10 @@ app.get('/api/experts', async (req, res) => {
     if (is_verified) {
       query = query.eq('is_verified', is_verified === 'true');
     }
+
+    if (req.query.interested !== undefined) {
+      query = query.eq('interested_in_services', String(req.query.interested) === 'true');
+    }
     
     if (min_rating) {
       query = query.gte('rating', parseFloat(min_rating));
@@ -260,7 +283,8 @@ app.post('/api/experts', upload.fields([
   { name: 'profile_photo', maxCount: 1 },
   { name: 'resume', maxCount: 1 },
   { name: 'qualifications', maxCount: 1 },
-  { name: 'profile_video', maxCount: 1 }
+  { name: 'profile_video', maxCount: 1 },
+  { name: 'course_video', maxCount: 1 }
 ]), async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
@@ -363,6 +387,22 @@ app.post('/api/experts', upload.fields([
         });
       }
     }
+
+    // Course video (short sample to show course quality)
+    let courseVideoData = null;
+    if (req.files?.course_video?.[0]) {
+      courseVideoData = await ImageUploadService.uploadVideo(
+        req.files.course_video[0].buffer,
+        'expert-course-videos',
+        null,
+        req.files.course_video[0].mimetype
+      );
+      if (!courseVideoData.success) {
+        return res.status(500).json({
+          error: `Course video upload failed: ${courseVideoData.error}`
+        });
+      }
+    }
     
     // Check if domain is custom (not in predefined list)
     const domainName = req.body.domain_expertise;
@@ -443,14 +483,31 @@ app.post('/api/experts', upload.fields([
       last_working_company: req.body.last_working_company || null,
       current_designation: req.body.current_designation || null,
       expert_types: Array.isArray(req.body.expert_types) ? req.body.expert_types : (req.body.expert_types ? JSON.parse(req.body.expert_types) : []),
+      expert_services: Array.isArray(req.body.expert_services) ? req.body.expert_services : (req.body.expert_services ? JSON.parse(req.body.expert_services) : []),
       available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true,
       city: req.body.city || null,
       state: req.body.state || null,
       pan_number: panNormalized,
       profile_video_url: profileVideoData?.url || null,
-      profile_video_public_id: profileVideoData?.publicId || null
+      profile_video_public_id: profileVideoData?.publicId || null,
+      interested_in_services: req.body.interested_in_services === 'true' || req.body.interested_in_services === true,
+      course_video_url: courseVideoData?.url || null,
+      course_video_public_id: courseVideoData?.publicId || null,
+      service_price: req.body.service_price ? parseFloat(String(req.body.service_price)) : null
+      ,
+      calxbook_verified: false
     };
     
+    const { data: existingByEmail } = await supabaseClient
+      .from('experts')
+      .select('id')
+      .eq('email', expertData.email)
+      .limit(1);
+
+    if (existingByEmail && existingByEmail.length > 0) {
+      return res.status(409).json({ error: 'An expert with this email already exists. Use the profile edit flow to update the profile.' });
+    }
+
     const { data, error } = await supabaseClient
       .from('experts')
       .insert([expertData])
@@ -520,7 +577,8 @@ app.put('/api/experts/:id', upload.fields([
   { name: 'profile_photo', maxCount: 1 },
   { name: 'resume', maxCount: 1 },
   { name: 'qualifications', maxCount: 1 },
-  { name: 'profile_video', maxCount: 1 }
+  { name: 'profile_video', maxCount: 1 },
+  { name: 'course_video', maxCount: 1 }
 ]), async (req, res) => {
   try {
     console.log('PUT /api/experts/:id - Request body:', req.body);
@@ -547,6 +605,7 @@ app.put('/api/experts/:id', upload.fields([
     
     const authHeader = req.headers.authorization;
     let supabaseClient = supabase;
+    let isSuperAdmin = false;
     
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
@@ -562,6 +621,16 @@ app.put('/api/experts/:id', upload.fields([
           }
         }
       );
+      const { data: userData } = await supabaseClient.auth.getUser();
+      const role = userData?.user?.user_metadata?.role;
+      if (role === 'super_admin') {
+        const access = await expertAccess.resolveExpertAccess(req, req.params.id);
+        if (!access) {
+          return res.status(403).json({ error: 'Unauthorized' });
+        }
+        isSuperAdmin = true;
+        supabaseClient = expertAccess.getWriteClientForExpert(access);
+      }
     } else {
       console.log('PUT /api/experts/:id - No auth token, using basic client');
     }
@@ -634,13 +703,37 @@ app.put('/api/experts/:id', upload.fields([
       last_working_company: req.body.last_working_company || null,
       current_designation: req.body.current_designation || null,
       expert_types: Array.isArray(req.body.expert_types) ? req.body.expert_types : (req.body.expert_types ? JSON.parse(req.body.expert_types) : []),
+      expert_services: Array.isArray(req.body.expert_services) ? req.body.expert_services : (req.body.expert_services ? JSON.parse(req.body.expert_services) : []),
       available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true,
+      interested_in_services: req.body.interested_in_services === 'true' || req.body.interested_in_services === true,
+      service_price: req.body.service_price !== undefined && req.body.service_price !== '' ? parseFloat(String(req.body.service_price)) : undefined,
       city: req.body.city || null,
       state: req.body.state || null
     };
 
     delete updateData.profile_video;
     delete updateData.pan_number;
+
+    // Handle explicit removal flags for videos (sent from form as 'true')
+    const removeProfileVideoFlag = req.body.remove_profile_video === 'true' || req.body.remove_profile_video === true
+    const removeCourseVideoFlag = req.body.remove_course_video === 'true' || req.body.remove_course_video === true
+
+    if (removeProfileVideoFlag) {
+      if (currentExpert?.profile_video_public_id) {
+        await ImageUploadService.deleteVideo(currentExpert.profile_video_public_id);
+      }
+      updateData.profile_video_url = null
+      updateData.profile_video_public_id = null
+    }
+
+    // Only allow super admin to change verification status
+    if (!isSuperAdmin && updateData.hasOwnProperty('is_verified')) {
+      delete updateData.is_verified;
+    }
+    // Only allow super admin to change Calxbook visibility flag
+    if (!isSuperAdmin && updateData.hasOwnProperty('calxbook_verified')) {
+      delete updateData.calxbook_verified;
+    }
 
     // PAN is mandatory: use body value, or keep existing when pan_number omitted from request
     const panInBody = req.body.pan_number;
@@ -751,6 +844,38 @@ app.put('/api/experts/:id', upload.fields([
       updateData.profile_video_url = videoData.url;
       updateData.profile_video_public_id = videoData.publicId;
     }
+
+    // Handle course video update if uploaded
+    if (req.files?.course_video?.[0]) {
+      if (currentExpert?.course_video_public_id) {
+        await ImageUploadService.deleteVideo(currentExpert.course_video_public_id);
+      }
+
+      const courseVideoData = await ImageUploadService.uploadVideo(
+        req.files.course_video[0].buffer,
+        'expert-course-videos',
+        null,
+        req.files.course_video[0].mimetype
+      );
+
+      if (!courseVideoData.success) {
+        return res.status(500).json({
+          error: `Course video upload failed: ${courseVideoData.error}`
+        });
+      }
+
+      updateData.course_video_url = courseVideoData.url;
+      updateData.course_video_public_id = courseVideoData.publicId;
+    }
+
+    // Handle explicit removal of course video
+    if (removeCourseVideoFlag && !req.files?.course_video?.[0]) {
+      if (currentExpert?.course_video_public_id) {
+        await ImageUploadService.deleteVideo(currentExpert.course_video_public_id);
+      }
+      updateData.course_video_url = null
+      updateData.course_video_public_id = null
+    }
     
     const { data, error } = await supabaseClient
       .from('experts')
@@ -773,6 +898,64 @@ app.put('/api/experts/:id', upload.fields([
   } catch (error) {
     console.log('PUT /api/experts/:id - Error:', error.message);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Dedicated endpoint for superadmins to toggle Calxbook visibility for an expert
+app.put('/api/experts/:id/calxbook-visibility', async (req, res) => {
+  try {
+    const expertId = req.params.id;
+
+    // Parse token and verify role directly
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Authorization required' });
+    }
+    const token = authHeader.substring(7);
+
+    const userClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY,
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      }
+    );
+
+    const { data: userData, error: userErr } = await userClient.auth.getUser();
+    if (userErr || !userData || !userData.user) {
+      return res.status(403).json({ error: 'Invalid token' });
+    }
+
+    const role = userData.user.user_metadata?.role;
+    if (role !== 'super_admin') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    // Use service-role client to perform the update
+    const writeClient = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+    if (req.body.calxbook_verified === undefined) {
+      return res.status(400).json({ error: 'calxbook_verified boolean is required' });
+    }
+
+    const value = req.body.calxbook_verified === true || req.body.calxbook_verified === 'true';
+
+    const { data, error } = await writeClient
+      .from('experts')
+      .update({ calxbook_verified: value })
+      .eq('id', expertId)
+      .select();
+
+    if (error) throw error;
+    if (!data || data.length === 0) return res.status(404).json({ error: 'Expert not found' });
+    res.json(data[0]);
+  } catch (err) {
+    console.error('Calxbook visibility update error:', err?.message || err);
+    res.status(500).json({ error: err.message || 'Failed to update calxbook visibility' });
   }
 });
 
@@ -989,26 +1172,12 @@ app.get('/api/institutions/user/:userId', async (req, res) => {
 
 app.put('/api/institutions/:id', upload.single('logo'), async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1];
-    
-    let supabaseClient = supabase;
-    if (token) {
-      console.log('PUT /api/institutions/:id - Using authenticated client with token');
-      supabaseClient = createClient(
-        process.env.SUPABASE_URL,
-        process.env.SUPABASE_ANON_KEY,
-        {
-          global: {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          }
-        }
-      );
-    } else {
-      console.log('PUT /api/institutions/:id - No auth token, using basic client');
+    const access = await institutionAccess.resolveInstitutionAccess(req, req.params.id);
+    if (!access) {
+      return res.status(403).json({ error: 'Unauthorized' });
     }
+
+    const supabaseClient = institutionAccess.getWriteClientForInstitution(access);
     
     // Convert empty string to null for company_size to satisfy CHECK constraint
     const updateData = { ...req.body };
@@ -1206,49 +1375,15 @@ app.post('/api/projects', upload.fields([
     console.log('=== PROJECT CREATION DEBUG ===');
     console.log('Headers:', req.headers);
     console.log('Body:', req.body);
-    
-    const authHeader = req.headers.authorization;
-    let supabaseClient = supabase;
-    
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
-      
-      supabaseClient = createClient(
-        process.env.SUPABASE_URL,
-        process.env.SUPABASE_ANON_KEY,
-        {
-          global: {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          }
-        }
-      );
-      
-      const { data: userData, error: userError } = await supabaseClient.auth.getUser();
-      console.log('Authenticated user:', userData?.user?.id);
-      console.log('User error:', userError);
-      
-      if (userData?.user?.id) {
-        const { data: institutionData, error: instError } = await supabaseClient
-          .from('institutions')
-          .select('id, user_id')
-          .eq('user_id', userData.user.id)
-          .single();
-        
-        console.log('User institution:', institutionData);
-        console.log('Requested institution_id:', req.body.institution_id);
-        console.log('Institution match:', institutionData?.id === req.body.institution_id);
-        console.log('Institution error:', instError);
-        if (!institutionData) {
-          return res.status(403).json({ error: 'Unauthorized' });
-        }
-      }
-    } else {
-      console.log('No auth token provided');
+
+    const institutionIdFromBody = req.body.institution_id;
+
+    const access = await institutionAccess.resolveInstitutionAccess(req, institutionIdFromBody);
+    if (!access) {
+      return res.status(403).json({ error: 'Unauthorized' });
     }
-    
-    console.log('Institution ID from request:', req.body.institution_id);
+
+    const supabaseClient = institutionAccess.getWriteClientForInstitution(access);
     
     // Normalize array-like fields that may arrive as comma-separated strings
     const rawBody = req.body || {};
@@ -1379,38 +1514,39 @@ app.get('/api/projects/:id', async (req, res) => {
 
 app.put('/api/projects/:id', async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    let supabaseClient = supabase;
-    
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
-      supabaseClient = createClient(
-        process.env.SUPABASE_URL,
-        process.env.SUPABASE_ANON_KEY,
-        {
-          global: {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          }
-        }
-      );
+    const service = institutionAccess.getServiceClient();
+    const { data: projectRow, error: projErr } = await service
+      .from('projects')
+      .select('id, institution_id')
+      .eq('id', req.params.id)
+      .maybeSingle();
+
+    if (projErr) throw projErr;
+    if (!projectRow) {
+      return res.status(404).json({ error: 'Project not found' });
     }
-    
+
+    const access = await institutionAccess.resolveInstitutionAccess(req, projectRow.institution_id);
+    if (!access) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const supabaseClient = institutionAccess.getWriteClientForInstitution(access);
+
     const { data, error } = await supabaseClient
       .from('projects')
       .update(req.body)
       .eq('id', req.params.id)
       .select();
-    
+
     if (error) throw error;
-    
+
     console.log('Update result:', { data, error });
-    
+
     if (!data || data.length === 0) {
       return res.status(404).json({ error: 'Project not found' });
     }
-    
+
     res.json(data[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -3608,8 +3744,23 @@ app.get('/api/applications', async (req, res) => {
     } else {
       console.log('Using unauthenticated client for applications fetch');
     }
-    
-    let query = supabaseClient
+
+    let queryClient = supabaseClient;
+    if (institution_id) {
+      const access = await institutionAccess.resolveInstitutionAccess(req, String(institution_id));
+      if (!access) {
+        return res.status(403).json({ error: 'Unauthorized' });
+      }
+      queryClient = institutionAccess.getWriteClientForInstitution(access);
+    } else if (expert_id) {
+      const access = await expertAccess.resolveExpertAccess(req, String(expert_id));
+      if (!access) {
+        return res.status(403).json({ error: 'Unauthorized' });
+      }
+      queryClient = expertAccess.getWriteClientForExpert(access);
+    }
+
+    let query = queryClient
       .from('applications')
       .select(`
         *,
@@ -3697,16 +3848,16 @@ app.get('/api/applications', async (req, res) => {
     if (error) throw error;
 
     // Get counts for all statuses for the same filters
-    let countQuery = supabaseClient
+    let countQuery = queryClient
       .from('applications')
       .select('status');
-    
+
     if (expert_id) countQuery = countQuery.eq('expert_id', expert_id);
     if (project_id) countQuery = countQuery.eq('project_id', project_id);
     if (institution_id) countQuery = countQuery.eq('institution_id', institution_id);
-    
+
     const { data: allApplications, error: countError } = await countQuery;
-    
+
     if (countError) {
       console.log('Count query error:', countError);
       res.json(data);
@@ -3719,7 +3870,7 @@ app.get('/api/applications', async (req, res) => {
         accepted: allApplications?.filter(a => a.status === 'accepted').length || 0,
         rejected: allApplications?.filter(a => a.status === 'rejected').length || 0
       };
-      
+
       res.json({
         data: data,
         counts: counts
@@ -3756,21 +3907,36 @@ app.get('/api/applications/counts', async (req, res) => {
     if (userError) throw userError;
 
     const { expert_id, project_id, institution_id, status } = req.query;
-    
-    let query = supabaseClient
+
+    let queryClient = supabaseClient;
+    if (institution_id) {
+      const access = await institutionAccess.resolveInstitutionAccess(req, String(institution_id));
+      if (!access) {
+        return res.status(403).json({ error: 'Unauthorized' });
+      }
+      queryClient = institutionAccess.getWriteClientForInstitution(access);
+    } else if (expert_id) {
+      const access = await expertAccess.resolveExpertAccess(req, String(expert_id));
+      if (!access) {
+        return res.status(403).json({ error: 'Unauthorized' });
+      }
+      queryClient = expertAccess.getWriteClientForExpert(access);
+    }
+
+    let query = queryClient
       .from('applications')
       .select('status');
-    
+
     if (expert_id) query = query.eq('expert_id', expert_id);
     if (project_id) query = query.eq('project_id', project_id);
     if (institution_id) query = query.eq('institution_id', institution_id);
     // Only filter by status if specifically requested
     if (status) query = query.eq('status', status);
-    
+
     const { data, error } = await query;
-    
+
     if (error) throw error;
-    
+
     // Calculate counts by status
     const applicationCounts = {
       total: data?.length || 0,
@@ -3779,7 +3945,7 @@ app.get('/api/applications/counts', async (req, res) => {
       accepted: data?.filter(a => a.status === 'accepted').length || 0,
       rejected: data?.filter(a => a.status === 'rejected').length || 0
     };
-    
+
     console.log('Application counts fetched:', applicationCounts);
     res.json(applicationCounts);
   } catch (error) {
@@ -3818,21 +3984,36 @@ app.post('/api/applications', async (req, res) => {
       console.log('User error:', userError);
       
       if (userData?.user?.id) {
-        const { data: expertData, error: expertError } = await supabaseClient
-          .from('experts')
-          .select('id, user_id')
-          .eq('user_id', userData.user.id)
-          .single();
-        
-        console.log('User expert profile:', expertData);
-        console.log('Expert error:', expertError);
-        
-        if (expertData?.id) {
-          req.body.expert_id = expertData.id;
-          console.log('Added expert_id to request:', expertData.id);
+        const role = userData.user.user_metadata?.role;
+        if (role === 'super_admin') {
+          const actingExpertId = expertAccess.parseActingExpertId(req);
+          if (!actingExpertId) {
+            return res.status(400).json({ error: 'X-Acting-Expert-Id is required for super admin' });
+          }
+          const access = await expertAccess.resolveExpertAccess(req, actingExpertId);
+          if (!access) {
+            return res.status(403).json({ error: 'Unauthorized' });
+          }
+          req.body.expert_id = access.expert.id;
+          supabaseClient = expertAccess.getWriteClientForExpert(access);
+          console.log('Super admin acting as expert:', req.body.expert_id);
         } else {
-          console.log('No expert profile found for user');
-          return res.status(400).json({ error: 'Expert profile not found. Please complete your profile setup first.' });
+          const { data: expertData, error: expertError } = await supabaseClient
+            .from('experts')
+            .select('id, user_id')
+            .eq('user_id', userData.user.id)
+            .single();
+          
+          console.log('User expert profile:', expertData);
+          console.log('Expert error:', expertError);
+          
+          if (expertData?.id) {
+            req.body.expert_id = expertData.id;
+            console.log('Added expert_id to request:', expertData.id);
+          } else {
+            console.log('No expert profile found for user');
+            return res.status(400).json({ error: 'Expert profile not found. Please complete your profile setup first.' });
+          }
         }
       } else {
         console.log('No authenticated user found');
@@ -3916,27 +4097,33 @@ app.post('/api/applications', async (req, res) => {
 
 app.put('/api/applications/:id', async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    let supabaseClient = supabase;
-   
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
-      supabaseClient = createClient(
-        process.env.SUPABASE_URL,
-        process.env.SUPABASE_ANON_KEY,
-        {
-          global: {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          }
-        }
-      );
+    const service = institutionAccess.getServiceClient();
+    const { data: appRow, error: appErr } = await service
+      .from('applications')
+      .select('id, project_id')
+      .eq('id', req.params.id)
+      .maybeSingle();
+    if (appErr) throw appErr;
+    if (!appRow) {
+      return res.status(404).json({ error: 'Application not found' });
     }
 
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser();
-    console.log('Authenticated user:', userData?.user?.id);
-    console.log('User error:', userError);
+    const { data: projRow, error: projErr } = await service
+      .from('projects')
+      .select('institution_id')
+      .eq('id', appRow.project_id)
+      .maybeSingle();
+    if (projErr) throw projErr;
+    if (!projRow) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const access = await institutionAccess.resolveInstitutionAccess(req, projRow.institution_id);
+    if (!access) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const supabaseClient = institutionAccess.getWriteClientForInstitution(access);
 
     // Handle interview_date field if provided
     const updateData = { ...req.body };
@@ -3944,15 +4131,15 @@ app.put('/api/applications/:id', async (req, res) => {
       // Convert to proper timestamp format
       updateData.interview_date = new Date(updateData.interview_date).toISOString();
     }
-    
+
     const { data, error } = await supabaseClient
       .from('applications')
       .update(updateData)
       .eq('id', req.params.id)
       .select();
-    
+
     if (error) throw error;
-    
+
     // Send notification to expert about application status change
     try {
       if (req.body.status === 'interview') {
@@ -4138,7 +4325,23 @@ app.get('/api/bookings', async (req, res) => {
 
     const { expert_id, institution_id, project_id, page = 1, limit = 10 } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
-    let query = supabaseClient
+
+    let queryClient = supabaseClient;
+    if (institution_id) {
+      const access = await institutionAccess.resolveInstitutionAccess(req, String(institution_id));
+      if (!access) {
+        return res.status(403).json({ error: 'Unauthorized' });
+      }
+      queryClient = institutionAccess.getWriteClientForInstitution(access);
+    } else if (expert_id) {
+      const access = await expertAccess.resolveExpertAccess(req, String(expert_id));
+      if (!access) {
+        return res.status(403).json({ error: 'Unauthorized' });
+      }
+      queryClient = expertAccess.getWriteClientForExpert(access);
+    }
+
+    let query = queryClient
       .from('bookings')
       .select(`
         *,
@@ -4237,7 +4440,7 @@ app.get('/api/bookings', async (req, res) => {
     console.log('Bookings fetched:', data?.length || 0);
     
     // Get counts for all bookings for the same filters
-    let countQuery = supabaseClient
+    let countQuery = queryClient
       .from('bookings')
       .select('status');
     
@@ -4296,19 +4499,34 @@ app.get('/api/bookings/counts', async (req, res) => {
     if (userError) throw userError;
 
     const { expert_id, institution_id, project_id } = req.query;
-    
-    let query = supabaseClient
+
+    let queryClient = supabaseClient;
+    if (institution_id) {
+      const access = await institutionAccess.resolveInstitutionAccess(req, String(institution_id));
+      if (!access) {
+        return res.status(403).json({ error: 'Unauthorized' });
+      }
+      queryClient = institutionAccess.getWriteClientForInstitution(access);
+    } else if (expert_id) {
+      const access = await expertAccess.resolveExpertAccess(req, String(expert_id));
+      if (!access) {
+        return res.status(403).json({ error: 'Unauthorized' });
+      }
+      queryClient = expertAccess.getWriteClientForExpert(access);
+    }
+
+    let query = queryClient
       .from('bookings')
       .select('status');
-    
+
     if (expert_id) query = query.eq('expert_id', expert_id);
     if (institution_id) query = query.eq('institution_id', institution_id);
     if (project_id) query = query.eq('project_id', project_id);
-    
+
     const { data, error } = await query;
-    
+
     if (error) throw error;
-    
+
     // Calculate counts by status
     const bookingCounts = {
       total: data?.length || 0,
@@ -4317,7 +4535,7 @@ app.get('/api/bookings/counts', async (req, res) => {
       cancelled: data?.filter(b => b.status === 'cancelled').length || 0,
       pending: data?.filter(b => b.status === 'pending').length || 0
     };
-    
+
     console.log('Booking counts fetched:', bookingCounts);
     res.json(bookingCounts);
   } catch (error) {
@@ -4588,6 +4806,11 @@ app.put('/api/bookings/:id', async (req, res) => {
 // Delete a booking (only from bookings table)
 app.delete('/api/bookings/:id', async (req, res) => {
   try {
+    const { user: delUser } = await institutionAccess.getAuthedUserFromRequest(req);
+    if (delUser && institutionAccess.getRole(delUser) === 'super_admin') {
+      return res.status(403).json({ error: 'Super admin delete is not allowed' });
+    }
+
     const authHeader = req.headers.authorization;
     let supabaseClient = supabase;
    
@@ -5131,6 +5354,7 @@ app.post('/api/admin/experts', upload.fields([
       last_working_company: req.body.last_working_company || null,
       current_designation: req.body.current_designation || null,
       expert_types: Array.isArray(req.body.expert_types) ? req.body.expert_types : (req.body.expert_types ? JSON.parse(req.body.expert_types) : []),
+      expert_services: Array.isArray(req.body.expert_services) ? req.body.expert_services : (req.body.expert_services ? JSON.parse(req.body.expert_services) : []),
       available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true,
       city: req.body.city || null,
       state: req.body.state || null,
@@ -5148,6 +5372,145 @@ app.post('/api/admin/experts', upload.fields([
     res.status(201).json(data[0]);
   } catch (error) {
     console.error('Admin create expert error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: List super admin users
+app.get('/api/admin/super-admins', async (req, res) => {
+  const token = requireAdminAuth(req, res);
+  if (!token) return;
+
+  try {
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    const { data, error } = await serviceClient.auth.admin.listUsers({ perPage: 1000, page: 1 });
+    if (error) throw error;
+
+    const users = Array.isArray(data?.users) ? data.users : [];
+    const superAdmins = users
+      .filter((user) => user.user_metadata?.role === 'super_admin')
+      .map((user) => ({
+        id: user.id,
+        email: user.email,
+        role: user.user_metadata?.role || 'super_admin',
+        created_at: user.created_at
+      }));
+
+    res.json(superAdmins);
+  } catch (error) {
+    console.error('Admin get super admins error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: Create a new super admin user
+app.post('/api/admin/super-admins/create', async (req, res) => {
+  const token = requireAdminAuth(req, res);
+  if (!token) return;
+
+  try {
+    const email = String((req.body?.email || '').trim()).toLowerCase();
+    const password = String(req.body?.password || '');
+
+    if (!email || !email.includes('@') || !email.includes('.')) {
+      return res.status(400).json({ error: 'Valid email is required' });
+    }
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required to create a new super admin' });
+    }
+
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    const { data: listData, error: listError } = await serviceClient.auth.admin.listUsers({ perPage: 1000, page: 1 });
+    if (listError) throw listError;
+
+    const users = Array.isArray(listData?.users) ? listData.users : [];
+    const existingUser = users.find((user) => user.email?.toLowerCase() === email);
+    if (existingUser) {
+      return res.status(409).json({ error: 'User already exists. Use the promote endpoint for existing accounts.' });
+    }
+
+    const { data: createData, error: createError } = await serviceClient.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        role: 'super_admin'
+      }
+    });
+    if (createError) throw createError;
+
+    const newUser = createData.user;
+    res.status(201).json({
+      success: true,
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+        role: newUser.user_metadata?.role || 'super_admin',
+        created_at: newUser.created_at
+      }
+    });
+  } catch (error) {
+    console.error('Admin create super admin error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: Promote an existing user to super admin
+app.post('/api/admin/super-admins/promote', async (req, res) => {
+  const token = requireAdminAuth(req, res);
+  if (!token) return;
+
+  try {
+    const email = String((req.body?.email || '').trim()).toLowerCase();
+
+    if (!email || !email.includes('@') || !email.includes('.')) {
+      return res.status(400).json({ error: 'Valid email is required' });
+    }
+
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    const { data: listData, error: listError } = await serviceClient.auth.admin.listUsers({ perPage: 1000, page: 1 });
+    if (listError) throw listError;
+
+    const users = Array.isArray(listData?.users) ? listData.users : [];
+    const existingUser = users.find((user) => user.email?.toLowerCase() === email);
+    if (!existingUser) {
+      return res.status(404).json({ error: 'User not found. Please use an existing registered email to promote to super admin.' });
+    }
+
+    const updatePayload = {
+      user_metadata: {
+        ...(existingUser.user_metadata || {}),
+        role: 'super_admin'
+      }
+    };
+
+    const { data: updateData, error: updateError } = await serviceClient.auth.admin.updateUserById(existingUser.id, updatePayload);
+    if (updateError) throw updateError;
+
+    const updatedUser = updateData.user || existingUser;
+    res.json({
+      success: true,
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        role: updatedUser.user_metadata?.role || 'super_admin',
+        created_at: updatedUser.created_at
+      }
+    });
+  } catch (error) {
+    console.error('Admin promote super admin error:', error);
     res.status(500).json({ error: error.message });
   }
 });

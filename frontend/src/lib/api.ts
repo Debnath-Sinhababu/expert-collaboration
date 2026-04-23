@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { SUPERADMIN_ACTING_INSTITUTION_KEY, SUPERADMIN_ACTING_EXPERT_KEY } from './superAdminActing'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -9,8 +10,30 @@ const getAuthHeaders = async () => {
   if (session?.access_token) {
     headers['Authorization'] = `Bearer ${session.access_token}`
   }
+
+  const role = session?.user?.user_metadata?.role as string | undefined
+  if (role === 'super_admin' && typeof window !== 'undefined') {
+    const actingExpert = sessionStorage.getItem(SUPERADMIN_ACTING_EXPERT_KEY)
+    const actingInstitution = sessionStorage.getItem(SUPERADMIN_ACTING_INSTITUTION_KEY)
+    if (actingExpert) {
+      headers['X-Acting-Expert-Id'] = actingExpert
+    } else if (actingInstitution) {
+      headers['X-Acting-Institution-Id'] = actingInstitution
+    }
+  }
   
   return headers
+}
+
+/** Authorization + acting headers only (no Content-Type). Use for multipart FormData requests. */
+export async function getAuthHeadersForFormData() {
+  const headers = await getAuthHeaders()
+  const out: Record<string, string> = {
+    Authorization: headers.Authorization || ''
+  }
+  if (headers['X-Acting-Expert-Id']) out['X-Acting-Expert-Id'] = headers['X-Acting-Expert-Id']
+  if (headers['X-Acting-Institution-Id']) out['X-Acting-Institution-Id'] = headers['X-Acting-Institution-Id']
+  return out
 }
 
 export const api = {
@@ -64,6 +87,7 @@ export const api = {
       max_hourly_rate?: number;
       state?: string;
       is_verified?: boolean;
+      interested?: boolean;
       min_rating?: number;
       sort_by?: string;
       sort_order?: 'asc' | 'desc';
@@ -127,6 +151,18 @@ export const api = {
       } catch (parseError) {
         return { success: true }
       }
+    }
+    ,
+    setCalxbookVisibility: async (id: string, visible: boolean) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/experts/${id}/calxbook-visibility`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ calxbook_verified: visible })
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to update calxbook visibility')
+      return json
     }
   },
 
@@ -321,7 +357,14 @@ export const api = {
       const isFormData = formData && formData instanceof FormData
       const fetchOpts: RequestInit = {
         method: 'POST',
-        headers: isFormData ? { Authorization: (headers as any).Authorization } : headers,
+        headers: isFormData
+          ? {
+              Authorization: headers.Authorization || '',
+              ...(headers['X-Acting-Institution-Id']
+                ? { 'X-Acting-Institution-Id': headers['X-Acting-Institution-Id'] }
+                : {})
+            }
+          : headers,
         body: isFormData ? formData : JSON.stringify(data)
       }
       return fetch(`${API_BASE_URL}/api/institutions`, fetchOpts).then(res => res.json())
@@ -331,7 +374,14 @@ export const api = {
       const isFormData = formData && formData instanceof FormData
       const fetchOpts: RequestInit = {
         method: 'PUT',
-        headers: isFormData ? { Authorization: (headers as any).Authorization } : headers,
+        headers: isFormData
+          ? {
+              Authorization: headers.Authorization || '',
+              ...(headers['X-Acting-Institution-Id']
+                ? { 'X-Acting-Institution-Id': headers['X-Acting-Institution-Id'] }
+                : {})
+            }
+          : headers,
         body: isFormData ? formData : JSON.stringify(data)
       }
       return fetch(`${API_BASE_URL}/api/institutions/${id}`, fetchOpts).then(res => res.json())
@@ -370,10 +420,15 @@ export const api = {
       return fetch(`${API_BASE_URL}/api/projects/${id}?${query}`, { headers }).then(res => res.json())
     },
     create: async (formData: FormData) => {
-      const { data: { session } } = await supabase.auth.getSession()
+      const headers = await getAuthHeaders()
       const res = await fetch(`${API_BASE_URL}/api/projects`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${session?.access_token || ''}` },
+        headers: {
+          Authorization: headers.Authorization || '',
+          ...(headers['X-Acting-Institution-Id']
+            ? { 'X-Acting-Institution-Id': headers['X-Acting-Institution-Id'] }
+            : {})
+        },
         body: formData
       })
 
