@@ -9,15 +9,16 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { toast } from 'sonner'
-import { ShieldCheck, UserPlus } from 'lucide-react'
+import { ArrowLeft, Search, ShieldCheck, UserPlus } from 'lucide-react'
 import Logo from '@/components/Logo'
 
 const ADMIN_AUTH_EMAIL = 'debnathsinhababu2017@gmail.com'
-const HARD_CODED_EMAILS = [
-  'debnathsinhababu2017@gmail.com',
-  'superadmin1@calxmap.in',
-  'superadmin2@calxmap.in'
-]
+type Expert = {
+  id: string
+  name?: string
+  email: string
+  photo_url?: string
+}
 
 function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
@@ -30,6 +31,11 @@ export default function AdminSuperAdminsPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [loading, setLoading] = useState(false)
   const [superAdmins, setSuperAdmins] = useState<Array<{ id: string; email: string; role?: string; created_at?: string }>>([])
+  const [experts, setExperts] = useState<Expert[]>([])
+  const [expertsPage, setExpertsPage] = useState(1)
+  const [expertsHasMore, setExpertsHasMore] = useState(true)
+  const [expertsLoading, setExpertsLoading] = useState(false)
+  const [expertSearch, setExpertSearch] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
@@ -55,6 +61,23 @@ export default function AdminSuperAdminsPage() {
     }
   }, [isAuthenticated])
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadExperts()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, expertsPage])
+
+  useEffect(() => {
+    if (!isAuthenticated) return
+    const timer = setTimeout(() => {
+      setExpertsPage(1)
+      loadExperts(true)
+    }, 350)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expertSearch])
+
   const loadSuperAdmins = async () => {
     setLoading(true)
     setError('')
@@ -77,6 +100,44 @@ export default function AdminSuperAdminsPage() {
       setError(err.message || 'Unable to fetch super admin list')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadExperts = async (reset = false) => {
+    if (expertsLoading) return
+    setExpertsLoading(true)
+    setError('')
+    try {
+      const pageToFetch = reset ? 1 : expertsPage
+      const params = new URLSearchParams({
+        page: pageToFetch.toString(),
+        limit: '12'
+      })
+      if (expertSearch.trim()) {
+        params.append('search', expertSearch.trim())
+      }
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/admin/profiles/experts?${params.toString()}`,
+        { headers: getAdminHeaders() }
+      )
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error || 'Unable to load experts')
+      }
+
+      const data = await response.json()
+      const newExperts = (Array.isArray(data) ? data : []) as Expert[]
+      setExperts((prev) => (reset ? newExperts : [...prev, ...newExperts]))
+      setExpertsHasMore(newExperts.length === 12)
+      if (reset) {
+        setExpertsPage(1)
+      }
+    } catch (err: any) {
+      setError(err.message || 'Unable to fetch experts')
+    } finally {
+      setExpertsLoading(false)
     }
   }
 
@@ -280,13 +341,19 @@ export default function AdminSuperAdminsPage() {
           <div>
             <h1 className="text-3xl font-bold text-slate-900">Super Admin Management</h1>
             <p className="text-sm text-slate-600 mt-2 max-w-2xl">
-              Create or promote registered emails to the super admin role and review current super admin accounts.
+              Promote experts to the super admin role and review current super admin accounts.
             </p>
           </div>
-          <Button onClick={() => setCreateDialogOpen(true)}>
-            <UserPlus className="mr-2 h-4 w-4" />
-            Create Super Admin
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => router.push('/admin/profiles')}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Profiles
+            </Button>
+            <Button onClick={() => setCreateDialogOpen(true)}>
+              <UserPlus className="mr-2 h-4 w-4" />
+              Create Super Admin
+            </Button>
+          </div>
         </div>
 
         {error && (
@@ -302,22 +369,32 @@ export default function AdminSuperAdminsPage() {
         )}
 
         <section className="space-y-4 mb-8">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-slate-900">Pre-approved registered emails</h2>
-              <p className="text-sm text-slate-500">These emails are pre-authorized to be promoted to super admin.</p>
+              <h2 className="text-xl font-semibold text-slate-900">Experts</h2>
+              <p className="text-sm text-slate-500">Search experts and promote eligible accounts to super admin.</p>
+            </div>
+            <div className="w-full sm:w-80 relative">
+              <Search className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Input
+                className="pl-9"
+                placeholder="Search by name or email..."
+                value={expertSearch}
+                onChange={(e) => setExpertSearch(e.target.value)}
+              />
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {HARD_CODED_EMAILS.map((email) => {
-              const already = isAlreadySuperAdmin(email)
+            {experts.map((expert) => {
+              const already = isAlreadySuperAdmin(expert.email)
               return (
-                <Card key={email} className="border-slate-200 bg-white p-2">
+                <Card key={expert.id} className="border-slate-200 bg-white p-2">
                   <CardContent>
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <p className="text-sm text-slate-500">Registered email</p>
-                        <p className="font-medium text-slate-900 break-all">{email}</p>
+                        <p className="text-sm text-slate-500">Expert</p>
+                        <p className="font-medium text-slate-900 break-all">{expert.name || 'Unnamed Expert'}</p>
+                        <p className="text-sm text-slate-600 break-all">{expert.email}</p>
                       </div>
                       <span className={`rounded-full px-3 py-1 text-xs font-semibold ${already ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'}`}>
                         {already ? 'Super Admin' : 'Available'}
@@ -326,7 +403,7 @@ export default function AdminSuperAdminsPage() {
                     <div className="mt-4 flex items-center gap-3">
                       <Button
                         disabled={already}
-                        onClick={() => openConfirmDialog(email)}
+                        onClick={() => openConfirmDialog(expert.email)}
                         className="w-full"
                       >
                         {already ? 'Already Super Admin' : 'Promote'}
@@ -337,6 +414,23 @@ export default function AdminSuperAdminsPage() {
               )
             })}
           </div>
+          {expertsLoading && (
+            <Card className="border border-slate-200 bg-white p-4 text-sm text-slate-500">
+              Loading experts...
+            </Card>
+          )}
+          {!expertsLoading && experts.length === 0 && (
+            <Card className="border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-500 text-center">
+              No experts found for this search.
+            </Card>
+          )}
+          {!expertsLoading && expertsHasMore && experts.length > 0 && (
+            <div className="flex justify-center">
+              <Button variant="outline" onClick={() => setExpertsPage((p) => p + 1)}>
+                Load More Experts
+              </Button>
+            </div>
+          )}
         </section>
 
         <section className="space-y-4">

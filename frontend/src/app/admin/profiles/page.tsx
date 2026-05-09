@@ -415,6 +415,13 @@ export default function AdminProfilesPage() {
               <Button
                 variant="ghost"
                 className="text-white hover:bg-white/10"
+                onClick={() => router.push('/admin/super-admins')}
+              >
+                Super Admins
+              </Button>
+              <Button
+                variant="ghost"
+                className="text-white hover:bg-white/10"
                 onClick={() => router.push('/')}
               >
                 Back to Home
