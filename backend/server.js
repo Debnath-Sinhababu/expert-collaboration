@@ -279,6 +279,74 @@ app.get('/api/experts', async (req, res) => {
   }
 });
 
+// CalxBook backend sync endpoint (server-to-server)
+// Returns full expert rows with compatibility aliases used by CalxBook.
+app.get('/api/calxbook/experts', async (req, res) => {
+  try {
+    // Optional server-to-server token guard.
+    const expectedToken = process.env.CALXBOOK_SYNC_TOKEN;
+    if (expectedToken) {
+      const incomingToken = req.headers['x-calxbook-sync-token'];
+      if (!incomingToken || incomingToken !== expectedToken) {
+        return res.status(401).json({ error: 'Unauthorized sync request' });
+      }
+    }
+
+    // Use service role to bypass RLS for backend sync.
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    const {
+      only_calxbook_verified = 'true',
+      service_type = '',
+      limit = '1000'
+    } = req.query;
+
+    let query = serviceClient
+      .from('experts')
+      .select('*')
+      .eq('is_verified', true)
+      .limit(Math.min(parseInt(String(limit), 10) || 1000, 5000));
+
+    if (String(only_calxbook_verified).toLowerCase() === 'true') {
+      query = query.eq('calxbook_verified', true);
+    }
+
+    const normalizedServiceType = String(service_type || '').trim().toLowerCase();
+    if (normalizedServiceType) {
+      // `contains` with single-item array works for text[] columns.
+      query = query.contains('expert_services', [normalizedServiceType]);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const experts = (data || []).map((expert) => ({
+      ...expert,
+      // Compatibility aliases for CalxBook sync client.
+      full_name: expert.name || expert.full_name || 'Unknown Expert',
+      title: expert.current_designation || expert.title || null,
+      expert_types: Array.isArray(expert.expert_types) ? expert.expert_types : [],
+      expert_services: Array.isArray(expert.expert_services) ? expert.expert_services : [],
+      calxbook_verified: Boolean(expert.calxbook_verified)
+    }));
+
+    return res.json({
+      success: true,
+      count: experts.length,
+      data: experts
+    });
+  } catch (error) {
+    console.error('GET /api/calxbook/experts error:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch experts for CalxBook sync'
+    });
+  }
+});
+
 app.post('/api/experts', upload.fields([
   { name: 'profile_photo', maxCount: 1 },
   { name: 'resume', maxCount: 1 },
