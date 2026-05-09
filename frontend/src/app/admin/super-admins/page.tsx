@@ -25,6 +25,9 @@ function isValidEmail(email: string) {
 }
 
 export default function AdminSuperAdminsPage() {
+  const greenPrimaryButton = 'bg-[#008260] hover:bg-[#006d51] text-white'
+  const greenOutlineButton = 'border-[#008260] text-[#008260] hover:bg-[#E8F5F1] hover:text-[#006d51]'
+
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
   const [authEmail, setAuthEmail] = useState('')
@@ -206,6 +209,10 @@ export default function AdminSuperAdminsPage() {
       setError('Please choose a valid email.')
       return
     }
+
+    const confirmed = window.confirm(`Are you sure you want to promote ${selectedEmail} to Super Admin?`)
+    if (!confirmed) return
+
     setConfirmLoading(true)
     setError('')
     setSuccess('')
@@ -327,7 +334,7 @@ export default function AdminSuperAdminsPage() {
                 </Button>
               </Link>
               <Link href="/admin/super-admins">
-                <Button variant="outline" className="text-black border-white/30 hover:bg-white/10 px-4 py-2 text-sm">
+                <Button variant="outline" className="text-[#008260] border-[#008260]/60 bg-white hover:bg-[#E8F5F1] px-4 py-2 text-sm">
                   Super Admins
                 </Button>
               </Link>
@@ -345,11 +352,11 @@ export default function AdminSuperAdminsPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => router.push('/admin/profiles')}>
+            <Button variant="outline" className={greenOutlineButton} onClick={() => router.push('/admin/profiles')}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Profiles
             </Button>
-            <Button onClick={() => setCreateDialogOpen(true)}>
+            <Button className={greenPrimaryButton} onClick={() => setCreateDialogOpen(true)}>
               <UserPlus className="mr-2 h-4 w-4" />
               Create Super Admin
             </Button>
@@ -404,7 +411,7 @@ export default function AdminSuperAdminsPage() {
                       <Button
                         disabled={already}
                         onClick={() => openConfirmDialog(expert.email)}
-                        className="w-full"
+                        className={`w-full ${greenPrimaryButton}`}
                       >
                         {already ? 'Already Super Admin' : 'Promote'}
                       </Button>
@@ -426,7 +433,7 @@ export default function AdminSuperAdminsPage() {
           )}
           {!expertsLoading && expertsHasMore && experts.length > 0 && (
             <div className="flex justify-center">
-              <Button variant="outline" onClick={() => setExpertsPage((p) => p + 1)}>
+              <Button variant="outline" className={greenOutlineButton} onClick={() => setExpertsPage((p) => p + 1)}>
                 Load More Experts
               </Button>
             </div>
@@ -499,7 +506,7 @@ export default function AdminSuperAdminsPage() {
               <Button variant="secondary" onClick={() => setCreateDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleCreateSuperAdmin} disabled={confirmLoading}>
+              <Button className={greenPrimaryButton} onClick={handleCreateSuperAdmin} disabled={confirmLoading}>
                 {confirmLoading ? 'Saving…' : 'Save Super Admin'}
               </Button>
             </div>
@@ -521,7 +528,7 @@ export default function AdminSuperAdminsPage() {
               <Button variant="secondary" onClick={() => setConfirmDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleConfirmRoleChange} disabled={confirmLoading}>
+              <Button className={greenPrimaryButton} onClick={handleConfirmRoleChange} disabled={confirmLoading}>
                 {confirmLoading ? 'Saving…' : 'Make Super Admin'}
               </Button>
             </div>
