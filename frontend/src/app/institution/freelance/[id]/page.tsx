@@ -13,6 +13,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Mail, School, FileText, Briefcase } from 'lucide-react'
 import Logo from '@/components/Logo'
+import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
+import { fetchInstitutionForWorkspace, profileSetupPath } from '@/lib/institutionWorkspace'
 
 export default function FreelanceProjectDetail() {
   const params = useParams()
@@ -32,6 +34,7 @@ export default function FreelanceProjectDetail() {
   const [subsPage, setSubsPage] = useState(1)
   const [subsHasMore, setSubsHasMore] = useState(true)
   const [error, setError] = useState('')
+  const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
 
   const loadProject = async () => {
     const p = await api.freelance.getProjectById(id)
@@ -53,10 +56,10 @@ export default function FreelanceProjectDetail() {
       if (!user) { router.push('/auth/login'); return }
       setUser(user)
       try {
-        const inst = await api.institutions.getByUserId(user.id)
-        if (!inst) { router.push('/institution/profile-setup'); return }
+        const inst = await fetchInstitutionForWorkspace(user.id, viewer, actingInstitutionId)
+        if (!inst) { router.push(profileSetupPath(viewer)); return }
         setInstitution(inst)
-        if ((inst.type || '').toLowerCase() !== 'corporate') { router.push('/institution/home'); return }
+        if ((inst.type || '').toLowerCase() !== 'corporate') { router.push(`${basePath}/home`); return }
         await loadProject()
         // initial pending apps
         const apps = await api.freelance.listApplications(id, { page: 1, limit: 10, status: 'pending' })
@@ -83,7 +86,7 @@ export default function FreelanceProjectDetail() {
       }
     }
     if (id) init()
-  }, [id, router])
+  }, [id, router, viewer, actingInstitutionId, basePath])
 
   const updateStatus = async (appId: string, status: 'shortlisted' | 'rejected') => {
     // Find in pending or approved
@@ -152,7 +155,11 @@ export default function FreelanceProjectDetail() {
           <Logo size="header" />
           <div className="flex items-center space-x-6">
             <NotificationBell />
-            <ProfileDropdown user={user} institution={institution} userType="institution" />
+            <ProfileDropdown
+              user={user}
+              institution={institution}
+              userType={viewer === 'super_admin' ? 'super_admin' : 'institution'}
+            />
           </div>
         </div>
       </header>

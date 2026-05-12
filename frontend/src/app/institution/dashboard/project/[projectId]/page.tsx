@@ -41,8 +41,11 @@ import {
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { RatingModal } from '@/components/RatingModal'
+import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
+import { fetchInstitutionForWorkspace } from '@/lib/institutionWorkspace'
 
-export default function ProjectDetailsPage() {
+export default function InstitutionProjectDetailsPage() {
+  const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
   const params = useParams()
   const router = useRouter()
   const projectId = params.projectId as string
@@ -88,7 +91,12 @@ export default function ProjectDetailsPage() {
         setUser(user)
         
         const userRole = user.user_metadata?.role
-        if (userRole !== 'institution') {
+        if (viewer === 'super_admin') {
+          if (userRole !== 'super_admin' || !actingInstitutionId) {
+            router.push('/')
+            return
+          }
+        } else if (userRole !== 'institution') {
           console.log('Non-institution user accessing project page, redirecting...')
           if (userRole === 'expert') {
             router.push('/expert/dashboard')
@@ -106,7 +114,7 @@ export default function ProjectDetailsPage() {
       }
     }
     getUser()
-  }, [router])
+  }, [router, viewer, actingInstitutionId, projectId])
 
   // Load ratings when institution is available
   useEffect(() => {
@@ -118,14 +126,17 @@ export default function ProjectDetailsPage() {
 
   const loadInstitutionData = async (userId: string) => {
     try {
-      const institutionProfile = await api.institutions.getByUserId(userId)
-    
-      
+      const institutionProfile = await fetchInstitutionForWorkspace(userId, viewer, actingInstitutionId)
+
       if (!institutionProfile) {
-        router.push('/institution/profile-setup')
+        if (viewer === 'super_admin') {
+          router.push('/superadmin/home')
+        } else {
+          router.push('/institution/profile-setup')
+        }
         return
       }
-      
+
       setInstitution(institutionProfile)
     } catch (error: any) {
       setError('Failed to load institution data')
@@ -138,6 +149,11 @@ export default function ProjectDetailsPage() {
       const projectData = await api.projects.getById(projectId)
       if (!projectData) {
         setError('Project not found')
+        return
+      }
+      if (viewer === 'super_admin' && actingInstitutionId && projectData.institution_id !== actingInstitutionId) {
+        setError('This project does not belong to the selected institution.')
+        router.push(`${basePath}/dashboard`)
         return
       }
       setProject(projectData)
@@ -591,7 +607,7 @@ export default function ProjectDetailsPage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-red-600 mb-4">Error</h1>
           <p className="text-slate-600 mb-4">{error || 'Project not found'}</p>
-          <Button onClick={() => router.push('/institution/dashboard')} className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300">
+          <Button onClick={() => router.push(`${basePath}/dashboard`)} className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Dashboard
           </Button>
@@ -616,14 +632,18 @@ export default function ProjectDetailsPage() {
                 <ArrowLeft className="h-4 w-4" />
                 Back 
               </Button>
-              <Link href="/institution/home" className="flex items-center group">
+              <Link href={`${basePath}/home`} className="flex items-center group">
                 <Logo size="header" />
               </Link>
             </div>
             
             <div className="flex items-center space-x-2">
               <NotificationBell />
-              <ProfileDropdown user={user} institution={institution} userType="institution" />
+              <ProfileDropdown
+                user={user}
+                institution={institution}
+                userType={viewer === 'super_admin' ? 'super_admin' : 'institution'}
+              />
             </div>
           </div>
         </div>

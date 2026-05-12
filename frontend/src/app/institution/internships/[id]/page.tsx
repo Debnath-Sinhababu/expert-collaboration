@@ -20,6 +20,8 @@ import { Label } from '@/components/ui/label'
 import { DatePicker } from '@/components/ui/date-picker'
 import { TimePicker } from '@/components/ui/time-picker'
 import Logo from '@/components/Logo'
+import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
+import { fetchInstitutionForWorkspace, profileSetupPath } from '@/lib/institutionWorkspace'
 
 export default function CorporateInternshipDetail() {
   const params = useParams()
@@ -42,6 +44,7 @@ export default function CorporateInternshipDetail() {
   const [interviewTime, setInterviewTime] = useState<string>('')
   const [appDrawerOpen, setAppDrawerOpen] = useState(false)
   const [activeApp, setActiveApp] = useState<any>(null)
+  const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
 
   const statusClass = (status: string) => {
     const s = String(status || '').toLowerCase()
@@ -58,10 +61,10 @@ export default function CorporateInternshipDetail() {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) { router.push('/auth/login'); return }
         setUser(user)
-        const inst = await api.institutions.getByUserId(user.id)
-        if (!inst) { router.push('/institution/profile-setup'); return }
+        const inst = await fetchInstitutionForWorkspace(user.id, viewer, actingInstitutionId)
+        if (!inst) { router.push(profileSetupPath(viewer)); return }
         setInstitution(inst)
-        if ((inst.type || '').toLowerCase() !== 'corporate') { router.push('/institution/home'); return }
+        if ((inst.type || '').toLowerCase() !== 'corporate') { router.push(`${basePath}/home`); return }
         const data = await api.internships.getById(id)
         if (data?.error) throw new Error(data.error)
         setInternship(data)
@@ -80,7 +83,7 @@ export default function CorporateInternshipDetail() {
       }
     }
     if (id) init()
-  }, [id, router])
+  }, [id, router, viewer, actingInstitutionId, basePath])
 
   if (loading) {
     return (
@@ -102,7 +105,11 @@ export default function CorporateInternshipDetail() {
         
           
             <NotificationBell />
-            <ProfileDropdown user={user} institution={institution} userType="institution" />
+            <ProfileDropdown
+              user={user}
+              institution={institution}
+              userType={viewer === 'super_admin' ? 'super_admin' : 'institution'}
+            />
           </div>
         </div>
       </header>

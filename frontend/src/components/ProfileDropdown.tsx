@@ -14,24 +14,49 @@ import {
 } from '@/components/ui/dropdown-menu'
 import Link from 'next/link'
 import Logo from '@/components/Logo'
+import { clearSuperAdminActingWorkspace } from '@/lib/superAdminActing'
 
 interface ProfileDropdownProps {
   user: any,
   expert?: any,
   institution?: any,
   student?: any,
-  userType: 'expert' | 'institution' | 'student',
+  userType: 'expert' | 'institution' | 'student' | 'super_admin',
   extraItems?: { label: string, href: string }[]
+}
+
+/** When super admin is under /superadmin/institutions/[id]/..., return that base path for workspace links. */
+function getSuperAdminInstitutionBasePath(pathname: string | null | undefined): string | null {
+  if (!pathname) return null
+  const m = pathname.match(/^\/superadmin\/institutions\/([^/]+)/)
+  return m ? `/superadmin/institutions/${m[1]}` : null
+}
+
+/** When super admin is under /superadmin/experts/[id]/..., return that base path for workspace links. */
+function getSuperAdminExpertBasePath(pathname: string | null | undefined): string | null {
+  if (!pathname) return null
+  const m = pathname.match(/^\/superadmin\/experts\/([^/]+)/)
+  return m ? `/superadmin/experts/${m[1]}` : null
 }
 
 export default function ProfileDropdown({ user, expert, institution, student, userType, extraItems }: ProfileDropdownProps) {
   const router = useRouter()
   const pathname = usePathname()
 
+  const superAdminInstitutionBase = userType === 'super_admin' ? getSuperAdminInstitutionBasePath(pathname) : null
+  const superAdminExpertBase = userType === 'super_admin' ? getSuperAdminExpertBasePath(pathname) : null
 
+  const isSuperAdminInWorkspace =
+    user?.user_metadata?.role === 'super_admin' &&
+    (pathname?.startsWith('/superadmin/institutions/') || pathname?.startsWith('/superadmin/experts/'))
 
   const handleLogout = async () => {
     try {
+      if (isSuperAdminInWorkspace) {
+        clearSuperAdminActingWorkspace()
+        router.push('/superadmin/home')
+        return
+      }
       await supabase.auth.signOut()
       router.push('/')
     } catch (error) {
@@ -42,6 +67,11 @@ export default function ProfileDropdown({ user, expert, institution, student, us
   const getProfileUrl = () => {
     if (userType === 'expert') return '/expert/profile'
     if (userType === 'institution') return '/institution/profile'
+    if (userType === 'super_admin') {
+      if (superAdminInstitutionBase) return `${superAdminInstitutionBase}/profile`
+      if (superAdminExpertBase) return `${superAdminExpertBase}/profile`
+      return '/superadmin/home'
+    }
     return '/student/profile'
   }
 
@@ -53,6 +83,11 @@ export default function ProfileDropdown({ user, expert, institution, student, us
   const getDashboardUrl = () => {
     if (userType === 'expert') return '/expert/dashboard'
     if (userType === 'student') return '/student/dashboard'
+    if (userType === 'super_admin') {
+      if (superAdminInstitutionBase) return `${superAdminInstitutionBase}/dashboard`
+      if (superAdminExpertBase) return `${superAdminExpertBase}/dashboard`
+      return '/superadmin/home'
+    }
     // For institutions, always route primary to expert dashboard
     return '/institution/dashboard'
   }
@@ -60,6 +95,11 @@ export default function ProfileDropdown({ user, expert, institution, student, us
   const getHomeUrl = () => {
     if (userType === 'expert') return '/expert/home'
     if (userType === 'institution') return '/institution/home'
+    if (userType === 'super_admin') {
+      if (superAdminInstitutionBase) return `${superAdminInstitutionBase}/home`
+      if (superAdminExpertBase) return `${superAdminExpertBase}/home`
+      return '/superadmin/home'
+    }
     return '/student/home'
   }
 
@@ -71,6 +111,9 @@ export default function ProfileDropdown({ user, expert, institution, student, us
     if (!pathname) return false
     if (userType === 'expert') return pathname.startsWith('/expert/dashboard')
     if (userType === 'student') return pathname.startsWith('/student/dashboard') || pathname.startsWith('/student/freelance/dashboard')
+    if (userType === 'super_admin') {
+      return pathname.startsWith('/superadmin/institutions') || pathname.startsWith('/superadmin/experts')
+    }
     // institution
     return pathname.startsWith('/institution/dashboard') || pathname.startsWith('/institution/internships/dashboard') || pathname.startsWith('/institution/freelance/dashboard')
   })()
@@ -242,11 +285,17 @@ export default function ProfileDropdown({ user, expert, institution, student, us
           <DropdownMenuSeparator className="border-slate-200 my-1 sm:my-2" />
 
           <DropdownMenuItem 
-            className="w-full justify-start px-3 sm:px-4 py-2.5 sm:py-3 text-red-600 focus:bg-red-50 focus:text-red-700 data-[highlighted]:bg-red-50 data-[highlighted]:text-red-700"
+            className={`w-full justify-start px-3 sm:px-4 py-2.5 sm:py-3 focus:bg-red-50 focus:text-red-700 data-[highlighted]:bg-red-50 data-[highlighted]:text-red-700 ${
+              isSuperAdminInWorkspace
+                ? 'text-amber-800'
+                : 'text-red-600'
+            }`}
             onClick={handleLogout}
           >
             <LogOut className="h-4 w-4 mr-2 sm:mr-3" />
-            <span className="text-sm sm:text-base">Sign Out</span>
+            <span className="text-sm sm:text-base">
+              {isSuperAdminInWorkspace ? 'Exit workspace' : 'Sign out'}
+            </span>
           </DropdownMenuItem>
         </div>
       </DropdownMenuContent>

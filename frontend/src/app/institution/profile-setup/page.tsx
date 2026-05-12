@@ -16,6 +16,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { isCommonEmailProvider } from '@/lib/utils'
 import Logo from '@/components/Logo'
+import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
 
 const INSTITUTION_TYPES = [
   'University',
@@ -49,6 +50,7 @@ export default function InstitutionProfileSetup() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const router = useRouter()
+  const { viewer } = useInstitutionWorkspace()
 
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string>('')
@@ -83,6 +85,10 @@ export default function InstitutionProfileSetup() {
 
   useEffect(() => {
     const getUser = async () => {
+      if (viewer === 'super_admin') {
+        router.replace('/superadmin/home')
+        return
+      }
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         router.push('/auth/login')
@@ -94,7 +100,7 @@ export default function InstitutionProfileSetup() {
     }
 
     getUser()
-  }, [router])
+  }, [router, viewer])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))

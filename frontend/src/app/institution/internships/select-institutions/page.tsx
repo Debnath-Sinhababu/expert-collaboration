@@ -16,6 +16,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { usePagination } from '@/hooks/usePagination'
 import { Search } from 'lucide-react'
 import Logo from '@/components/Logo'
+import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
+import { fetchInstitutionForWorkspace, profileSetupPath } from '@/lib/institutionWorkspace'
 
 export default function SelectInstitutionsForInternship() {
   const [user, setUser] = useState<any>(null)
@@ -26,6 +28,7 @@ export default function SelectInstitutionsForInternship() {
   const [selectedType, setSelectedType] = useState<string>('all')
   const [selectedInstitutionIds, setSelectedInstitutionIds] = useState<string[]>([])
   const router = useRouter()
+  const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
 
   // Guard and preload
   useEffect(() => {
@@ -34,9 +37,9 @@ export default function SelectInstitutionsForInternship() {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) { router.push('/auth/login'); return }
         setUser(user)
-        const inst = await api.institutions.getByUserId(user.id)
-        if (!inst) { router.push('/institution/profile-setup'); return }
-        if ((inst.type || '').toLowerCase() !== 'corporate') { router.push('/institution/home'); return }
+        const inst = await fetchInstitutionForWorkspace(user.id, viewer, actingInstitutionId)
+        if (!inst) { router.push(profileSetupPath(viewer)); return }
+        if ((inst.type || '').toLowerCase() !== 'corporate') { router.push(`${basePath}/home`); return }
         setInstitution(inst)
       } catch (e: any) {
         setError(e.message || 'Failed to load context')
@@ -45,7 +48,7 @@ export default function SelectInstitutionsForInternship() {
       }
     }
     init()
-  }, [router])
+  }, [router, viewer, actingInstitutionId, basePath])
 
   // Institutions list
   const { data: institutions, loading: listLoading, hasMore, loadMore } = usePagination(
@@ -73,7 +76,7 @@ export default function SelectInstitutionsForInternship() {
       }
       const created = await api.internships.create(payload)
       localStorage.removeItem('internship_create_payload')
-      router.push('/institution/home')
+      router.push(`${basePath}/home`)
     } catch (e: any) {
       setError(e.message || 'Failed to create internship')
     }
@@ -95,15 +98,19 @@ export default function SelectInstitutionsForInternship() {
       <header className="bg-[#008260] backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
-            <Link href="/institution/home" className="flex items-center group">
+            <Link href={`${basePath}/home`} className="flex items-center group">
               <Logo size="header" />
             </Link>
             <div className="flex items-center space-x-6">
-              <Link href="/institution/home" className="text-white hover:text-white/80 transition-colors">Home</Link>
+              <Link href={`${basePath}/home`} className="text-white hover:text-white/80 transition-colors">Home</Link>
             
           
               <NotificationBell />
-              <ProfileDropdown user={user} institution={institution} userType="institution" />
+              <ProfileDropdown
+                user={user}
+                institution={institution}
+                userType={viewer === 'super_admin' ? 'super_admin' : 'institution'}
+              />
             </div>
           </div>
         </div>

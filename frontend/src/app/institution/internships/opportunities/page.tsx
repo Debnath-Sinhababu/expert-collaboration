@@ -15,6 +15,8 @@ import { Search } from 'lucide-react'
 import Link from 'next/link'
 import { usePagination } from '@/hooks/usePagination'
 import Logo from '@/components/Logo'
+import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
+import { fetchInstitutionForWorkspace, profileSetupPath } from '@/lib/institutionWorkspace'
 
 export default function InternshipOpportunitiesPage() {
   const [loading, setLoading] = useState(true)
@@ -31,6 +33,7 @@ export default function InternshipOpportunitiesPage() {
   const [visibilityFilter, setVisibilityFilter] = useState<'all' | 'public' | 'tagged'>('all')
   const [location, setLocation] = useState('')
   const router = useRouter()
+  const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
 
   useEffect(() => {
     const init = async () => {
@@ -41,9 +44,9 @@ export default function InternshipOpportunitiesPage() {
           return
         }
         setUser(user)
-        const inst = await api.institutions.getByUserId(user.id)
+        const inst = await fetchInstitutionForWorkspace(user.id, viewer, actingInstitutionId)
         if (!inst) {
-          router.push('/institution/profile-setup')
+          router.push(profileSetupPath(viewer))
           return
         }
         setInstitution(inst)
@@ -54,7 +57,7 @@ export default function InternshipOpportunitiesPage() {
       }
     }
     init()
-  }, [router])
+  }, [router, viewer, actingInstitutionId])
 
   const {
     data: internships,
@@ -97,12 +100,16 @@ export default function InternshipOpportunitiesPage() {
     <div className="min-h-screen bg-[#ECF2FF]">
       <header className="bg-[#008260] backdrop-blur-sm border-b border-white/10 sticky top-0 z-50 shadow-lg">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <Link href="/institution/home" className="flex items-center">
+          <Link href={`${basePath}/home`} className="flex items-center">
             <Logo size="header" />
           </Link>
           <div className="flex items-center gap-2">
             <NotificationBell />
-            <ProfileDropdown user={user} institution={institution} userType="institution" />
+            <ProfileDropdown
+              user={user}
+              institution={institution}
+              userType={viewer === 'super_admin' ? 'super_admin' : 'institution'}
+            />
           </div>
         </div>
       </header>
@@ -274,7 +281,7 @@ export default function InternshipOpportunitiesPage() {
                   <div className="flex justify-end">
                     <Button 
                       className="bg-[#008260] hover:bg-[#006B4F] text-white font-medium rounded-full px-8 w-full sm:w-auto" 
-                      onClick={() => router.push(`/institution/internships/opportunities/${item.id}`)}
+                      onClick={() => router.push(`${basePath}/internships/opportunities/${item.id}`)}
                     >
                       View
                     </Button>

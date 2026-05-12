@@ -12,9 +12,12 @@ import { Button } from '@/components/ui/button'
 import NotificationBell from '@/components/NotificationBell'
 import ProfileDropdown from '@/components/ProfileDropdown'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
+import { fetchInstitutionForWorkspace, profileSetupPath } from '@/lib/institutionWorkspace'
 
 export default function CreateFreelanceProject() {
   const router = useRouter()
+  const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
   const [user, setUser] = useState<any>(null)
   const [institution, setInstitution] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -38,14 +41,14 @@ export default function CreateFreelanceProject() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/auth/login'); return }
       setUser(user)
-      const inst = await api.institutions.getByUserId(user.id)
-      if (!inst) { router.push('/institution/profile-setup'); return }
+      const inst = await fetchInstitutionForWorkspace(user.id, viewer, actingInstitutionId)
+      if (!inst) { router.push(profileSetupPath(viewer)); return }
       setInstitution(inst)
-      if ((inst.type || '').toLowerCase() !== 'corporate') { router.push('/institution/home'); return }
+      if ((inst.type || '').toLowerCase() !== 'corporate') { router.push(`${basePath}/home`); return }
       setLoading(false)
     }
     init()
-  }, [router])
+  }, [router, viewer, actingInstitutionId, basePath])
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -62,7 +65,7 @@ export default function CreateFreelanceProject() {
       if (form.skills?.trim()) fd.append('required_skills', form.skills)
       if (draftFile) fd.append('draft', draftFile)
       await api.freelance.createProject(fd)
-      router.push('/institution/freelance/dashboard')
+      router.push(`${basePath}/freelance/dashboard`)
     } catch (e: any) {
       setError(e.message || 'Failed to create project')
     } finally { setSaving(false) }
@@ -86,7 +89,11 @@ export default function CreateFreelanceProject() {
           <div className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">Create Freelance Project</div>
           <div className="flex items-center gap-2">
             <NotificationBell />
-            <ProfileDropdown user={user} institution={institution} userType="institution" />
+            <ProfileDropdown
+              user={user}
+              institution={institution}
+              userType={viewer === 'super_admin' ? 'super_admin' : 'institution'}
+            />
           </div>
         </div>
       </header>

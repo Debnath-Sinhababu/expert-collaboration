@@ -52,8 +52,11 @@ import { useRouter } from 'next/navigation'
 import { RatingModal } from '@/components/RatingModal'
 import NotificationBell from '@/components/NotificationBell'
 import { toast } from 'sonner'
+import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
+import { fetchInstitutionForWorkspace } from '@/lib/institutionWorkspace'
 
-export default function InstitutionDashboard() {
+export default function InstitutionDashboardPage() {
+  const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
   const [user, setUser] = useState<any>(null)
   const [institution, setInstitution] = useState<any>(null)
   const [projects, setProjects] = useState<any[]>([])
@@ -93,7 +96,7 @@ export default function InstitutionDashboard() {
   const [showCloseConfirm, setShowCloseConfirm] = useState(false)
   const [projectToClose, setProjectToClose] = useState<string | null>(null)
   const router = useRouter()
-  
+
   const handleDomainChange = (domain: string) => {
     setProjectForm(prev => ({
       ...prev,
@@ -135,7 +138,12 @@ export default function InstitutionDashboard() {
         setUser(user)
         
         const userRole = user.user_metadata?.role
-        if (userRole !== 'institution') {
+        if (viewer === 'super_admin') {
+          if (userRole !== 'super_admin' || !actingInstitutionId) {
+            router.push('/')
+            return
+          }
+        } else if (userRole !== 'institution') {
           console.log('Non-institution user accessing institution dashboard, redirecting...')
           if (userRole === 'expert') {
             router.push('/expert/dashboard')
@@ -152,7 +160,7 @@ export default function InstitutionDashboard() {
       }
     }
     getUser()
-  }, [router])
+  }, [router, viewer, actingInstitutionId])
 
   const handleExpertSelection = (expertId: string) => {
     setSelectedExperts(prev => 
@@ -280,13 +288,17 @@ export default function InstitutionDashboard() {
 
   const loadInstitutionData = async (userId: string) => {
     try {
-      const institutionsResponse = await api.institutions.getByUserId(userId)
-      
+      const institutionsResponse = await fetchInstitutionForWorkspace(userId, viewer, actingInstitutionId)
+
       if (!institutionsResponse) {
-        router.push('/institution/profile-setup')
+        if (viewer === 'super_admin') {
+          router.push('/superadmin/home')
+        } else {
+          router.push('/institution/profile-setup')
+        }
         return
       }
-      
+
       setInstitution(institutionsResponse)
       
       // Initial light calls (experts list is paginated below). Lists are fed by paginated hooks
@@ -397,7 +409,7 @@ export default function InstitutionDashboard() {
     
     
     // Navigate to the project details page
-    router.push(`/institution/dashboard/project/${project.id}`)
+    router.push(`${basePath}/dashboard/project/${project.id}`)
   }
 
   const handleUpdateProject = async (e: React.FormEvent) => {
@@ -631,7 +643,7 @@ export default function InstitutionDashboard() {
         description: 'Navigate to your dashboard to view the latest requirement and manage applications.',
         action: {
           label: 'Go to Dashboard',
-          onClick: () => router.push('/institution/dashboard')
+          onClick: () => router.push(`${basePath}/dashboard`)
         },
         duration: 5000
       })
@@ -695,7 +707,7 @@ export default function InstitutionDashboard() {
       <header className="bg-[#008260]">
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
-            <Link href="/institution/home" className="flex items-center group">
+            <Link href={`${basePath}/home`} className="flex items-center group">
               <Logo size="header" />
             </Link>
             
@@ -703,7 +715,11 @@ export default function InstitutionDashboard() {
             
               <div className="flex items-center space-x-2 order-2 sm:order-none">
                 <NotificationBell />
-                <ProfileDropdown user={user} institution={institution} userType="institution"  />
+                <ProfileDropdown
+                  user={user}
+                  institution={institution}
+                  userType={viewer === 'super_admin' ? 'super_admin' : 'institution'}
+                />
               </div>
             </div>
           </div>
@@ -729,7 +745,7 @@ export default function InstitutionDashboard() {
           </div>
           <Dialog open={false}>
               <DialogTrigger asChild>
-              <Button className="bg-[#008260] hover:bg-[#008260] text-sm font-semibold" onClick={() => router.push('/institution/post-requirement')}>
+              <Button className="bg-[#008260] hover:bg-[#008260] text-sm font-semibold" onClick={() => router.push(`${basePath}/post-requirement`)}>
                   <Plus className="h-3 w-3 mr-1 border border-white rounded-full" />
                   Post Requirement
                 </Button>

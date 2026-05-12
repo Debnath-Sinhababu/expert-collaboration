@@ -3,18 +3,19 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { api } from '@/lib/api'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import NotificationBell from '@/components/NotificationBell'
 import ProfileDropdown from '@/components/ProfileDropdown'
-import Logo from '@/components/Logo'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import ContractForm from './sections/ContractForm'
 import InternshipForm from './sections/InternshipForm'
 import FreelanceForm from './sections/FreelanceForm'
+import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
+import { fetchInstitutionForWorkspace, profileSetupPath } from '@/lib/institutionWorkspace'
 
 function PostRequirementContent() {
   const router = useRouter()
+  const { viewer, actingInstitutionId } = useInstitutionWorkspace()
   const searchParams = useSearchParams()
   const [user, setUser] = useState<any>(null)
   const [institution, setInstitution] = useState<any>(null)
@@ -83,10 +84,14 @@ function PostRequirementContent() {
       try {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) { router.push('/auth/login'); return }
+        if (viewer === 'super_admin' && user.user_metadata?.role !== 'super_admin') {
+          router.push('/')
+          return
+        }
         setUser(user)
-        
-        const inst = await api.institutions.getByUserId(user.id)
-        if (!inst) { router.push('/institution/profile-setup'); return }
+
+        const inst = await fetchInstitutionForWorkspace(user.id, viewer, actingInstitutionId)
+        if (!inst) { router.push(profileSetupPath(viewer)); return }
         setInstitution(inst)
       } catch (e: any) {
         setError(e.message || 'Failed to initialize')
@@ -95,7 +100,7 @@ function PostRequirementContent() {
       }
     }
     init()
-  }, [router])
+  }, [router, viewer, actingInstitutionId])
 
   if (loading) {
     return (
@@ -117,7 +122,11 @@ function PostRequirementContent() {
           </div>
           <div className="flex items-center gap-2">
             <NotificationBell />
-            <ProfileDropdown user={user} institution={institution} userType="institution" />
+            <ProfileDropdown
+              user={user}
+              institution={institution}
+              userType={viewer === 'super_admin' ? 'super_admin' : 'institution'}
+            />
           </div>
         </div>
       </header>

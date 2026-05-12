@@ -16,6 +16,8 @@ import ProfileDropdown from '@/components/ProfileDropdown'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import Logo from '@/components/Logo'
 import Link from 'next/link'
+import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
+import { fetchInstitutionForWorkspace, profileSetupPath } from '@/lib/institutionWorkspace'
 
 export default function InternshipDetailPage() {
   const params = useParams()
@@ -32,6 +34,7 @@ export default function InternshipDetailPage() {
   const [appsPage, setAppsPage] = useState(1)
   const [appsHasMore, setAppsHasMore] = useState(true)
   const [copySuccess, setCopySuccess] = useState(false)
+  const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
 
   const handleCopyLink = async () => {
     try {
@@ -70,8 +73,8 @@ export default function InternshipDetailPage() {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) { router.push('/auth/login'); return }
         setUser(user)
-        const inst = await api.institutions.getByUserId(user.id)
-        if (!inst) { router.push('/institution/profile-setup'); return }
+        const inst = await fetchInstitutionForWorkspace(user.id, viewer, actingInstitutionId)
+        if (!inst) { router.push(profileSetupPath(viewer)); return }
         setInstitution(inst)
         const data = await api.internships.getById(id)
         if (data?.error) throw new Error(data.error)
@@ -91,7 +94,7 @@ export default function InternshipDetailPage() {
       }
     }
     if (id) init()
-  }, [id, router])
+  }, [id, router, viewer, actingInstitutionId])
 
   if (loading) {
     return (
@@ -108,12 +111,16 @@ export default function InternshipDetailPage() {
     <div className="min-h-screen bg-[#ECF2FF]">
       <header className="bg-[#008260] backdrop-blur-sm border-b border-white/10 sticky top-0 z-50 shadow-lg">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <Link href="/institution/home" className="flex items-center">
+          <Link href={`${basePath}/home`} className="flex items-center">
             <Logo size="header" />
           </Link>
           <div className="flex items-center gap-2">
             <NotificationBell />
-            <ProfileDropdown user={user} institution={institution} userType="institution" />
+            <ProfileDropdown
+              user={user}
+              institution={institution}
+              userType={viewer === 'super_admin' ? 'super_admin' : 'institution'}
+            />
           </div>
         </div>
       </header>

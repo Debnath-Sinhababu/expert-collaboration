@@ -10,9 +10,12 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
+import { fetchInstitutionForWorkspace, profileSetupPath } from '@/lib/institutionWorkspace'
 
 export default function FreelanceForm() {
   const router = useRouter()
+  const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
   const [user, setUser] = useState<any>(null)
   const [institution, setInstitution] = useState<any>(null)
   const [saving, setSaving] = useState(false)
@@ -33,13 +36,13 @@ export default function FreelanceForm() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/auth/login'); return }
       setUser(user)
-      const inst = await api.institutions.getByUserId(user.id)
-      if (!inst) { router.push('/institution/profile-setup'); return }
+      const inst = await fetchInstitutionForWorkspace(user.id, viewer, actingInstitutionId)
+      if (!inst) { router.push(profileSetupPath(viewer)); return }
       setInstitution(inst)
-      if ((inst.type || '').toLowerCase() !== 'corporate') { router.push('/institution/home'); return }
+      if ((inst.type || '').toLowerCase() !== 'corporate') { router.push(`${basePath}/home`); return }
     }
     init()
-  }, [router])
+  }, [router, viewer, actingInstitutionId, basePath])
 
   const submit = async () => {
     // Validation
@@ -84,7 +87,7 @@ export default function FreelanceForm() {
       fd.append('draft', draftFile)
       await api.freelance.createProject(fd)
       toast.success('Freelance project created successfully!')
-      router.push('/institution/freelance/dashboard')
+      router.push(`${basePath}/freelance/dashboard`)
     } catch (e: any) {
       toast.error(e.message || 'Failed to create project')
     } finally { setSaving(false) }

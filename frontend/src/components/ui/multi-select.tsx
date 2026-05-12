@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Badge } from "@/components/ui/badge"
 
 interface MultiSelectProps {
-  options: string[]
+  options: readonly string[]
   selected: string[]
   onSelectionChange: (selected: string[]) => void
   placeholder?: string

@@ -9,6 +9,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Star, Shield, Phone, Linkedin, User, GraduationCap, IndianRupee, Calendar, Building2, FileText, Edit, CheckCircle2, MapPin, Video } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useExpertWorkspace } from '@/contexts/ExpertWorkspaceContext'
+import { fetchExpertForWorkspace } from '@/lib/expertWorkspace'
 import Logo from '@/components/Logo'
 import NotificationBell from '@/components/NotificationBell'
 import ProfileDropdown from '@/components/ProfileDropdown'
@@ -20,6 +22,7 @@ export default function ExpertProfile() {
   const [loading, setLoading] = useState(true)
   const [leadingInstitutes, setLeadingInstitutes] = useState<any[]>([])
   const router = useRouter()
+  const { viewer, actingExpertId, basePath } = useExpertWorkspace()
 
   useEffect(() => {
     const getUser = async () => {
@@ -28,17 +31,21 @@ export default function ExpertProfile() {
         router.push('/auth/login')
         return
       }
+      if (viewer === 'super_admin' && user.user_metadata?.role !== 'super_admin') {
+        router.push('/')
+        return
+      }
       setUser(user)
       await loadExpertData(user.id)
       setLoading(false)
     }
 
     getUser()
-  }, [router])
+  }, [router, viewer, actingExpertId])
 
   const loadExpertData = async (userId: string) => {
     try {
-      const expertProfile = await api.experts.getByUserId(userId)
+      const expertProfile = await fetchExpertForWorkspace(userId, viewer, actingExpertId)
       
       if (expertProfile) {
         setExpert(expertProfile)
@@ -113,7 +120,8 @@ export default function ExpertProfile() {
     const typeMap: Record<string, string> = {
       'Guest Faculty': 'GF',
       'Visiting Faculty': 'VF',
-      'Industry Experts': 'IE'
+      'Industry Experts': 'IE',
+      'Freelancer': 'FR'
     }
     return typeMap[type] || type.substring(0, 2).toUpperCase()
   }
@@ -143,16 +151,16 @@ export default function ExpertProfile() {
       <header className="bg-[#008260] border-b border-slate-200/20 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <Link href="/expert/home" className="flex items-center group">
+            <Link href={`${basePath}/home`} className="flex items-center group">
               <Logo size="header" />
             </Link>
 
             <nav className="hidden md:flex items-center space-x-8">
-              <Link href="/expert/home" className="text-white font-medium transition-colors duration-200 relative group">
+              <Link href={`${basePath}/home`} className="text-white font-medium transition-colors duration-200 relative group">
                 Home
                 <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
-              <Link href="/expert/dashboard" className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
+              <Link href={`${basePath}/dashboard`} className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
                 Dashboard
                 <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
@@ -165,7 +173,7 @@ export default function ExpertProfile() {
               <ProfileDropdown 
                 user={user} 
                 expert={expert} 
-                userType="expert" 
+                userType={viewer === 'super_admin' ? 'super_admin' : 'expert'} 
               />
             </div>
           </div>
@@ -196,9 +204,22 @@ export default function ExpertProfile() {
                 <div className="flex flex-col">
                   {/* Name and Rating side by side */}
                   <div className="flex items-center gap-3 mb-2">
-                    <h1 className="text-2xl font-bold text-slate-900">
-                      {expert?.name || 'Expert User'}
-                    </h1>
+                    <div className="flex items-center gap-3">
+                      <h1 className="text-2xl font-bold text-slate-900">
+                        {expert?.name || 'Expert User'}
+                      </h1>
+                      {expert?.calxbook_verified ? (
+                        <span className="inline-flex items-center gap-2 px-2 py-0.5 rounded-md text-sm font-medium bg-green-100 text-green-800">
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                          Listed on Calxbook
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-2 px-2 py-0.5 rounded-md text-sm font-medium bg-slate-100 text-slate-600">
+                          <Shield className="h-4 w-4 text-slate-500" />
+                          Not listed on Calxbook
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-1">
                       <Star className="h-5 w-5 text-yellow-400 fill-current" />
                       <span className="text-base font-semibold text-slate-700">
@@ -385,7 +406,7 @@ export default function ExpertProfile() {
             <Card className="bg-white border border-slate-200 rounded-xl shadow-sm">
               <CardContent className="p-6">
                 <div className="space-y-3">
-                  <Link href="/expert/profile/edit">
+                  <Link href={`${basePath}/profile/edit`}>
                     <Button className="w-full bg-[#008260] hover:bg-[#006b4f] text-white rounded-lg py-6 font-medium">
                       <Edit className="h-4 w-4 mr-2" />
                       Edit Profile
@@ -458,6 +479,21 @@ export default function ExpertProfile() {
                       <span className="text-slate-900 font-semibold">
                         {expert.expert_types.join(', ')}
                       </span>
+                    </div>
+                  )}
+
+                  {expert?.expert_services && expert.expert_services.length > 0 && (
+                    <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                      <span className="text-slate-600">Expert Services</span>
+                      <div className="text-slate-900 font-semibold text-right max-w-[60%]">
+                        {expert.service_price !== undefined && expert.service_price !== null ? (
+                          <div className="space-y-1 text-right">
+                            <div className="text-sm">₹{expert.service_price}</div>
+                          </div>
+                        ) : (
+                          <span>{expert.expert_services.join(', ')}</span>
+                        )}
+                      </div>
                     </div>
                   )}
 

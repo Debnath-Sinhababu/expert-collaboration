@@ -12,6 +12,8 @@ import ProfileDropdown from '@/components/ProfileDropdown'
 import { Briefcase } from 'lucide-react'
 import { usePagination } from '@/hooks/usePagination'
 import Logo from '@/components/Logo'
+import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
+import { fetchInstitutionForWorkspace, profileSetupPath } from '@/lib/institutionWorkspace'
 
 type FreelanceProject = {
   id: string
@@ -27,6 +29,7 @@ type FreelanceProject = {
 
 export default function FreelanceDashboard() {
   const router = useRouter()
+  const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
   const [user, setUser] = useState<any>(null)
   const [institution, setInstitution] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -52,10 +55,10 @@ export default function FreelanceDashboard() {
       if (!user) { router.push('/auth/login'); return }
       setUser(user)
       try {
-        const inst = await api.institutions.getByUserId(user.id)
-        if (!inst) { router.push('/institution/profile-setup'); return }
+        const inst = await fetchInstitutionForWorkspace(user.id, viewer, actingInstitutionId)
+        if (!inst) { router.push(profileSetupPath(viewer)); return }
         setInstitution(inst)
-        if ((inst.type || '').toLowerCase() !== 'corporate') { router.push('/institution/home'); return }
+        if ((inst.type || '').toLowerCase() !== 'corporate') { router.push(`${basePath}/home`); return }
         // No direct fetch here; list is driven by usePagination
       } catch (e: any) {
         setError(e.message || 'Failed to load')
@@ -64,7 +67,7 @@ export default function FreelanceDashboard() {
       }
     }
     init()
-  }, [router])
+  }, [router, viewer, actingInstitutionId, basePath])
 
   // Keep projects in sync with pagination data
   useEffect(() => {
@@ -86,12 +89,16 @@ export default function FreelanceDashboard() {
     <div className="min-h-screen bg-[#ECF2FF]">
       <header className="bg-[#008260] backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <Link href="/institution/home" className="flex items-center group">
+          <Link href={`${basePath}/home`} className="flex items-center group">
             <Logo size="header" />
           </Link>
           <div className="flex items-center space-x-6">
             <NotificationBell />
-            <ProfileDropdown user={user} institution={institution} userType="institution" />
+            <ProfileDropdown
+              user={user}
+              institution={institution}
+              userType={viewer === 'super_admin' ? 'super_admin' : 'institution'}
+            />
           </div>
         </div>
       </header>
@@ -99,7 +106,7 @@ export default function FreelanceDashboard() {
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4 mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold text-[#000000]">Freelance Dashboard</h1>
-          <Link href="/institution/post-requirement" className="w-full sm:w-auto">
+          <Link href={`${basePath}/post-requirement`} className="w-full sm:w-auto">
             <Button className="bg-[#008260] hover:bg-[#006B4F] text-white rounded-md px-6 w-full sm:w-auto">+ Post Requirement</Button>
           </Link>
         </div>
@@ -159,7 +166,7 @@ export default function FreelanceDashboard() {
                       </div>
                     )}
                     <div className="flex justify-end">
-                      <Button size="sm" className="bg-[#008260] hover:bg-[#006B4F] text-white rounded-md px-6 w-full sm:w-auto" onClick={() => router.push(`/institution/freelance/${p.id}`)}>View</Button>
+                      <Button size="sm" className="bg-[#008260] hover:bg-[#006B4F] text-white rounded-md px-6 w-full sm:w-auto" onClick={() => router.push(`${basePath}/freelance/${p.id}`)}>View</Button>
                     </div>
                   </div>
                 ))}

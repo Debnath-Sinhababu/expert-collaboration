@@ -35,6 +35,8 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useExpertWorkspace } from '@/contexts/ExpertWorkspaceContext'
+import { fetchExpertForWorkspace, expertProfileSetupPath } from '@/lib/expertWorkspace'
 
 type UserMeta = { role?: string; name?: string }
 type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }
@@ -108,6 +110,7 @@ export default function ExpertHome() {
   const [loadingRecommendations, setLoadingRecommendations] = useState(false)
 
   const router = useRouter()
+  const { viewer, actingExpertId, basePath } = useExpertWorkspace()
 
   // Use pagination hook for projects (same pattern as dashboard)
   const {
@@ -157,17 +160,23 @@ export default function ExpertHome() {
       if (!currentUser) return
 
       const userRole = currentUser.user_metadata?.role
-      if (userRole !== 'expert') {
+      if (userRole !== 'expert' && userRole !== 'super_admin') {
+        router.push('/')
+        return
+      }
+      if (userRole === 'super_admin' && viewer !== 'super_admin') {
+        router.push('/superadmin/home')
+        return
+      }
+      if (viewer === 'super_admin' && userRole !== 'super_admin') {
         router.push('/')
         return
       }
 
-      // Get expert profile
-      const expertProfile = await api.experts.getByUserId(currentUser.id)
-     
-      
+      const expertProfile = await fetchExpertForWorkspace(currentUser.id, viewer, actingExpertId)
+
       if (!expertProfile) {
-        router.push('/expert/profile-setup')
+        router.push(expertProfileSetupPath(viewer))
         return
       }
       
@@ -188,8 +197,7 @@ export default function ExpertHome() {
     loadExpertData()
     loadUniversities()
     loadCorporates()
-    
-  }, [router])
+  }, [router, viewer, actingExpertId])
 
   useEffect(()=>{
     if(expert){
@@ -348,17 +356,17 @@ export default function ExpertHome() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
-            <Link href="/expert/home" className="flex items-center group">
+            <Link href={`${basePath}/home`} className="flex items-center group">
               <Logo size="header" />
             </Link>
 
             {/* Navigation */}
             <nav className="hidden md:flex items-center space-x-8">
-              <Link href="/expert/home" className="text-white font-medium transition-colors duration-200 relative group">
+              <Link href={`${basePath}/home`} className="text-white font-medium transition-colors duration-200 relative group">
                 Home
                 <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
-              <Link href="/expert/dashboard" className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
+              <Link href={`${basePath}/dashboard`} className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
                 Dashboard
                 <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
@@ -372,7 +380,7 @@ export default function ExpertHome() {
               <ProfileDropdown 
                 user={user} 
                 expert={expert} 
-                userType="expert" 
+                userType={viewer === 'super_admin' ? 'super_admin' : 'expert'} 
               />
             </div>
           </div>
@@ -432,7 +440,7 @@ export default function ExpertHome() {
                             <div className="flex flex-col mb-4 gap-4">
                               <div className="flex-1 min-w-0">
                                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between">
-                                  <Link href={`/expert/project/${project.id}`}>
+                                  <Link href={`${basePath}/project/${project.id}`}>
                                     <h3 className="text-lg sm:text-xl font-bold text-slate-900 hover:text-blue-600 cursor-pointer truncate transition-colors duration-200">
                                       {project.title}
                                     </h3>
@@ -491,7 +499,7 @@ export default function ExpertHome() {
                                   <span className="hidden sm:inline">Apply Now</span>
                                   <span className="sm:hidden">Apply</span>
                                 </Button>
-                                <Link href={`/expert/project/${project.id}`}>
+                                <Link href={`${basePath}/project/${project.id}`}>
                                   <Button variant="outline" size="icon" className="border-[#008260] hover:border-[#006d51] hover:bg-[#008260]/10 flex-shrink-0 transition-all duration-200">
                                     <Eye className="h-4 w-4 text-[#008260]" />
                                   </Button>
@@ -940,7 +948,7 @@ export default function ExpertHome() {
                     <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start mb-4 gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
-                          <Link href={`/expert/project/${project.id}`}>
+                          <Link href={`${basePath}/project/${project.id}`}>
                             <h3 className="text-lg sm:text-xl font-semibold text-[#000000] cursor-pointer truncate">
                               {project.title}
                             </h3>
@@ -1027,7 +1035,7 @@ export default function ExpertHome() {
                           <span className="hidden sm:inline">Apply Now</span>
                           <span className="sm:hidden">Apply</span>
                         </Button>
-                        <Link href={`/expert/project/${project.id}`}>
+                        <Link href={`${basePath}/project/${project.id}`}>
                           <Button variant="outline" size="icon" className="border-[#008260] hover:border-[#006d51] hover:bg-[#008260]/10 flex-shrink-0 transition-all duration-200">
                             <Eye className="h-4 w-4 text-[#008260]" />
                           </Button>

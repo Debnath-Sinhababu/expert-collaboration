@@ -58,11 +58,14 @@ import {
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { toast } from 'sonner'
+import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
+import { fetchInstitutionForWorkspace } from '@/lib/institutionWorkspace'
 
 type UserMeta = { role?: string; name?: string }
 type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }
 
-export default function InstitutionHome() {
+export default function InstitutionHomePage() {
+  const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
   type InstitutionProfile = {
     id?: string
     user_id?: string
@@ -85,6 +88,7 @@ export default function InstitutionHome() {
     rating?: number
     total_ratings?: number
     is_verified?: boolean
+    expert_services?: string[]
     current_designation?: string
     domain_expertise?: string[]
     subskills?: string[]
@@ -220,14 +224,17 @@ export default function InstitutionHome() {
   const loadInstitutionData = async (userId: string) => {
     try {
       setLoading(true)
-      const institutionProfile = await api.institutions.getByUserId(userId)
-     
-      
+      const institutionProfile = await fetchInstitutionForWorkspace(userId, viewer, actingInstitutionId)
+
       if (!institutionProfile) {
-        router.push('/institution/profile-setup')
+        if (viewer === 'super_admin') {
+          router.push('/superadmin/home')
+        } else {
+          router.push('/institution/profile-setup')
+        }
         return
       }
-      
+
       setInstitution(institutionProfile)
       
       // Load experts
@@ -313,11 +320,16 @@ export default function InstitutionHome() {
         if (!currentUser) return
 
         const userRole = currentUser.user_metadata?.role
-        if (userRole !== 'institution') {
+        if (viewer === 'super_admin') {
+          if (userRole !== 'super_admin' || !actingInstitutionId) {
+            router.push('/')
+            return
+          }
+        } else if (userRole !== 'institution') {
           router.push('/')
           return
         }
-        
+
         await loadInstitutionData(currentUser.id)
       } catch (error: any) {
         setError('Failed to get user data')
@@ -325,7 +337,7 @@ export default function InstitutionHome() {
       }
     }
     initializeUser()
-  }, [router])
+  }, [router, viewer, actingInstitutionId])
 
   useEffect(() => {
     if (institution) {
@@ -670,7 +682,7 @@ export default function InstitutionHome() {
         description: 'Navigate to your dashboard to view the latest requirement and manage applications.',
         action: {
           label: 'Go to Dashboard',
-          onClick: () => router.push('/institution/dashboard')
+          onClick: () => router.push(`${basePath}/dashboard`)
         },
         duration: 5000
       })
@@ -738,7 +750,7 @@ export default function InstitutionHome() {
         <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
-            <Link href="/institution/home" className="flex items-center group">
+            <Link href={`${basePath}/home`} className="flex items-center group">
               <Logo size="header" />
             </Link>
 
@@ -746,9 +758,9 @@ export default function InstitutionHome() {
             <nav className="hidden md:flex items-center space-x-6">
               {/* Dashboard Link */}
               <Link 
-                href="/institution/dashboard"
+                href={`${basePath}/dashboard`}
                 className={`text-sm font-medium transition-colors duration-200 relative group ${
-                  pathname?.startsWith('/institution/dashboard') && !pathname?.startsWith('/institution/internships') && !pathname?.startsWith('/institution/freelance')
+                  pathname?.startsWith(`${basePath}/dashboard`) && !pathname?.startsWith(`${basePath}/internships`) && !pathname?.startsWith(`${basePath}/freelance`)
                     ? 'text-white' 
                     : 'text-white/80 hover:text-white'
                 }`}
@@ -760,9 +772,9 @@ export default function InstitutionHome() {
               {/* Internship Dashboard - Only for corporate institutions */}
               {institution?.type && institution.type.toLowerCase() === 'corporate' && (
                 <Link 
-                  href="/institution/internships/dashboard"
+                  href={`${basePath}/internships/dashboard`}
                   className={`text-sm font-medium transition-colors duration-200 relative group ${
-                    pathname?.startsWith('/institution/internships')
+                    pathname?.startsWith(`${basePath}/internships`)
                       ? 'text-white' 
                       : 'text-white/80 hover:text-white'
                   }`}
@@ -775,9 +787,9 @@ export default function InstitutionHome() {
               {/* Freelance Dashboard - Only for corporate institutions */}
               {institution?.type && institution.type.toLowerCase() === 'corporate' && (
                 <Link 
-                  href="/institution/freelance/dashboard"
+                  href={`${basePath}/freelance/dashboard`}
                   className={`text-sm font-medium transition-colors duration-200 relative group ${
-                    pathname?.startsWith('/institution/freelance')
+                    pathname?.startsWith(`${basePath}/freelance`)
                       ? 'text-white' 
                       : 'text-white/80 hover:text-white'
                   }`}
@@ -790,7 +802,7 @@ export default function InstitutionHome() {
               {/* Browse Internships - Only for non-corporate institutions */}
               {institution?.type && institution.type !== 'Corporate' && (
                 <Link 
-                  href="/institution/internships/opportunities"
+                  href={`${basePath}/internships/opportunities`}
                   className="text-sm font-medium text-white/80 hover:text-white transition-colors duration-200 relative group"
                 >
                   Browse Internships
@@ -804,7 +816,7 @@ export default function InstitutionHome() {
               <ProfileDropdown 
                 user={user} 
                 institution={institution} 
-                userType="institution" 
+                userType={viewer === 'super_admin' ? 'super_admin' : 'institution'} 
               />
               <div className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors duration-200">
                 <NotificationBell />
@@ -825,7 +837,7 @@ export default function InstitutionHome() {
             {/* Inline CTA row */}
             <div className="flex flex-wrap items-center gap-3 sm:gap-4 md:gap-5 py-2 sm:py-3">
               {/* Hire Experts */}
-              <Link href="/institution/post-requirement?tab=contract">
+              <Link href={`${basePath}/post-requirement?tab=contract`}>
                 <Button className="bg-[#008260] hover:bg-[#006d51] text-white rounded-full px-5 sm:px-6 py-2.5 sm:py-3 h-auto text-sm sm:text-base">
                   <UserCheck className="h-4 w-4 mr-2" />
                 Hire Experts
@@ -834,7 +846,7 @@ export default function InstitutionHome() {
 
               {/* Internship (corporate only) */}
               {institution?.type && institution.type.toLowerCase() === 'corporate' && (
-                <Link href="/institution/post-requirement?tab=internship">
+                <Link href={`${basePath}/post-requirement?tab=internship`}>
                   <Button className="bg-[#008260] hover:bg-[#006d51] text-white rounded-full px-5 sm:px-6 py-2.5 sm:py-3 h-auto text-sm sm:text-base">
                     <GraduationCap className="h-4 w-4 mr-2" />
                     Create Internship
@@ -844,7 +856,7 @@ export default function InstitutionHome() {
 
               {/* Freelance (corporate only) */}
               {institution?.type && institution.type.toLowerCase() === 'corporate' && (
-                <Link href="/institution/post-requirement?tab=freelance">
+                <Link href={`${basePath}/post-requirement?tab=freelance`}>
                   <Button className="bg-[#008260] hover:bg-[#006d51] text-white rounded-full px-5 sm:px-6 py-2.5 sm:py-3 h-auto text-sm sm:text-base">
                     <Briefcase className="h-4 w-4 mr-2" />
                     Create Freelance
@@ -863,7 +875,7 @@ export default function InstitutionHome() {
       {/* Mobile Browse Internships Button */}
       {institution?.type && institution.type !== 'Corporate' && (
         <div className="md:hidden bg-[#ECF2FF] px-4 py-3">
-          <Link href="/institution/internships/opportunities">
+          <Link href={`${basePath}/internships/opportunities`}>
             <Button className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium rounded-lg py-3 flex items-center justify-center gap-2">
               <Briefcase className="h-5 w-5" />
               Browse Internships
@@ -1116,6 +1128,20 @@ export default function InstitutionHome() {
                                     </div>
                                   </div>
                                 )}
+                                {expert.expert_services && expert.expert_services.length > 0 && (
+                                  <div>
+                                    <h4 className="font-medium mb-2">Expert Services</h4>
+                                    <div className="max-h-24 overflow-y-auto">
+                                      <div className="flex flex-wrap gap-2">
+                                        {expert.expert_services.map((service: string, index: number) => (
+                                          <Badge key={index} variant="secondary" className="text-xs">
+                                            {service}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
                                 {expert.qualifications && (
                                   <div>
                                     <h4 className="font-medium mb-1">Qualifications</h4>
@@ -1298,7 +1324,7 @@ export default function InstitutionHome() {
             </div>
             <Dialog open={false}>
               <DialogTrigger asChild>
-                <Button className="bg-[#008260] hover:bg-[#008260] text-sm font-semibold" onClick={() => router.push('/institution/post-requirement')}>
+                <Button className="bg-[#008260] hover:bg-[#008260] text-sm font-semibold" onClick={() => router.push(`${basePath}/post-requirement`)}>
                   <Plus className="h-3 w-3 mr-1 border border-white rounded-full" />
                   Post Requirement
                 </Button>
@@ -1661,6 +1687,20 @@ export default function InstitutionHome() {
                                   <p className="text-sm text-gray-600">{expert.experience_years}+ years</p>
                                 </div>
                               )}
+                              {expert.expert_services && expert.expert_services.length > 0 && (
+                                <div>
+                                  <h4 className="font-medium mb-2">Expert Services</h4>
+                                  <div className="max-h-24 overflow-y-auto">
+                                    <div className="flex flex-wrap gap-2">
+                                      {expert.expert_services.map((service: string, index: number) => (
+                                        <Badge key={index} variant="secondary" className="text-xs">
+                                          {service}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
                               {expert.certifications && expert.certifications.length > 0 && (
                                 <div className="mb-4">
                                   <h5 className="font-medium mb-2">Certifications</h5>
@@ -1795,6 +1835,20 @@ export default function InstitutionHome() {
                                       {expert.subskills.map((skill: string, index: number) => (
                                         <Badge key={index} variant="secondary" className="text-xs">
                                           {skill}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                              {expert.expert_services && expert.expert_services.length > 0 && (
+                                <div>
+                                  <h4 className="font-medium mb-2">Expert Services</h4>
+                                  <div className="max-h-24 overflow-y-auto">
+                                    <div className="flex flex-wrap gap-2">
+                                      {expert.expert_services.map((service: string, index: number) => (
+                                        <Badge key={index} variant="secondary" className="text-xs">
+                                          {service}
                                         </Badge>
                                       ))}
                                     </div>
