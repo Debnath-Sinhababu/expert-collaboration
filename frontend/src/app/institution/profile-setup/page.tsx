@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Building, Globe, MapPin, ImageIcon } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { toast } from 'sonner'
 import { isCommonEmailProvider } from '@/lib/utils'
 import Logo from '@/components/Logo'
@@ -50,6 +50,8 @@ export default function InstitutionProfileSetup() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const router = useRouter()
+  const pathname = usePathname()
+  const isSuperAdminInstitutionCreate = pathname?.startsWith('/superadmin/create-institution') ?? false
   const { viewer } = useInstitutionWorkspace()
 
   const [logoFile, setLogoFile] = useState<File | null>(null)
@@ -85,6 +87,10 @@ export default function InstitutionProfileSetup() {
 
   useEffect(() => {
     const getUser = async () => {
+      if (viewer === 'super_admin' && isSuperAdminInstitutionCreate) {
+        setLoading(false)
+        return
+      }
       if (viewer === 'super_admin') {
         router.replace('/superadmin/home')
         return
@@ -100,7 +106,7 @@ export default function InstitutionProfileSetup() {
     }
 
     getUser()
-  }, [router, viewer])
+  }, [router, viewer, isSuperAdminInstitutionCreate])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -214,6 +220,13 @@ export default function InstitutionProfileSetup() {
 
       }
 
+
+      if (!isSuperAdminInstitutionCreate && !user) {
+        toast.error('Please sign in to continue')
+        setSaving(false)
+        return
+      }
+
       const institutionData = {
         ...formData,
         requires_po: formData.requires_po === 'true',
@@ -221,8 +234,8 @@ export default function InstitutionProfileSetup() {
         preferred_engagements: formData.preferred_engagements
           ? formData.preferred_engagements.split(',').map(s => s.trim()).filter(Boolean)
           : [],
-        user_id: user.id,
-        email: user.email,
+        user_id: isSuperAdminInstitutionCreate ? null : user!.id,
+        email: isSuperAdminInstitutionCreate ? formData.contact_email : user!.email,
         established_year: parseInt(formData.established_year) || null,
         student_count: parseInt(formData.student_count) || null,
         created_at: new Date().toISOString(),
@@ -249,9 +262,8 @@ export default function InstitutionProfileSetup() {
       }
       
       await api.institutions.create(institutionData, formDataToSend)
-      toast.success('Institution profile created successfully! Redirecting to dashboard...')
-      
-        router.push('/institution/home')
+      toast.success('Institution profile created successfully!')
+      router.push(isSuperAdminInstitutionCreate ? '/superadmin/home' : '/institution/home')
       
     } catch (error: any) {
       setError(error.message)
@@ -273,7 +285,7 @@ export default function InstitutionProfileSetup() {
 
   return (
     <div className="min-h-screen bg-[#ECF2FF] relative">
-      {/* Header */}
+      {!isSuperAdminInstitutionCreate && (
       <header className="relative bg-[#008260] shadow-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
@@ -286,14 +298,26 @@ export default function InstitutionProfileSetup() {
           </div>
         </div>
       </header>
+      )}
 
-      <div className="container mx-auto px-4 max-w-7xl relative z-10 mt-8 mb-8">
+      <div className={`container mx-auto px-4 max-w-7xl relative z-10 ${isSuperAdminInstitutionCreate ? 'mt-4' : 'mt-8'} mb-8`}>
         {/* Page Title */}
         <div className="mb-8">
-          <h1 className="text-[#000000] font-semibold text-[32px] mb-2">Complete Your Institution Profile</h1>
-          <p className="text-[#000000] text-base">
-            Set up your institution profile to start posting projects and finding experts
-          </p>
+          {isSuperAdminInstitutionCreate ? (
+            <>
+              <h1 className="text-[#000000] font-semibold text-[28px] sm:text-[32px] mb-2">Create institution (super admin)</h1>
+              <p className="text-[#374151] text-base leading-relaxed max-w-3xl">
+                Same fields as institution onboarding — profile is saved without attaching your super-admin account.
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="text-[#000000] font-semibold text-[32px] mb-2">Complete Your Institution Profile</h1>
+              <p className="text-[#000000] text-base">
+                Set up your institution profile to start posting projects and finding experts
+              </p>
+            </>
+          )}
         </div>
 
         {/* Alerts */}

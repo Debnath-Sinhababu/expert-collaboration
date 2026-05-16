@@ -3,6 +3,16 @@ import { SUPERADMIN_ACTING_INSTITUTION_KEY, SUPERADMIN_ACTING_EXPERT_KEY } from 
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
+/** Avoid URLSearchParams stringifying undefined as "undefined" (breaks backend ilike filters). */
+function serializeQueryParts(record: Record<string, string | number | boolean | undefined | null>): string {
+  const u = new URLSearchParams()
+  for (const [k, v] of Object.entries(record)) {
+    if (v === undefined || v === null) continue
+    u.set(k, String(v))
+  }
+  return u.toString()
+}
+
 const getAuthHeaders = async () => {
   const { data: { session } } = await supabase.auth.getSession()
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
@@ -93,10 +103,7 @@ export const api = {
       sort_order?: 'asc' | 'desc';
     }) => {
       const headers = await getAuthHeaders()
-      const query = new URLSearchParams({
-        ...params as any,
-        _t: Date.now().toString()
-      }).toString()
+      const query = serializeQueryParts({ ...(params || {}), _t: Date.now() })
       return fetch(`${API_BASE_URL}/api/experts${query ? `?${query}` : ''}`, { headers }).then(res => res.json())
     },
     getById: async (id: string) => {
@@ -327,10 +334,7 @@ export const api = {
   institutions: {
     getAll: async (params?: { page?: number; limit?: number; search?: string; type?: string; exclude_type?: string }) => {
       const headers = await getAuthHeaders()
-      const query = new URLSearchParams({
-        ...params as any,
-        _t: Date.now().toString() // Cache busting
-      }).toString()
+      const query = serializeQueryParts({ ...(params || {}), _t: Date.now() })
       return fetch(`${API_BASE_URL}/api/institutions${query ? `?${query}` : ''}`, { headers }).then(res => res.json())
     },
     getById: async (id: string) => {
@@ -582,6 +586,14 @@ export const api = {
       if (!res.ok) throw new Error(json?.error || 'Failed to fetch student profile')
       return json
     },
+    getAll: async (params?: { page?: number; limit?: number; search?: string }) => {
+      const headers = await getAuthHeaders()
+      const query = serializeQueryParts({ ...(params || {}), _t: Date.now() })
+      const res = await fetch(`${API_BASE_URL}/api/students${query ? `?${query}` : ''}`, { headers })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to fetch students')
+      return json
+    },
     create: async (data: any) => {
       // This method is not used for multipart (handled inline via fetch in the page)
       // Keep JSON variant for potential headless usage
@@ -599,4 +611,37 @@ export const api = {
       return json
     }
   }
+  ,
+  superadmin: {
+    getCustomDomains: async () => {
+      const headers = await getAuthHeaders()
+      const q = new URLSearchParams({ _t: Date.now().toString() }).toString()
+      const res = await fetch(`${API_BASE_URL}/api/superadmin/custom-domains?${q}`, { headers })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to load custom domains')
+      return json as any[]
+    },
+    createExpertMultipart: async (formData: FormData) => {
+      const headers = await getAuthHeadersForFormData()
+      const res = await fetch(`${API_BASE_URL}/api/superadmin/experts`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to create expert')
+      return json
+    },
+    bulkImportExperts: async (body: Record<string, unknown>) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/superadmin/experts/bulk-import`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Bulk import failed')
+      return json
+    },
+  },
 }

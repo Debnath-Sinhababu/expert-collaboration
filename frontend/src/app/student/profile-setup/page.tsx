@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -61,12 +61,16 @@ export default function StudentProfileSetup() {
   const [photoError, setPhotoError] = useState('')
   const [photoPreview, setPhotoPreview] = useState<string>('')
   const router = useRouter()
+  const pathname = usePathname()
+  const isSuperAdminStudentCreate = pathname?.startsWith('/superadmin/create-student') ?? false
 
   useEffect(() => {
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/auth/login'); return }
-      setForm(prev => ({ ...prev, email: user.email || '' }))
+      if (!isSuperAdminStudentCreate) {
+        setForm(prev => ({ ...prev, email: user.email || '' }))
+      }
       try {
         const list = await api.institutions.getAll({ page: 1, limit: 1000, exclude_type: 'Corporate' })
         const arr = Array.isArray(list) ? list : (list?.data || [])
@@ -75,7 +79,7 @@ export default function StudentProfileSetup() {
       setLoading(false)
     }
     init()
-  }, [router])
+  }, [router, isSuperAdminStudentCreate])
 
   const handleResumeSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -182,7 +186,7 @@ export default function StudentProfileSetup() {
       if (!res.ok) throw new Error(json?.error || 'Failed to create profile')
 
       toast.success('Profile created')
-      router.push('/student/home')
+      router.push(isSuperAdminStudentCreate ? '/superadmin/home' : '/student/home')
     } catch (e: any) {
       toast.error(e.message || 'Failed to create profile')
     } finally {
@@ -203,7 +207,7 @@ export default function StudentProfileSetup() {
 
   return (
     <div className="min-h-screen bg-[#ECF2FF]">
-      {/* Header */}
+      {!isSuperAdminStudentCreate && (
       <header className="bg-[#008260] text-white py-4 px-6 shadow-md">
         <div className="container mx-auto flex items-center justify-between">
           <Logo size="header" />
@@ -214,12 +218,22 @@ export default function StudentProfileSetup() {
           </div>
         </div>
       </header>
+      )}
 
       <div className="container mx-auto px-4 py-8">
         {/* Page Title */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-[#000000] mb-2">Complete Your Student Profile</h1>
-          <p className="text-[#6A6A6A]">Create your student profile to apply to internships</p>
+          {isSuperAdminStudentCreate ? (
+            <>
+              <h1 className="text-3xl font-bold text-[#000000] mb-2">Create student (super admin)</h1>
+              <p className="text-[#6A6A6A] max-w-2xl">Full student profile form — same as student signup. Enter the student’s email below.</p>
+            </>
+          ) : (
+            <>
+              <h1 className="text-3xl font-bold text-[#000000] mb-2">Complete Your Student Profile</h1>
+              <p className="text-[#6A6A6A]">Create your student profile to apply to internships</p>
+            </>
+          )}
         </div>
 
         <Card className="bg-white border border-[#E0E0E0] rounded-xl shadow-sm">
