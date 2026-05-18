@@ -1041,6 +1041,66 @@ app.put('/api/experts/:id/calxbook-visibility', async (req, res) => {
 
 // --- Super-admin mutations (admin /api/admin/* routes are not modified) ---
 
+function formatHardDeleteError(err) {
+  const code = err?.code || '';
+  const msg = err?.message || 'Delete failed';
+  if (code === '23503') {
+    return 'Cannot delete: this profile is still referenced by other records (projects, applications, etc.). Remove those first.';
+  }
+  if (code === 'AUTH_DELETE_FAILED') {
+    return msg;
+  }
+  return msg;
+}
+
+app.delete('/api/superadmin/profiles/experts/:id', async (req, res) => {
+  try {
+    const auth = await superAdminAuth.requireSuperAdmin(req, res);
+    if (!auth) return;
+    const serviceClient = superAdminAuth.getServiceClient();
+    const deleted = await superAdminAuth.hardDeleteProfileRow(serviceClient, 'experts', req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Expert not found' });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Super-admin delete expert error:', err);
+    res.status(500).json({ error: formatHardDeleteError(err) });
+  }
+});
+
+app.delete('/api/superadmin/profiles/institutions/:id', async (req, res) => {
+  try {
+    const auth = await superAdminAuth.requireSuperAdmin(req, res);
+    if (!auth) return;
+    const serviceClient = superAdminAuth.getServiceClient();
+    const deleted = await superAdminAuth.hardDeleteProfileRow(serviceClient, 'institutions', req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Institution not found' });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Super-admin delete institution error:', err);
+    res.status(500).json({ error: formatHardDeleteError(err) });
+  }
+});
+
+app.delete('/api/superadmin/profiles/students/:id', async (req, res) => {
+  try {
+    const auth = await superAdminAuth.requireSuperAdmin(req, res);
+    if (!auth) return;
+    const serviceClient = superAdminAuth.getServiceClient();
+    const deleted = await superAdminAuth.hardDeleteProfileRow(serviceClient, 'site_students', req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Super-admin delete student error:', err);
+    res.status(500).json({ error: formatHardDeleteError(err) });
+  }
+});
+
 app.get('/api/superadmin/custom-domains', async (req, res) => {
   try {
     const auth = await superAdminAuth.requireSuperAdmin(req, res);

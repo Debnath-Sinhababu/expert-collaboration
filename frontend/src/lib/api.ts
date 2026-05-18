@@ -613,6 +613,36 @@ export const api = {
   }
   ,
   superadmin: {
+    deleteExpert: async (id: string) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/superadmin/profiles/experts/${id}`, {
+        method: 'DELETE',
+        headers,
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to delete expert')
+      return json
+    },
+    deleteInstitution: async (id: string) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/superadmin/profiles/institutions/${id}`, {
+        method: 'DELETE',
+        headers,
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to delete institution')
+      return json
+    },
+    deleteStudent: async (id: string) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/superadmin/profiles/students/${id}`, {
+        method: 'DELETE',
+        headers,
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to delete student')
+      return json
+    },
     getCustomDomains: async () => {
       const headers = await getAuthHeaders()
       const q = new URLSearchParams({ _t: Date.now().toString() }).toString()

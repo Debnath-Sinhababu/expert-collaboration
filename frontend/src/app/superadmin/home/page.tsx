@@ -8,6 +8,17 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { ProfileCardDeleteMenu } from '@/components/superadmin/ProfileCardDeleteMenu'
+import {
   Building2,
   MapPin,
   Search,
@@ -137,6 +148,13 @@ export default function SuperAdminHome() {
   const [expertHasMore, setExpertHasMore] = useState(false)
   const [studentHasMore, setStudentHasMore] = useState(false)
 
+  const [deleteTarget, setDeleteTarget] = useState<{
+    kind: TabKey
+    id: string
+    label: string
+  } | null>(null)
+  const [deleteBusy, setDeleteBusy] = useState(false)
+
   useEffect(() => {
     const t = setTimeout(() => setDebouncedInstSearch(institutionSearch), 400)
     return () => clearTimeout(t)
@@ -260,6 +278,31 @@ export default function SuperAdminHome() {
     loadStudents()
   }, [loadStudents])
 
+  async function confirmDelete() {
+    if (!deleteTarget) return
+    setDeleteBusy(true)
+    const kind = deleteTarget.kind
+    try {
+      if (kind === 'experts') {
+        await api.superadmin.deleteExpert(deleteTarget.id)
+      } else if (kind === 'institutions') {
+        await api.superadmin.deleteInstitution(deleteTarget.id)
+      } else {
+        await api.superadmin.deleteStudent(deleteTarget.id)
+      }
+      toast.success('Profile deleted permanently')
+      setDeleteTarget(null)
+      if (kind === 'experts') await loadExperts()
+      else if (kind === 'institutions') await loadInstitutions()
+      else await loadStudents()
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Delete failed'
+      toast.error(message)
+    } finally {
+      setDeleteBusy(false)
+    }
+  }
+
   function emptyMessage(tab: TabKey) {
     const hasSearch =
       (tab === 'experts' && !!debouncedExpertSearch.trim()) ||
@@ -338,9 +381,15 @@ export default function SuperAdminHome() {
                 experts.map((ex) => (
                   <Card
                     key={ex.id}
-                    className="border border-slate-200/90 shadow-sm hover:shadow-md transition-shadow bg-white overflow-hidden group"
+                    className="border border-slate-200/90 shadow-sm hover:shadow-md transition-shadow bg-white overflow-hidden group relative"
                   >
-                    <CardHeader className="pb-2">
+                    <ProfileCardDeleteMenu
+                      kind="experts"
+                      id={ex.id}
+                      label={ex.name || ex.email || ex.id}
+                      onDelete={setDeleteTarget}
+                    />
+                    <CardHeader className="pb-2 pr-12">
                       <div className="flex items-start gap-3">
                         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#008260]/10 text-[#008260]">
                           <User className="h-5 w-5" />
@@ -428,9 +477,15 @@ export default function SuperAdminHome() {
                 institutions.map((inst) => (
                   <Card
                     key={inst.id}
-                    className="border border-slate-200/90 shadow-sm hover:shadow-md transition-shadow bg-white overflow-hidden group"
+                    className="border border-slate-200/90 shadow-sm hover:shadow-md transition-shadow bg-white overflow-hidden group relative"
                   >
-                    <CardHeader className="pb-2">
+                    <ProfileCardDeleteMenu
+                      kind="institutions"
+                      id={inst.id}
+                      label={inst.name || inst.email || inst.id}
+                      onDelete={setDeleteTarget}
+                    />
+                    <CardHeader className="pb-2 pr-12">
                       <div className="flex items-start gap-3">
                         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#008260]/10 text-[#008260]">
                           <Building2 className="h-5 w-5" />
@@ -518,9 +573,15 @@ export default function SuperAdminHome() {
                 students.map((st) => (
                   <Card
                     key={st.id}
-                    className="border border-slate-200/90 shadow-sm hover:shadow-md transition-shadow bg-white overflow-hidden relative"
+                    className="border border-slate-200/90 shadow-sm hover:shadow-md transition-shadow bg-white overflow-hidden group relative"
                   >
-                    <CardHeader className="pb-2">
+                    <ProfileCardDeleteMenu
+                      kind="students"
+                      id={st.id}
+                      label={st.name || st.email || st.id}
+                      onDelete={setDeleteTarget}
+                    />
+                    <CardHeader className="pb-2 pr-12">
                       <div className="flex items-start gap-3">
                         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#008260]/10 text-[#008260]">
                           <GraduationCap className="h-5 w-5" />
@@ -578,6 +639,31 @@ export default function SuperAdminHome() {
           </TabsContent>
         </Tabs>
     </main>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && !deleteBusy && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete profile permanently?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete <strong>{deleteTarget?.label}</strong> from the database.
+              This cannot be undone. If the profile is linked to projects or applications, deletion may fail.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteBusy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              disabled={deleteBusy}
+              onClick={(e) => {
+                e.preventDefault()
+                confirmDelete()
+              }}
+            >
+              {deleteBusy ? 'Deleting…' : 'Delete permanently'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 </>
   )
 }

@@ -1,4 +1,4 @@
--- Remove soft-delete columns (revert 20260516000000 if applied)
+-- Remove soft-delete columns (hard delete only for super-admin profile removal)
 DROP INDEX IF EXISTS idx_experts_deleted_at;
 DROP INDEX IF EXISTS idx_institutions_deleted_at;
 DROP INDEX IF EXISTS idx_site_students_deleted_at;
