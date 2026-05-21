@@ -4,6 +4,7 @@
  */
 
 const superAdminAuth = require('../auth/superAdminAuth');
+const { ensureAuthUserForProfile, authLoginMeta } = require('../auth/profileAuthService');
 const ImageUploadService = require('../services/imageUploadService');
 
 const STANDARD_DOMAINS = [
@@ -139,10 +140,35 @@ function registerSuperAdminExpertMutations(app, { upload, normalizePan, isValidP
         }
       }
 
+      const expertEmail = String(req.body.email).trim();
+      const { data: existingByEmail } = await serviceClient
+        .from('experts')
+        .select('id')
+        .eq('email', expertEmail)
+        .limit(1);
+      if (existingByEmail?.length) {
+        return res.status(409).json({
+          error: 'An expert with this email already exists.',
+        });
+      }
+
+      let authResult;
+      try {
+        authResult = await ensureAuthUserForProfile(serviceClient, {
+          email: expertEmail,
+          role: 'expert',
+          password: req.body.initial_password,
+        });
+      } catch (authErr) {
+        return res.status(400).json({
+          error: authErr.message || 'Failed to create login account',
+        });
+      }
+
       const expertData = {
-        user_id: null,
+        user_id: authResult.userId,
         name: req.body.name,
-        email: req.body.email,
+        email: expertEmail,
         phone: req.body.phone,
         bio: req.body.bio || '',
         photo_url: photoData?.url || null,
@@ -194,7 +220,10 @@ function registerSuperAdminExpertMutations(app, { upload, normalizePan, isValidP
         .select();
 
       if (error) throw error;
-      res.status(201).json(data[0]);
+      res.status(201).json({
+        ...data[0],
+        auth: authLoginMeta(authResult, expertEmail),
+      });
     } catch (error) {
       console.error('Super-admin create expert error:', error);
       res.status(500).json({ error: error.message });
@@ -254,6 +283,63 @@ function registerSuperAdminExpertMutations(app, { upload, normalizePan, isValidP
       });
     } catch (error) {
       console.error('Super-admin bulk import error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post('/api/superadmin/students/bulk-import', async (req, res) => {
+    try {
+      const auth = await superAdminAuth.requireSuperAdmin(req, res);
+      if (!auth) return;
+
+      const { spreadsheetId, range, gid, usePublicAccess = false, delayBetweenRows = 500, defaultPassword } = req.body;
+
+      if (!spreadsheetId) {
+        return res.status(400).json({ error: 'spreadsheetId is required' });
+      }
+
+      const GoogleSheetsService = require('../services/googleSheetsService');
+      const BulkImportService = require('../services/bulkImportService');
+
+      let rows;
+      try {
+        if (usePublicAccess) {
+          rows = await GoogleSheetsService.readPublicSheet(spreadsheetId, range, gid);
+        } else {
+          rows = await GoogleSheetsService.readSheet(spreadsheetId, range);
+        }
+      } catch (error) {
+        return res.status(400).json({
+          error: `Failed to read Google Sheet: ${error.message}`,
+        });
+      }
+
+      if (!rows || rows.length === 0) {
+        return res.status(400).json({ error: 'No data found in the sheet' });
+      }
+
+      const results = await BulkImportService.processStudentBulkImport(rows, {
+        delayBetweenRows: parseInt(delayBetweenRows, 10) || 500,
+        defaultPassword,
+      });
+
+      res.json({
+        success: true,
+        summary: {
+          total: results.total,
+          successful: results.successful,
+          failed: results.failed,
+        },
+        details: results.details.map((detail) => ({
+          rowNumber: detail.rowNumber,
+          success: detail.success,
+          studentId: detail.student?.id || null,
+          studentName: detail.student?.name || null,
+          errors: detail.errors,
+        })),
+      });
+    } catch (error) {
+      console.error('Super-admin student bulk import error:', error);
       res.status(500).json({ error: error.message });
     }
   });

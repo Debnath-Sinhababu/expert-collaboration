@@ -185,7 +185,16 @@ export default function StudentProfileSetup() {
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json?.error || 'Failed to create profile')
 
-      toast.success('Profile created')
+      if (isSuperAdminStudentCreate) {
+        const pwd = json?.auth?.temporaryPassword
+        toast.success(
+          pwd
+            ? `Student created. Login: ${json?.auth?.email || form.email} / ${pwd}`
+            : `Student created. Login linked to ${json?.auth?.email || form.email}.`,
+        )
+      } else {
+        toast.success('Profile created')
+      }
       router.push(isSuperAdminStudentCreate ? '/superadmin/home' : '/student/home')
     } catch (e: any) {
       toast.error(e.message || 'Failed to create profile')

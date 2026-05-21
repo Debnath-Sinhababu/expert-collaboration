@@ -261,8 +261,19 @@ export default function InstitutionProfileSetup() {
         formDataToSend.append('logo', logoFile)
       }
       
-      await api.institutions.create(institutionData, formDataToSend)
-      toast.success('Institution profile created successfully!')
+      const created = await api.institutions.create(institutionData, formDataToSend) as {
+        auth?: { email?: string; temporaryPassword?: string }
+      }
+      if (isSuperAdminInstitutionCreate) {
+        const pwd = created?.auth?.temporaryPassword
+        toast.success(
+          pwd
+            ? `Institution created. Login: ${created.auth?.email || formData.contact_email} / ${pwd}`
+            : `Institution created. Login linked to ${created?.auth?.email || formData.contact_email}.`,
+        )
+      } else {
+        toast.success('Institution profile created successfully!')
+      }
       router.push(isSuperAdminInstitutionCreate ? '/superadmin/home' : '/institution/home')
       
     } catch (error: any) {

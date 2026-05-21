@@ -6,19 +6,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Upload, ArrowLeft, CheckCircle, XCircle, Loader2, FileSpreadsheet } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import Logo from '@/components/Logo'
 import { api } from '@/lib/api'
 
 function extractSpreadsheetId(urlOrId: string): string | null {
   const trimmed = urlOrId.trim()
-  // If it's already just an ID (no slashes, reasonable length)
   if (!trimmed.includes('/') && trimmed.length > 10 && trimmed.length < 100) {
     return trimmed
   }
-  // Match: https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/...
   const match = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)
   return match ? match[1] : null
 }
@@ -26,8 +24,10 @@ function extractSpreadsheetId(urlOrId: string): string | null {
 type ImportDetail = {
   rowNumber: number
   success: boolean
-  expertId: string | null
-  expertName: string | null
+  expertId?: string | null
+  expertName?: string | null
+  studentId?: string | null
+  studentName?: string | null
   errors: string[]
 }
 
@@ -41,9 +41,13 @@ type ImportResult = {
   details: ImportDetail[]
 }
 
+type ImportKind = 'experts' | 'students'
+
 export default function SuperAdminBulkImport() {
+  const [kind, setKind] = useState<ImportKind>('experts')
   const [spreadsheetUrl, setSpreadsheetUrl] = useState('')
   const [range, setRange] = useState('Sheet1!A1:Z1000')
+  const [defaultPassword, setDefaultPassword] = useState('')
   const [delayBetweenRows, setDelayBetweenRows] = useState('500')
   const [importing, setImporting] = useState(false)
   const [result, setResult] = useState<ImportResult | null>(null)
@@ -56,209 +60,212 @@ export default function SuperAdminBulkImport() {
 
     const spreadsheetId = extractSpreadsheetId(spreadsheetUrl)
     if (!spreadsheetId) {
-      setError('Invalid spreadsheet URL or ID. Paste the full URL (e.g. https://docs.google.com/spreadsheets/d/.../edit) or the Sheet ID.')
+      setError('Invalid spreadsheet URL or ID.')
       toast.error('Invalid spreadsheet URL or ID')
       return
     }
 
     setImporting(true)
     try {
-      const data = await api.superadmin.bulkImportExperts({
+      const body: Record<string, unknown> = {
         spreadsheetId,
         range: range || 'Sheet1!A1:Z1000',
         usePublicAccess: true,
         delayBetweenRows: parseInt(delayBetweenRows, 10) || 500,
-      })
+      }
+      if (defaultPassword.trim()) {
+        body.defaultPassword = defaultPassword.trim()
+      }
+
+      const data =
+        kind === 'experts'
+          ? await api.superadmin.bulkImportExperts(body)
+          : await api.superadmin.bulkImportStudents(body)
 
       setResult(data as ImportResult)
-      toast.success(`Import complete: ${(data as any).summary?.successful || 0} succeeded, ${(data as any).summary?.failed || 0} failed`)
-    } catch (err: any) {
-      setError(err.message || 'Import failed')
-      toast.error(err.message || 'Import failed')
+      const s = (data as ImportResult).summary
+      toast.success(`Import complete: ${s?.successful ?? 0} succeeded, ${s?.failed ?? 0} failed`)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Import failed'
+      setError(msg)
+      toast.error(msg)
     } finally {
       setImporting(false)
     }
   }
 
-  return (
-    <div className="min-h-screen bg-[#ECF2FF] relative">
-      <header className="relative bg-[#008260] shadow-sm">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/superadmin/home" className="block">
-              <Logo size="header" />
-            </Link>
-            <div className="flex items-center gap-4">
-              <Link href="/superadmin/home">
-                <Button variant="ghost" className="font-medium text-white hover:text-white hover:bg-white/10 transition-all duration-300 px-4 py-2 text-sm">
-                  Console home
-                </Button>
-              </Link>
-              <Link href="/superadmin/create-expert">
-                <Button variant="ghost" className="font-medium text-white hover:text-white hover:bg-white/10 transition-all duration-300 px-4 py-2 text-sm">
-                  Create Expert
-                </Button>
-              </Link>
-              <Link href="/">
-                <Button variant="ghost" className="font-medium text-white hover:text-white hover:bg-white/10 transition-all duration-300 px-4 py-2 text-sm">
-                  Home
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
+  const requiredHint =
+    kind === 'experts'
+      ? 'Required columns: Name, Email, Phone, Domain Expertise.'
+      : 'Required columns: Name, Email.'
 
-      <div className="container mx-auto px-4 relative z-10 flex flex-col items-start gap-y-6 mt-8">
-        <div className="flex items-center gap-4 w-full">
-          <Link href="/superadmin/home">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Button>
-          </Link>
-          <div>
-            <h2 className="text-[#000000] font-semibold text-[32px]">Bulk Expert Import</h2>
-            <p className="text-base font-sans text-[#000000] font-normal">
-              Import expert profiles from a public Google Sheet. Ensure the sheet is shared as &quot;Anyone with the link can view&quot;.
-            </p>
-          </div>
+  return (
+    <div className="max-w-3xl mx-auto px-4 py-8 pb-16">
+      <div className="flex items-center gap-4 mb-6">
+        <Link href="/superadmin/home">
+          <Button variant="ghost" size="sm">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+        </Link>
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900">Bulk import</h1>
+          <p className="text-sm text-slate-600 mt-1">
+            Import from a public Google Sheet. Creates profiles and login accounts. See{' '}
+            <code className="text-xs bg-slate-100 px-1 rounded">docs/BULK_IMPORT_GUIDE.md</code>.
+          </p>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 relative z-10 mt-8 pb-16 max-w-3xl">
-        {error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
+      {error && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
-        <Card className="bg-white border border-[#E0E0E0]">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileSpreadsheet className="h-6 w-6 text-[#008260]" />
-              Google Sheet Import
-            </CardTitle>
-            <CardDescription>
-              Paste your public Google Sheet URL. Required columns: Name, Email, Phone, Domain Expertise. Profile Photo URL is optional.
-              See BULK_EXPERT_IMPORT_GUIDE.md for full column mapping.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleImport} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="spreadsheetUrl">Spreadsheet URL or ID *</Label>
-                <Input
-                  id="spreadsheetUrl"
-                  placeholder="https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit"
-                  value={spreadsheetUrl}
-                  onChange={(e) => setSpreadsheetUrl(e.target.value)}
-                  className="border-slate-200 focus:border-[#008260] focus:ring-[#008260]"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="range">Range (optional)</Label>
-                  <Input
-                    id="range"
-                    placeholder="Sheet1!A1:Z1000"
-                    value={range}
-                    onChange={(e) => setRange(e.target.value)}
-                    className="border-slate-200 focus:border-[#008260] focus:ring-[#008260]"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="delay">Delay between rows (ms)</Label>
-                  <Input
-                    id="delay"
-                    type="number"
-                    placeholder="500"
-                    value={delayBetweenRows}
-                    onChange={(e) => setDelayBetweenRows(e.target.value)}
-                    className="border-slate-200 focus:border-[#008260] focus:ring-[#008260]"
-                    min={100}
-                    max={5000}
-                  />
-                </div>
-              </div>
-              <Button
-                type="submit"
-                className="w-full bg-[#008260] hover:bg-[#006d51]"
-                disabled={importing}
-              >
-                {importing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Importing...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="h-4 w-4 mr-2" />
-                    Start Import
-                  </>
-                )}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+      <Tabs
+        value={kind}
+        onValueChange={(v) => {
+          setKind(v as ImportKind)
+          setResult(null)
+          setError('')
+        }}
+      >
+        <TabsList className="mb-4">
+          <TabsTrigger value="experts">Experts</TabsTrigger>
+          <TabsTrigger value="students">Students</TabsTrigger>
+        </TabsList>
 
-        {result && (
-          <Card className="mt-8 bg-white border border-[#E0E0E0]">
+        <TabsContent value={kind} className="mt-0">
+          <Card>
             <CardHeader>
-              <CardTitle>Import Results</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <FileSpreadsheet className="h-6 w-6 text-[#008260]" />
+                {kind === 'experts' ? 'Expert import' : 'Student import'}
+              </CardTitle>
               <CardDescription>
-                {result.summary.successful} succeeded, {result.summary.failed} failed out of {result.summary.total} rows
+                {requiredHint} Optional: custom default password (otherwise{' '}
+                <code className="text-xs">ExpertCollaboration@123</code>).
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex gap-4 mb-6">
-                <div className="flex items-center gap-2 text-green-600">
-                  <CheckCircle className="h-5 w-5" />
-                  <span className="font-medium">{result.summary.successful} Successful</span>
+              <form onSubmit={handleImport} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="spreadsheetUrl">Spreadsheet URL or ID *</Label>
+                  <Input
+                    id="spreadsheetUrl"
+                    placeholder="https://docs.google.com/spreadsheets/d/.../edit"
+                    value={spreadsheetUrl}
+                    onChange={(e) => setSpreadsheetUrl(e.target.value)}
+                    required
+                  />
                 </div>
-                <div className="flex items-center gap-2 text-red-600">
-                  <XCircle className="h-5 w-5" />
-                  <span className="font-medium">{result.summary.failed} Failed</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="range">Range (optional)</Label>
+                    <Input
+                      id="range"
+                      placeholder="Sheet1!A1:Z1000"
+                      value={range}
+                      onChange={(e) => setRange(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="delay">Delay between rows (ms)</Label>
+                    <Input
+                      id="delay"
+                      type="number"
+                      value={delayBetweenRows}
+                      onChange={(e) => setDelayBetweenRows(e.target.value)}
+                      min={100}
+                      max={5000}
+                    />
+                  </div>
                 </div>
-              </div>
-              {result.details && result.details.length > 0 && (
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                  <Label>Row Details</Label>
-                  {result.details.map((d, i) => (
-                    <div
-                      key={i}
-                      className={`p-3 rounded-lg border text-sm ${
-                        d.success
-                          ? 'bg-green-50 border-green-200'
-                          : 'bg-red-50 border-red-200'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">
-                          Row {d.rowNumber}: {d.expertName || '(no name)'}
-                        </span>
-                        {d.success ? (
-                          <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
-                        ) : (
-                          <XCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
-                        )}
-                      </div>
-                      {!d.success && d.errors && d.errors.length > 0 && (
-                        <ul className="mt-2 text-red-700 list-disc list-inside">
-                          {d.errors.map((err, j) => (
-                            <li key={j}>{err}</li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  ))}
+                <div className="space-y-2">
+                  <Label htmlFor="defaultPassword">Default login password (optional)</Label>
+                  <Input
+                    id="defaultPassword"
+                    type="password"
+                    placeholder="Leave empty for ExpertCollaboration@123"
+                    value={defaultPassword}
+                    onChange={(e) => setDefaultPassword(e.target.value)}
+                    autoComplete="new-password"
+                  />
                 </div>
-              )}
+                <Button type="submit" className="w-full bg-[#008260] hover:bg-[#006d51]" disabled={importing}>
+                  {importing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Importing...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Start import
+                    </>
+                  )}
+                </Button>
+              </form>
             </CardContent>
           </Card>
-        )}
-      </div>
+        </TabsContent>
+      </Tabs>
+
+      {result && (
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle>Import results</CardTitle>
+            <CardDescription>
+              {result.summary.successful} succeeded, {result.summary.failed} failed out of{' '}
+              {result.summary.total} rows
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-4 mb-6">
+              <div className="flex items-center gap-2 text-green-600">
+                <CheckCircle className="h-5 w-5" />
+                <span className="font-medium">{result.summary.successful} successful</span>
+              </div>
+              <div className="flex items-center gap-2 text-red-600">
+                <XCircle className="h-5 w-5" />
+                <span className="font-medium">{result.summary.failed} failed</span>
+              </div>
+            </div>
+            {result.details?.length > 0 && (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {result.details.map((d, i) => (
+                  <div
+                    key={i}
+                    className={`p-3 rounded-lg border text-sm ${
+                      d.success ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">
+                        Row {d.rowNumber}:{' '}
+                        {d.expertName || d.studentName || '(no name)'}
+                      </span>
+                      {d.success ? (
+                        <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-red-600 shrink-0" />
+                      )}
+                    </div>
+                    {!d.success && d.errors?.length > 0 && (
+                      <ul className="mt-2 text-red-700 list-disc list-inside">
+                        {d.errors.map((err, j) => (
+                          <li key={j}>{err}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

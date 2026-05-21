@@ -673,5 +673,16 @@ export const api = {
       if (!res.ok) throw new Error(json?.error || 'Bulk import failed')
       return json
     },
+    bulkImportStudents: async (body: Record<string, unknown>) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/superadmin/students/bulk-import`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Bulk import failed')
+      return json
+    },
   },
 }

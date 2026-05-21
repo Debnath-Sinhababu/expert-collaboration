@@ -587,8 +587,15 @@ export default function ExpertProfileSetup() {
       }
 
       if (isSuperAdminExpertCreate) {
-        await api.superadmin.createExpertMultipart(formDataToSend)
-        toast.success('Expert profile created. You can invite them to link their account later.')
+        const created = await api.superadmin.createExpertMultipart(formDataToSend) as {
+          auth?: { email?: string; temporaryPassword?: string; isNewAccount?: boolean }
+        }
+        const pwd = created?.auth?.temporaryPassword
+        toast.success(
+          pwd
+            ? `Expert created. They can log in at /auth/login with ${created.auth?.email || formData.profile_email} and password: ${pwd}`
+            : `Expert created. They can log in with ${created?.auth?.email || formData.profile_email} (existing account linked).`,
+        )
         router.push('/superadmin/home')
       } else {
         const authHeaders = await getAuthHeadersForFormData()

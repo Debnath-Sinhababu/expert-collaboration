@@ -16,6 +16,7 @@ const socketService = require('./services/socketService');
 const institutionAccess = require('./auth/institutionAccess');
 const expertAccess = require('./auth/expertAccess');
 const superAdminAuth = require('./auth/superAdminAuth');
+const { ensureAuthUserForProfile, authLoginMeta } = require('./auth/profileAuthService');
 
 console.log('Environment variables loaded:');
 console.log('UPSTASH_REDIS_REST_URL:', process.env.UPSTASH_REDIS_REST_URL ? 'Set' : 'Not set');
@@ -1178,6 +1179,7 @@ app.post('/api/institutions', upload.single('logo'), async (req, res) => {
 
     const { user: instCreateUser, role: instCreateRole, token: instCreateToken } = await superAdminAuth.getUserRoleFromRequest(req);
 
+    let instAuthMeta = null;
     if (instCreateRole === 'super_admin' && instCreateUser) {
       supabaseClient = superAdminAuth.getServiceClient();
       const rawUid = req.body.user_id;
@@ -1230,6 +1232,30 @@ app.post('/api/institutions', upload.single('logo'), async (req, res) => {
       });
     }
 
+    if (instCreateRole === 'super_admin' && instCreateUser && !authenticatedUserId) {
+      const { data: existingInst } = await supabaseClient
+        .from('institutions')
+        .select('id')
+        .eq('email', institutionEmail)
+        .limit(1);
+      if (existingInst?.length) {
+        return res.status(409).json({ error: 'An institution with this email already exists.' });
+      }
+      try {
+        const authResult = await ensureAuthUserForProfile(supabaseClient, {
+          email: institutionEmail,
+          role: 'institution',
+          password: req.body.initial_password,
+        });
+        authenticatedUserId = authResult.userId;
+        instAuthMeta = authLoginMeta(authResult, institutionEmail);
+      } catch (authErr) {
+        return res.status(400).json({
+          error: authErr.message || 'Failed to create login account',
+        });
+      }
+    }
+
     const institutionData = {
       user_id: authenticatedUserId,
       name: req.body.name,
@@ -1277,7 +1303,7 @@ app.post('/api/institutions', upload.single('logo'), async (req, res) => {
     console.log('Insert result:', { data, error });
     
     if (error) throw error;
-    res.status(201).json(data[0]);
+    res.status(201).json(instAuthMeta ? { ...data[0], auth: instAuthMeta } : data[0]);
   } catch (error) {
     console.log('Institution creation error:', error);
     res.status(500).json({ error: error.message });
@@ -2199,6 +2225,7 @@ app.post('/api/students', upload.fields([{ name: 'resume', maxCount: 1 }, { name
     );
 
     let userId;
+    let studentAuthMeta = null;
     if (studentRole === 'super_admin' && studentUser) {
       supabaseClient = superAdminAuth.getServiceClient();
       const rawUid = req.body.user_id;
@@ -2212,6 +2239,35 @@ app.post('/api/students', upload.fields([{ name: 'resume', maxCount: 1 }, { name
     }
 
     const body = req.body || {};
+
+    if (studentRole === 'super_admin' && studentUser && !userId) {
+      const studentEmail = String(body.email || '').trim();
+      if (!studentEmail) {
+        return res.status(400).json({ error: 'Student email is required.' });
+      }
+      const { data: existingStudent } = await supabaseClient
+        .from('site_students')
+        .select('id')
+        .eq('email', studentEmail)
+        .limit(1);
+      if (existingStudent?.length) {
+        return res.status(409).json({ error: 'A student with this email already exists.' });
+      }
+      try {
+        const authResult = await ensureAuthUserForProfile(supabaseClient, {
+          email: studentEmail,
+          role: 'student',
+          password: body.initial_password,
+        });
+        userId = authResult.userId;
+        studentAuthMeta = authLoginMeta(authResult, studentEmail);
+      } catch (authErr) {
+        return res.status(400).json({
+          error: authErr.message || 'Failed to create login account',
+        });
+      }
+    }
+
     // If multipart, files will be present; handle resume upload
     let resumeUrl = null;
     let resumePublicId = null;
@@ -2303,7 +2359,7 @@ app.post('/api/students', upload.fields([{ name: 'resume', maxCount: 1 }, { name
       .single();
 
     if (error) throw error;
-    res.status(201).json(data);
+    res.status(201).json(studentAuthMeta ? { ...data, auth: studentAuthMeta } : data);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
