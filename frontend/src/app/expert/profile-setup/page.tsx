@@ -20,6 +20,10 @@ import { api, getAuthHeadersForFormData } from '@/lib/api'
 import { toast } from 'sonner'
 import Logo from '@/components/Logo'
 import { EXPERTISE_DOMAINS, EXPERT_TYPES, EXPERT_SERVICES } from '@/lib/constants'
+import {
+  SuperAdminAccountFields,
+  validateSuperAdminPassword,
+} from '@/components/superadmin/SuperAdminAccountFields'
 
 /** Indian PAN: five letters, four digits, one letter (normalized uppercase). */
 const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]$/
@@ -120,6 +124,8 @@ export default function ExpertProfileSetup() {
   const [selectedCourseVideo, setSelectedCourseVideo] = useState<File | null>(null)
   const [courseVideoError, setCourseVideoError] = useState('')
   const [courseVideoPreviewUrl, setCourseVideoPreviewUrl] = useState('')
+  const [superAdminInitialPassword, setSuperAdminInitialPassword] = useState('')
+  const [superAdminConfirmPassword, setSuperAdminConfirmPassword] = useState('')
 
   useEffect(() => {
     return () => {
@@ -457,6 +463,12 @@ export default function ExpertProfileSetup() {
           setSaving(false)
           return
         }
+        const pwdErr = validateSuperAdminPassword(superAdminInitialPassword, superAdminConfirmPassword)
+        if (pwdErr) {
+          toast.error(pwdErr)
+          setSaving(false)
+          return
+        }
       }
 
       if (!formData.domain_expertise || (isCustomDomain && !customDomainInput.trim())) {
@@ -531,6 +543,9 @@ export default function ExpertProfileSetup() {
 
       if (isSuperAdminExpertCreate) {
         formDataToSend.append('email', formData.profile_email.trim())
+        if (superAdminInitialPassword.trim()) {
+          formDataToSend.append('initial_password', superAdminInitialPassword.trim())
+        }
       } else {
         if (!user?.id || !user?.email) {
           toast.error('You must be signed in to complete this profile')
@@ -582,7 +597,7 @@ export default function ExpertProfileSetup() {
         formDataToSend.append('profile_video', selectedProfileVideo)
       }
 
-      if (selectedCourseVideo && !isSuperAdminExpertCreate) {
+      if (selectedCourseVideo) {
         formDataToSend.append('course_video', selectedCourseVideo)
       }
 
@@ -662,7 +677,7 @@ export default function ExpertProfileSetup() {
         <div className="container mx-auto px-4 relative z-10 pt-10 pb-2">
           <h2 className="text-[#000000] font-semibold text-2xl sm:text-3xl tracking-tight">Create expert profile</h2>
           <p className="text-base text-[#374151] mt-2 max-w-2xl leading-relaxed">
-            Same comprehensive form experts use during signup — profile is saved to the directory under the expert’s email. Optional course video upload is omitted here because the elevated create API only accepts profile video.
+            Same form as expert first-time profile setup, plus login email and optional password. A login account is created automatically.
           </p>
         </div>
       )}
@@ -728,9 +743,17 @@ export default function ExpertProfileSetup() {
                         className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300"
                       />
                       <p className="text-xs text-slate-500">
-                        Stored on the expert profile. They can register or link this email later.
+                        Used for the expert profile and their login at /auth/login.
                       </p>
                     </div>
+                  )}
+                  {isSuperAdminExpertCreate && (
+                    <SuperAdminAccountFields
+                      initialPassword={superAdminInitialPassword}
+                      confirmPassword={superAdminConfirmPassword}
+                      onInitialPasswordChange={setSuperAdminInitialPassword}
+                      onConfirmPasswordChange={setSuperAdminConfirmPassword}
+                    />
                   )}
                 </div>
 
@@ -1232,7 +1255,6 @@ export default function ExpertProfileSetup() {
 
                       {formData.interested_in_services && (
                         <div className="space-y-3">
-                          {!isSuperAdminExpertCreate ? (
                           <div>
                             <Label className="text-slate-700">Course sample video (optional)</Label>
                             <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 text-center hover:border-[#008260] transition-colors">
@@ -1259,11 +1281,6 @@ export default function ExpertProfileSetup() {
                               <Alert variant="destructive" className="mt-2"><AlertDescription>{courseVideoError}</AlertDescription></Alert>
                             )}
                           </div>
-                          ) : (
-                            <p className="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
-                              Course preview upload is skipped in super-admin create (API limit). The expert can add it later from their profile.
-                            </p>
-                          )}
 
                           <div>
                             <Label className="text-slate-700">Service price (optional)</Label>

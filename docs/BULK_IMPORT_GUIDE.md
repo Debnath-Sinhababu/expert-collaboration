@@ -127,7 +127,9 @@ name | email | phone | degree | year | institution_name | city | state | skills 
 
 # Super-admin “Create” forms (single profile)
 
-Creating **Expert**, **Institution**, or **Student** from the console also creates a login account automatically (same default password unless `SUPERADMIN_DEFAULT_USER_PASSWORD` is set in backend env).
+Creating **Expert**, **Institution**, or **Student** from the console uses the **same profile-setup forms** as first-time signup (`/superadmin/create-expert`, `create-institution`, `create-student`). Each form includes an optional **Login password** section; if left blank, the default below is used.
+
+Login accounts are created automatically (unless the email already exists in auth, in which case the existing account is linked).
 
 | Create type | Login email | Auth role |
 |-------------|-------------|-----------|

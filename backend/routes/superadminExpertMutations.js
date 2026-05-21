@@ -28,6 +28,7 @@ function registerSuperAdminExpertMutations(app, { upload, normalizePan, isValidP
     { name: 'resume', maxCount: 1 },
     { name: 'qualifications', maxCount: 1 },
     { name: 'profile_video', maxCount: 1 },
+    { name: 'course_video', maxCount: 1 },
   ]), async (req, res) => {
     try {
       const auth = await superAdminAuth.requireSuperAdmin(req, res);
@@ -49,6 +50,7 @@ function registerSuperAdminExpertMutations(app, { upload, normalizePan, isValidP
       let resumeData = null;
       let qualificationsData = null;
       let profileVideoData = null;
+      let courseVideoData = null;
 
       if (req.files?.profile_photo?.[0]) {
         photoData = await ImageUploadService.uploadImage(
@@ -92,6 +94,20 @@ function registerSuperAdminExpertMutations(app, { upload, normalizePan, isValidP
         if (!profileVideoData.success) {
           return res.status(500).json({
             error: `Profile video upload failed: ${profileVideoData.error}`,
+          });
+        }
+      }
+
+      if (req.files?.course_video?.[0]) {
+        courseVideoData = await ImageUploadService.uploadVideo(
+          req.files.course_video[0].buffer,
+          'expert-course-videos',
+          null,
+          req.files.course_video[0].mimetype,
+        );
+        if (!courseVideoData.success) {
+          return res.status(500).json({
+            error: `Course video upload failed: ${courseVideoData.error}`,
           });
         }
       }
@@ -212,6 +228,13 @@ function registerSuperAdminExpertMutations(app, { upload, normalizePan, isValidP
         pan_number: adminPanNormalized,
         profile_video_url: profileVideoData?.url || null,
         profile_video_public_id: profileVideoData?.publicId || null,
+        interested_in_services:
+          req.body.interested_in_services === 'true' || req.body.interested_in_services === true,
+        course_video_url: courseVideoData?.url || null,
+        course_video_public_id: courseVideoData?.publicId || null,
+        service_price: req.body.service_price
+          ? parseFloat(String(req.body.service_price))
+          : null,
       };
 
       const { data, error } = await serviceClient

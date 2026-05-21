@@ -17,6 +17,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Upload, X, Camera } from 'lucide-react'
 import Logo from '@/components/Logo'
 import Link from 'next/link'
+import {
+  SuperAdminAccountFields,
+  validateSuperAdminPassword,
+} from '@/components/superadmin/SuperAdminAccountFields'
 
 export default function StudentProfileSetup() {
   const [loading, setLoading] = useState(true)
@@ -60,6 +64,8 @@ export default function StudentProfileSetup() {
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoError, setPhotoError] = useState('')
   const [photoPreview, setPhotoPreview] = useState<string>('')
+  const [superAdminInitialPassword, setSuperAdminInitialPassword] = useState('')
+  const [superAdminConfirmPassword, setSuperAdminConfirmPassword] = useState('')
   const router = useRouter()
   const pathname = usePathname()
   const isSuperAdminStudentCreate = pathname?.startsWith('/superadmin/create-student') ?? false
@@ -121,6 +127,10 @@ export default function StudentProfileSetup() {
     try {
       if (!form.name.trim()) { toast.error('Enter name'); setSaving(false); return }
       if (!form.email.trim()) { toast.error('Enter email'); setSaving(false); return }
+      if (isSuperAdminStudentCreate) {
+        const pwdErr = validateSuperAdminPassword(superAdminInitialPassword, superAdminConfirmPassword)
+        if (pwdErr) { toast.error(pwdErr); setSaving(false); return }
+      }
       if (!form.phone.trim()) { toast.error('Enter phone'); setSaving(false); return }
       if (!/^\d{10}$/.test(form.phone)) { toast.error('Phone number must be exactly 10 digits'); setSaving(false); return }
       if (!form.institution_id) { toast.error('Select institution'); setSaving(false); return }
@@ -176,6 +186,9 @@ export default function StudentProfileSetup() {
       if (resumeFile) fd.append('resume', resumeFile)
       if (photoFile) fd.append('profile_photo', photoFile)
       if (documentsFile) fd.append('documents', documentsFile)
+      if (isSuperAdminStudentCreate && superAdminInitialPassword.trim()) {
+        fd.append('initial_password', superAdminInitialPassword.trim())
+      }
       const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
       const res = await fetch(`${API_BASE_URL}/api/students`, {
         method: 'POST',
@@ -235,7 +248,9 @@ export default function StudentProfileSetup() {
           {isSuperAdminStudentCreate ? (
             <>
               <h1 className="text-3xl font-bold text-[#000000] mb-2">Create student (super admin)</h1>
-              <p className="text-[#6A6A6A] max-w-2xl">Full student profile form — same as student signup. Enter the student’s email below.</p>
+              <p className="text-[#6A6A6A] max-w-2xl">
+                Same form as student first-time profile setup. Enter the student’s email and optional login password below.
+              </p>
             </>
           ) : (
             <>
@@ -294,9 +309,23 @@ export default function StudentProfileSetup() {
                   <Label className="text-[#000000] font-medium mb-2 block">Full Name *</Label>
                   <Input placeholder="Enter your full name" value={form.name} onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))} required className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]" />
                 </div>
-                <div>
-                  <Label className="text-[#000000] font-medium mb-2 block">Email *</Label>
-                  <Input type="email" placeholder="example@gmail.com" value={form.email} onChange={(e) => setForm(prev => ({ ...prev, email: e.target.value }))} required className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]" />
+                <div className={isSuperAdminStudentCreate ? 'md:col-span-2 space-y-4' : ''}>
+                  <div>
+                    <Label className="text-[#000000] font-medium mb-2 block">Email *</Label>
+                    <Input type="email" placeholder="example@gmail.com" value={form.email} onChange={(e) => setForm(prev => ({ ...prev, email: e.target.value }))} required className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]" />
+                    {isSuperAdminStudentCreate && (
+                      <p className="text-xs text-[#6A6A6A] mt-1">Used for profile and login at /auth/login.</p>
+                    )}
+                  </div>
+                  {isSuperAdminStudentCreate && (
+                    <SuperAdminAccountFields
+                      initialPassword={superAdminInitialPassword}
+                      confirmPassword={superAdminConfirmPassword}
+                      onInitialPasswordChange={setSuperAdminInitialPassword}
+                      onConfirmPasswordChange={setSuperAdminConfirmPassword}
+                      className="rounded-lg border border-[#008260]/25 bg-[#E8F5F1]/50 p-4 space-y-4"
+                    />
+                  )}
                 </div>
                 <div>
                   <Label className="text-[#000000] font-medium mb-2 block">Phone Number *</Label>
