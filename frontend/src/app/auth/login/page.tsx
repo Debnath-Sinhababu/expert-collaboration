@@ -37,6 +37,12 @@ function LoginForm() {
       if (error) throw error
 
       if (data.user) {
+        if (data.user.user_metadata?.account_removed === true) {
+          await supabase.auth.signOut()
+          setError('This account has been removed and can no longer sign in.')
+          return
+        }
+
         // Check for return URL first
         const returnUrl = searchParams?.get('returnUrl')
         const message = searchParams?.get('message')

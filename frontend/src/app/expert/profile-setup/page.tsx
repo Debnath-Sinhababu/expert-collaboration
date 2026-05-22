@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -15,12 +14,16 @@ import { MultiSelect } from '@/components/ui/multi-select'
 import { Upload, Calendar, DollarSign, X, Camera, FileText, Download, Check, IndianRupee, Info, Video } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { useExpertWorkspace } from '@/contexts/ExpertWorkspaceContext'
-import { getAuthHeadersForFormData } from '@/lib/api'
+import { api, getAuthHeadersForFormData } from '@/lib/api'
 import { toast } from 'sonner'
 import Logo from '@/components/Logo'
 import { EXPERTISE_DOMAINS, EXPERT_TYPES, EXPERT_SERVICES } from '@/lib/constants'
+import {
+  SuperAdminAccountFields,
+  validateSuperAdminPassword,
+} from '@/components/superadmin/SuperAdminAccountFields'
 
 /** Indian PAN: five letters, four digits, one letter (normalized uppercase). */
 const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]$/
@@ -68,6 +71,8 @@ export default function ExpertProfileSetup() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const router = useRouter()
+  const pathname = usePathname()
+  const isSuperAdminExpertCreate = pathname?.startsWith('/superadmin/create-expert') ?? false
   const { viewer, basePath } = useExpertWorkspace()
 
   const [formData, setFormData] = useState({
@@ -92,7 +97,8 @@ export default function ExpertProfileSetup() {
     state: '',
     pan_number: ''
     ,interested_in_services: false,
-    service_price: ''
+    service_price: '',
+    profile_email: ''
   })
 
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
@@ -118,6 +124,8 @@ export default function ExpertProfileSetup() {
   const [selectedCourseVideo, setSelectedCourseVideo] = useState<File | null>(null)
   const [courseVideoError, setCourseVideoError] = useState('')
   const [courseVideoPreviewUrl, setCourseVideoPreviewUrl] = useState('')
+  const [superAdminInitialPassword, setSuperAdminInitialPassword] = useState('')
+  const [superAdminConfirmPassword, setSuperAdminConfirmPassword] = useState('')
 
   useEffect(() => {
     return () => {
@@ -129,22 +137,35 @@ export default function ExpertProfileSetup() {
 
   useEffect(() => {
     const getUser = async () => {
+      if (viewer === 'super_admin' && isSuperAdminExpertCreate) {
+        try {
+          const data = await api.superadmin.getCustomDomains()
+          setCustomDomains(Array.isArray(data) ? data : [])
+        } catch (e) {
+          console.error('Failed to load domains:', e)
+        }
+        setLoading(false)
+        return
+      }
+
       if (viewer === 'super_admin') {
         router.replace('/superadmin/home')
         return
       }
+
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         router.push('/auth/login')
         return
       }
       setUser(user)
+      setFormData((prev) => ({ ...prev, profile_email: user.email || '' }))
       setLoading(false)
       loadCustomDomains()
     }
 
     getUser()
-  }, [router, viewer])
+  }, [router, viewer, isSuperAdminExpertCreate])
 
   const loadCustomDomains = async () => {
     try {
@@ -429,6 +450,27 @@ export default function ExpertProfileSetup() {
         return
       }
 
+      if (isSuperAdminExpertCreate) {
+        const inviteEmail = formData.profile_email?.trim()
+        if (!inviteEmail) {
+          toast.error('Enter the expert’s email address')
+          setSaving(false)
+          return
+        }
+        const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail)
+        if (!emailOk) {
+          toast.error('Enter a valid email address')
+          setSaving(false)
+          return
+        }
+        const pwdErr = validateSuperAdminPassword(superAdminInitialPassword, superAdminConfirmPassword)
+        if (pwdErr) {
+          toast.error(pwdErr)
+          setSaving(false)
+          return
+        }
+      }
+
       if (!formData.domain_expertise || (isCustomDomain && !customDomainInput.trim())) {
         toast.error('Please select or enter domain expertise')
         setSaving(false)
@@ -498,8 +540,22 @@ export default function ExpertProfileSetup() {
 
       // Create FormData for file upload
       const formDataToSend = new FormData()
-      formDataToSend.append('user_id', user.id)
-      formDataToSend.append('email', user.email)
+
+      if (isSuperAdminExpertCreate) {
+        formDataToSend.append('email', formData.profile_email.trim())
+        if (superAdminInitialPassword.trim()) {
+          formDataToSend.append('initial_password', superAdminInitialPassword.trim())
+        }
+      } else {
+        if (!user?.id || !user?.email) {
+          toast.error('You must be signed in to complete this profile')
+          setSaving(false)
+          return
+        }
+        formDataToSend.append('user_id', user.id)
+        formDataToSend.append('email', user.email)
+      }
+
       formDataToSend.append('name', formData.name)
       formDataToSend.append('bio', formData.bio)
       formDataToSend.append('phone', formData.phone)
@@ -545,21 +601,33 @@ export default function ExpertProfileSetup() {
         formDataToSend.append('course_video', selectedCourseVideo)
       }
 
-      const authHeaders = await getAuthHeadersForFormData()
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/experts`, {
-        method: 'POST',
-        headers: authHeaders,
-        body: formDataToSend
-      })
+      if (isSuperAdminExpertCreate) {
+        const created = await api.superadmin.createExpertMultipart(formDataToSend) as {
+          auth?: { email?: string; temporaryPassword?: string; isNewAccount?: boolean }
+        }
+        const pwd = created?.auth?.temporaryPassword
+        toast.success(
+          pwd
+            ? `Expert created. They can log in at /auth/login with ${created.auth?.email || formData.profile_email} and password: ${pwd}`
+            : `Expert created. They can log in with ${created?.auth?.email || formData.profile_email} (existing account linked).`,
+        )
+        router.push('/superadmin/home')
+      } else {
+        const authHeaders = await getAuthHeadersForFormData()
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/experts`, {
+          method: 'POST',
+          headers: authHeaders,
+          body: formDataToSend
+        })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to create profile')
-      }
-      toast.success('Profile created successfully! Redirecting to dashboard...')
-   
-      
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to create profile')
+        }
+        toast.success('Profile created successfully! Redirecting to dashboard...')
+
         router.push(`${basePath}/home`)
+      }
       
     } catch (error: any) {
       setError(error.message)
@@ -581,7 +649,7 @@ export default function ExpertProfileSetup() {
 
   return (
     <div className="min-h-screen bg-[#ECF2FF] relative">
-      {/* Background Elements */}
+      {!isSuperAdminExpertCreate && (
       <header className="relative bg-[#008260] shadow-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
@@ -596,6 +664,8 @@ export default function ExpertProfileSetup() {
           </div>
         </div>
       </header>
+      )}
+      {!isSuperAdminExpertCreate ? (
       <div className='container mx-auto px-4 relative z-10 flex flex-col items-start gap-y-6 mt-20'>
       <h2 className='text-[#000000] font-semibold text-[42px]'>Welcome Expert</h2>
        <div>
@@ -603,7 +673,15 @@ export default function ExpertProfileSetup() {
         <p className='text-base font-sans text-[#000000] font-normal'>Tell us about your expertise and start receiving project opportunities</p>
        </div>
       </div>
-      <div className="container mx-auto px-4  relative z-10 mt-8 pb-10">
+      ) : (
+        <div className="container mx-auto px-4 relative z-10 pt-10 pb-2">
+          <h2 className="text-[#000000] font-semibold text-2xl sm:text-3xl tracking-tight">Create expert profile</h2>
+          <p className="text-base text-[#374151] mt-2 max-w-2xl leading-relaxed">
+            Same form as expert first-time profile setup, plus login email and optional password. A login account is created automatically.
+          </p>
+        </div>
+      )}
+      <div className={`container mx-auto px-4  relative z-10 ${isSuperAdminExpertCreate ? 'mt-4' : 'mt-8'} pb-10`}>
         {/* Header */}
         {error && (
                 <Alert variant="destructive">
@@ -651,6 +729,32 @@ export default function ExpertProfileSetup() {
                       required
                     />
                   </div>
+
+                  {isSuperAdminExpertCreate && (
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="profile_email" className="text-slate-700">Expert email *</Label>
+                      <Input
+                        id="profile_email"
+                        type="email"
+                        placeholder="expert@university.edu"
+                        value={formData.profile_email}
+                        onChange={(e) => handleInputChange('profile_email', e.target.value)}
+                        autoComplete="off"
+                        className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300"
+                      />
+                      <p className="text-xs text-slate-500">
+                        Used for the expert profile and their login at /auth/login.
+                      </p>
+                    </div>
+                  )}
+                  {isSuperAdminExpertCreate && (
+                    <SuperAdminAccountFields
+                      initialPassword={superAdminInitialPassword}
+                      confirmPassword={superAdminConfirmPassword}
+                      onInitialPasswordChange={setSuperAdminInitialPassword}
+                      onConfirmPasswordChange={setSuperAdminConfirmPassword}
+                    />
+                  )}
                 </div>
 
                 <div className="space-y-2 max-w-md">

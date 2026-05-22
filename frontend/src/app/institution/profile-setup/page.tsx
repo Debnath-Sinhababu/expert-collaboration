@@ -12,11 +12,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Building, Globe, MapPin, ImageIcon } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { toast } from 'sonner'
 import { isCommonEmailProvider } from '@/lib/utils'
 import Logo from '@/components/Logo'
 import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
+import {
+  SuperAdminAccountFields,
+  validateSuperAdminPassword,
+} from '@/components/superadmin/SuperAdminAccountFields'
 
 const INSTITUTION_TYPES = [
   'University',
@@ -50,6 +54,8 @@ export default function InstitutionProfileSetup() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const router = useRouter()
+  const pathname = usePathname()
+  const isSuperAdminInstitutionCreate = pathname?.startsWith('/superadmin/create-institution') ?? false
   const { viewer } = useInstitutionWorkspace()
 
   const [logoFile, setLogoFile] = useState<File | null>(null)
@@ -82,9 +88,15 @@ export default function InstitutionProfileSetup() {
     preferred_engagements: '',
     work_mode_preference: ''
   })
+  const [superAdminInitialPassword, setSuperAdminInitialPassword] = useState('')
+  const [superAdminConfirmPassword, setSuperAdminConfirmPassword] = useState('')
 
   useEffect(() => {
     const getUser = async () => {
+      if (viewer === 'super_admin' && isSuperAdminInstitutionCreate) {
+        setLoading(false)
+        return
+      }
       if (viewer === 'super_admin') {
         router.replace('/superadmin/home')
         return
@@ -100,7 +112,7 @@ export default function InstitutionProfileSetup() {
     }
 
     getUser()
-  }, [router, viewer])
+  }, [router, viewer, isSuperAdminInstitutionCreate])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -163,6 +175,15 @@ export default function InstitutionProfileSetup() {
         return
       }
 
+      if (isSuperAdminInstitutionCreate) {
+        const pwdErr = validateSuperAdminPassword(superAdminInitialPassword, superAdminConfirmPassword)
+        if (pwdErr) {
+          toast.error(pwdErr)
+          setSaving(false)
+          return
+        }
+      }
+
       // If Corporate, validate a few key corporate fields
       if (formData.type === 'Corporate') {
         if (!formData.industry?.trim()) {
@@ -214,21 +235,32 @@ export default function InstitutionProfileSetup() {
 
       }
 
-      const institutionData = {
+
+      if (!isSuperAdminInstitutionCreate && !user) {
+        toast.error('Please sign in to continue')
+        setSaving(false)
+        return
+      }
+
+      const institutionData: Record<string, unknown> = {
         ...formData,
         requires_po: formData.requires_po === 'true',
         nda_required: formData.nda_required === 'true',
         preferred_engagements: formData.preferred_engagements
           ? formData.preferred_engagements.split(',').map(s => s.trim()).filter(Boolean)
           : [],
-        user_id: user.id,
-        email: user.email,
+        user_id: isSuperAdminInstitutionCreate ? null : user!.id,
+        email: isSuperAdminInstitutionCreate ? formData.contact_email : user!.email,
         established_year: parseInt(formData.established_year) || null,
         student_count: parseInt(formData.student_count) || null,
         created_at: new Date().toISOString(),
         verified: false,
         rating: 0,
         total_projects: 0
+      }
+
+      if (isSuperAdminInstitutionCreate && superAdminInitialPassword.trim()) {
+        institutionData.initial_password = superAdminInitialPassword.trim()
       }
 
       const formDataToSend = new FormData()
@@ -248,10 +280,20 @@ export default function InstitutionProfileSetup() {
         formDataToSend.append('logo', logoFile)
       }
       
-      await api.institutions.create(institutionData, formDataToSend)
-      toast.success('Institution profile created successfully! Redirecting to dashboard...')
-      
-        router.push('/institution/home')
+      const created = await api.institutions.create(institutionData, formDataToSend) as {
+        auth?: { email?: string; temporaryPassword?: string }
+      }
+      if (isSuperAdminInstitutionCreate) {
+        const pwd = created?.auth?.temporaryPassword
+        toast.success(
+          pwd
+            ? `Institution created. Login: ${created.auth?.email || formData.contact_email} / ${pwd}`
+            : `Institution created. Login linked to ${created?.auth?.email || formData.contact_email}.`,
+        )
+      } else {
+        toast.success('Institution profile created successfully!')
+      }
+      router.push(isSuperAdminInstitutionCreate ? '/superadmin/home' : '/institution/home')
       
     } catch (error: any) {
       setError(error.message)
@@ -273,7 +315,7 @@ export default function InstitutionProfileSetup() {
 
   return (
     <div className="min-h-screen bg-[#ECF2FF] relative">
-      {/* Header */}
+      {!isSuperAdminInstitutionCreate && (
       <header className="relative bg-[#008260] shadow-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
@@ -286,14 +328,26 @@ export default function InstitutionProfileSetup() {
           </div>
         </div>
       </header>
+      )}
 
-      <div className="container mx-auto px-4 max-w-7xl relative z-10 mt-8 mb-8">
+      <div className={`container mx-auto px-4 max-w-7xl relative z-10 ${isSuperAdminInstitutionCreate ? 'mt-4' : 'mt-8'} mb-8`}>
         {/* Page Title */}
         <div className="mb-8">
-          <h1 className="text-[#000000] font-semibold text-[32px] mb-2">Complete Your Institution Profile</h1>
-          <p className="text-[#000000] text-base">
-            Set up your institution profile to start posting projects and finding experts
-          </p>
+          {isSuperAdminInstitutionCreate ? (
+            <>
+              <h1 className="text-[#000000] font-semibold text-[28px] sm:text-[32px] mb-2">Create institution (super admin)</h1>
+              <p className="text-[#374151] text-base leading-relaxed max-w-3xl">
+                Same fields as institution first-time profile setup. A login account is created for the contact email below.
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="text-[#000000] font-semibold text-[32px] mb-2">Complete Your Institution Profile</h1>
+              <p className="text-[#000000] text-base">
+                Set up your institution profile to start posting projects and finding experts
+              </p>
+            </>
+          )}
         </div>
 
         {/* Alerts */}
@@ -615,7 +669,22 @@ export default function InstitutionProfileSetup() {
                     className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
                     required
                   />
+                  {isSuperAdminInstitutionCreate && (
+                    <p className="text-xs text-slate-500">
+                      Used for institution profile and login at /auth/login (not your super-admin email).
+                    </p>
+                  )}
                 </div>
+
+                {isSuperAdminInstitutionCreate && (
+                  <SuperAdminAccountFields
+                    initialPassword={superAdminInitialPassword}
+                    confirmPassword={superAdminConfirmPassword}
+                    onInitialPasswordChange={setSuperAdminInitialPassword}
+                    onConfirmPasswordChange={setSuperAdminConfirmPassword}
+                    className="rounded-lg border border-[#008260]/25 bg-[#E8F5F1]/50 p-4 space-y-4"
+                  />
+                )}
               </div>
 
               {/* Institution Logo - Mandatory for all types */}

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -17,6 +17,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Upload, X, Camera } from 'lucide-react'
 import Logo from '@/components/Logo'
 import Link from 'next/link'
+import {
+  SuperAdminAccountFields,
+  validateSuperAdminPassword,
+} from '@/components/superadmin/SuperAdminAccountFields'
 
 export default function StudentProfileSetup() {
   const [loading, setLoading] = useState(true)
@@ -60,13 +64,19 @@ export default function StudentProfileSetup() {
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoError, setPhotoError] = useState('')
   const [photoPreview, setPhotoPreview] = useState<string>('')
+  const [superAdminInitialPassword, setSuperAdminInitialPassword] = useState('')
+  const [superAdminConfirmPassword, setSuperAdminConfirmPassword] = useState('')
   const router = useRouter()
+  const pathname = usePathname()
+  const isSuperAdminStudentCreate = pathname?.startsWith('/superadmin/create-student') ?? false
 
   useEffect(() => {
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/auth/login'); return }
-      setForm(prev => ({ ...prev, email: user.email || '' }))
+      if (!isSuperAdminStudentCreate) {
+        setForm(prev => ({ ...prev, email: user.email || '' }))
+      }
       try {
         const list = await api.institutions.getAll({ page: 1, limit: 1000, exclude_type: 'Corporate' })
         const arr = Array.isArray(list) ? list : (list?.data || [])
@@ -75,7 +85,7 @@ export default function StudentProfileSetup() {
       setLoading(false)
     }
     init()
-  }, [router])
+  }, [router, isSuperAdminStudentCreate])
 
   const handleResumeSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -117,6 +127,10 @@ export default function StudentProfileSetup() {
     try {
       if (!form.name.trim()) { toast.error('Enter name'); setSaving(false); return }
       if (!form.email.trim()) { toast.error('Enter email'); setSaving(false); return }
+      if (isSuperAdminStudentCreate) {
+        const pwdErr = validateSuperAdminPassword(superAdminInitialPassword, superAdminConfirmPassword)
+        if (pwdErr) { toast.error(pwdErr); setSaving(false); return }
+      }
       if (!form.phone.trim()) { toast.error('Enter phone'); setSaving(false); return }
       if (!/^\d{10}$/.test(form.phone)) { toast.error('Phone number must be exactly 10 digits'); setSaving(false); return }
       if (!form.institution_id) { toast.error('Select institution'); setSaving(false); return }
@@ -172,6 +186,9 @@ export default function StudentProfileSetup() {
       if (resumeFile) fd.append('resume', resumeFile)
       if (photoFile) fd.append('profile_photo', photoFile)
       if (documentsFile) fd.append('documents', documentsFile)
+      if (isSuperAdminStudentCreate && superAdminInitialPassword.trim()) {
+        fd.append('initial_password', superAdminInitialPassword.trim())
+      }
       const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
       const res = await fetch(`${API_BASE_URL}/api/students`, {
         method: 'POST',
@@ -181,8 +198,17 @@ export default function StudentProfileSetup() {
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json?.error || 'Failed to create profile')
 
-      toast.success('Profile created')
-      router.push('/student/home')
+      if (isSuperAdminStudentCreate) {
+        const pwd = json?.auth?.temporaryPassword
+        toast.success(
+          pwd
+            ? `Student created. Login: ${json?.auth?.email || form.email} / ${pwd}`
+            : `Student created. Login linked to ${json?.auth?.email || form.email}.`,
+        )
+      } else {
+        toast.success('Profile created')
+      }
+      router.push(isSuperAdminStudentCreate ? '/superadmin/home' : '/student/home')
     } catch (e: any) {
       toast.error(e.message || 'Failed to create profile')
     } finally {
@@ -203,7 +229,7 @@ export default function StudentProfileSetup() {
 
   return (
     <div className="min-h-screen bg-[#ECF2FF]">
-      {/* Header */}
+      {!isSuperAdminStudentCreate && (
       <header className="bg-[#008260] text-white py-4 px-6 shadow-md">
         <div className="container mx-auto flex items-center justify-between">
           <Logo size="header" />
@@ -214,12 +240,24 @@ export default function StudentProfileSetup() {
           </div>
         </div>
       </header>
+      )}
 
       <div className="container mx-auto px-4 py-8">
         {/* Page Title */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-[#000000] mb-2">Complete Your Student Profile</h1>
-          <p className="text-[#6A6A6A]">Create your student profile to apply to internships</p>
+          {isSuperAdminStudentCreate ? (
+            <>
+              <h1 className="text-3xl font-bold text-[#000000] mb-2">Create student (super admin)</h1>
+              <p className="text-[#6A6A6A] max-w-2xl">
+                Same form as student first-time profile setup. Enter the student’s email and optional login password below.
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="text-3xl font-bold text-[#000000] mb-2">Complete Your Student Profile</h1>
+              <p className="text-[#6A6A6A]">Create your student profile to apply to internships</p>
+            </>
+          )}
         </div>
 
         <Card className="bg-white border border-[#E0E0E0] rounded-xl shadow-sm">
@@ -271,9 +309,23 @@ export default function StudentProfileSetup() {
                   <Label className="text-[#000000] font-medium mb-2 block">Full Name *</Label>
                   <Input placeholder="Enter your full name" value={form.name} onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))} required className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]" />
                 </div>
-                <div>
-                  <Label className="text-[#000000] font-medium mb-2 block">Email *</Label>
-                  <Input type="email" placeholder="example@gmail.com" value={form.email} onChange={(e) => setForm(prev => ({ ...prev, email: e.target.value }))} required className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]" />
+                <div className={isSuperAdminStudentCreate ? 'md:col-span-2 space-y-4' : ''}>
+                  <div>
+                    <Label className="text-[#000000] font-medium mb-2 block">Email *</Label>
+                    <Input type="email" placeholder="example@gmail.com" value={form.email} onChange={(e) => setForm(prev => ({ ...prev, email: e.target.value }))} required className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]" />
+                    {isSuperAdminStudentCreate && (
+                      <p className="text-xs text-[#6A6A6A] mt-1">Used for profile and login at /auth/login.</p>
+                    )}
+                  </div>
+                  {isSuperAdminStudentCreate && (
+                    <SuperAdminAccountFields
+                      initialPassword={superAdminInitialPassword}
+                      confirmPassword={superAdminConfirmPassword}
+                      onInitialPasswordChange={setSuperAdminInitialPassword}
+                      onConfirmPasswordChange={setSuperAdminConfirmPassword}
+                      className="rounded-lg border border-[#008260]/25 bg-[#E8F5F1]/50 p-4 space-y-4"
+                    />
+                  )}
                 </div>
                 <div>
                   <Label className="text-[#000000] font-medium mb-2 block">Phone Number *</Label>

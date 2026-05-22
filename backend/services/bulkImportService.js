@@ -1,7 +1,36 @@
 const ImageUploadService = require('./imageUploadService');
 const { createClient } = require('@supabase/supabase-js');
+const { ensureAuthUserForProfile } = require('../auth/profileAuthService');
 const https = require('https');
 const http = require('http');
+
+function getServiceClient() {
+  return createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+  );
+}
+
+function normalizeKey(k) {
+  return (k || '').trim().toLowerCase().replace(/[\s-]+/g, '_').replace(/_+/g, '_');
+}
+
+function findValueInRow(row, keys, targetNormalized) {
+  for (const key of keys) {
+    if (row[key] !== undefined && row[key] !== '') {
+      return row[key];
+    }
+  }
+  if (targetNormalized) {
+    for (const rowKey of Object.keys(row)) {
+      if (rowKey === '_rowNumber') continue;
+      if (normalizeKey(rowKey) === targetNormalized && row[rowKey] !== undefined && row[rowKey] !== '') {
+        return row[rowKey];
+      }
+    }
+  }
+  return null;
+}
 
 class BulkImportService {
   /**
@@ -89,45 +118,23 @@ class BulkImportService {
 
     const expertData = {};
 
-    // Normalize header key (matches googleSheetsService: lowercase, spaces/hyphens to underscore)
-    const normalizeKey = (k) => (k || '').trim().toLowerCase().replace(/[\s-]+/g, '_').replace(/_+/g, '_');
-
-    // Helper to find value by multiple possible keys, with fallback: scan row keys for normalized match
-    const findValue = (keys, targetNormalized) => {
-      for (const key of keys) {
-        if (row[key] !== undefined && row[key] !== '') {
-          return row[key];
-        }
-      }
-      // Fallback: row may have key like "Current-Designation" or "current  designation" - scan all row keys
-      if (targetNormalized) {
-        for (const rowKey of Object.keys(row)) {
-          if (rowKey === '_rowNumber') continue;
-          if (normalizeKey(rowKey) === targetNormalized && row[rowKey] !== undefined && row[rowKey] !== '') {
-            return row[rowKey];
-          }
-        }
-      }
-      return null;
-    };
-
-    expertData.name = findValue(map.name, 'name');
-    expertData.email = findValue(map.email, 'email');
-    expertData.phone = findValue(map.phone, 'phone');
-    expertData.bio = findValue(map.bio, 'bio') || '';
-    expertData.domain_expertise = findValue(map.domain_expertise, 'domain_expertise');
-    expertData.subskills = findValue(map.subskills, 'subskills');
-    expertData.hourly_rate = findValue(map.hourly_rate, 'hourly_rate');
-    expertData.experience_years = findValue(map.experience_years, 'experience_years');
-    expertData.qualifications = findValue(map.qualifications, 'qualifications') || '';
-    expertData.linkedin_url = findValue(map.linkedin_url, 'linkedin_url') || '';
-    expertData.last_working_company = findValue(map.last_working_company, 'last_working_company');
-    expertData.current_designation = findValue(map.current_designation, 'current_designation');
-    expertData.expert_types = findValue(map.expert_types, 'expert_types');
-    expertData.available_on_demand = findValue(map.available_on_demand, 'available_on_demand');
-    expertData.profile_photo_url = findValue(map.profile_photo_url, 'profile_photo_url');
-    expertData.resume_url = findValue(map.resume_url, 'resume_url');
-    expertData.qualifications_url = findValue(map.qualifications_url, 'qualifications_url');
+    expertData.name = findValueInRow(row, map.name, 'name');
+    expertData.email = findValueInRow(row, map.email, 'email');
+    expertData.phone = findValueInRow(row, map.phone, 'phone');
+    expertData.bio = findValueInRow(row, map.bio, 'bio') || '';
+    expertData.domain_expertise = findValueInRow(row, map.domain_expertise, 'domain_expertise');
+    expertData.subskills = findValueInRow(row, map.subskills, 'subskills');
+    expertData.hourly_rate = findValueInRow(row, map.hourly_rate, 'hourly_rate');
+    expertData.experience_years = findValueInRow(row, map.experience_years, 'experience_years');
+    expertData.qualifications = findValueInRow(row, map.qualifications, 'qualifications') || '';
+    expertData.linkedin_url = findValueInRow(row, map.linkedin_url, 'linkedin_url') || '';
+    expertData.last_working_company = findValueInRow(row, map.last_working_company, 'last_working_company');
+    expertData.current_designation = findValueInRow(row, map.current_designation, 'current_designation');
+    expertData.expert_types = findValueInRow(row, map.expert_types, 'expert_types');
+    expertData.available_on_demand = findValueInRow(row, map.available_on_demand, 'available_on_demand');
+    expertData.profile_photo_url = findValueInRow(row, map.profile_photo_url, 'profile_photo_url');
+    expertData.resume_url = findValueInRow(row, map.resume_url, 'resume_url');
+    expertData.qualifications_url = findValueInRow(row, map.qualifications_url, 'qualifications_url');
 
     // Parse arrays (comma-separated values)
     if (expertData.subskills && typeof expertData.subskills === 'string') {
@@ -243,46 +250,29 @@ class BulkImportService {
       ];
       const isCustomDomain = expertData.domain_expertise && !STANDARD_DOMAINS.includes(expertData.domain_expertise);
 
-      // Use service role client (has auth admin access)
-      const serviceClient = createClient(
-        process.env.SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY
-      );
+      const serviceClient = getServiceClient();
 
-      // Create or get Supabase auth user (email verified, default password)
-      const defaultPassword = options.defaultPassword || 'ExpertCollaboration@123';
-      let userId = null;
+      const { data: existingExpert } = await serviceClient
+        .from('experts')
+        .select('id')
+        .eq('email', String(expertData.email).trim())
+        .limit(1);
+      if (existingExpert?.length) {
+        result.errors.push('An expert with this email already exists');
+        return result;
+      }
 
-      const { data: createUserData, error: createUserError } = await serviceClient.auth.admin.createUser({
-        email: expertData.email,
-        password: defaultPassword,
-        email_confirm: true,
-        user_metadata: { role: 'expert' }
-      });
-
-      if (createUserError) {
-        // User may already exist - try to get existing user by listing
-        if (createUserError.message?.includes('already') || createUserError.message?.includes('registered')) {
-          const { data: listData } = await serviceClient.auth.admin.listUsers({ perPage: 1000, page: 1 });
-          const existingUser = listData?.users?.find(u => u.email?.toLowerCase() === expertData.email?.toLowerCase());
-          if (existingUser) {
-            userId = existingUser.id;
-            // Ensure role is set for existing users (frontend reads user_metadata.role)
-            if (existingUser.user_metadata?.role !== 'expert') {
-              await serviceClient.auth.admin.updateUserById(userId, {
-                user_metadata: { ...(existingUser.user_metadata || {}), role: 'expert' }
-              });
-            }
-          } else {
-            result.errors.push(`Email already registered and could not link to existing account`);
-            return result;
-          }
-        } else {
-          result.errors.push(`Auth user creation failed: ${createUserError.message}`);
-          return result;
-        }
-      } else if (createUserData?.user?.id) {
-        userId = createUserData.user.id;
+      let userId;
+      try {
+        const authResult = await ensureAuthUserForProfile(serviceClient, {
+          email: expertData.email,
+          role: 'expert',
+          password: options.defaultPassword,
+        });
+        userId = authResult.userId;
+      } catch (authErr) {
+        result.errors.push(`Auth user: ${authErr.message || authErr}`);
+        return result;
       }
 
       // Handle custom domain
@@ -395,6 +385,219 @@ class BulkImportService {
       // Small delay to avoid rate limiting
       if (options.delayBetweenRows) {
         await new Promise(resolve => setTimeout(resolve, options.delayBetweenRows));
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Map Google Sheet row to student data structure
+   */
+  static mapRowToStudentData(row) {
+    const map = {
+      name: ['name', 'student_name', 'full_name'],
+      email: ['email', 'email_address'],
+      phone: ['phone', 'phone_number', 'mobile', 'contact'],
+      degree: ['degree', 'course', 'program'],
+      year: ['year', 'academic_year', 'study_year'],
+      specialization: ['specialization', 'major', 'branch'],
+      city: ['city'],
+      state: ['state'],
+      institution_id: ['institution_id', 'institution_uuid'],
+      institution_email: ['institution_email', 'college_email', 'institution_contact_email'],
+      institution_name: ['institution_name', 'college', 'university', 'institution'],
+      skills: ['skills', 'skill_list'],
+      linkedin_url: ['linkedin', 'linkedin_url'],
+      github_url: ['github', 'github_url'],
+      portfolio_url: ['portfolio', 'portfolio_url'],
+      resume_url: ['resume_url', 'resume', 'cv', 'cv_url'],
+      profile_photo_url: ['profile_photo_url', 'photo', 'photo_url', 'profile_photo'],
+    };
+
+    const studentData = {};
+    studentData.name = findValueInRow(row, map.name, 'name');
+    studentData.email = findValueInRow(row, map.email, 'email');
+    studentData.phone = findValueInRow(row, map.phone, 'phone');
+    studentData.degree = findValueInRow(row, map.degree, 'degree');
+    studentData.year = findValueInRow(row, map.year, 'year');
+    studentData.specialization = findValueInRow(row, map.specialization, 'specialization');
+    studentData.city = findValueInRow(row, map.city, 'city');
+    studentData.state = findValueInRow(row, map.state, 'state');
+    studentData.institution_id = findValueInRow(row, map.institution_id, 'institution_id');
+    studentData.institution_email = findValueInRow(row, map.institution_email, 'institution_email');
+    studentData.institution_name = findValueInRow(row, map.institution_name, 'institution_name');
+    studentData.skills = findValueInRow(row, map.skills, 'skills');
+    studentData.linkedin_url = findValueInRow(row, map.linkedin_url, 'linkedin_url') || '';
+    studentData.github_url = findValueInRow(row, map.github_url, 'github_url') || '';
+    studentData.portfolio_url = findValueInRow(row, map.portfolio_url, 'portfolio_url') || '';
+    studentData.resume_url = findValueInRow(row, map.resume_url, 'resume_url');
+    studentData.profile_photo_url = findValueInRow(row, map.profile_photo_url, 'profile_photo_url');
+
+    if (studentData.skills && typeof studentData.skills === 'string') {
+      studentData.skills = studentData.skills.split(',').map((s) => s.trim()).filter(Boolean);
+    } else {
+      studentData.skills = [];
+    }
+
+    return studentData;
+  }
+
+  static async resolveInstitutionId(serviceClient, studentData) {
+    if (studentData.institution_id) {
+      const id = String(studentData.institution_id).trim();
+      const { data } = await serviceClient.from('institutions').select('id').eq('id', id).maybeSingle();
+      if (data?.id) return data.id;
+    }
+    if (studentData.institution_email) {
+      const email = String(studentData.institution_email).trim();
+      const { data } = await serviceClient
+        .from('institutions')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+      if (data?.id) return data.id;
+    }
+    if (studentData.institution_name) {
+      const name = String(studentData.institution_name).trim();
+      const { data: instRows } = await serviceClient
+        .from('institutions')
+        .select('id')
+        .ilike('name', name)
+        .limit(1);
+      if (instRows?.[0]?.id) return instRows[0].id;
+    }
+    return null;
+  }
+
+  static async processStudentRow(row, options = {}) {
+    const result = {
+      success: false,
+      rowNumber: row._rowNumber || 'unknown',
+      student: null,
+      errors: [],
+    };
+
+    try {
+      const studentData = this.mapRowToStudentData(row);
+
+      if (!studentData.name) result.errors.push('Name is required');
+      if (!studentData.email) result.errors.push('Email is required');
+      if (result.errors.length > 0) return result;
+
+      const serviceClient = getServiceClient();
+
+      const { data: existingStudent } = await serviceClient
+        .from('site_students')
+        .select('id')
+        .eq('email', String(studentData.email).trim())
+        .limit(1);
+      if (existingStudent?.length) {
+        result.errors.push('A student with this email already exists');
+        return result;
+      }
+
+      let userId;
+      try {
+        const authResult = await ensureAuthUserForProfile(serviceClient, {
+          email: studentData.email,
+          role: 'student',
+          password: options.defaultPassword,
+        });
+        userId = authResult.userId;
+      } catch (authErr) {
+        result.errors.push(`Auth user: ${authErr.message || authErr}`);
+        return result;
+      }
+
+      let photoData = null;
+      if (studentData.profile_photo_url) {
+        try {
+          const imageBuffer = await this.downloadImage(studentData.profile_photo_url);
+          photoData = await ImageUploadService.uploadImage(imageBuffer, 'student-profiles');
+          if (!photoData.success) {
+            result.errors.push(`Photo upload failed: ${photoData.error}`);
+          }
+        } catch (error) {
+          result.errors.push(`Photo download/upload failed: ${error.message}`);
+        }
+      }
+
+      let resumeData = null;
+      if (studentData.resume_url) {
+        try {
+          const pdfBuffer = await this.downloadPDF(studentData.resume_url);
+          resumeData = await ImageUploadService.uploadPDF(pdfBuffer, 'student-resumes');
+          if (!resumeData.success) {
+            result.errors.push(`Resume upload failed: ${resumeData.error}`);
+          }
+        } catch (error) {
+          result.errors.push(`Resume download/upload failed: ${error.message}`);
+        }
+      }
+
+      const institutionId = await this.resolveInstitutionId(serviceClient, studentData);
+
+      const dbStudentData = {
+        user_id: userId,
+        name: studentData.name,
+        email: String(studentData.email).trim(),
+        phone: studentData.phone || null,
+        institution_id: institutionId,
+        degree: studentData.degree || null,
+        year: studentData.year || null,
+        specialization: studentData.specialization || null,
+        city: studentData.city || null,
+        state: studentData.state || null,
+        skills: studentData.skills,
+        linkedin_url: studentData.linkedin_url || null,
+        github_url: studentData.github_url || null,
+        portfolio_url: studentData.portfolio_url || null,
+        resume_url: resumeData?.url || null,
+        resume_public_id: resumeData?.publicId || null,
+        photo_url: photoData?.url || null,
+        profile_photo_public_id: photoData?.publicId || null,
+        profile_photo_thumbnail_url: photoData?.thumbnailUrl || null,
+        profile_photo_small_url: photoData?.smallUrl || null,
+      };
+
+      const { data, error } = await serviceClient
+        .from('site_students')
+        .insert([dbStudentData])
+        .select();
+
+      if (error) {
+        result.errors.push(`Database error: ${error.message}`);
+        return result;
+      }
+
+      result.success = true;
+      result.student = data[0];
+      return result;
+    } catch (error) {
+      result.errors.push(`Processing error: ${error.message}`);
+      return result;
+    }
+  }
+
+  static async processStudentBulkImport(rows, options = {}) {
+    const results = {
+      total: rows.length,
+      successful: 0,
+      failed: 0,
+      details: [],
+    };
+
+    for (const row of rows) {
+      const result = await this.processStudentRow(row, options);
+      results.details.push(result);
+      if (result.success) {
+        results.successful++;
+      } else {
+        results.failed++;
+      }
+      if (options.delayBetweenRows) {
+        await new Promise((resolve) => setTimeout(resolve, options.delayBetweenRows));
       }
     }
 

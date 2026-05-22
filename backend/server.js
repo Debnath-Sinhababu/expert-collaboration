@@ -15,6 +15,8 @@ const notificationService = require('./services/notificationService');
 const socketService = require('./services/socketService');
 const institutionAccess = require('./auth/institutionAccess');
 const expertAccess = require('./auth/expertAccess');
+const superAdminAuth = require('./auth/superAdminAuth');
+const { ensureAuthUserForProfile, authLoginMeta } = require('./auth/profileAuthService');
 
 console.log('Environment variables loaded:');
 console.log('UPSTASH_REDIS_REST_URL:', process.env.UPSTASH_REDIS_REST_URL ? 'Set' : 'Not set');
@@ -168,18 +170,18 @@ app.get('/api/experts', async (req, res) => {
     } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
     
-    const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1];
-    
+    const { role: listRole, token: listToken } = await superAdminAuth.getUserRoleFromRequest(req);
     let supabaseClient = supabase;
-    if (token) {
+    if (listRole === 'super_admin') {
+      supabaseClient = superAdminAuth.getServiceClient();
+    } else if (listToken) {
       supabaseClient = createClient(
         process.env.SUPABASE_URL,
         process.env.SUPABASE_ANON_KEY,
         {
           global: {
             headers: {
-              Authorization: `Bearer ${token}`
+              Authorization: `Bearer ${listToken}`
             }
           }
         }
@@ -590,7 +592,18 @@ app.post('/api/experts', upload.fields([
 
 app.get('/api/experts/:id', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { role: exRole, token: exToken } = await superAdminAuth.getUserRoleFromRequest(req);
+    let client = supabase;
+    if (exRole === 'super_admin') {
+      client = superAdminAuth.getServiceClient();
+    } else if (exToken) {
+      client = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY,
+        { global: { headers: { Authorization: `Bearer ${exToken}` } } },
+      );
+    }
+    const { data, error } = await client
       .from('experts')
       .select('*')
       .eq('id', req.params.id)
@@ -1027,23 +1040,102 @@ app.put('/api/experts/:id/calxbook-visibility', async (req, res) => {
   }
 });
 
+// --- Super-admin mutations (admin /api/admin/* routes are not modified) ---
+
+function formatHardDeleteError(err) {
+  const code = err?.code || '';
+  const msg = err?.message || 'Delete failed';
+  if (code === '23503') {
+    return 'Cannot delete: this profile is still referenced by other records (projects, applications, etc.). Remove those first.';
+  }
+  if (code === 'AUTH_DELETE_FAILED') {
+    return msg;
+  }
+  return msg;
+}
+
+app.delete('/api/superadmin/profiles/experts/:id', async (req, res) => {
+  try {
+    const auth = await superAdminAuth.requireSuperAdmin(req, res);
+    if (!auth) return;
+    const serviceClient = superAdminAuth.getServiceClient();
+    const deleted = await superAdminAuth.hardDeleteProfileRow(serviceClient, 'experts', req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Expert not found' });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Super-admin delete expert error:', err);
+    res.status(500).json({ error: formatHardDeleteError(err) });
+  }
+});
+
+app.delete('/api/superadmin/profiles/institutions/:id', async (req, res) => {
+  try {
+    const auth = await superAdminAuth.requireSuperAdmin(req, res);
+    if (!auth) return;
+    const serviceClient = superAdminAuth.getServiceClient();
+    const deleted = await superAdminAuth.hardDeleteProfileRow(serviceClient, 'institutions', req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Institution not found' });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Super-admin delete institution error:', err);
+    res.status(500).json({ error: formatHardDeleteError(err) });
+  }
+});
+
+app.delete('/api/superadmin/profiles/students/:id', async (req, res) => {
+  try {
+    const auth = await superAdminAuth.requireSuperAdmin(req, res);
+    if (!auth) return;
+    const serviceClient = superAdminAuth.getServiceClient();
+    const deleted = await superAdminAuth.hardDeleteProfileRow(serviceClient, 'site_students', req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Super-admin delete student error:', err);
+    res.status(500).json({ error: formatHardDeleteError(err) });
+  }
+});
+
+app.get('/api/superadmin/custom-domains', async (req, res) => {
+  try {
+    const auth = await superAdminAuth.requireSuperAdmin(req, res);
+    if (!auth) return;
+    const serviceClient = superAdminAuth.getServiceClient();
+    const { data, error } = await serviceClient
+      .from('custom_domains')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    res.json(Array.isArray(data) ? data : []);
+  } catch (error) {
+    console.error('Super-admin get custom domains error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/api/institutions', async (req, res) => {
   try {
     const { page = 1, limit = 10, search = '', type = '', exclude_type = '' } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
-    const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1];
-
+    const { role: instListRole, token: instListToken } = await superAdminAuth.getUserRoleFromRequest(req);
     let supabaseClient = supabase;
-    if (token) {
+    if (instListRole === 'super_admin') {
+      supabaseClient = superAdminAuth.getServiceClient();
+    } else if (instListToken) {
       supabaseClient = createClient(
         process.env.SUPABASE_URL,
         process.env.SUPABASE_ANON_KEY,
         {
           global: {
             headers: {
-              Authorization: `Bearer ${token}`
+              Authorization: `Bearer ${instListToken}`
             }
           }
         }
@@ -1084,8 +1176,17 @@ app.post('/api/institutions', upload.single('logo'), async (req, res) => {
     const authHeader = req.headers.authorization;
     let supabaseClient = supabase;
     let authenticatedUserId = null;
-    
-    if (authHeader && authHeader.startsWith('Bearer ')) {
+
+    const { user: instCreateUser, role: instCreateRole, token: instCreateToken } = await superAdminAuth.getUserRoleFromRequest(req);
+
+    let instAuthMeta = null;
+    if (instCreateRole === 'super_admin' && instCreateUser) {
+      supabaseClient = superAdminAuth.getServiceClient();
+      const rawUid = req.body.user_id;
+      authenticatedUserId = (typeof rawUid === 'string' && rawUid.trim() !== '')
+        ? rawUid.trim()
+        : (rawUid && String(rawUid).trim() !== '' ? String(rawUid).trim() : null);
+    } else if (authHeader && authHeader.startsWith('Bearer ') && instCreateToken) {
       const token = authHeader.substring(7);
       console.log('Token received:', token.substring(0, 50) + '...');
       
@@ -1129,6 +1230,30 @@ app.post('/api/institutions', upload.single('logo'), async (req, res) => {
       return res.status(400).json({
         error: 'Institution profiles must use an institution or corporate email address. Personal email providers like gmail.com, yahoo.com, hotmail.com, outlook.com, icloud.com are not allowed.'
       });
+    }
+
+    if (instCreateRole === 'super_admin' && instCreateUser && !authenticatedUserId) {
+      const { data: existingInst } = await supabaseClient
+        .from('institutions')
+        .select('id')
+        .eq('email', institutionEmail)
+        .limit(1);
+      if (existingInst?.length) {
+        return res.status(409).json({ error: 'An institution with this email already exists.' });
+      }
+      try {
+        const authResult = await ensureAuthUserForProfile(supabaseClient, {
+          email: institutionEmail,
+          role: 'institution',
+          password: req.body.initial_password,
+        });
+        authenticatedUserId = authResult.userId;
+        instAuthMeta = authLoginMeta(authResult, institutionEmail);
+      } catch (authErr) {
+        return res.status(400).json({
+          error: authErr.message || 'Failed to create login account',
+        });
+      }
     }
 
     const institutionData = {
@@ -1178,7 +1303,7 @@ app.post('/api/institutions', upload.single('logo'), async (req, res) => {
     console.log('Insert result:', { data, error });
     
     if (error) throw error;
-    res.status(201).json(data[0]);
+    res.status(201).json(instAuthMeta ? { ...data[0], auth: instAuthMeta } : data[0]);
   } catch (error) {
     console.log('Institution creation error:', error);
     res.status(500).json({ error: error.message });
@@ -1187,7 +1312,18 @@ app.post('/api/institutions', upload.single('logo'), async (req, res) => {
 
 app.get('/api/institutions/:id', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { role: instRole, token: instToken } = await superAdminAuth.getUserRoleFromRequest(req);
+    let client = supabase;
+    if (instRole === 'super_admin') {
+      client = superAdminAuth.getServiceClient();
+    } else if (instToken) {
+      client = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY,
+        { global: { headers: { Authorization: `Bearer ${instToken}` } } },
+      );
+    }
+    const { data, error } = await client
       .from('institutions')
       .select('*')
       .eq('id', req.params.id)
@@ -2078,17 +2214,60 @@ app.post('/api/students', upload.fields([{ name: 'resume', maxCount: 1 }, { name
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
-    const token = authHeader.substring(7);
-    const supabaseClient = createClient(
+    const bearerToken = authHeader.substring(7);
+
+    const { user: studentUser, role: studentRole } = await superAdminAuth.getUserRoleFromRequest(req);
+
+    let supabaseClient = createClient(
       process.env.SUPABASE_URL,
       process.env.SUPABASE_ANON_KEY,
-      { global: { headers: { Authorization: `Bearer ${token}` } } }
+      { global: { headers: { Authorization: `Bearer ${bearerToken}` } } },
     );
-    const { data: userData } = await supabaseClient.auth.getUser();
-    const userId = userData?.user?.id;
-    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    let userId;
+    let studentAuthMeta = null;
+    if (studentRole === 'super_admin' && studentUser) {
+      supabaseClient = superAdminAuth.getServiceClient();
+      const rawUid = req.body.user_id;
+      userId = (typeof rawUid === 'string' && rawUid.trim() !== '')
+        ? rawUid.trim()
+        : (rawUid && String(rawUid).trim() !== '' ? String(rawUid).trim() : null);
+    } else {
+      const { data: userData } = await supabaseClient.auth.getUser();
+      userId = userData?.user?.id;
+      if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    }
 
     const body = req.body || {};
+
+    if (studentRole === 'super_admin' && studentUser && !userId) {
+      const studentEmail = String(body.email || '').trim();
+      if (!studentEmail) {
+        return res.status(400).json({ error: 'Student email is required.' });
+      }
+      const { data: existingStudent } = await supabaseClient
+        .from('site_students')
+        .select('id')
+        .eq('email', studentEmail)
+        .limit(1);
+      if (existingStudent?.length) {
+        return res.status(409).json({ error: 'A student with this email already exists.' });
+      }
+      try {
+        const authResult = await ensureAuthUserForProfile(supabaseClient, {
+          email: studentEmail,
+          role: 'student',
+          password: body.initial_password,
+        });
+        userId = authResult.userId;
+        studentAuthMeta = authLoginMeta(authResult, studentEmail);
+      } catch (authErr) {
+        return res.status(400).json({
+          error: authErr.message || 'Failed to create login account',
+        });
+      }
+    }
+
     // If multipart, files will be present; handle resume upload
     let resumeUrl = null;
     let resumePublicId = null;
@@ -2180,7 +2359,7 @@ app.post('/api/students', upload.fields([{ name: 'resume', maxCount: 1 }, { name
       .single();
 
     if (error) throw error;
-    res.status(201).json(data);
+    res.status(201).json(studentAuthMeta ? { ...data, auth: studentAuthMeta } : data);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -2367,6 +2546,44 @@ app.get('/api/students/featured', async (req, res) => {
     res.json(Array.isArray(data) ? data : []);
   } catch (error) {
     console.error('Featured students error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Super-admin: paginated directory of site_students (not under /api/superadmin)
+app.get('/api/students', async (req, res) => {
+  try {
+    const auth = await superAdminAuth.requireSuperAdmin(req, res);
+    if (!auth) return;
+
+    const serviceClient = superAdminAuth.getServiceClient();
+    const { page = 1, limit = 12, search = '' } = req.query;
+    const offset = (parseInt(String(page), 10) - 1) * parseInt(String(limit), 10);
+    const limitNum = parseInt(String(limit), 10) || 12;
+
+    let query = serviceClient
+      .from('site_students')
+      .select(`
+        *,
+        institutions:institution_id (
+          id,
+          name,
+          city,
+          state
+        )
+      `)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limitNum - 1);
+
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,degree.ilike.%${search}%`);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json(Array.isArray(data) ? data : []);
+  } catch (error) {
+    console.error('GET /api/students list error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -5935,6 +6152,14 @@ app.use((err, req, res, next) => {
 });
 
 
+
+
+const { registerSuperAdminExpertMutations } = require('./routes/superadminExpertMutations');
+registerSuperAdminExpertMutations(app, {
+  upload,
+  normalizePan,
+  isValidPan,
+});
 
 
 app.use((req, res) => {
