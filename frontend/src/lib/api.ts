@@ -170,7 +170,56 @@ export const api = {
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json?.error || 'Failed to update calxbook visibility')
       return json
-    }
+    },
+    getAvailability: async (id: string, range: { from: string; to: string }) => {
+      const headers = await getAuthHeaders()
+      const query = new URLSearchParams({ from: range.from, to: range.to }).toString()
+      const res = await fetch(`${API_BASE_URL}/api/experts/${id}/availability?${query}`, { headers })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to load availability')
+      return json
+    },
+    addAvailability: async (id: string, slot: { start_at: string; end_at: string }) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/experts/${id}/availability`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(slot),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to add availability')
+      return json
+    },
+    addAvailabilityBulk: async (
+      id: string,
+      body: {
+        days_of_week: number[]
+        start_time: string
+        end_time: string
+        from_date: string
+        to_date: string
+      }
+    ) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/experts/${id}/availability/bulk`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to add bulk availability')
+      return json
+    },
+    deleteAvailability: async (id: string, slotId: string) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/experts/${id}/availability/${slotId}`, {
+        method: 'DELETE',
+        headers,
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to delete availability')
+      return json
+    },
   },
 
   internships: {

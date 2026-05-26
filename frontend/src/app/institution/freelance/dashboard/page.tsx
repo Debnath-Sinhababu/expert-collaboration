@@ -14,6 +14,7 @@ import { usePagination } from '@/hooks/usePagination'
 import Logo from '@/components/Logo'
 import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
 import { fetchInstitutionForWorkspace, profileSetupPath } from '@/lib/institutionWorkspace'
+import { ShareRequirementButton } from '@/components/requirements/ShareRequirementButton'
 
 type FreelanceProject = {
   id: string
@@ -165,7 +166,12 @@ export default function FreelanceDashboard() {
                         </div>
                       </div>
                     )}
-                    <div className="flex justify-end">
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <ShareRequirementButton
+                        path={`/requirements/freelance/${p.id}`}
+                        title={p.title}
+                        className="border-[#DCDCDC]"
+                      />
                       <Button size="sm" className="bg-[#008260] hover:bg-[#006B4F] text-white rounded-md px-6 w-full sm:w-auto" onClick={() => router.push(`${basePath}/freelance/${p.id}`)}>View</Button>
                     </div>
                   </div>

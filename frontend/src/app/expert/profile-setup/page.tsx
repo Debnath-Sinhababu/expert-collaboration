@@ -95,6 +95,7 @@ export default function ExpertProfileSetup() {
     available_on_demand: false,
     city: '',
     state: '',
+    address: '',
     pan_number: ''
     ,interested_in_services: false,
     service_price: '',
@@ -524,12 +525,7 @@ export default function ExpertProfileSetup() {
         .toUpperCase()
         .replace(/[^A-Z0-9]/g, '')
         .slice(0, 10)
-      if (!panNormalized) {
-        toast.error('Please enter your PAN number')
-        setSaving(false)
-        return
-      }
-      if (!PAN_REGEX.test(panNormalized)) {
+      if (panNormalized && !PAN_REGEX.test(panNormalized)) {
         toast.error('Enter a valid 10-character PAN (e.g. ABCDE1234F)')
         setSaving(false)
         return
@@ -571,12 +567,14 @@ export default function ExpertProfileSetup() {
       formDataToSend.append('current_designation', formData.current_designation)
       formDataToSend.append('expert_types', JSON.stringify(formData.expert_types))
       formDataToSend.append('expert_services', JSON.stringify(formData.expert_services))
-      formDataToSend.append('available_on_demand', String(formData.available_on_demand))
       formDataToSend.append('interested_in_services', String(formData.interested_in_services))
       formDataToSend.append('service_price', String(formData.service_price || ''))
       formDataToSend.append('city', formData.city || '')
       formDataToSend.append('state', formData.state || '')
-      formDataToSend.append('pan_number', panNormalized)
+      formDataToSend.append('address', formData.address || '')
+      if (panNormalized) {
+        formDataToSend.append('pan_number', panNormalized)
+      }
       
       // Add the photo file
       if (selectedPhoto) {
@@ -758,7 +756,7 @@ export default function ExpertProfileSetup() {
                 </div>
 
                 <div className="space-y-2 max-w-md">
-                  <Label htmlFor="pan_number" className="text-slate-700">PAN (Permanent Account Number) *</Label>
+                  <Label htmlFor="pan_number" className="text-slate-700">PAN (Permanent Account Number) <span className="text-slate-500 font-normal">(optional)</span></Label>
                   <Input
                     id="pan_number"
                     placeholder="e.g. ABCDE1234F"
@@ -767,7 +765,6 @@ export default function ExpertProfileSetup() {
                     autoComplete="off"
                     maxLength={10}
                     className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300 uppercase font-mono tracking-wide"
-                    required
                   />
                   <p className="text-xs text-slate-500">10 characters: five letters, four digits, one letter. Used for verification only.</p>
                 </div>
@@ -799,6 +796,18 @@ export default function ExpertProfileSetup() {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="address" className="text-slate-700">Address</Label>
+                  <Textarea
+                    id="address"
+                    placeholder="Street, area, postal code"
+                    value={formData.address}
+                    onChange={(e) => handleInputChange('address', e.target.value)}
+                    rows={2}
+                    className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -1211,33 +1220,6 @@ export default function ExpertProfileSetup() {
                       placeholder="Select expert services..."
                       className="w-full min-w-0"
                     />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="available_on_demand"
-                      checked={formData.available_on_demand}
-                      onChange={(e) => setFormData(prev => ({ ...prev, available_on_demand: e.target.checked }))}
-                      className="w-4 h-4 border-slate-300 rounded text-[#008260] focus:ring-[#008260] focus:ring-offset-0"
-                    />
-                    <Label htmlFor="available_on_demand" className="text-slate-700 cursor-pointer flex items-center gap-2">
-                      Are you available on demand?
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="h-4 w-4 text-slate-400 hover:text-[#008260] cursor-help" />
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-xs">
-                            <p className="text-sm">
-                              By checking this, you agree to be available immediately when a requirement is posted and will be connected with institutions right away.
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </Label>
                   </div>
                 </div>
 

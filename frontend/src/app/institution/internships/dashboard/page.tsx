@@ -16,6 +16,7 @@ import { usePagination } from '@/hooks/usePagination'
 import Logo from '@/components/Logo'
 import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
 import { fetchInstitutionForWorkspace, profileSetupPath } from '@/lib/institutionWorkspace'
+import { ShareRequirementButton } from '@/components/requirements/ShareRequirementButton'
 
 export default function CorporateInternshipsDashboard() {
   const [loading, setLoading] = useState(true)
@@ -178,7 +179,12 @@ export default function CorporateInternshipsDashboard() {
                       </div>
                     </div>
 
-                    <div className="flex justify-end">
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <ShareRequirementButton
+                        path={`/requirements/internship/${item.id}`}
+                        title={item.title}
+                        className="border-[#DCDCDC]"
+                      />
                       <Button 
                         size="sm" 
                         onClick={() => router.push(`${basePath}/internships/${item.id}`)}

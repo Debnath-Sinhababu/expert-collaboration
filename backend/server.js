@@ -17,6 +17,7 @@ const institutionAccess = require('./auth/institutionAccess');
 const expertAccess = require('./auth/expertAccess');
 const superAdminAuth = require('./auth/superAdminAuth');
 const { ensureAuthUserForProfile, authLoginMeta } = require('./auth/profileAuthService');
+const privacyMask = require('./privacyMask');
 
 console.log('Environment variables loaded:');
 console.log('UPSTASH_REDIS_REST_URL:', process.env.UPSTASH_REDIS_REST_URL ? 'Set' : 'Not set');
@@ -44,6 +45,22 @@ function normalizePan(value) {
 }
 function isValidPan(pan) {
   return typeof pan === 'string' && PAN_REGEX.test(pan);
+}
+
+function normalizeScreeningQuestionsBody(value) {
+  if (value == null || value === '') return [];
+  if (Array.isArray(value)) {
+    return value.map((s) => String(s).trim()).filter(Boolean).slice(0, 20);
+  }
+  if (typeof value === 'string') {
+    try {
+      const j = JSON.parse(value);
+      return Array.isArray(j) ? j.map((s) => String(s).trim()).filter(Boolean).slice(0, 20) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
 }
 function isCommonEmailProvider(email) {
   if (!email || typeof email !== 'string') return false;
@@ -275,7 +292,11 @@ app.get('/api/experts', async (req, res) => {
       filteredData = filteredData.slice(startIndex, endIndex);
     }
     
-    res.json(filteredData);
+    const { role: expertsListRole } = await superAdminAuth.getUserRoleFromRequest(req);
+    const masked = (filteredData || []).map((row) =>
+      privacyMask.maskExpertObject(row, expertsListRole)
+    );
+    res.json(masked);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -325,14 +346,41 @@ app.get('/api/calxbook/experts', async (req, res) => {
     const { data, error } = await query;
     if (error) throw error;
 
-    const experts = (data || []).map((expert) => ({
+    const expertRows = data || [];
+    const expertIds = expertRows.map((row) => row.id).filter(Boolean);
+
+    const completedTrainingsByExpertId = new Map();
+    if (expertIds.length > 0) {
+      const { data: bookingRows, error: bookingsError } = await serviceClient
+        .from('bookings')
+        .select('expert_id, status')
+        .in('expert_id', expertIds);
+      if (bookingsError) {
+        console.warn('GET /api/calxbook/experts: booking counts skipped', bookingsError.message);
+      } else {
+        for (const booking of bookingRows || []) {
+          if (booking.status !== 'completed' || !booking.expert_id) continue;
+          const expertId = booking.expert_id;
+          completedTrainingsByExpertId.set(
+            expertId,
+            (completedTrainingsByExpertId.get(expertId) || 0) + 1
+          );
+        }
+      }
+    }
+
+    const experts = expertRows.map((expert) => ({
       ...expert,
       // Compatibility aliases for CalxBook sync client.
       full_name: expert.name || expert.full_name || 'Unknown Expert',
       title: expert.current_designation || expert.title || null,
       expert_types: Array.isArray(expert.expert_types) ? expert.expert_types : [],
       expert_services: Array.isArray(expert.expert_services) ? expert.expert_services : [],
-      calxbook_verified: Boolean(expert.calxbook_verified)
+      domain_expertise: Array.isArray(expert.domain_expertise) ? expert.domain_expertise : [],
+      subskills: Array.isArray(expert.subskills) ? expert.subskills : [],
+      calxbook_verified: Boolean(expert.calxbook_verified),
+      completed_trainings_count: completedTrainingsByExpertId.get(expert.id) || 0,
+      training_count: completedTrainingsByExpertId.get(expert.id) || 0
     }));
 
     return res.json({
@@ -361,12 +409,7 @@ app.post('/api/experts', upload.fields([
     let supabaseClient = supabase;
 
     const panNormalized = normalizePan(req.body.pan_number);
-    if (!panNormalized) {
-      return res.status(400).json({
-        error: 'PAN is required. Enter a valid 10-character PAN (e.g. ABCDE1234F).'
-      });
-    }
-    if (!isValidPan(panNormalized)) {
+    if (panNormalized && !isValidPan(panNormalized)) {
       return res.status(400).json({
         error: 'Invalid PAN format. Use 10 characters: five letters, four digits, one letter (e.g. ABCDE1234F).'
       });
@@ -557,7 +600,8 @@ app.post('/api/experts', upload.fields([
       available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true,
       city: req.body.city || null,
       state: req.body.state || null,
-      pan_number: panNormalized,
+      pan_number: panNormalized && isValidPan(panNormalized) ? panNormalized : null,
+      address: req.body.address != null && String(req.body.address).trim() !== '' ? String(req.body.address).trim() : null,
       profile_video_url: profileVideoData?.url || null,
       profile_video_public_id: profileVideoData?.publicId || null,
       interested_in_services: req.body.interested_in_services === 'true' || req.body.interested_in_services === true,
@@ -592,7 +636,7 @@ app.post('/api/experts', upload.fields([
 
 app.get('/api/experts/:id', async (req, res) => {
   try {
-    const { role: exRole, token: exToken } = await superAdminAuth.getUserRoleFromRequest(req);
+    const { role: exRole, token: exToken, user: exUser } = await superAdminAuth.getUserRoleFromRequest(req);
     let client = supabase;
     if (exRole === 'super_admin') {
       client = superAdminAuth.getServiceClient();
@@ -620,8 +664,17 @@ app.get('/api/experts/:id', async (req, res) => {
     if (!data) {
       return res.status(404).json({ error: 'Expert not found' });
     }
-    
-    res.json(data);
+
+    let out = data;
+    if (privacyMask.shouldMaskExpertName(exRole)) {
+      const isOwnExpertProfile =
+        exRole === 'expert' && exUser && data.user_id === exUser.id;
+      if (!isOwnExpertProfile) {
+        out = privacyMask.maskExpertObject(data, exRole);
+      }
+    }
+
+    res.json(out);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -673,12 +726,7 @@ app.put('/api/experts/:id', upload.fields([
     }
 
     const panNormalized = normalizePan(req.body.pan_number);
-    if (!panNormalized) {
-      return res.status(400).json({
-        error: 'PAN is required. Enter a valid 10-character PAN (e.g. ABCDE1234F).'
-      });
-    }
-    if (!isValidPan(panNormalized)) {
+    if (panNormalized && !isValidPan(panNormalized)) {
       return res.status(400).json({
         error: 'Invalid PAN format. Use 10 characters: five letters, four digits, one letter (e.g. ABCDE1234F).'
       });
@@ -789,7 +837,11 @@ app.put('/api/experts/:id', upload.fields([
       interested_in_services: req.body.interested_in_services === 'true' || req.body.interested_in_services === true,
       service_price: req.body.service_price !== undefined && req.body.service_price !== '' ? parseFloat(String(req.body.service_price)) : undefined,
       city: req.body.city || null,
-      state: req.body.state || null
+      state: req.body.state || null,
+      address:
+        req.body.address !== undefined
+          ? (String(req.body.address).trim() === '' ? null : String(req.body.address).trim())
+          : undefined
     };
 
     delete updateData.profile_video;
@@ -816,19 +868,19 @@ app.put('/api/experts/:id', upload.fields([
       delete updateData.calxbook_verified;
     }
 
-    // PAN is mandatory: use body value, or keep existing when pan_number omitted from request
+    // PAN optional: empty string clears; omitted keeps existing; non-empty must be valid
     const panInBody = req.body.pan_number;
     let effectivePan =
       panInBody === undefined
         ? normalizePan(currentExpert.pan_number)
         : normalizePan(panInBody);
-    if (!effectivePan || !isValidPan(effectivePan)) {
+    if (effectivePan && !isValidPan(effectivePan)) {
       return res.status(400).json({
         error:
-          'PAN is required. Enter a valid 10-character PAN (e.g. ABCDE1234F).'
+          'Invalid PAN format. Use 10 characters: five letters, four digits, one letter (e.g. ABCDE1234F).'
       });
     }
-    updateData.pan_number = effectivePan;
+    updateData.pan_number = effectivePan && isValidPan(effectivePan) ? effectivePan : null;
 
     // Handle profile photo update if new photo is uploaded
     if (req.files?.profile_photo?.[0]) {
@@ -958,6 +1010,10 @@ app.put('/api/experts/:id', upload.fields([
       updateData.course_video_public_id = null
     }
     
+    Object.keys(updateData).forEach((k) => {
+      if (updateData[k] === undefined) delete updateData[k];
+    });
+
     const { data, error } = await supabaseClient
       .from('experts')
       .update(updateData)
@@ -1564,7 +1620,8 @@ app.get('/api/projects', async (req, res) => {
     }
 
     console.log(`Projects query result: ${data?.length || 0} projects returned`);
-    res.json(data);
+    const { role: projectsListRole } = await superAdminAuth.getUserRoleFromRequest(req);
+    res.json(privacyMask.maskProjectsList(data || [], projectsListRole));
 
   } catch (error) {
     console.error('GET projects error:', error);
@@ -1603,10 +1660,29 @@ app.post('/api/projects', upload.fields([
       return [];
     };
 
+    const normalizeScreeningQuestions = normalizeScreeningQuestionsBody;
+    const workplaceType =
+      rawBody.workplace_type && ['remote', 'hybrid', 'on_site'].includes(String(rawBody.workplace_type))
+        ? String(rawBody.workplace_type)
+        : null;
+    const employmentType =
+      rawBody.employment_type &&
+      ['full_time', 'part_time', 'contract'].includes(String(rawBody.employment_type))
+        ? String(rawBody.employment_type)
+        : null;
+    const jobLocation =
+      rawBody.job_location != null && String(rawBody.job_location).trim() !== ''
+        ? String(rawBody.job_location).trim()
+        : null;
+
     const projectPayload = {
       ...rawBody,
       required_expertise: normalizeArrayField(rawBody.required_expertise),
-      subskills: normalizeArrayField(rawBody.subskills)
+      subskills: normalizeArrayField(rawBody.subskills),
+      screening_questions: normalizeScreeningQuestions(rawBody.screening_questions),
+      job_location: jobLocation,
+      workplace_type: workplaceType,
+      employment_type: employmentType
     };
 
     // Handle optional requirement PDF upload
@@ -1710,7 +1786,8 @@ app.get('/api/projects/:id', async (req, res) => {
       return res.status(404).json({ error: 'Project not found' });
     }
     
-    res.json(data);
+    const { role: projectDetailRole } = await superAdminAuth.getUserRoleFromRequest(req);
+    res.json(privacyMask.maskProjectRow(data, projectDetailRole));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -1737,9 +1814,22 @@ app.put('/api/projects/:id', async (req, res) => {
 
     const supabaseClient = institutionAccess.getWriteClientForInstitution(access);
 
+    const updateBody = { ...req.body };
+    if (updateBody.screening_questions !== undefined) {
+      updateBody.screening_questions = normalizeScreeningQuestionsBody(updateBody.screening_questions);
+    }
+    if (updateBody.workplace_type !== undefined && updateBody.workplace_type !== null) {
+      const w = String(updateBody.workplace_type);
+      updateBody.workplace_type = ['remote', 'hybrid', 'on_site'].includes(w) ? w : null;
+    }
+    if (updateBody.employment_type !== undefined && updateBody.employment_type !== null) {
+      const e = String(updateBody.employment_type);
+      updateBody.employment_type = ['full_time', 'part_time', 'contract'].includes(e) ? e : null;
+    }
+
     const { data, error } = await supabaseClient
       .from('projects')
-      .update(req.body)
+      .update(updateBody)
       .eq('id', req.params.id)
       .select();
 
@@ -3733,7 +3823,8 @@ app.get('/api/projects/recommended/:expertId', async (req, res) => {
     }
 
     console.log(`Recommendations generated: ${recommendations.length} projects for expert ${req.params.expertId}`);
-    res.json(recommendations);
+    const { role: recRole } = await superAdminAuth.getUserRoleFromRequest(req);
+    res.json(privacyMask.maskProjectsList(recommendations, recRole));
 
   } catch (error) {
     console.error('GET /api/projects/recommended error:', error);
@@ -3798,7 +3889,10 @@ app.get('/api/experts/recommended/:projectId', async (req, res) => {
 
     if (error) throw error;
 
-    res.json(data);
+    const { role: recExpertsRole } = await superAdminAuth.getUserRoleFromRequest(req);
+    const rows = Array.isArray(data) ? data : [];
+    const masked = rows.map((row) => privacyMask.maskExpertObject(row, recExpertsRole));
+    res.json(masked);
   } catch (error) {
     console.error('GET /api/experts/recommended error:', error);
     res.status(500).json({ error: error.message });
@@ -4087,7 +4181,14 @@ app.get('/api/applications', async (req, res) => {
           domain_expertise,
           subskills,
           status,
-          max_applications
+          max_applications,
+          institutions (
+            id,
+            name,
+            logo_url,
+            city,
+            state
+          )
         )
       `)
       .range(offset, offset + parseInt(limit) - 1)
@@ -4132,6 +4233,9 @@ app.get('/api/applications', async (req, res) => {
     
     if (error) throw error;
 
+    const { role: appViewerRole } = await superAdminAuth.getUserRoleFromRequest(req);
+    const maskedApps = privacyMask.maskApplicationsList(data || [], appViewerRole);
+
     // Get counts for all statuses for the same filters
     let countQuery = queryClient
       .from('applications')
@@ -4145,7 +4249,7 @@ app.get('/api/applications', async (req, res) => {
 
     if (countError) {
       console.log('Count query error:', countError);
-      res.json(data);
+      res.json(maskedApps);
     } else {
       // Calculate counts by status
       const counts = {
@@ -4157,7 +4261,7 @@ app.get('/api/applications', async (req, res) => {
       };
 
       res.json({
-        data: data,
+        data: maskedApps,
         counts: counts
       });
     }
@@ -4724,6 +4828,12 @@ app.get('/api/bookings', async (req, res) => {
 
     console.log('Bookings fetched:', data?.length || 0);
     
+    const { role: bookRole } = await superAdminAuth.getUserRoleFromRequest(req);
+    const bookMode = institution_id ? 'institution' : expert_id ? 'expert' : null;
+    const maskedBookingRows = bookMode
+      ? privacyMask.maskBookingsPayload(data || [], bookRole, bookMode)
+      : data || [];
+
     // Get counts for all bookings for the same filters
     let countQuery = queryClient
       .from('bookings')
@@ -4737,7 +4847,7 @@ app.get('/api/bookings', async (req, res) => {
     
     if (countError) {
       console.log('Booking count query error:', countError);
-      res.json(data);
+      res.json(maskedBookingRows);
     } else {
       // Calculate counts by status
       const counts = {
@@ -4749,7 +4859,7 @@ app.get('/api/bookings', async (req, res) => {
       };
       
       res.json({
-        data: data,
+        data: maskedBookingRows,
         counts: counts
       });
     }
@@ -6160,6 +6270,9 @@ registerSuperAdminExpertMutations(app, {
   normalizePan,
   isValidPan,
 });
+
+const { registerExpertAvailabilityRoutes } = require('./routes/expertAvailabilityRoutes');
+registerExpertAvailabilityRoutes(app);
 
 
 app.use((req, res) => {

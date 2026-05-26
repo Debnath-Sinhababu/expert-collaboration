@@ -10,7 +10,9 @@ import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import Logo from '@/components/Logo'
 import Link from 'next/link'
-import { Calendar, Clock, MapPin, Building, Send, CheckCircle, ArrowLeft, AlertCircle } from 'lucide-react'
+import { Calendar, Clock, MapPin, Building, Send, CheckCircle, ArrowLeft, AlertCircle, FileText } from 'lucide-react'
+import { ProjectRequirementMeta } from '@/components/requirements/ProjectRequirementMeta'
+import { ShareRequirementButton } from '@/components/requirements/ShareRequirementButton'
 
 export default function PublicContractDetail() {
   const params = useParams()
@@ -169,27 +171,19 @@ export default function PublicContractDetail() {
         <Card className="bg-white border-2 border-[#D6D6D6] rounded-lg mb-6">
           <CardContent className="p-8">
             {/* Title and Badge */}
-            <div className="flex items-start justify-between gap-4 mb-6">
+            <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
               <h1 className="text-3xl font-bold text-[#000000]">{project.title}</h1>
-              <Badge className="bg-[#FFF2E5] text-[#FF6B00] hover:bg-[#FFE5CC] border-none font-medium">
-                {getProjectTypeLabel(project.type)}
-              </Badge>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge className="bg-[#FFF2E5] text-[#FF6B00] hover:bg-[#FFE5CC] border-none font-medium">
+                  {getProjectTypeLabel(project.type)}
+                </Badge>
+                <ShareRequirementButton path={`/requirements/contract/${id}`} title={project.title} />
+              </div>
             </div>
 
-            {/* Institution Info */}
-            {project.institutions && (
-              <div className="flex items-center gap-3 mb-6">
-                <Building className="h-5 w-5 text-[#008260]" />
-                <div>
-                  <p className="text-lg font-semibold text-[#000000]">{project.institutions.name}</p>
-                  {(project.institutions.city || project.institutions.state) && (
-                    <p className="text-sm text-[#6A6A6A]">
-                      {[project.institutions.city, project.institutions.state].filter(Boolean).join(', ')}
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
+            <div className="mb-6">
+              <ProjectRequirementMeta project={project} />
+            </div>
 
             {/* Description */}
             <div className="mb-6">
@@ -226,6 +220,35 @@ export default function PublicContractDetail() {
                 </div>
               )}
             </div>
+
+            {project.requirement_pdf_url && (
+              <div className="mb-6">
+                <Button asChild variant="outline" size="sm" className="border-[#008260] text-[#008260]">
+                  <a href={project.requirement_pdf_url} target="_blank" rel="noopener noreferrer">
+                    <FileText className="h-4 w-4 mr-2" />
+                    View requirement PDF
+                  </a>
+                </Button>
+              </div>
+            )}
+
+            {project.domain_expertise && (
+              <div className="mb-6">
+                <h3 className="text-base font-semibold text-[#000000] mb-2">Domain expertise</h3>
+                <Badge className="bg-[#7BF2D3] text-[#000000]">{project.domain_expertise}</Badge>
+              </div>
+            )}
+
+            {project.subskills && project.subskills.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-base font-semibold text-[#000000] mb-2">Specializations</h3>
+                <div className="flex flex-wrap gap-2">
+                  {project.subskills.map((skill: string, idx: number) => (
+                    <Badge key={idx} variant="secondary">{skill}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Required Expertise */}
             {project.required_expertise && project.required_expertise.length > 0 && (

@@ -37,6 +37,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useExpertWorkspace } from '@/contexts/ExpertWorkspaceContext'
 import { fetchExpertForWorkspace, expertProfileSetupPath } from '@/lib/expertWorkspace'
+import { ShareRequirementButton } from '@/components/requirements/ShareRequirementButton'
+import { institutionDisplayName } from '@/lib/privacyDisplay'
 
 type UserMeta = { role?: string; name?: string }
 type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }
@@ -463,7 +465,7 @@ export default function ExpertHome() {
                               <div className='flex flex-col'>
                               <div className="flex items-center text-slate-600 text-sm mb-3">
                                   <Building2 className="h-4 w-4 mr-2 flex-shrink-0" />
-                                  <span className="font-medium truncate">{project.institutions?.name}</span>
+                                  <span className="font-medium truncate">{institutionDisplayName(project.institutions)}</span>
                                 </div>
                                 <p className="text-slate-600 text-sm truncate mb-4">
                                   {project.description}
@@ -504,6 +506,11 @@ export default function ExpertHome() {
                                     <Eye className="h-4 w-4 text-[#008260]" />
                                   </Button>
                                 </Link>
+                                <ShareRequirementButton
+                                  path={`/requirements/contract/${project.id}`}
+                                  title={project.title}
+                                  className="border-[#008260] text-[#008260] shrink-0"
+                                />
                               </div>
                             </div>
                           </CardContent>
@@ -1040,6 +1047,11 @@ export default function ExpertHome() {
                             <Eye className="h-4 w-4 text-[#008260]" />
                           </Button>
                         </Link>
+                        <ShareRequirementButton
+                          path={`/requirements/contract/${project.id}`}
+                          title={project.title}
+                          className="border-[#008260] text-[#008260] shrink-0"
+                        />
                       </div>
                     </div>
                   </CardContent>

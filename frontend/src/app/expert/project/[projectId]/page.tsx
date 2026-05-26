@@ -37,6 +37,9 @@ import {
 import Link from 'next/link'
 import { useExpertWorkspace } from '@/contexts/ExpertWorkspaceContext'
 import { fetchExpertForWorkspace, expertProfileSetupPath } from '@/lib/expertWorkspace'
+import { ShareRequirementButton } from '@/components/requirements/ShareRequirementButton'
+import { ProjectRequirementMeta } from '@/components/requirements/ProjectRequirementMeta'
+import { projectLocationLine } from '@/lib/requirementLabels'
 
 type UserMeta = { role?: string; name?: string }
 type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }
@@ -65,6 +68,12 @@ interface Project {
   required_expertise: string[]
   domain_expertise: string
   subskills: string[]
+  job_location?: string | null
+  workplace_type?: string | null
+  employment_type?: string | null
+  total_budget?: number | null
+  screening_questions?: string[] | null
+  requirement_pdf_url?: string | null
 }
 
 interface Application {
@@ -347,16 +356,21 @@ export default function ExpertProjectPage() {
       <div className="mb-8 flex flex-col sm:flex-row sm:justify-between w-full items-start sm:items-center border-b border-[#D6D6D6] pb-6 gap-4">
         <div className="min-w-0 flex-1">
               <h1 className="text-xl sm:text-2xl md:text-[32px] font-semibold text-black truncate">{project.title}</h1>
-              <div className="">
-          <p className="flex items-center text-[#6A6A6A] hover:text-[#008260] transition-colors">
-            <MapPin className="h-4 w-4 mr-2" />
-            <span className="text-sm font-medium">Gurgaon, Haryana</span>
-          </p>
-        </div>
+              {projectLocationLine(project) && (
+                <p className="flex items-center text-[#6A6A6A] mt-1">
+                  <MapPin className="h-4 w-4 mr-2 shrink-0" />
+                  <span className="text-sm font-medium">{projectLocationLine(project)}</span>
+                </p>
+              )}
             </div>
-            <div className="text-left sm:text-center flex-shrink-0">
+            <div className="flex flex-col sm:items-end gap-2 flex-shrink-0">
                   <div className="text-lg sm:text-xl md:text-[24px] font-bold text-[#008260]">₹{project.hourly_rate}/hour</div>
                   <div className="text-sm text-[#757575]">Hourly Rate</div>
+                  <ShareRequirementButton
+                    path={`/requirements/contract/${project.id}`}
+                    title={project.title}
+                    className="border-[#008260] text-[#008260]"
+                  />
                 </div>
             </div>
         {/* Two Column Layout */}
@@ -366,7 +380,8 @@ export default function ExpertProjectPage() {
             {/* Project Title */}
           
 
-            {/* Project Description */}
+            <ProjectRequirementMeta project={project} />
+
             <div>
               <h2 className="text-lg sm:text-xl font-semibold text-black mb-4">Project Description</h2>
               <p className="text-[#6A6A6A] text-sm sm:text-base leading-relaxed whitespace-pre-line">{project.description}</p>
@@ -392,10 +407,7 @@ export default function ExpertProjectPage() {
               </div>
             )}
 
-            {/* Project Description (repeated as in image) */}
             <div>
-              <h2 className="text-lg sm:text-xl font-semibold text-black mb-4">Project Description</h2>
-              
               {/* Expertise Domain */}
               <div className="mb-6">
                 <h3 className="text-base font-semibold text-black mb-3">Expertise Domain</h3>
@@ -566,7 +578,7 @@ export default function ExpertProjectPage() {
                         
                         <div className="flex items-center text-sm text-[#6A6A6A] mb-4">
                           <MapPin className="h-4 w-4 mr-1" />
-                          <span>{proj?.institutions?.city}, {proj?.institutions?.state}</span>
+                          <span>{projectLocationLine(proj) || 'Location TBD'}</span>
                         </div>
                         
                         <div className="flex items-center justify-between">
@@ -605,7 +617,7 @@ export default function ExpertProjectPage() {
                       
                       <div className="flex items-center text-sm text-[#6A6A6A] mb-4">
                         <MapPin className="h-4 w-4 mr-1" />
-                        <span>{proj?.institutions?.city}, {proj?.institutions?.state}</span>
+                        <span>{projectLocationLine(proj) || 'Location TBD'}</span>
                       </div>
                       
                       <div className="flex items-center justify-between">

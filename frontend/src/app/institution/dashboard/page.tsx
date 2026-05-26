@@ -54,6 +54,7 @@ import NotificationBell from '@/components/NotificationBell'
 import { toast } from 'sonner'
 import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
 import { fetchInstitutionForWorkspace } from '@/lib/institutionWorkspace'
+import { ShareRequirementButton } from '@/components/requirements/ShareRequirementButton'
 
 export default function InstitutionDashboardPage() {
   const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
@@ -1447,6 +1448,11 @@ export default function InstitutionDashboardPage() {
                               <Eye className="h-4 w-4" />
                               View Applications ({project.applicationCounts?.pending || 0})
                             </Button>
+                            <ShareRequirementButton
+                              path={`/requirements/contract/${project.id}`}
+                              title={project.title}
+                              className="flex-1 sm:flex-none bg-[#ECF2FF] rounded-[25px] text-[#1D1D1D] font-semibold text-[13px] border-[#DCDCDC]"
+                            />
                             <Button size="sm" variant="outline" onClick={() => handleEditProject(project)} className="flex-1 sm:flex-none bg-[#ECF2FF] rounded-[25px] text-[#1D1D1D] font-semibold text-[13px]">
                               <Edit className="h-4 w-4" />
                               Edit
