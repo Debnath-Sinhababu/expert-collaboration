@@ -44,6 +44,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useExpertWorkspace } from '@/contexts/ExpertWorkspaceContext'
 import { fetchExpertForWorkspace, expertProfileSetupPath } from '@/lib/expertWorkspace'
+import { isTrainingBooking } from '@/lib/trainingTypes'
+import { TrainingAttendancePanel } from '@/components/training/TrainingAttendancePanel'
 
 type UserMeta = { role?: string; name?: string }
 type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }
@@ -1024,6 +1026,15 @@ export default function ExpertDashboard() {
                             </div>
                           </div>
                         </div>
+                        {isTrainingBooking(booking) && (
+                          <TrainingAttendancePanel
+                            bookingId={booking.id}
+                            startDate={booking.start_date}
+                            endDate={booking.end_date}
+                            hoursBooked={booking.hours_booked}
+                            defaultExpanded={booking.status === 'in_progress'}
+                          />
+                        )}
                         <div className="flex justify-end pt-3 border-t border-[#ECECEC]">
                           {booking.status === 'in_progress' && (
                             <AlertDialog>

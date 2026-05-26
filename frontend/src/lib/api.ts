@@ -602,6 +602,107 @@ export const api = {
       }).then(res => res.json())
     }
   },
+
+  trainingAttendance: {
+    get: async (bookingId: string, params?: { from?: string; to?: string }) => {
+      const headers = await getAuthHeaders()
+      const query = new URLSearchParams(params as Record<string, string>).toString()
+      const res = await fetch(
+        `${API_BASE_URL}/api/bookings/${bookingId}/attendance${query ? `?${query}` : ''}`,
+        { headers }
+      )
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to load attendance')
+      return json
+    },
+    getSummary: async (bookingId: string) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/bookings/${bookingId}/attendance/summary`, { headers })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to load attendance summary')
+      return json
+    },
+    createDay: async (bookingId: string, sessionDate: string) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/bookings/${bookingId}/attendance/days`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ session_date: sessionDate })
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to create attendance day')
+      return json
+    },
+    markEntry: async (bookingId: string, dayId: string) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(
+        `${API_BASE_URL}/api/bookings/${bookingId}/attendance/days/${dayId}/entry`,
+        { method: 'POST', headers }
+      )
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to mark entry')
+      return json
+    },
+    markExit: async (bookingId: string, dayId: string) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(
+        `${API_BASE_URL}/api/bookings/${bookingId}/attendance/days/${dayId}/exit`,
+        { method: 'POST', headers }
+      )
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to mark exit')
+      return json
+    },
+    correct: async (
+      bookingId: string,
+      dayId: string,
+      body: { expert_entry_at?: string; expert_exit_at?: string }
+    ) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(
+        `${API_BASE_URL}/api/bookings/${bookingId}/attendance/days/${dayId}/correct`,
+        { method: 'PUT', headers, body: JSON.stringify(body) }
+      )
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to correct attendance')
+      return json
+    },
+    approve: async (bookingId: string, dayId: string) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(
+        `${API_BASE_URL}/api/bookings/${bookingId}/attendance/days/${dayId}/approve`,
+        { method: 'PUT', headers }
+      )
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to approve attendance')
+      return json
+    },
+    dispute: async (bookingId: string, dayId: string, disputeReason: string) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(
+        `${API_BASE_URL}/api/bookings/${bookingId}/attendance/days/${dayId}/dispute`,
+        { method: 'PUT', headers, body: JSON.stringify({ dispute_reason: disputeReason }) }
+      )
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to dispute attendance')
+      return json
+    },
+    editTimes: async (
+      bookingId: string,
+      dayId: string,
+      body: { effective_entry_at: string; effective_exit_at: string; approve?: boolean }
+    ) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(
+        `${API_BASE_URL}/api/bookings/${bookingId}/attendance/days/${dayId}/times`,
+        { method: 'PUT', headers, body: JSON.stringify(body) }
+      )
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to update times')
+      return json
+    }
+  },
+
   ratings: {
     getAll: async (params?: { expert_id?: string; institution_id?: string; booking_id?: string }) => {
       const headers = await getAuthHeaders()

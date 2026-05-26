@@ -21,6 +21,8 @@ import NotificationBell from '@/components/NotificationBell'
 import { getInstitutionRate } from '@/lib/utils'
 import { expertDisplayName } from '@/lib/privacyDisplay'
 import { ExpertAvailabilityForDate } from '@/components/expert/ExpertAvailabilityForDate'
+import { isTrainingProjectType } from '@/lib/trainingTypes'
+import { TrainingAttendancePanel } from '@/components/training/TrainingAttendancePanel'
 import { 
   ArrowLeft,
   Building, 
@@ -1379,6 +1381,15 @@ export default function InstitutionProjectDetailsPage() {
             )}
           </div>
         </div>
+        {isTrainingProjectType(project?.type) && (
+          <TrainingAttendancePanel
+            bookingId={booking.id}
+            startDate={booking.start_date}
+            endDate={booking.end_date}
+            hoursBooked={booking.hours_booked}
+            defaultExpanded={booking.status === 'in_progress'}
+          />
+        )}
       </div>
     )
   })}

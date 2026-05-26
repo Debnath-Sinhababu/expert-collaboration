@@ -6274,6 +6274,9 @@ registerSuperAdminExpertMutations(app, {
 const { registerExpertAvailabilityRoutes } = require('./routes/expertAvailabilityRoutes');
 registerExpertAvailabilityRoutes(app);
 
+const { registerTrainingAttendanceRoutes } = require('./routes/trainingAttendanceRoutes');
+registerTrainingAttendanceRoutes(app);
+
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
