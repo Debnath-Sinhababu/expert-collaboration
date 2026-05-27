@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import type { AttendanceDay } from './TrainingAttendanceCalendar'
+import { isDateInRange } from '@/lib/dateOnly'
 
 function formatTs(iso: string | null | undefined) {
   if (!iso) return '—'
@@ -59,6 +60,8 @@ export type AttendanceDayFull = AttendanceDay & {
 type Props = {
   day: AttendanceDayFull | null
   sessionDate: string | null
+  rangeStart?: string
+  rangeEnd?: string
   role: 'expert' | 'institution' | 'super_admin'
   canMark: boolean
   readOnly: boolean
@@ -74,6 +77,8 @@ type Props = {
 export function TrainingAttendanceDayDetail({
   day,
   sessionDate,
+  rangeStart,
+  rangeEnd,
   role,
   canMark,
   readOnly,
@@ -101,12 +106,20 @@ export function TrainingAttendanceDayDetail({
 
   const label = format(parseISO(sessionDate), 'EEEE, d MMMM yyyy')
 
+  const dayInRange =
+    !sessionDate || !rangeStart || !rangeEnd
+      ? true
+      : isDateInRange(sessionDate, rangeStart, rangeEnd)
+
   if (!day) {
     return (
       <div className="rounded-xl border border-[#DCDCDC] bg-white p-6 space-y-4">
         <h3 className="font-semibold text-[#000000]">{label}</h3>
         <p className="text-sm text-[#6A6A6A]">No attendance recorded for this day.</p>
-        {role === 'expert' && canMark && !readOnly && (
+        {!dayInRange && (
+          <p className="text-sm text-[#92400E]">This day is outside the booking training period.</p>
+        )}
+        {role === 'expert' && canMark && !readOnly && dayInRange && (
           <Button
             type="button"
             disabled={busy}
@@ -164,7 +177,7 @@ export function TrainingAttendanceDayDetail({
         )}
       </dl>
 
-      {role === 'expert' && canMark && !readOnly && (
+      {role === 'expert' && canMark && !readOnly && dayInRange && (
         <div className="flex flex-wrap gap-2 pt-2 border-t border-[#ECECEC]">
           {day.status === 'disputed' && (
             <Button
@@ -206,7 +219,9 @@ export function TrainingAttendanceDayDetail({
         </div>
       )}
 
-      {role === 'institution' && !readOnly && day.status === 'pending_review' && (
+      {(role === 'institution' || role === 'super_admin') &&
+        !readOnly &&
+        day.status === 'pending_review' && (
         <div className="flex flex-wrap gap-2 pt-2 border-t border-[#ECECEC]">
           <Button
             type="button"
@@ -231,7 +246,7 @@ export function TrainingAttendanceDayDetail({
         </div>
       )}
 
-      {showEdit && role === 'institution' && (
+      {showEdit && (role === 'institution' || role === 'super_admin') && (
         <div className="space-y-3 pt-2 border-t border-[#ECECEC]">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>

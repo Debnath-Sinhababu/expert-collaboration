@@ -12,10 +12,18 @@ export function isTrainingProjectType(type: string | null | undefined): boolean 
   return (TRAINING_PROJECT_TYPES as readonly string[]).includes(type)
 }
 
+export function getBookingProjectType(booking: {
+  projects?: { type?: string } | { type?: string }[] | null
+  project?: { type?: string } | null
+}): string | undefined {
+  const raw = booking.projects ?? booking.project
+  if (Array.isArray(raw)) return raw[0]?.type
+  return raw?.type
+}
+
 export function isTrainingBooking(booking: {
-  projects?: { type?: string } | null
+  projects?: { type?: string } | { type?: string }[] | null
   project?: { type?: string } | null
 }): boolean {
-  const t = booking.projects?.type ?? booking.project?.type
-  return isTrainingProjectType(t)
+  return isTrainingProjectType(getBookingProjectType(booking))
 }

@@ -10,15 +10,23 @@ const {
   READ_ONLY_BOOKING_STATUSES,
 } = require('../lib/trainingTypes');
 
+function normalizeDateOnly(s) {
+  if (s == null || s === '') return null;
+  const str = String(s).trim();
+  const m = /^(\d{4}-\d{2}-\d{2})/.exec(str);
+  return m ? m[1] : null;
+}
+
 function parseDateOnly(s) {
-  if (!s || typeof s !== 'string') return null;
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s.trim());
-  if (!m) return null;
-  return s.trim();
+  return normalizeDateOnly(s);
 }
 
 function dateInRange(sessionDate, startDate, endDate) {
-  return sessionDate >= startDate && sessionDate <= endDate;
+  const d = normalizeDateOnly(sessionDate);
+  const start = normalizeDateOnly(startDate);
+  const end = normalizeDateOnly(endDate);
+  if (!d || !start || !end) return false;
+  return d >= start && d <= end;
 }
 
 function minutesBetween(entry, exit) {
@@ -95,6 +103,14 @@ async function loadBooking(service, bookingId) {
   return data;
 }
 
+function normalizeBookingStatus(status) {
+  if (status == null) return '';
+  return String(status)
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_');
+}
+
 /**
  * @returns {Promise<{ booking, projectType, role, user, expertAccess, institutionAccess } | null>}
  */
@@ -127,8 +143,9 @@ async function resolveBookingAttendanceAccess(req, bookingId) {
 
   const expertAcc = await expertAccess.resolveExpertAccess(req, booking.expert_id);
   if (expertAcc) {
-    const readOnly = READ_ONLY_BOOKING_STATUSES.includes(booking.status);
-    const canMark = !readOnly && ACTIVE_BOOKING_STATUSES.includes(booking.status);
+    const bStatus = normalizeBookingStatus(booking.status);
+    const readOnly = READ_ONLY_BOOKING_STATUSES.some((s) => s === bStatus);
+    const canMark = !readOnly && ACTIVE_BOOKING_STATUSES.includes(bStatus);
     return {
       booking,
       projectType,
@@ -143,7 +160,8 @@ async function resolveBookingAttendanceAccess(req, bookingId) {
 
   const instAcc = await institutionAccess.resolveInstitutionAccess(req, booking.institution_id);
   if (instAcc) {
-    const readOnly = READ_ONLY_BOOKING_STATUSES.includes(booking.status);
+    const bStatus = normalizeBookingStatus(booking.status);
+    const readOnly = READ_ONLY_BOOKING_STATUSES.some((s) => s === bStatus);
     return {
       booking,
       projectType,
@@ -160,11 +178,7 @@ async function resolveBookingAttendanceAccess(req, bookingId) {
 }
 
 function getWriteClient(ctx) {
-  if (ctx.role === 'super_admin') return ctx.service;
-  if (ctx.expertAccess) return expertAccess.getWriteClientForExpert(ctx.expertAccess);
-  if (ctx.institutionAccess) {
-    return institutionAccess.getWriteClientForInstitution(ctx.institutionAccess);
-  }
+  // Use service client after access checks — attendance tables may lack per-user RLS grants.
   return ctx.service;
 }
 
@@ -246,8 +260,8 @@ function registerTrainingAttendanceRoutes(app) {
         booking: {
           id: ctx.booking.id,
           status: ctx.booking.status,
-          start_date: ctx.booking.start_date,
-          end_date: ctx.booking.end_date,
+          start_date: normalizeDateOnly(ctx.booking.start_date),
+          end_date: normalizeDateOnly(ctx.booking.end_date),
           hours_booked: ctx.booking.hours_booked,
           project_type: ctx.projectType,
           project_title: ctx.booking.projects?.title,

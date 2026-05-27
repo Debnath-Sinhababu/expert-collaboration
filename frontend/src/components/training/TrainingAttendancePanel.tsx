@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { format, startOfMonth, endOfMonth } from 'date-fns'
 import { api } from '@/lib/api'
+import { isDateInRange, normalizeDateOnly } from '@/lib/dateOnly'
 import { toast } from 'sonner'
 import { ChevronDown, ChevronUp, LogIn, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -18,6 +19,9 @@ type Props = {
   startDate: string
   endDate: string
   hoursBooked?: number | null
+  bookingStatus?: string
+  /** Who is viewing this panel — drives which actions show before/after API load */
+  expectedViewerRole: 'expert' | 'institution'
   defaultExpanded?: boolean
 }
 
@@ -30,12 +34,28 @@ type AttendancePayload = {
   role?: 'expert' | 'institution' | 'super_admin'
 }
 
+const ACTIVE_STATUSES = ['confirmed', 'in_progress']
+
+function normStatus(s: string | undefined) {
+  return String(s || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_')
+}
+
 export function TrainingAttendancePanel({
   bookingId,
   startDate,
   endDate,
+  bookingStatus,
+  expectedViewerRole,
   defaultExpanded = false,
 }: Props) {
+  const rangeStart = normalizeDateOnly(startDate) || startDate
+  const rangeEnd = normalizeDateOnly(endDate) || endDate
+  const st = normStatus(bookingStatus)
+  const bookingAllowsMark = !!st && ACTIVE_STATUSES.includes(st)
+
   const [expanded, setExpanded] = useState(defaultExpanded)
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -54,7 +74,10 @@ export function TrainingAttendancePanel({
     setLoading(true)
     try {
       const res = (await api.trainingAttendance.get(bookingId, range)) as AttendancePayload
-      setData(res)
+      setData({
+        ...res,
+        days: Array.isArray(res.days) ? res.days : [],
+      })
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed to load attendance')
     } finally {
@@ -69,14 +92,22 @@ export function TrainingAttendancePanel({
   const selectedDateStr = selectedDay ? format(selectedDay, 'yyyy-MM-dd') : null
   const selectedDayRow = useMemo(() => {
     if (!selectedDateStr || !data?.days) return null
-    return data.days.find((d) => d.session_date === selectedDateStr) ?? null
+    return (
+      data.days.find((d) => normalizeDateOnly(d.session_date) === selectedDateStr) ?? null
+    )
   }, [data?.days, selectedDateStr])
 
   const todayStr = format(new Date(), 'yyyy-MM-dd')
-  const todayRow = data?.days?.find((d) => d.session_date === todayStr)
+  const todayRow = data?.days?.find((d) => normalizeDateOnly(d.session_date) === todayStr)
+
+  const apiStart = normalizeDateOnly(data?.booking?.start_date)
+  const apiEnd = normalizeDateOnly(data?.booking?.end_date)
+  /** Prefer dates returned by the API so the calendar matches server validation */
+  const calendarStart = apiStart || rangeStart
+  const calendarEnd = apiEnd || rangeEnd
 
   const ensureDay = async (sessionDate: string): Promise<AttendanceDayFull> => {
-    const existing = data?.days?.find((d) => d.session_date === sessionDate)
+    const existing = data?.days?.find((d) => normalizeDateOnly(d.session_date) === sessionDate)
     if (existing) return existing
     const created = await api.trainingAttendance.createDay(bookingId, sessionDate)
     return created as AttendanceDayFull
@@ -117,9 +148,24 @@ export function TrainingAttendancePanel({
     }
   }
 
-  const role = data?.role || 'expert'
-  const canMark = Boolean(data?.canMark)
-  const readOnly = Boolean(data?.readOnly)
+  // Lock role by page context so a brief/wrong API payload cannot hide expert actions or show them to institutions.
+  const role: 'expert' | 'institution' | 'super_admin' =
+    expectedViewerRole === 'expert'
+      ? 'expert'
+      : data?.role === 'super_admin'
+        ? 'super_admin'
+        : 'institution'
+
+  const readOnly =
+    data != null
+      ? Boolean(data.readOnly)
+      : st
+        ? ['completed', 'cancelled'].includes(st)
+        : false
+
+  // Experts: trust booking card status for marking (same source as the list). API canMark can be wrong during rollout / edge cases.
+  const expertCanMark = expectedViewerRole === 'expert' && bookingAllowsMark && !readOnly
+  const canMark = expectedViewerRole === 'expert' ? expertCanMark : Boolean(data?.canMark)
   const summary = data?.summary ?? {
     daysApproved: 0,
     daysPending: 0,
@@ -129,12 +175,9 @@ export function TrainingAttendancePanel({
     percentOfHoursBooked: null,
   }
 
+  const todayInRange = isDateInRange(todayStr, calendarStart, calendarEnd)
   const showTodayQuickActions =
-    role === 'expert' &&
-    canMark &&
-    !readOnly &&
-    todayStr >= startDate &&
-    todayStr <= endDate
+    role === 'expert' && canMark && todayInRange
 
   return (
     <div className="mt-4 rounded-xl border border-[#E8E8E8] bg-[#FAFAFA] overflow-hidden">
@@ -157,6 +200,26 @@ export function TrainingAttendancePanel({
             summary={summary}
             bookingStatus={data?.booking?.status}
           />
+
+          {expectedViewerRole === 'institution' && !readOnly && summary.daysPending > 0 && (
+            <p className="text-sm text-[#92400E] bg-[#FFF7ED] border border-[#FED7AA] rounded-lg px-3 py-2">
+              {summary.daysPending} day{summary.daysPending !== 1 ? 's' : ''} waiting for your review. Select each
+              highlighted day on the calendar, then use Approve, Edit times, or Dispute.
+            </p>
+          )}
+
+          {role === 'expert' && canMark && !todayInRange && (
+            <p className="text-sm text-[#92400E] bg-[#FFF7ED] border border-[#FED7AA] rounded-lg px-3 py-2">
+              Today is outside this booking&apos;s training window ({calendarStart} – {calendarEnd}). Select an
+              in-range day on the calendar to mark entry.
+            </p>
+          )}
+
+          {data && !canMark && !readOnly && role === 'expert' && (
+            <p className="text-sm text-[#6A6A6A]">
+              Attendance marking is not available for this booking status.
+            </p>
+          )}
 
           {showTodayQuickActions && (
             <div className="flex flex-wrap gap-2 p-3 rounded-lg bg-white border border-[#DCDCDC]">
@@ -194,8 +257,8 @@ export function TrainingAttendancePanel({
           <div className="grid lg:grid-cols-2 gap-4">
             <TrainingAttendanceCalendar
               days={(data?.days || []) as AttendanceDay[]}
-              startDate={startDate}
-              endDate={endDate}
+              startDate={calendarStart}
+              endDate={calendarEnd}
               month={month}
               onMonthChange={setMonth}
               selectedDay={selectedDay}
@@ -205,6 +268,8 @@ export function TrainingAttendancePanel({
             <TrainingAttendanceDayDetail
               day={selectedDayRow}
               sessionDate={selectedDateStr}
+              rangeStart={calendarStart}
+              rangeEnd={calendarEnd}
               role={role}
               canMark={canMark}
               readOnly={readOnly}

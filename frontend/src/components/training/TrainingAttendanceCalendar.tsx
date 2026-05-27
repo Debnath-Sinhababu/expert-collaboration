@@ -2,8 +2,16 @@
 
 import { useMemo } from 'react'
 import { DayPicker } from 'react-day-picker'
-import { format, parseISO, isWithinInterval, startOfDay } from 'date-fns'
+import { format, isWithinInterval, startOfDay } from 'date-fns'
+import { normalizeDateOnly } from '@/lib/dateOnly'
 import 'react-day-picker/style.css'
+
+function parseLocalDateOnly(value: string): Date {
+  const d = normalizeDateOnly(value)
+  if (!d) return startOfDay(new Date())
+  const [y, m, day] = d.split('-').map(Number)
+  return startOfDay(new Date(y, m - 1, day))
+}
 
 export type AttendanceDay = {
   id: string
@@ -34,12 +42,15 @@ export function TrainingAttendanceCalendar({
 }: Props) {
   const statusByDate = useMemo(() => {
     const map = new Map<string, AttendanceDay['status']>()
-    days.forEach((d) => map.set(d.session_date, d.status))
+    days.forEach((d) => {
+      const key = normalizeDateOnly(d.session_date)
+      if (key) map.set(key, d.status)
+    })
     return map
   }, [days])
 
-  const rangeStart = useMemo(() => startOfDay(parseISO(startDate)), [startDate])
-  const rangeEnd = useMemo(() => startOfDay(parseISO(endDate)), [endDate])
+  const rangeStart = useMemo(() => parseLocalDateOnly(startDate), [startDate])
+  const rangeEnd = useMemo(() => parseLocalDateOnly(endDate), [endDate])
 
   const disabled = (date: Date) => {
     const d = startOfDay(date)

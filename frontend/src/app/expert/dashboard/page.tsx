@@ -1032,6 +1032,8 @@ export default function ExpertDashboard() {
                             startDate={booking.start_date}
                             endDate={booking.end_date}
                             hoursBooked={booking.hours_booked}
+                            bookingStatus={booking.status}
+                            expectedViewerRole="expert"
                             defaultExpanded={booking.status === 'in_progress'}
                           />
                         )}
