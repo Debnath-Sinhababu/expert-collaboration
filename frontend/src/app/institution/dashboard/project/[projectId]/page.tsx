@@ -20,7 +20,7 @@ import Logo from '@/components/Logo'
 import NotificationBell from '@/components/NotificationBell'
 import { getInstitutionRate } from '@/lib/utils'
 import { expertDisplayName } from '@/lib/privacyDisplay'
-import { ExpertAvailabilityForDate } from '@/components/expert/ExpertAvailabilityForDate'
+import { ExpertAvailabilityTrigger } from '@/components/expert/ExpertAvailabilityTrigger'
 import { isTrainingProjectType } from '@/lib/trainingTypes'
 import { TrainingAttendancePanel } from '@/components/training/TrainingAttendancePanel'
 import { 
@@ -799,20 +799,15 @@ export default function InstitutionProjectDetailsPage() {
                           </div>
                           
                           <p className="text-xs sm:text-sm text-[#000000] mb-4">{application.experts?.bio || 'No bio available'}</p>
-                {application.expert_id && project?.start_date && (
-                  <ExpertAvailabilityForDate
+                {application.expert_id && (
+                  <ExpertAvailabilityTrigger
                     expertId={application.expert_id}
-                    date={project.start_date}
+                    startDate={project?.start_date}
+                    endDate={project?.end_date}
+                    projectId={projectId}
                     className="mb-4"
                   />
                 )}
-                          {application.expert_id && project?.start_date && (
-                            <ExpertAvailabilityForDate
-                              expertId={application.expert_id}
-                              date={project.start_date}
-                              className="mb-4"
-                            />
-                          )}
                           
                           {/* Expert Details */}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-4">
@@ -950,10 +945,12 @@ export default function InstitutionProjectDetailsPage() {
                 </div>
                 
                 <p className="text-xs sm:text-sm text-[#000000] mb-4">{application.experts?.bio || 'No bio available'}</p>
-                {application.expert_id && project?.start_date && (
-                  <ExpertAvailabilityForDate
+                {application.expert_id && (
+                  <ExpertAvailabilityTrigger
                     expertId={application.expert_id}
-                    date={project.start_date}
+                    startDate={project?.start_date}
+                    endDate={project?.end_date}
+                    projectId={projectId}
                     className="mb-4"
                   />
                 )}
@@ -1095,10 +1092,12 @@ export default function InstitutionProjectDetailsPage() {
                 </div>
                 
                 <p className="text-xs sm:text-sm text-[#000000] mb-4">{application.experts?.bio || 'No bio available'}</p>
-                {application.expert_id && project?.start_date && (
-                  <ExpertAvailabilityForDate
+                {application.expert_id && (
+                  <ExpertAvailabilityTrigger
                     expertId={application.expert_id}
-                    date={project.start_date}
+                    startDate={project?.start_date}
+                    endDate={project?.end_date}
+                    projectId={projectId}
                     className="mb-4"
                   />
                 )}

@@ -17,6 +17,10 @@ function dayBoundsUtc(dateStr) {
   return { start, end };
 }
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const MAX_BROWSE_SPAN_DAYS = 30;
+const MAX_BROWSE_PAST_DAYS = 7;
+
 async function institutionMayViewExpertAvailability(req, expertId) {
   const { user, role } = await superAdminAuth.getUserRoleFromRequest(req);
   if (!user) return false;
@@ -48,6 +52,66 @@ async function institutionMayViewExpertAvailability(req, expertId) {
   return Boolean(bookings?.length);
 }
 
+/** Institution owns project — allows pre-application hiring views */
+async function institutionMayViewViaProject(req, projectId) {
+  if (!projectId || typeof projectId !== 'string') return false;
+  const service = expertAccess.getServiceClient();
+  const { data: project, error } = await service
+    .from('projects')
+    .select('id, institution_id')
+    .eq('id', projectId.trim())
+    .maybeSingle();
+  if (error || !project?.institution_id) return false;
+  const access = await institutionAccess.resolveInstitutionAccess(req, project.institution_id);
+  return Boolean(access);
+}
+
+/** Profile browse: institution / super_admin, bounded date window */
+async function institutionMayBrowseAvailabilityWindow(req, from, to) {
+  const meta = await superAdminAuth.getUserRoleFromRequest(req);
+  if (!meta.user) return false;
+  if (meta.role !== 'institution' && meta.role !== 'super_admin') return false;
+
+  const spanMs = to.getTime() - from.getTime();
+  if (spanMs < 0 || spanMs > MAX_BROWSE_SPAN_DAYS * MS_PER_DAY) return false;
+
+  const earliest = new Date();
+  earliest.setUTCHours(0, 0, 0, 0);
+  earliest.setTime(earliest.getTime() - MAX_BROWSE_PAST_DAYS * MS_PER_DAY);
+  if (from < earliest) return false;
+
+  if (meta.role === 'super_admin') return true;
+
+  const service = expertAccess.getServiceClient();
+  const { data: inst } = await service
+    .from('institutions')
+    .select('id')
+    .eq('user_id', meta.user.id)
+    .maybeSingle();
+  return Boolean(inst);
+}
+
+async function resolveMayViewAvailability(req, expertId, from, to, projectId) {
+  const access = await expertAccess.resolveExpertAccess(req, expertId);
+  if (access) return true;
+
+  const { role } = await superAdminAuth.getUserRoleFromRequest(req);
+  if (role === 'super_admin') return true;
+
+  if (projectId) {
+    const viaProject = await institutionMayViewViaProject(req, projectId);
+    if (viaProject) return true;
+  }
+
+  const viaRelationship = await institutionMayViewExpertAvailability(req, expertId);
+  if (viaRelationship) return true;
+
+  const viaBrowse = await institutionMayBrowseAvailabilityWindow(req, from, to);
+  if (viaBrowse) return true;
+
+  return false;
+}
+
 function registerExpertAvailabilityRoutes(app) {
   app.get('/api/experts/:id/availability', async (req, res) => {
     try {
@@ -58,16 +122,11 @@ function registerExpertAvailabilityRoutes(app) {
         return res.status(400).json({ error: 'from and to query params (ISO dates) are required' });
       }
 
-      const access = await expertAccess.resolveExpertAccess(req, expertId);
-      let allowed = Boolean(access);
+      const projectId =
+        typeof req.query.project_id === 'string' ? req.query.project_id.trim() : null;
+      const allowed = await resolveMayViewAvailability(req, expertId, from, to, projectId);
       if (!allowed) {
-        allowed = await institutionMayViewExpertAvailability(req, expertId);
-      }
-      if (!allowed) {
-        const { role } = await superAdminAuth.getUserRoleFromRequest(req);
-        if (role !== 'super_admin') {
-          return res.status(403).json({ error: 'Unauthorized' });
-        }
+        return res.status(403).json({ error: 'Unauthorized' });
       }
 
       const service = expertAccess.getServiceClient();

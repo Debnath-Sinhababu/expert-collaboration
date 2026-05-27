@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
 import { EXPERTISE_DOMAINS } from '@/lib/constants'
@@ -60,6 +60,8 @@ import { useRouter, usePathname } from 'next/navigation'
 import { toast } from 'sonner'
 import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
 import { fetchInstitutionForWorkspace } from '@/lib/institutionWorkspace'
+import { ExpertAvailabilityTrigger } from '@/components/expert/ExpertAvailabilityTrigger'
+import { profileBrowseRange } from '@/lib/expertAvailabilityUtils'
 
 type UserMeta = { role?: string; name?: string }
 type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }
@@ -187,6 +189,12 @@ export default function InstitutionHomePage() {
   ].join('\n')
   const contactMailtoHref = `mailto:${contactEmail}?subject=${encodeURIComponent(contactSubject)}&body=${encodeURIComponent(contactBody)}`
   const maxExperts = 10
+
+  /** Rolling 30-day window for “View availability” on home expert cards (institution browse API). */
+  const browseAvailabilityRange = useMemo(() => {
+    const r = profileBrowseRange()
+    return { start: r.start, end: r.end }
+  }, [])
 
   useEffect(() => {
     const el = expertsListEndRef.current
@@ -1055,14 +1063,14 @@ export default function InstitutionHomePage() {
                             )}
                           </div>
                         )}
-                        <div className="flex space-x-2">
-                          <Button className="flex-1 bg-[#008260] text-white rounded-md hover:bg-[#008260]" onClick={() => { setQuickSelectExpert(expert); setShowQuickSelectModal(true); }}>
+                        <div className="flex gap-2 items-stretch sm:items-center">
+                          <Button className="flex-1 min-w-[8rem] bg-[#008260] text-white rounded-md hover:bg-[#008260]" onClick={() => { setQuickSelectExpert(expert); setShowQuickSelectModal(true); }}>
                             <UserCheck className="h-4 w-4 mr-2" />
                             Select Expert
                           </Button>
                           <Dialog>
                             <DialogTrigger asChild>
-                              <Button variant="outline" size="icon" className="border-2 border-slate-200 bg-white/80 transition-all duration-300 hover:border-[#008260]">
+                              <Button variant="outline" size="icon" className="border-2 border-slate-200 bg-white/80 transition-all duration-300 hover:border-[#008260] shrink-0">
                                 <Eye className="h-4 w-4 text-[#008260]" />
                               </Button>
                             </DialogTrigger>
@@ -1150,6 +1158,21 @@ export default function InstitutionHomePage() {
                                     </div>
                                   </div>
                                 )}
+                                <div className="rounded-lg border border-[#DCDCDC] bg-[#F8FBFF] p-4 space-y-3">
+                                  <div className="flex items-center gap-2 text-sm font-semibold text-[#000000]">
+                                    <Clock className="h-4 w-4 text-[#008260]" />
+                                    Calendar availability
+                                  </div>
+                                  <p className="text-xs text-[#6A6A6A]">
+                                    Published slots for the next 30 days. Use the button to see day-by-day times.
+                                  </p>
+                                  <ExpertAvailabilityTrigger
+                                    expertId={expert.id}
+                                    startDate={browseAvailabilityRange.start}
+                                    endDate={browseAvailabilityRange.end}
+                                    className="pt-1"
+                                  />
+                                </div>
                                 {/* {expert.resume_url && (
                                   <div>
                                     <h4 className="font-medium mb-1">Resume</h4>
@@ -1620,7 +1643,7 @@ export default function InstitutionHomePage() {
                       </div>
                       
                       {/* Buttons - Select stretched, Eye in corner */}
-                      <div className="flex gap-2 mt-4">
+                      <div className="flex gap-2 mt-4 items-center">
                         <Button 
                           className="flex-1 bg-[#008260] hover:bg-[#006d51] text-white" 
                           onClick={() => { setQuickSelectExpert(expert); setShowQuickSelectModal(true); }}
@@ -1721,6 +1744,21 @@ export default function InstitutionHomePage() {
                                   </div>
                                 </div>
                               )}
+                              <div className="rounded-lg border border-[#DCDCDC] bg-[#F8FBFF] p-4 space-y-3">
+                                <div className="flex items-center gap-2 text-sm font-semibold text-[#000000]">
+                                  <Clock className="h-4 w-4 text-[#008260]" />
+                                  Calendar availability
+                                </div>
+                                <p className="text-xs text-[#6A6A6A]">
+                                  Published slots for the next 30 days. Use the button to see day-by-day times.
+                                </p>
+                                <ExpertAvailabilityTrigger
+                                  expertId={expert.id}
+                                  startDate={browseAvailabilityRange.start}
+                                  endDate={browseAvailabilityRange.end}
+                                  className="pt-1"
+                                />
+                              </div>
                             </div>
                           </DialogContent>
                         </Dialog>
@@ -1768,7 +1806,7 @@ export default function InstitutionHomePage() {
                         </div>
                       </div>
                       <div className="flex-shrink-0 ml-2 flex gap-2 items-end flex-1 justify-end h-full">
-                        <div className='flex gap-2'>
+                        <div className="flex gap-2 items-center justify-end">
                         <Button className="bg-[#008260] hover:bg-[#008260] text-white rounded-3xl text-sm" onClick={() => { setQuickSelectExpert(expert); setShowQuickSelectModal(true); }}>
                           <UserCheck className="h-4 w-4 mr-1" />
                           Select
@@ -1863,6 +1901,21 @@ export default function InstitutionHomePage() {
                                   </div>
                                 </div>
                               )}
+                              <div className="rounded-lg border border-[#DCDCDC] bg-[#F8FBFF] p-4 space-y-3">
+                                <div className="flex items-center gap-2 text-sm font-semibold text-[#000000]">
+                                  <Clock className="h-4 w-4 text-[#008260]" />
+                                  Calendar availability
+                                </div>
+                                <p className="text-xs text-[#6A6A6A]">
+                                  Published slots for the next 30 days. Use the button to see day-by-day times.
+                                </p>
+                                <ExpertAvailabilityTrigger
+                                  expertId={expert.id}
+                                  startDate={browseAvailabilityRange.start}
+                                  endDate={browseAvailabilityRange.end}
+                                  className="pt-1"
+                                />
+                              </div>
                               {/* {expert.resume_url && (
                                 <div>
                                   <h4 className="font-medium mb-1">Resume</h4>
@@ -2033,6 +2086,14 @@ export default function InstitutionHomePage() {
                               <p className="text-slate-600 text-sm line-clamp-2 mb-2">
                                 {expert.bio}
                               </p>
+
+                              <ExpertAvailabilityTrigger
+                                expertId={expert.id}
+                                startDate={projectForm.start_date}
+                                endDate={projectForm.end_date}
+                                projectId={selectedProjectId}
+                                className="mb-3"
+                              />
                               
                               {/* Skills */}
                               {expert.subskills && expert.subskills.length > 0 && (

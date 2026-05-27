@@ -48,6 +48,7 @@ import {
   FileText
 } from 'lucide-react'
 import Link from 'next/link'
+import { ExpertAvailabilityTrigger } from '@/components/expert/ExpertAvailabilityTrigger'
 import { useRouter } from 'next/navigation'
 import { RatingModal } from '@/components/RatingModal'
 import NotificationBell from '@/components/NotificationBell'
@@ -1011,6 +1012,14 @@ export default function InstitutionDashboardPage() {
                               <p className="text-slate-600 text-sm line-clamp-2 mb-2">
                                 {expert.bio}
                               </p>
+
+                              <ExpertAvailabilityTrigger
+                                expertId={expert.id}
+                                startDate={projectForm.start_date}
+                                endDate={projectForm.end_date}
+                                projectId={selectedProjectId}
+                                className="mb-3"
+                              />
                               
                               {/* Skills */}
                               {expert.subskills && expert.subskills.length > 0 && (

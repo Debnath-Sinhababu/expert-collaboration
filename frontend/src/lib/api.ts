@@ -171,9 +171,14 @@ export const api = {
       if (!res.ok) throw new Error(json?.error || 'Failed to update calxbook visibility')
       return json
     },
-    getAvailability: async (id: string, range: { from: string; to: string }) => {
+    getAvailability: async (
+      id: string,
+      range: { from: string; to: string; project_id?: string }
+    ) => {
       const headers = await getAuthHeaders()
-      const query = new URLSearchParams({ from: range.from, to: range.to }).toString()
+      const params: Record<string, string> = { from: range.from, to: range.to }
+      if (range.project_id) params.project_id = range.project_id
+      const query = new URLSearchParams(params).toString()
       const res = await fetch(`${API_BASE_URL}/api/experts/${id}/availability?${query}`, { headers })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json?.error || 'Failed to load availability')

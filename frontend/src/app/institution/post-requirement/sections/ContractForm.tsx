@@ -24,6 +24,7 @@ import { fetchInstitutionForWorkspace } from '@/lib/institutionWorkspace'
 import { ScreeningQuestionsEditor } from '@/components/requirements/ScreeningQuestionsEditor'
 import { EMPLOYMENT_TYPE_OPTIONS, WORKPLACE_TYPE_OPTIONS } from '@/lib/requirementLabels'
 import { expertDisplayName } from '@/lib/privacyDisplay'
+import { ExpertAvailabilityTrigger } from '@/components/expert/ExpertAvailabilityTrigger'
 
 export default function ContractForm() {
   const router = useRouter()
@@ -509,6 +510,13 @@ export default function ContractForm() {
                           {expert.hourly_rate && (
                             <p className="text-xs text-[#000000] font-medium mt-2">₹{getInstitutionRate(expert.hourly_rate)}/hour</p>
                           )}
+                          <ExpertAvailabilityTrigger
+                            expertId={expert.id}
+                            startDate={form.start_date}
+                            endDate={form.end_date}
+                            projectId={selectedProjectId}
+                            className="mt-3"
+                          />
                         </div>
                       </div>
                     </label>
