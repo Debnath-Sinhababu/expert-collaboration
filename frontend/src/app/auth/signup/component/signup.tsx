@@ -1,6 +1,5 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -85,25 +84,13 @@ export default function Signup() {
     }
 
     try {
-       
-
-      const { data, error } = await supabase.auth.signUp({
+      await api.auth.register({
         email,
         password,
-        options: {
-          data: {
-            role: selectedRole,
-          },
-          emailRedirectTo:`${process.env.NEXT_PUBLIC_FRONTEND_URL}/confirmemail`
-        },
+        role: selectedRole,
       })
-      if (error) throw error
-
-      if (data.user) {
-       toast.success('Account created successfully! Please check your email to verify your account.')
-        
-       router.push('/auth/login')
-      }
+      toast.success('Account created successfully. Check your email to verify your account.')
+      router.push('/auth/login')
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : 'An error occurred')
       setError(error instanceof Error ? error.message : 'An error occurred')

@@ -17,6 +17,12 @@ const institutionAccess = require('./auth/institutionAccess');
 const expertAccess = require('./auth/expertAccess');
 const superAdminAuth = require('./auth/superAdminAuth');
 const { ensureAuthUserForProfile, authLoginMeta } = require('./auth/profileAuthService');
+const {
+  confirmEmailByToken,
+  confirmPasswordReset,
+  createOrRefreshAuthUser,
+  requestPasswordReset,
+} = require('./services/authEmailService');
 const privacyMask = require('./privacyMask');
 
 console.log('Environment variables loaded:');
@@ -143,7 +149,41 @@ app.get('/api/health-static', (req, res) => {
   res.json({ status: 'OK' });
 });
 
-// Auth: Forgot password - send reset email
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { email, password, role } = req.body || {};
+    const result = await createOrRefreshAuthUser({ email, password, role });
+    res.status(201).json({
+      success: true,
+      needsEmailVerification: true,
+      user: {
+        id: result.userId,
+        email: result.email,
+        role: result.role,
+      },
+    });
+  } catch (err) {
+    const statusCode = err?.statusCode || (err?.code === 'AUTH_USER_EXISTS' ? 409 : 500);
+    res.status(statusCode).json({ error: err.message || 'Failed to register account' });
+  }
+});
+
+app.post('/api/auth/confirm-email', async (req, res) => {
+  try {
+    const { token } = req.body || {};
+    if (!token) {
+      return res.status(400).json({ error: 'Token is required' });
+    }
+
+    const result = await confirmEmailByToken(token);
+    res.json({ success: true, user: result });
+  } catch (err) {
+    const statusCode = err?.statusCode || 500;
+    res.status(statusCode).json({ error: err.message || 'Failed to confirm email' });
+  }
+});
+
+// Auth: Forgot password - send our own reset email
 app.post('/api/auth/forgot-password', async (req, res) => {
   try {
     const { email } = req.body || {};
@@ -151,19 +191,28 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    const redirectTo = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/reset-password`;
+    const result = await requestPasswordReset(email);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Failed to send reset email' });
+  }
+});
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo
-    });
-
-    if (error) {
-      return res.status(400).json({ error: error.message });
+app.post('/api/auth/password-reset/confirm', async (req, res) => {
+  try {
+    const { token, password } = req.body || {};
+    if (!token) {
+      return res.status(400).json({ error: 'Token is required' });
+    }
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required' });
     }
 
-    res.json({ success: true });
+    const result = await confirmPasswordReset(token, password);
+    res.json({ success: true, userId: result.userId });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    const statusCode = err?.statusCode || 500;
+    res.status(statusCode).json({ error: err.message || 'Failed to reset password' });
   }
 });
 

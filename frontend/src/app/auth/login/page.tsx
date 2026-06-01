@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
@@ -22,6 +22,13 @@ function LoginForm() {
   const [error, setError] = useState('')
   const router = useRouter()
   const searchParams = useSearchParams()
+
+  useEffect(() => {
+    const message = searchParams?.get('message')
+    if (message) {
+      setError(decodeURIComponent(message))
+    }
+  }, [searchParams])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -45,12 +52,6 @@ function LoginForm() {
 
         // Check for return URL first
         const returnUrl = searchParams?.get('returnUrl')
-        const message = searchParams?.get('message')
-        
-        if (message) {
-          setError(decodeURIComponent(message))
-        }
-        
         const userMetadata = data.user.user_metadata
         const role = userMetadata?.role
         
@@ -143,7 +144,12 @@ function LoginForm() {
         }
       }
     } catch (error: any) {
-      setError(error.message)
+      const message = String(error?.message || 'Login failed')
+      if (/email not confirmed|confirm your email/i.test(message)) {
+        setError('Please verify your email address before signing in. Check your inbox for the confirmation link.')
+      } else {
+        setError(message)
+      }
     } finally {
       setLoading(false)
     }

@@ -1,92 +1,113 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { GraduationCap, CheckCircle, ArrowRight, Home, User, Check } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import Lottie from 'lottie-react'
-import animationData from '@/components/successfully-done.json'
-import { useRouter } from 'next/navigation'
+import { Check, ArrowLeft, Loader2, ShieldAlert } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { api } from '@/lib/api'
 
 export default function ConfirmEmailPage() {
-  const [countdown, setCountdown] = useState(10);
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const token = useMemo(() => searchParams.get('token') || '', [searchParams])
+  const [loading, setLoading] = useState(true)
+  const [success, setSuccess] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-      return () => clearTimeout(timer);
-    } else{
-      router.push('/')
+    const run = async () => {
+      if (!token) {
+        setError('Invalid confirmation link. Request a new signup email.')
+        setLoading(false)
+        return
+      }
+
+      try {
+        await api.auth.confirmEmail(token)
+        setSuccess(true)
+      } catch (err: any) {
+        setError(err?.message || 'Failed to confirm email')
+      } finally {
+        setLoading(false)
+      }
     }
-  }, [countdown]);
+
+    void run()
+  }, [token])
+
+  useEffect(() => {
+    if (!success) return
+    const timer = setTimeout(() => {
+      router.push('/auth/login?message=' + encodeURIComponent('Email verified. You can now sign in.'))
+    }, 3000)
+    return () => clearTimeout(timer)
+  }, [router, success])
 
   return (
-    <div className="min-h-screen relative bg-[#ECF2FF]">
-      <header className="relative bg-[#008260] shadow-sm">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-           
-            <Link href="/contact-us">
-              <Button variant="ghost" className="font-medium text-white hover:text-white hover:bg-white/10 transition-all duration-300 px-4 py-2 text-sm">
-                Contact Us
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
-      <div className="w-full min-h-screen flex flex-col justify-center items-center">
-        {/* Header */}
-    
-
-        {/* Main Content */}
-        <Card className="shadow-2xl border-0 bg-[#FFFFFF] w-full max-w-[550px] mx-auto">
-        
-        <CardContent className="pt-12 pb-8 px-6">
-          {/* Check Icon Circle */}
-          <div className="flex justify-center mb-8">
-            <div className="relative">
-            <div className="w-24 h-24 rounded-full bg-[#ECF2FF] flex items-center justify-center">
-  <div className="bg-[#008260] rounded-full p-4">
-    <Check className="w-5 h-5 text-white stroke-[3]" />
-  </div>
-</div>
+    <div className="min-h-screen bg-[#ECF2FF] flex items-center justify-center p-4">
+      <div className="w-full max-w-xl">
+        <Card className="border border-[#E0E0E0] bg-white shadow-sm">
+          <CardContent className="pt-8 pb-8 px-6">
+            <div className="mb-4">
+              <Link href="/auth/login" className="inline-flex items-center text-sm text-[#008260] hover:underline">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to login
+              </Link>
             </div>
-          </div>
 
-          {/* Title */}
-          <h1 className="text-[22px] font-bold text-center text-gray-900 mb-4">
-            Email Confirmed Successfully
-          </h1>
+            <div className="flex justify-center mb-6">
+              {loading ? (
+                <div className="w-20 h-20 rounded-full bg-[#ECF2FF] flex items-center justify-center">
+                  <Loader2 className="h-9 w-9 animate-spin text-[#008260]" />
+                </div>
+              ) : success ? (
+                <div className="w-20 h-20 rounded-full bg-[#ECF2FF] flex items-center justify-center">
+                  <div className="bg-[#008260] rounded-full p-4">
+                    <Check className="h-5 w-5 text-white stroke-[3]" />
+                  </div>
+                </div>
+              ) : (
+                <div className="w-20 h-20 rounded-full bg-red-50 flex items-center justify-center">
+                  <ShieldAlert className="h-9 w-9 text-red-600" />
+                </div>
+              )}
+            </div>
 
-          {/* Description */}
-          <p className="text-center text-base font-medium text-black mb-8 px-4">
-            Your account has been verified and activated. Welcome to CalXMap!
-          </p>
+            <h1 className="text-2xl font-bold text-center text-black mb-3">
+              {loading ? 'Verifying email' : success ? 'Email verified' : 'Verification failed'}
+            </h1>
 
-          {/* Button */}
-          <Button 
-            className="w-full bg-[#008260] hover:bg-[#008260] text-white font-medium py-6 text-base rounded-lg"
-            onClick={() => router.push('/')}
-          >
-            Redirect to Homepage
-          </Button>
+            <p className="text-center text-sm text-slate-600 mb-6">
+              {loading
+                ? 'Please wait while we verify your account.'
+                : success
+                  ? 'Your account is verified. You can now sign in.'
+                  : error}
+            </p>
 
-          {/* Countdown */}
-          <p className="text-center text-black text-[13px] font-normal mt-4">
-            Redirecting in {countdown}s
-          </p>
-        </CardContent>
+            {error && !success && (
+              <Alert variant="destructive" className="mb-6 border-red-200 bg-red-50">
+                <AlertDescription className="text-red-700">{error}</AlertDescription>
+              </Alert>
+            )}
 
+            <div className="flex flex-col gap-3">
+              <Button
+                className="w-full bg-[#008260] hover:bg-[#006d51] text-white"
+                onClick={() => router.push('/auth/login')}
+                disabled={loading && !success}
+              >
+                Go to login
+              </Button>
+              <Button variant="outline" className="w-full" asChild>
+                <Link href="/">Return to homepage</Link>
+              </Button>
+            </div>
+          </CardContent>
         </Card>
-
-        {/* Footer */}
-        <div className="text-center mt-8">
-          <p className="text-sm text-gray-500">
-            Thank you for choosing Calxmap
-          </p>
-        </div>
       </div>
     </div>
   )

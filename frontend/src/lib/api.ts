@@ -48,17 +48,54 @@ export async function getAuthHeadersForFormData() {
 
 export const api = {
   auth: {
+    register: async (payload: { email: string; password: string; role: 'student' | 'expert' | 'institution' }) => {
+      const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to create account')
+      return json as { success: boolean; needsEmailVerification: boolean; user: { id: string; email: string; role: string } }
+    },
+    confirmEmail: async (token: string) => {
+      const res = await fetch(`${API_BASE_URL}/api/auth/confirm-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to confirm email')
+      return json as { success: boolean; user: { userId: string; email: string | null; confirmed: boolean } }
+    },
     forgotPassword: async (email: string) => {
-      const headers = await getAuthHeaders()
       return fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ email })
       }).then(async (res) => {
         const json = await res.json().catch(() => ({}))
         if (!res.ok) throw new Error(json?.error || 'Failed to send reset email')
         return json
       })
+    },
+    confirmPasswordReset: async (payload: { token: string; password: string }) => {
+      const res = await fetch(`${API_BASE_URL}/api/auth/password-reset/confirm`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to update password')
+      return json as { success: boolean; userId: string }
     }
   },
   internshipApplications: {
