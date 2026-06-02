@@ -97,7 +97,7 @@ export default function ExpertProfileSetup() {
     state: '',
     address: '',
     pan_number: ''
-    ,interested_in_services: false,
+    , interested_in_services: false,
     service_price: '',
     profile_email: ''
   })
@@ -111,10 +111,10 @@ export default function ExpertProfileSetup() {
   const [isCustomDomain, setIsCustomDomain] = useState(false)
   const [customDomainInput, setCustomDomainInput] = useState('')
   const [customSubskillInput, setCustomSubskillInput] = useState('')
-  
+
   const [selectedResume, setSelectedResume] = useState<File | null>(null)
   const [resumeError, setResumeError] = useState('')
-  
+
   const [selectedQualifications, setSelectedQualifications] = useState<File | null>(null)
   const [qualificationsError, setQualificationsError] = useState('')
 
@@ -198,7 +198,7 @@ export default function ExpertProfileSetup() {
       setSelectedSubskills([])
       return
     }
-    
+
     setIsCustomDomain(false)
     setCustomDomainInput('')
     setFormData(prev => ({
@@ -206,7 +206,7 @@ export default function ExpertProfileSetup() {
       domain_expertise: domain,
       subskills: []
     }))
-    
+
     // Check predefined domains
     const selectedDomain = EXPERTISE_DOMAINS.find(d => d.name === domain)
     if (selectedDomain) {
@@ -220,7 +220,7 @@ export default function ExpertProfileSetup() {
         setAvailableSubskills([])
       }
     }
-    
+
     setSelectedSubskills([])
   }
 
@@ -289,7 +289,7 @@ export default function ExpertProfileSetup() {
 
     setPhotoError('')
     setSelectedPhoto(file)
-    
+
     // Create preview
     const reader = new FileReader()
     reader.onload = (e) => {
@@ -531,8 +531,8 @@ export default function ExpertProfileSetup() {
         return
       }
 
-      console.log(formData,'formData')
-      
+      console.log(formData, 'formData')
+
 
       // Create FormData for file upload
       const formDataToSend = new FormData()
@@ -575,17 +575,17 @@ export default function ExpertProfileSetup() {
       if (panNormalized) {
         formDataToSend.append('pan_number', panNormalized)
       }
-      
+
       // Add the photo file
       if (selectedPhoto) {
         formDataToSend.append('profile_photo', selectedPhoto)
       }
-      
+
       // Add resume PDF if selected
       if (selectedResume) {
         formDataToSend.append('resume', selectedResume)
       }
-      
+
       // Add qualifications PDF if selected
       if (selectedQualifications) {
         formDataToSend.append('qualifications', selectedQualifications)
@@ -626,7 +626,7 @@ export default function ExpertProfileSetup() {
 
         router.push(`${basePath}/home`)
       }
-      
+
     } catch (error: any) {
       setError(error.message)
     } finally {
@@ -648,29 +648,29 @@ export default function ExpertProfileSetup() {
   return (
     <div className="min-h-screen bg-[#ECF2FF] relative">
       {!isSuperAdminExpertCreate && (
-      <header className="relative bg-[#008260] shadow-sm">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <Link href='/'>
-              <Logo size="header" />
-            </Link>
-            <Link href="/contact-us">
-              <Button variant="ghost" className="font-medium text-white hover:text-white hover:bg-white/10 transition-all duration-300 px-4 py-2 text-sm">
-                Contact Us
-              </Button>
-            </Link>
+        <header className="relative bg-[#008260] shadow-sm">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex items-center justify-between">
+              <Link href='/'>
+                <Logo size="header" />
+              </Link>
+              <Link href="/contact-us">
+                <Button variant="ghost" className="font-medium text-white hover:text-white hover:bg-white/10 transition-all duration-300 px-4 py-2 text-sm">
+                  Contact Us
+                </Button>
+              </Link>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
       )}
       {!isSuperAdminExpertCreate ? (
-      <div className='container mx-auto px-4 relative z-10 flex flex-col items-start gap-y-6 mt-20'>
-      <h2 className='text-[#000000] font-semibold text-[42px]'>Welcome Expert</h2>
-       <div>
-        <p className='text-[#000000] font-semibold text-[20px]'>Let’s complete your profile</p>
-        <p className='text-base font-sans text-[#000000] font-normal'>Tell us about your expertise and start receiving project opportunities</p>
-       </div>
-      </div>
+        <div className='container mx-auto px-4 relative z-10 flex flex-col items-start gap-y-6 mt-20'>
+          <h2 className='text-[#000000] font-semibold text-[42px]'>Welcome Expert</h2>
+          <div>
+            <p className='text-[#000000] font-semibold text-[20px]'>Let’s complete your profile</p>
+            <p className='text-base font-sans text-[#000000] font-normal'>Tell us about your expertise and start receiving project opportunities</p>
+          </div>
+        </div>
       ) : (
         <div className="container mx-auto px-4 relative z-10 pt-10 pb-2">
           <h2 className="text-[#000000] font-semibold text-2xl sm:text-3xl tracking-tight">Create expert profile</h2>
@@ -682,27 +682,27 @@ export default function ExpertProfileSetup() {
       <div className={`container mx-auto px-4  relative z-10 ${isSuperAdminExpertCreate ? 'mt-4' : 'mt-8'} pb-10`}>
         {/* Header */}
         {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
-              {success && (
-                <Alert>
-                  <AlertDescription>{success}</AlertDescription>
-                </Alert>
-              )}
+        {success && (
+          <Alert>
+            <AlertDescription>{success}</AlertDescription>
+          </Alert>
+        )}
 
         <Card className="bg-white">
-        
+
           <CardContent>
             <form className="space-y-6">
-            
+
 
               {/* Basic Information */}
               <div className="space-y-4 pt-4">
                 <h3 className="text-lg font-semibold text-slate-800">Basic Information</h3>
-                
+
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="name" className="text-slate-700">Full Name *</Label>
@@ -857,7 +857,7 @@ export default function ExpertProfileSetup() {
                       <p className="text-xs text-slate-500">PDF files only, max 20MB (optional)</p>
                     </label>
                   </div>
-                  
+
                   {/* Qualifications PDF Preview */}
                   {selectedQualifications && (
                     <div className="mt-3 p-3 bg-[#008260]/10 border border-[#008260]/30 rounded-lg">
@@ -878,7 +878,7 @@ export default function ExpertProfileSetup() {
                       </div>
                     </div>
                   )}
-                  
+
                   {qualificationsError && (
                     <Alert variant="destructive" className="mt-2">
                       <AlertDescription>{qualificationsError}</AlertDescription>
@@ -941,7 +941,7 @@ export default function ExpertProfileSetup() {
                               Remove
                             </Button>
                           </div>
-                          
+
                           {/* Bottom row: Image information */}
                           <div className="text-center sm:text-left w-full min-w-0">
                             <p className="text-sm text-slate-600 font-medium">Photo selected</p>
@@ -1014,20 +1014,21 @@ export default function ExpertProfileSetup() {
               </div>
 
               {/* Professional Details */}
-            
+
 
               {/* Availability */}
-           
 
-             
+
+
             </form>
           </CardContent>
         </Card>
         <Card className="bg-white mt-3">
-         <CardContent>
-         <div className="space-y-4 pt-4">
+          <CardContent>
+            <div className="space-y-4 pt-4">
+              <div>
                 <h3 className="text-lg font-semibold text-slate-800">Professional Details</h3>
-                
+
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="current_designation" className="text-slate-700">Current Designation *</Label>
@@ -1042,8 +1043,8 @@ export default function ExpertProfileSetup() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="domain_expertise" className="text-slate-700">Domain Expertise *</Label>
-                    <Select 
-                      value={isCustomDomain ? '__custom__' : formData.domain_expertise} 
+                    <Select
+                      value={isCustomDomain ? '__custom__' : formData.domain_expertise}
                       onValueChange={handleDomainChange}
                     >
                       <SelectTrigger className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300">
@@ -1083,7 +1084,7 @@ export default function ExpertProfileSetup() {
                   {formData.domain_expertise && !isCustomDomain && availableSubskills.length > 0 && (
                     <div className="space-y-2 min-w-0 max-w-full overflow-hidden">
                       <Label className="text-slate-700">Specializations & Skills *</Label>
-      
+
                       <MultiSelect
                         options={availableSubskills}
                         selected={selectedSubskills}
@@ -1162,7 +1163,7 @@ export default function ExpertProfileSetup() {
                   <div className="space-y-2">
                     <Label htmlFor="hourly_rate" className="text-slate-700">Hourly Rate (₹) *</Label>
                     <div className="relative">
-                    <IndianRupee className="absolute left-3 top-3 h-4 w-4 text-[#008260]" />
+                      <IndianRupee className="absolute left-3 top-3 h-4 w-4 text-[#008260]" />
                       <Input
                         id="hourly_rate"
                         type="number"
@@ -1223,131 +1224,154 @@ export default function ExpertProfileSetup() {
                   </div>
                 </div>
 
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          id="interested_in_services"
-                          checked={formData.interested_in_services}
-                          onChange={(e) => setFormData(prev => ({ ...prev, interested_in_services: e.target.checked }))}
-                          className="w-4 h-4 border-slate-300 rounded text-[#008260] focus:ring-[#008260] focus:ring-offset-0"
-                        />
-                        <Label htmlFor="interested_in_services" className="text-slate-700 cursor-pointer">Interested in providing services and courses?</Label>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="interested_in_services"
+                      checked={formData.interested_in_services}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          interested_in_services: e.target.checked,
+                        }))
+                      }
+                      className="w-4 h-4 border-slate-300 rounded text-[#008260] focus:ring-[#008260] focus:ring-offset-0"
+                    />
+
+                    <Label
+                      htmlFor="interested_in_services"
+                      className="text-slate-700 cursor-pointer"
+                    >
+                      Interested in providing services and courses?
+                    </Label>
+
+                    <div className="group relative">
+                      <Info className="h-4 w-4 text-slate-500 cursor-help" />
+
+                      <div className="absolute left-0 top-6 z-50 hidden w-80 rounded-lg bg-slate-900 p-3 text-xs text-white shadow-lg group-hover:block">
+                        We operate a separate platform calxbook where professionals, trainers, and
+                        educators can offer their services and courses. If you would like to
+                        partner with us and make your services or courses available to our
+                        audience, please select this option.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {formData.interested_in_services && (
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-slate-700">Course sample video (optional)</Label>
+                      <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 text-center hover:border-[#008260] transition-colors">
+                        <input type="file" id="course_video" accept="video/*" onChange={handleCourseVideoSelect} className="hidden" />
+                        <label htmlFor="course_video" className="cursor-pointer">
+                          <Video className="mx-auto h-12 w-12 text-slate-400 mb-2" />
+                          <p className="text-sm text-slate-600">Upload a short course preview (max 20MB)</p>
+                        </label>
                       </div>
 
-                      {formData.interested_in_services && (
-                        <div className="space-y-3">
-                          <div>
-                            <Label className="text-slate-700">Course sample video (optional)</Label>
-                            <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 text-center hover:border-[#008260] transition-colors">
-                              <input type="file" id="course_video" accept="video/*" onChange={handleCourseVideoSelect} className="hidden" />
-                              <label htmlFor="course_video" className="cursor-pointer">
-                                <Video className="mx-auto h-12 w-12 text-slate-400 mb-2" />
-                                <p className="text-sm text-slate-600">Upload a short course preview (max 20MB)</p>
-                              </label>
+                      {selectedCourseVideo && (
+                        <div className="mt-3 p-3 bg-[#008260]/10 border border-[#008260]/30 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <Video className="h-5 w-5 text-[#008260]" />
+                              <span className="text-sm font-medium text-slate-900 break-all">{selectedCourseVideo.name}</span>
                             </div>
-
-                            {selectedCourseVideo && (
-                              <div className="mt-3 p-3 bg-[#008260]/10 border border-[#008260]/30 rounded-lg">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center space-x-2">
-                                    <Video className="h-5 w-5 text-[#008260]" />
-                                    <span className="text-sm font-medium text-slate-900 break-all">{selectedCourseVideo.name}</span>
-                                  </div>
-                                  <button type="button" onClick={removeCourseVideo} className="text-red-500 hover:text-red-700"><X className="h-4 w-4"/></button>
-                                </div>
-                              </div>
-                            )}
-
-                            {courseVideoError && (
-                              <Alert variant="destructive" className="mt-2"><AlertDescription>{courseVideoError}</AlertDescription></Alert>
-                            )}
-                          </div>
-
-                          <div>
-                            <Label className="text-slate-700">Service price (optional)</Label>
-                            <Input
-                              type="number"
-                              min={0}
-                              step={1}
-                              placeholder="Enter a single numeric price (INR)"
-                              value={formData.service_price}
-                              onChange={(e) => setFormData(prev => ({ ...prev, service_price: e.target.value }))}
-                              className="border-slate-200 focus:border-[#008260]"
-                            />
-                            <p className="text-xs text-slate-500">Optional: a single numeric price for your services/courses.</p>
+                            <button type="button" onClick={removeCourseVideo} className="text-red-500 hover:text-red-700"><X className="h-4 w-4" /></button>
                           </div>
                         </div>
                       )}
+
+                      {courseVideoError && (
+                        <Alert variant="destructive" className="mt-2"><AlertDescription>{courseVideoError}</AlertDescription></Alert>
+                      )}
                     </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="resume" className="text-slate-700">Resume/CV (PDF)</Label>
-                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center hover:border-[#008260] transition-colors">
-                    <input
-                      type="file"
-                      id="resume"
-                      accept=".pdf"
-                      onChange={handleResumeSelect}
-                      className="hidden"
-                    />
-                    <label htmlFor="resume" className="cursor-pointer">
-                      <FileText className="mx-auto h-12 w-12 text-slate-400 mb-4" />
-                      <p className="text-sm text-slate-600 mb-2">
-                        <span className="font-medium text-[#008260] hover:text-[#006d51]">
-                          Click to upload
-                        </span>{' '}
-                        or drag and drop
-                      </p>
-                      <p className="text-xs text-slate-500">PDF files only, max 20MB</p>
-                    </label>
-                  </div>
-                  
-                  {/* Resume Preview */}
-                  {selectedResume && (
-                    <div className="mt-3 p-3 bg-[#008260]/10 border border-[#008260]/30 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <FileText className="h-5 w-5 text-[#008260]" />
-                          <span className="text-sm font-medium text-slate-900 break-all">
-                            {selectedResume.name}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={removeResume}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
+                    <div>
+                      <Label className="text-slate-700">Service price (optional)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={1}
+                        placeholder="Enter a single numeric price (INR)"
+                        value={formData.service_price}
+                        onChange={(e) => setFormData(prev => ({ ...prev, service_price: e.target.value }))}
+                        className="border-slate-200 focus:border-[#008260]"
+                      />
+                      <p className="text-xs text-slate-500">Optional: a single numeric price for your services/courses.</p>
                     </div>
-                  )}
-                  
-                  {resumeError && (
-                    <Alert variant="destructive" className="mt-2">
-                      <AlertDescription>{resumeError}</AlertDescription>
-                    </Alert>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
-         </CardContent>
+
+              <div className="space-y-2">
+                <Label htmlFor="resume" className="text-slate-700">Resume/CV (PDF)</Label>
+                <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center hover:border-[#008260] transition-colors">
+                  <input
+                    type="file"
+                    id="resume"
+                    accept=".pdf"
+                    onChange={handleResumeSelect}
+                    className="hidden"
+                  />
+                  <label htmlFor="resume" className="cursor-pointer">
+                    <FileText className="mx-auto h-12 w-12 text-slate-400 mb-4" />
+                    <p className="text-sm text-slate-600 mb-2">
+                      <span className="font-medium text-[#008260] hover:text-[#006d51]">
+                        Click to upload
+                      </span>{' '}
+                      or drag and drop
+                    </p>
+                    <p className="text-xs text-slate-500">PDF files only, max 20MB</p>
+                  </label>
+                </div>
+
+                {/* Resume Preview */}
+                {selectedResume && (
+                  <div className="mt-3 p-3 bg-[#008260]/10 border border-[#008260]/30 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <FileText className="h-5 w-5 text-[#008260]" />
+                        <span className="text-sm font-medium text-slate-900 break-all">
+                          {selectedResume.name}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={removeResume}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {resumeError && (
+                  <Alert variant="destructive" className="mt-2">
+                    <AlertDescription>{resumeError}</AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            </div>
+          </CardContent>
         </Card>
         <div className="flex justify-end pt-6 flex-wrap gap-3">
-                <Link href="/auth/login">
-                  <Button variant="outline" className="bg-white rounded-md w-[150px]">
-                    Back 
-                  </Button>
-                </Link>
-                <Button
-                  type="button"
-                  className="bg-[#008260] hover:bg-[#006d51] text-white rounded-md w-[150px]"
-                  disabled={saving}
-                  onClick={handleSubmit}
-                >
-                  {saving ? 'Saving...' : 'Save'}
-                </Button>
-              </div>
+          <Link href="/auth/login">
+            <Button variant="outline" className="bg-white rounded-md w-[150px]">
+              Back
+            </Button>
+          </Link>
+          <Button
+            type="button"
+            className="bg-[#008260] hover:bg-[#006d51] text-white rounded-md w-[150px]"
+            disabled={saving}
+            onClick={handleSubmit}
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </Button>
+        </div>
       </div>
     </div>
   )

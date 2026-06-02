@@ -1183,14 +1183,38 @@ export default function ExpertProfileEdit() {
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id="interested_in_services"
-                        checked={formData.interested_in_services}
-                        onChange={(e) => setFormData(prev => ({ ...prev, interested_in_services: e.target.checked }))}
-                        className="w-4 h-4 border-slate-300 rounded text-[#008260] focus:ring-[#008260] focus:ring-offset-0"
-                      />
-                      <Label htmlFor="interested_in_services" className="text-slate-700 cursor-pointer">Interested in providing services and courses?</Label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="interested_in_services"
+                          checked={formData.interested_in_services}
+                          onChange={(e) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              interested_in_services: e.target.checked,
+                            }))
+                          }
+                          className="w-4 h-4 border-slate-300 rounded text-[#008260] focus:ring-[#008260] focus:ring-offset-0"
+                        />
+
+                        <Label
+                          htmlFor="interested_in_services"
+                          className="text-slate-700 cursor-pointer"
+                        >
+                          Interested in providing services and courses?
+                        </Label>
+
+                        <div className="group relative">
+                          <Info className="h-4 w-4 text-slate-500 cursor-help" />
+
+                          <div className="absolute left-0 top-6 z-50 hidden w-80 rounded-lg bg-slate-900 p-3 text-xs text-white shadow-lg group-hover:block">
+                            We operate a separate platform calxbook where professionals, trainers, and
+                            educators can offer their services and courses. If you would like to
+                            partner with us and make your services or courses available to our
+                            audience, please select this option.
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
                     {formData.interested_in_services && (
