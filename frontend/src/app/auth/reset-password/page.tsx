@@ -1,19 +1,21 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { useEffect, useMemo, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ArrowLeft, Lock, Eye, EyeOff } from 'lucide-react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import Logo from '@/components/Logo'
+import { api } from '@/lib/api'
 
 export default function ResetPasswordPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const token = useMemo(() => searchParams.get('token') || '', [searchParams])
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -23,16 +25,7 @@ export default function ResetPasswordPage() {
   const [showConfirm, setShowConfirm] = useState(false)
 
   useEffect(() => {
-    // Supabase will set a session via the magic link; we just allow form once client is ready.
-    const init = async () => {
-      try {
-        // Trigger a session check; not strictly necessary but ensures client is initialized
-        await supabase.auth.getSession()
-      } finally {
-        setReady(true)
-      }
-    }
-    init()
+    setReady(true)
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -40,8 +33,12 @@ export default function ResetPasswordPage() {
     setError('')
     setSuccess('')
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters')
+    if (!token) {
+      setError('Invalid reset link. Request a new password reset email.')
+      return
+    }
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters')
       return
     }
     if (password !== confirmPassword) {
@@ -51,12 +48,11 @@ export default function ResetPasswordPage() {
 
     setLoading(true)
     try {
-      const { error } = await supabase.auth.updateUser({ password })
-      if (error) throw error
+      await api.auth.confirmPasswordReset({ token, password })
       setSuccess('Password updated successfully. Redirecting to login...')
       setTimeout(() => router.push('/auth/login'), 1500)
     } catch (err: any) {
-      setError(err.message || 'Failed to update password')
+      setError(err?.message || 'Failed to update password')
     } finally {
       setLoading(false)
     }
@@ -83,7 +79,9 @@ export default function ResetPasswordPage() {
           <Card className="border border-[#E0E0E0] rounded-xl bg-white shadow-sm">
             <CardHeader className="text-center pb-6 pt-8">
               <CardTitle className="text-3xl font-bold text-[#000000] mb-2">Reset Password</CardTitle>
-              <CardDescription className="text-[#6A6A6A] text-base">Create your new password to continue</CardDescription>
+              <CardDescription className="text-[#6A6A6A] text-base">
+                Create a new password for your account
+              </CardDescription>
             </CardHeader>
             <CardContent className="px-6 pb-8">
               <form onSubmit={handleSubmit} className="space-y-5">
@@ -94,7 +92,7 @@ export default function ResetPasswordPage() {
                     <Input
                       id="password"
                       type="password"
-                      placeholder="Enter new password (min. 6 characters)"
+                      placeholder="Enter new password (min. 8 characters)"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       className="h-12 text-base pl-10 border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260] transition-all duration-200"
@@ -145,8 +143,8 @@ export default function ResetPasswordPage() {
                   </Alert>
                 )}
 
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="w-full h-12 text-base font-semibold bg-[#008260] hover:bg-[#006d51] text-white shadow-sm hover:shadow-md transition-all duration-200 rounded-lg mt-6"
                   disabled={loading || !ready}
                 >
@@ -160,5 +158,3 @@ export default function ResetPasswordPage() {
     </div>
   )
 }
-
-

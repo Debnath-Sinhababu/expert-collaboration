@@ -225,6 +225,10 @@ function registerSuperAdminExpertMutations(app, { upload, normalizePan, isValidP
           req.body.available_on_demand === 'true' || req.body.available_on_demand === true,
         city: req.body.city || null,
         state: req.body.state || null,
+        address:
+          req.body.address != null && String(req.body.address).trim() !== ''
+            ? String(req.body.address).trim()
+            : null,
         pan_number: adminPanNormalized,
         profile_video_url: profileVideoData?.url || null,
         profile_video_public_id: profileVideoData?.publicId || null,

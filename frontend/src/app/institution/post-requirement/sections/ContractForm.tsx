@@ -21,6 +21,10 @@ import { toast } from 'sonner'
 import { getInstitutionRate } from '@/lib/utils'
 import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
 import { fetchInstitutionForWorkspace } from '@/lib/institutionWorkspace'
+import { ScreeningQuestionsEditor } from '@/components/requirements/ScreeningQuestionsEditor'
+import { EMPLOYMENT_TYPE_OPTIONS, WORKPLACE_TYPE_OPTIONS } from '@/lib/requirementLabels'
+import { expertDisplayName } from '@/lib/privacyDisplay'
+import { ExpertAvailabilityTrigger } from '@/components/expert/ExpertAvailabilityTrigger'
 
 export default function ContractForm() {
   const router = useRouter()
@@ -51,7 +55,11 @@ export default function ContractForm() {
     duration_hours: '',
     required_expertise: '',
     domain_expertise: '',
-    subskills: [] as string[]
+    subskills: [] as string[],
+    job_location: '',
+    workplace_type: '',
+    employment_type: '',
+    screening_questions: [] as string[],
   })
 
   const [requirementPdf, setRequirementPdf] = useState<File | null>(null)
@@ -93,6 +101,9 @@ export default function ContractForm() {
     if (!form.duration_hours || parseInt(form.duration_hours) <= 0) { toast.error('Enter duration hours'); return false }
     if (!form.domain_expertise) { toast.error('Select domain expertise'); return false }
     if (!form.subskills || form.subskills.length === 0) { toast.error('Select required specializations'); return false }
+    if (!form.workplace_type) { toast.error('Select workplace type'); return false }
+    if (!form.employment_type) { toast.error('Select employment type'); return false }
+    if (!form.job_location.trim()) { toast.error('Enter job location'); return false }
     if (!form.description.trim()) { toast.error('Add description'); return false }
     return true
   }
@@ -235,14 +246,18 @@ export default function ContractForm() {
         required_expertise: form.required_expertise.split(',').map(s => s.trim()).filter(Boolean)
       }
       const formData = new FormData()
+      const screeningFiltered = form.screening_questions.map((q) => q.trim()).filter(Boolean)
+
       Object.entries(payload).forEach(([key, value]) => {
         if (value === undefined || value === null) return
+        if (key === 'screening_questions') return
         if (Array.isArray(value)) {
           formData.append(key, value.join(','))
           return
         }
         formData.append(key, String(value))
       })
+      formData.append('screening_questions', JSON.stringify(screeningFiltered))
 
       if (requirementPdf) {
         formData.append('requirement_pdf', requirementPdf)
@@ -314,6 +329,36 @@ export default function ContractForm() {
               <Input type="number" placeholder="40" value={form.duration_hours} onChange={(e) => setForm(prev => ({ ...prev, duration_hours: e.target.value }))} className="border-[#DCDCDC]" />
             </div>
             <div>
+              <Label className="text-[#000000] font-medium mb-2 block">Job location *</Label>
+              <Input placeholder="e.g. Bengaluru, Karnataka or Remote — India" value={form.job_location} onChange={(e) => setForm(prev => ({ ...prev, job_location: e.target.value }))} className="border-[#DCDCDC]" />
+            </div>
+            <div>
+              <Label className="text-[#000000] font-medium mb-2 block">Workplace type *</Label>
+              <Select value={form.workplace_type} onValueChange={(v) => setForm(prev => ({ ...prev, workplace_type: v }))}>
+                <SelectTrigger className="border-[#DCDCDC]">
+                  <SelectValue placeholder="Remote / Hybrid / On-site" />
+                </SelectTrigger>
+                <SelectContent>
+                  {WORKPLACE_TYPE_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-[#000000] font-medium mb-2 block">Employment type *</Label>
+              <Select value={form.employment_type} onValueChange={(v) => setForm(prev => ({ ...prev, employment_type: v }))}>
+                <SelectTrigger className="border-[#DCDCDC]">
+                  <SelectValue placeholder="Full-time / Part-time / Contract" />
+                </SelectTrigger>
+                <SelectContent>
+                  {EMPLOYMENT_TYPE_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label className="text-[#000000] font-medium mb-2 block">Domain Expertise *</Label>
               <Select value={form.domain_expertise} onValueChange={handleDomainChange}>
                 <SelectTrigger className="border-[#DCDCDC]">
@@ -374,6 +419,13 @@ export default function ContractForm() {
             {requirementPdfError && (
               <p className="mt-1 text-xs text-red-600">{requirementPdfError}</p>
             )}
+          </div>
+
+          <div className="mt-4">
+            <ScreeningQuestionsEditor
+              questions={form.screening_questions}
+              onChange={(screening_questions) => setForm((prev) => ({ ...prev, screening_questions }))}
+            />
           </div>
 
           <div className="mt-4">
@@ -443,7 +495,7 @@ export default function ContractForm() {
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
-                              <h4 className="font-semibold text-[#000000] truncate">{expert.name}</h4>
+                              <h4 className="font-semibold text-[#000000] truncate">{expertDisplayName(expert)}</h4>
                               <p className="text-xs text-[#6A6A6A] truncate">{expert.email}</p>
                             </div>
                           </div>
@@ -458,6 +510,13 @@ export default function ContractForm() {
                           {expert.hourly_rate && (
                             <p className="text-xs text-[#000000] font-medium mt-2">₹{getInstitutionRate(expert.hourly_rate)}/hour</p>
                           )}
+                          <ExpertAvailabilityTrigger
+                            expertId={expert.id}
+                            startDate={form.start_date}
+                            endDate={form.end_date}
+                            projectId={selectedProjectId}
+                            className="mt-3"
+                          />
                         </div>
                       </div>
                     </label>

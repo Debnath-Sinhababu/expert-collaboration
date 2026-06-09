@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ArrowLeft, Save, User, Briefcase, Upload, Camera, X, FileText, IndianRupee, Info, Video } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { ExpertAvailabilityCalendar } from '@/components/expert/ExpertAvailabilityCalendar'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useExpertWorkspace } from '@/contexts/ExpertWorkspaceContext'
@@ -67,6 +68,7 @@ export default function ExpertProfileEdit() {
     available_on_demand: false,
     city: '',
     state: '',
+    address: '',
     pan_number: ''
     ,interested_in_services: false,
     service_price: ''
@@ -175,7 +177,8 @@ export default function ExpertProfileEdit() {
           available_on_demand: expertProfile.available_on_demand || false,
           city: expertProfile.city || '',
           state: expertProfile.state || '',
-          pan_number: expertProfile.pan_number || ''
+          pan_number: expertProfile.pan_number || '',
+          address: expertProfile.address || ''
         })
         
         setSelectedSubskills(expertProfile.subskills || [])
@@ -471,10 +474,6 @@ export default function ExpertProfileEdit() {
       if (formData.expert_types.length === 0) {
         throw new Error('Please select at least one expert type')
       }
-      if (!formData.pan_number?.trim()) {
-        throw new Error('Please enter your PAN number')
-      }
-
       if (!expert?.id) {
         throw new Error('Expert profile not found')
       }
@@ -484,7 +483,7 @@ export default function ExpertProfileEdit() {
         .toUpperCase()
         .replace(/[^A-Z0-9]/g, '')
         .slice(0, 10)
-      if (!panNormalized || !PAN_REGEX.test(panNormalized)) {
+      if (panNormalized && !PAN_REGEX.test(panNormalized)) {
         throw new Error('Enter a valid 10-character PAN (e.g. ABCDE1234F)')
       }
 
@@ -504,10 +503,12 @@ export default function ExpertProfileEdit() {
       formDataToSend.append('expert_services', JSON.stringify(formData.expert_services))
       formDataToSend.append('interested_in_services', String(formData.interested_in_services))
       formDataToSend.append('service_price', String(formData.service_price || ''))
-      formDataToSend.append('available_on_demand', String(formData.available_on_demand))
       formDataToSend.append('city', formData.city || '')
       formDataToSend.append('state', formData.state || '')
-      formDataToSend.append('pan_number', panNormalized)
+      formDataToSend.append('address', formData.address || '')
+      if (panNormalized) {
+        formDataToSend.append('pan_number', panNormalized)
+      }
       formDataToSend.append('resume_url', formData.resume_url || '')
       formDataToSend.append('photo_url', formData.photo_url || '')
       formDataToSend.append('qualifications_url', expert?.qualifications_url || '')
@@ -668,7 +669,7 @@ export default function ExpertProfileEdit() {
 
                 <div className="space-y-2 max-w-md">
                   <Label htmlFor="pan_number" className="text-slate-700">
-                    PAN (Permanent Account Number) *
+                    PAN (Permanent Account Number) <span className="text-slate-500 font-normal">(optional)</span>
                   </Label>
                   <Input
                     id="pan_number"
@@ -677,7 +678,6 @@ export default function ExpertProfileEdit() {
                     onChange={(e) => handlePanChange(e.target.value)}
                     autoComplete="off"
                     maxLength={10}
-                    required
                     className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300 uppercase font-mono tracking-wide"
                   />
                   <p className="text-xs text-slate-500">
@@ -712,6 +712,18 @@ export default function ExpertProfileEdit() {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="address" className="text-slate-700">Address</Label>
+                  <Textarea
+                    id="address"
+                    placeholder="Street, area, postal code"
+                    value={formData.address}
+                    onChange={(e) => handleInputChange('address', e.target.value)}
+                    rows={2}
+                    className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -1171,14 +1183,38 @@ export default function ExpertProfileEdit() {
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id="interested_in_services"
-                        checked={formData.interested_in_services}
-                        onChange={(e) => setFormData(prev => ({ ...prev, interested_in_services: e.target.checked }))}
-                        className="w-4 h-4 border-slate-300 rounded text-[#008260] focus:ring-[#008260] focus:ring-offset-0"
-                      />
-                      <Label htmlFor="interested_in_services" className="text-slate-700 cursor-pointer">Interested in providing services and courses?</Label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="interested_in_services"
+                          checked={formData.interested_in_services}
+                          onChange={(e) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              interested_in_services: e.target.checked,
+                            }))
+                          }
+                          className="w-4 h-4 border-slate-300 rounded text-[#008260] focus:ring-[#008260] focus:ring-offset-0"
+                        />
+
+                        <Label
+                          htmlFor="interested_in_services"
+                          className="text-slate-700 cursor-pointer"
+                        >
+                          Interested in providing services and courses?
+                        </Label>
+
+                        <div className="group relative">
+                          <Info className="h-4 w-4 text-slate-500 cursor-help" />
+
+                          <div className="absolute left-0 top-6 z-50 hidden w-80 rounded-lg bg-slate-900 p-3 text-xs text-white shadow-lg group-hover:block">
+                            We operate a separate platform calxbook where professionals, trainers, and
+                            educators can offer their services and courses. If you would like to
+                            partner with us and make your services or courses available to our
+                            audience, please select this option.
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
                     {formData.interested_in_services && (
@@ -1227,32 +1263,15 @@ export default function ExpertProfileEdit() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="available_on_demand"
-                      checked={formData.available_on_demand}
-                      onChange={(e) => setFormData(prev => ({ ...prev, available_on_demand: e.target.checked }))}
-                      className="w-4 h-4 border-slate-300 rounded text-[#008260] focus:ring-[#008260] focus:ring-offset-0"
-                    />
-                    <Label htmlFor="available_on_demand" className="text-slate-700 cursor-pointer flex items-center gap-2">
-                      Are you available on demand?
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="h-4 w-4 text-slate-400 hover:text-[#008260] cursor-help" />
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-xs">
-                            <p className="text-sm">
-                              By checking this, you agree to be available immediately when a requirement is posted and will be connected with institutions right away.
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </Label>
+                {expert?.id && (
+                  <div className="space-y-3 pt-4 border-t border-slate-200">
+                    <h3 className="text-lg font-semibold text-slate-800">Availability calendar</h3>
+                    <p className="text-sm text-slate-600">
+                      Set when you are available so institutions can see your schedule for requirement dates.
+                    </p>
+                    <ExpertAvailabilityCalendar expertId={expert.id} />
                   </div>
-                </div>
+                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="resume" className="text-slate-700">Resume/CV (PDF)</Label>

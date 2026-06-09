@@ -19,6 +19,10 @@ import ProfileDropdown from '@/components/ProfileDropdown'
 import Logo from '@/components/Logo'
 import NotificationBell from '@/components/NotificationBell'
 import { getInstitutionRate } from '@/lib/utils'
+import { expertDisplayName } from '@/lib/privacyDisplay'
+import { ExpertAvailabilityTrigger } from '@/components/expert/ExpertAvailabilityTrigger'
+import { isTrainingProjectType } from '@/lib/trainingTypes'
+import { TrainingAttendancePanel } from '@/components/training/TrainingAttendancePanel'
 import { 
   ArrowLeft,
   Building, 
@@ -433,8 +437,12 @@ export default function InstitutionProjectDetailsPage() {
         project_id: (application as any).project_id,
         application_id: applicationId,
         amount: (application as any).proposed_rate || 1000,
-        start_date: new Date().toISOString().split('T')[0],
-        end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        start_date: project.start_date
+          ? String(project.start_date).slice(0, 10)
+          : new Date().toISOString().split('T')[0],
+        end_date: project.end_date
+          ? String(project.end_date).slice(0, 10)
+          : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         hours_booked: project.duration_hours,
         status: 'in_progress',
         payment_status: 'pending'
@@ -774,11 +782,11 @@ export default function InstitutionProjectDetailsPage() {
                               <Avatar className="w-10 h-10 sm:w-12 sm:h-12 border-2 border-[#008260]/40">
                                 <AvatarImage src={application.experts?.photo_url} />
                                 <AvatarFallback className="text-lg font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
-                                  {application.experts?.name?.charAt(0) || 'E'}
+                                  {expertDisplayName(application.experts)?.charAt(0) || 'E'}
                                 </AvatarFallback>
                               </Avatar>
                               <div className="min-w-0">
-                                <h3 className="font-semibold text-black text-sm sm:text-base truncate">{application.experts?.name || 'Unknown Expert'}</h3>
+                                <h3 className="font-semibold text-black text-sm sm:text-base truncate">{expertDisplayName(application.experts)}</h3>
                                 <p className="text-xs sm:text-sm text-black">₹{getInstitutionRate(application.experts?.hourly_rate)}/hr</p>
                               </div>
                             </div>
@@ -791,6 +799,15 @@ export default function InstitutionProjectDetailsPage() {
                           </div>
                           
                           <p className="text-xs sm:text-sm text-[#000000] mb-4">{application.experts?.bio || 'No bio available'}</p>
+                {application.expert_id && (
+                  <ExpertAvailabilityTrigger
+                    expertId={application.expert_id}
+                    startDate={project?.start_date}
+                    endDate={project?.end_date}
+                    projectId={projectId}
+                    className="mb-4"
+                  />
+                )}
                           
                           {/* Expert Details */}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-4">
@@ -911,11 +928,11 @@ export default function InstitutionProjectDetailsPage() {
                     <Avatar className="w-10 h-10 sm:w-12 sm:h-12 border-2 border-[#008260]/40">
                       <AvatarImage src={application.experts?.photo_url} />
                       <AvatarFallback className="text-lg font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
-                        {application.experts?.name?.charAt(0) || 'E'}
+                        {expertDisplayName(application.experts)?.charAt(0) || 'E'}
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
-                      <h3 className="font-semibold text-black text-sm sm:text-base truncate">{application.experts?.name || 'Unknown Expert'}</h3>
+                      <h3 className="font-semibold text-black text-sm sm:text-base truncate">{expertDisplayName(application.experts)}</h3>
                       <p className="text-xs sm:text-sm text-black">₹{getInstitutionRate(application.experts?.hourly_rate)}/hr</p>
                     </div>
                   </div>
@@ -928,6 +945,15 @@ export default function InstitutionProjectDetailsPage() {
                 </div>
                 
                 <p className="text-xs sm:text-sm text-[#000000] mb-4">{application.experts?.bio || 'No bio available'}</p>
+                {application.expert_id && (
+                  <ExpertAvailabilityTrigger
+                    expertId={application.expert_id}
+                    startDate={project?.start_date}
+                    endDate={project?.end_date}
+                    projectId={projectId}
+                    className="mb-4"
+                  />
+                )}
                 
                 {/* Expert Details */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-4">
@@ -1049,11 +1075,11 @@ export default function InstitutionProjectDetailsPage() {
                     <Avatar className="w-10 h-10 sm:w-12 sm:h-12 border-2 border-[#008260]/40">
                       <AvatarImage src={application.experts?.photo_url} />
                       <AvatarFallback className="text-lg font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
-                        {application.experts?.name?.charAt(0) || 'E'}
+                        {expertDisplayName(application.experts)?.charAt(0) || 'E'}
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
-                      <h3 className="font-semibold text-black text-sm sm:text-base truncate">{application.experts?.name || 'Unknown Expert'}</h3>
+                      <h3 className="font-semibold text-black text-sm sm:text-base truncate">{expertDisplayName(application.experts)}</h3>
                       <p className="text-xs sm:text-sm text-black">₹{getInstitutionRate(application.experts?.hourly_rate)}/hr</p>
                     </div>
                   </div>
@@ -1066,6 +1092,15 @@ export default function InstitutionProjectDetailsPage() {
                 </div>
                 
                 <p className="text-xs sm:text-sm text-[#000000] mb-4">{application.experts?.bio || 'No bio available'}</p>
+                {application.expert_id && (
+                  <ExpertAvailabilityTrigger
+                    expertId={application.expert_id}
+                    startDate={project?.start_date}
+                    endDate={project?.end_date}
+                    projectId={projectId}
+                    className="mb-4"
+                  />
+                )}
                 
                 {/* Expert Details */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-4">
@@ -1165,7 +1200,7 @@ export default function InstitutionProjectDetailsPage() {
             {/* Left Column */}
             <div>
               <span className="text-[#666666] font-medium text-sm">Expert: </span>
-              <span className="text-[#000000] font-medium text-sm">{booking.experts?.name}</span>
+              <span className="text-[#000000] font-medium text-sm">{expertDisplayName(booking.experts)}</span>
             </div>
             
             {/* Right Column */}
@@ -1211,7 +1246,7 @@ export default function InstitutionProjectDetailsPage() {
               </DialogTrigger>
               <DialogContent className="max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
                 <DialogHeader className="flex-shrink-0">
-                  <DialogTitle className="text-lg font-semibold text-[#000000]">{booking.experts?.name || 'Expert Profile'}</DialogTitle>
+                  <DialogTitle className="text-lg font-semibold text-[#000000]">{expertDisplayName(booking.experts) || 'Expert Profile'}</DialogTitle>
                   <DialogDescription className="text-[#666666] text-sm">Complete Expert Profile</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 overflow-y-auto flex-1 pr-2">
@@ -1219,11 +1254,11 @@ export default function InstitutionProjectDetailsPage() {
                     <Avatar className="w-16 h-16 border-2 border-[#008260]/40 flex-shrink-0">
                       <AvatarImage src={booking.experts?.photo_url} />
                       <AvatarFallback className="text-xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
-                        {booking.experts?.name?.charAt(0) || 'E'}
+                        {expertDisplayName(booking.experts)?.charAt(0) || 'E'}
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0 flex-1">
-                      <h4 className="font-semibold text-base text-[#000000] truncate">{booking.experts?.name || 'Unknown Expert'}</h4>
+                      <h4 className="font-semibold text-base text-[#000000] truncate">{expertDisplayName(booking.experts) || 'Unknown Expert'}</h4>
                       <p className="text-sm text-[#666666] truncate">
                         {booking.experts?.domain_expertise && booking.experts.domain_expertise.length > 0 
                           ? booking.experts.domain_expertise.join(', ') 
@@ -1349,6 +1384,17 @@ export default function InstitutionProjectDetailsPage() {
             )}
           </div>
         </div>
+        {isTrainingProjectType(project?.type) && (
+          <TrainingAttendancePanel
+            bookingId={booking.id}
+            startDate={booking.start_date}
+            endDate={booking.end_date}
+            hoursBooked={booking.hours_booked}
+            bookingStatus={booking.status}
+            expectedViewerRole="institution"
+            defaultExpanded={booking.status === 'in_progress'}
+          />
+        )}
       </div>
     )
   })}

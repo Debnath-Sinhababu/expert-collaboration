@@ -467,9 +467,9 @@ export default function Home() {
                     Hire Expert
                   </Button>
                 </Link>
-                <Link href="/auth/signup?role=expert">
+                <Link href="/requirements">
                   <Button size="lg" variant="outline" className="border-[#008260] text-[#008260] font-semibold text-[16px] px-10 py-5 rounded-full hover:bg-[#F0FFF8] transition-all duration-300">
-                    Join as Expert
+                    View opportunities
                   </Button>
                 </Link>
               </motion.div>
