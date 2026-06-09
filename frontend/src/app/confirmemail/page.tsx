@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Check, ArrowLeft, Loader2, ShieldAlert } from 'lucide-react'
@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { api } from '@/lib/api'
 
-export default function ConfirmEmailPage() {
+function ConfirmEmailContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const token = useMemo(() => searchParams.get('token') || '', [searchParams])
@@ -110,5 +110,19 @@ export default function ConfirmEmailPage() {
         </Card>
       </div>
     </div>
+  )
+}
+
+export default function ConfirmEmailPage() {
+  return (
+    <Suspense 
+      fallback={
+        <div className="min-h-screen bg-[#ECF2FF] flex items-center justify-center">
+          <Loader2 className="h-12 w-12 animate-spin text-[#008260]" />
+        </div>
+      }
+    >
+      <ConfirmEmailContent />
+    </Suspense>
   )
 }
