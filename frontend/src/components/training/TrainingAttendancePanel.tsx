@@ -7,12 +7,20 @@ import { isDateInRange, normalizeDateOnly } from '@/lib/dateOnly'
 import { toast } from 'sonner'
 import { ChevronDown, ChevronUp, LogIn, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { TrainingAttendanceSummaryCards, type AttendanceSummary } from './TrainingAttendanceSummaryCards'
 import { TrainingAttendanceCalendar, type AttendanceDay } from './TrainingAttendanceCalendar'
 import {
   TrainingAttendanceDayDetail,
   type AttendanceDayFull,
 } from './TrainingAttendanceDayDetail'
+import { TrainingAttendanceSummaryCards } from './TrainingAttendanceSummaryCards'
+import {
+  canExpertMarkAttendance,
+  getTrainingAttendance,
+  markAttendanceEntryForDate,
+  markAttendanceExitForDay,
+  normalizeBookingStatus,
+  type AttendancePayload,
+} from '@/lib/trainingAttendance'
 
 type Props = {
   bookingId: string
@@ -25,24 +33,6 @@ type Props = {
   defaultExpanded?: boolean
 }
 
-type AttendancePayload = {
-  days: AttendanceDayFull[]
-  summary: AttendanceSummary
-  booking?: { status?: string }
-  canMark?: boolean
-  readOnly?: boolean
-  role?: 'expert' | 'institution' | 'super_admin'
-}
-
-const ACTIVE_STATUSES = ['confirmed', 'in_progress']
-
-function normStatus(s: string | undefined) {
-  return String(s || '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '_')
-}
-
 export function TrainingAttendancePanel({
   bookingId,
   startDate,
@@ -53,8 +43,8 @@ export function TrainingAttendancePanel({
 }: Props) {
   const rangeStart = normalizeDateOnly(startDate) || startDate
   const rangeEnd = normalizeDateOnly(endDate) || endDate
-  const st = normStatus(bookingStatus)
-  const bookingAllowsMark = !!st && ACTIVE_STATUSES.includes(st)
+  const st = normalizeBookingStatus(bookingStatus)
+  const bookingAllowsMark = canExpertMarkAttendance(st)
 
   const [expanded, setExpanded] = useState(defaultExpanded)
   const [loading, setLoading] = useState(false)
@@ -73,11 +63,7 @@ export function TrainingAttendancePanel({
     if (!bookingId) return
     setLoading(true)
     try {
-      const res = (await api.trainingAttendance.get(bookingId, range)) as AttendancePayload
-      setData({
-        ...res,
-        days: Array.isArray(res.days) ? res.days : [],
-      })
+      setData(await getTrainingAttendance(bookingId, range))
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed to load attendance')
     } finally {
@@ -106,13 +92,6 @@ export function TrainingAttendancePanel({
   const calendarStart = apiStart || rangeStart
   const calendarEnd = apiEnd || rangeEnd
 
-  const ensureDay = async (sessionDate: string): Promise<AttendanceDayFull> => {
-    const existing = data?.days?.find((d) => normalizeDateOnly(d.session_date) === sessionDate)
-    if (existing) return existing
-    const created = await api.trainingAttendance.createDay(bookingId, sessionDate)
-    return created as AttendanceDayFull
-  }
-
   const refresh = async () => {
     await load()
   }
@@ -120,12 +99,11 @@ export function TrainingAttendancePanel({
   const handleMarkEntryForDate = async (sessionDate: string) => {
     setBusy(true)
     try {
-      const day = await ensureDay(sessionDate)
-      if (day.expert_entry_at && day.status !== 'disputed') {
+      const result = await markAttendanceEntryForDate(bookingId, data?.days, sessionDate)
+      if (result.alreadyMarked) {
         toast.info('Entry already recorded')
         return
       }
-      await api.trainingAttendance.markEntry(bookingId, day.id)
       toast.success('Entry marked')
       await refresh()
     } catch (e: unknown) {
@@ -138,7 +116,7 @@ export function TrainingAttendancePanel({
   const handleMarkExitForDay = async (dayId: string) => {
     setBusy(true)
     try {
-      await api.trainingAttendance.markExit(bookingId, dayId)
+      await markAttendanceExitForDay(bookingId, dayId)
       toast.success('Exit marked — pending institution review')
       await refresh()
     } catch (e: unknown) {

@@ -39,6 +39,7 @@ import { useExpertWorkspace } from '@/contexts/ExpertWorkspaceContext'
 import { fetchExpertForWorkspace, expertProfileSetupPath } from '@/lib/expertWorkspace'
 import { ShareRequirementButton } from '@/components/requirements/ShareRequirementButton'
 import { institutionDisplayName } from '@/lib/privacyDisplay'
+import { ExpertTrainingAttendanceSidebar } from '@/components/training/ExpertTrainingAttendanceSidebar'
 
 type UserMeta = { role?: string; name?: string }
 type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }
@@ -401,6 +402,8 @@ export default function ExpertHome() {
             </p>
           </div>
 
+          <ExpertTrainingAttendanceSidebar expertId={expert?.id} basePath={basePath} />
+
         {/* Recommended for You Section */}
         {recommendedProjects.length > 0 && (
           <div className="mb-12">
@@ -508,7 +511,7 @@ export default function ExpertHome() {
                                 </Link>
                                 <ShareRequirementButton
                                   path={`/requirements/contract/${project.id}`}
-                                  title={project.title}
+                                  title={project.title || 'Training requirement'}
                                   className="border-[#008260] text-[#008260] shrink-0"
                                 />
                               </div>
@@ -1049,7 +1052,7 @@ export default function ExpertHome() {
                         </Link>
                         <ShareRequirementButton
                           path={`/requirements/contract/${project.id}`}
-                          title={project.title}
+                          title={project.title || 'Project requirement'}
                           className="border-[#008260] text-[#008260] shrink-0"
                         />
                       </div>
