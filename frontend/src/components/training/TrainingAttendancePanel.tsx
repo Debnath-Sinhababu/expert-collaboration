@@ -295,8 +295,8 @@ export function TrainingAttendancePanel({
               canMark={selectedDayCanMark}
               readOnly={readOnly}
               busy={busy}
-              onMarkEntry={() => selectedDateStr && handleMarkEntryForDate(selectedDateStr)}
-              onMarkExit={() => selectedDayRow && handleMarkExitForDay(selectedDayRow.id)}
+              onMarkEntry={(attachment) => selectedDateStr && handleMarkEntryForDate(selectedDateStr, attachment)}
+              onMarkExit={(attachment) => selectedDayRow && handleMarkExitForDay(selectedDayRow.id, attachment)}
               onApprove={async () => {
                 if (!selectedDayRow) return
                 setBusy(true)

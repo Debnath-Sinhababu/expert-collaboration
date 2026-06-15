@@ -746,13 +746,15 @@ export default function InstitutionDashboardPage() {
         )}
 
         {/* Welcome Section */}
-        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="min-w-0 text-center sm:text-left">
-             <h1 className="text-3xl font-semibold text-[#000000] mb-1">
-               Welcome back, <span className='text-[#008260]'>{institution?.name}!</span>
+        <div className="mb-8 rounded-2xl border border-[#DCDCDC] bg-white p-5 shadow-sm sm:p-7">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+             <p className="text-sm font-semibold uppercase tracking-wide text-[#008260]">Institution dashboard</p>
+             <h1 className="mt-2 text-3xl font-bold tracking-tight text-[#000000]">
+               Welcome back, <span className='text-[#008260]'>{institution?.name}</span>
              </h1>
-             <p className="text-lg text-[#000000CC] font-medium">
-               Manage your projects, review applications, and connect with qualified experts.
+             <p className="mt-2 text-sm text-[#6A6A6A] sm:text-base">
+               Manage requirements, review applications, and keep running projects on track.
              </p>
           </div>
           <Dialog open={false}>
@@ -1271,8 +1273,9 @@ export default function InstitutionDashboardPage() {
                     {submittingProject ? 'Updating...' : 'Update Project'}
                   </Button>
                 </div>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         {/* Stats Cards */}

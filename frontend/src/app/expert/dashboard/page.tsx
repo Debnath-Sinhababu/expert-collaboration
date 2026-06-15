@@ -542,13 +542,22 @@ export default function ExpertDashboard() {
           </Alert>
         )}
 
-        <div className="mb-8 text-center">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-3 tracking-tight">Expert Dashboard</h1>
-          <p className="text-base sm:text-lg md:text-xl text-slate-600 font-medium">Welcome back, {expert?.name}</p>
+        <div className="mb-8 rounded-2xl border border-[#DCDCDC] bg-white p-5 shadow-sm sm:p-7">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-[#008260]">Expert dashboard</p>
+              <h1 className="mt-2 text-3xl font-bold tracking-tight text-[#000000]">Welcome back, {expert?.name || 'Expert'}</h1>
+              <p className="mt-2 text-sm text-[#6A6A6A] sm:text-base">Track applications, running projects, attendance, and earnings.</p>
+            </div>
+            <div className="rounded-xl bg-[#E8F5F1] px-4 py-3 text-left sm:text-right">
+              <p className="text-xs font-medium text-[#6A6A6A]">Running project</p>
+              <p className="text-2xl font-bold text-[#008260]">{bookingCounts.in_progress || 0}</p>
+            </div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          <Card className="border-2 border-[#D6D6D6] bg-white">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+          <Card className="border border-[#DCDCDC] bg-white shadow-sm rounded-2xl">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>

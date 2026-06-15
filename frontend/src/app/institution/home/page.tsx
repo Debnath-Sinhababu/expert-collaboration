@@ -1635,9 +1635,15 @@ export default function InstitutionHomePage() {
 
         {/* All Experts (List View with infinite scrolling) */}
         <div className="mb-12">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-[#000000]">All Experts</h2>
-            <span className="text-slate-600">{visibleExperts.length} shown</span>
+          <div className="mb-6 rounded-2xl border border-[#DCDCDC] bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wide text-[#008260]">Expert marketplace</p>
+                <h2 className="mt-1 text-2xl font-bold text-[#000000]">Browse available experts</h2>
+                <p className="mt-1 text-sm text-[#6A6A6A]">Open-to-work experts with availability today are prioritized first.</p>
+              </div>
+              <span className="rounded-full bg-[#ECF2FF] px-4 py-2 text-sm font-semibold text-[#000000]">{visibleExperts.length} shown</span>
+            </div>
           </div>
           {(!allExperts || allExperts.length === 0) && !expertsListLoading ? (
             <div className="text-center py-12">

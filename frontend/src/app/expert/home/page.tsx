@@ -416,13 +416,36 @@ export default function ExpertHome() {
       {/* Main Content */}
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Welcome Section */}
-          <div className="mb-8">
+          <div className="hidden">
             <h1 className="text-4xl font-bold text-slate-900 mb-3 tracking-tight">
               Welcome back, {expert?.name}! 👋
             </h1>
             <p className="text-lg text-slate-600 font-normal">
               Discover new opportunities and grow your expertise
             </p>
+          </div>
+          <div className="mb-8 overflow-hidden rounded-2xl border border-[#DCDCDC] bg-white shadow-sm">
+            <div className="flex flex-col gap-5 p-5 sm:p-7 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wide text-[#008260]">Expert workspace</p>
+                <h1 className="mt-2 text-3xl font-bold tracking-tight text-[#000000] sm:text-4xl">
+                  Welcome back, {expert?.name || 'Expert'}
+                </h1>
+                <p className="mt-2 max-w-2xl text-base text-[#6A6A6A]">
+                  Review matched requirements, apply with your preferred pricing, and manage attendance from one place.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:min-w-[320px]">
+                <div className="rounded-xl bg-[#ECF2FF] p-4">
+                  <p className="text-xs font-medium text-[#6A6A6A]">Recommended</p>
+                  <p className="mt-1 text-2xl font-bold text-[#000000]">{recommendedProjects.length}</p>
+                </div>
+                <div className="rounded-xl bg-[#E8F5F1] p-4">
+                  <p className="text-xs font-medium text-[#6A6A6A]">Profile rate</p>
+                  <p className="mt-1 text-2xl font-bold text-[#008260]">Rs {expert?.hourly_rate || 0}/hr</p>
+                </div>
+              </div>
+            </div>
           </div>
 
           <ExpertTrainingAttendanceSidebar expertId={expert?.id} basePath={basePath} />
