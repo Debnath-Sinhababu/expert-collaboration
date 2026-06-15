@@ -55,6 +55,8 @@ export type AttendanceDayFull = AttendanceDay & {
   effective_entry_at?: string | null
   effective_exit_at?: string | null
   dispute_reason?: string | null
+  entry_attachment_url?: string | null
+  exit_attachment_url?: string | null
 }
 
 type Props = {
@@ -176,6 +178,22 @@ export function TrainingAttendanceDayDetail({
           </>
         )}
       </dl>
+
+      {(day.entry_attachment_url || day.exit_attachment_url) && (
+        <div className="rounded-lg border border-[#ECECEC] bg-[#FAFAFA] p-3 text-sm space-y-1">
+          <p className="font-medium text-[#000000]">Attachments</p>
+          {day.entry_attachment_url && (
+            <a href={day.entry_attachment_url} target="_blank" rel="noreferrer" className="block text-[#008260] hover:underline">
+              Open entry attachment
+            </a>
+          )}
+          {day.exit_attachment_url && (
+            <a href={day.exit_attachment_url} target="_blank" rel="noreferrer" className="block text-[#008260] hover:underline">
+              Open exit attachment
+            </a>
+          )}
+        </div>
+      )}
 
       {role === 'expert' && canMark && !readOnly && dayInRange && (
         <div className="flex flex-wrap gap-2 pt-2 border-t border-[#ECECEC]">

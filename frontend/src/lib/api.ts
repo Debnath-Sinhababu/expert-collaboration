@@ -675,21 +675,35 @@ export const api = {
       if (!res.ok) throw new Error(json?.error || 'Failed to create attendance day')
       return json
     },
-    markEntry: async (bookingId: string, dayId: string) => {
-      const headers = await getAuthHeaders()
+    markEntry: async (bookingId: string, dayId: string, attachment?: File | null) => {
+      const headers = attachment ? await getAuthHeadersForFormData() : await getAuthHeaders()
+      const body = attachment
+        ? (() => {
+            const fd = new FormData()
+            fd.append('attendance_attachment', attachment)
+            return fd
+          })()
+        : undefined
       const res = await fetch(
         `${API_BASE_URL}/api/bookings/${bookingId}/attendance/days/${dayId}/entry`,
-        { method: 'POST', headers }
+        { method: 'POST', headers, body }
       )
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json?.error || 'Failed to mark entry')
       return json
     },
-    markExit: async (bookingId: string, dayId: string) => {
-      const headers = await getAuthHeaders()
+    markExit: async (bookingId: string, dayId: string, attachment?: File | null) => {
+      const headers = attachment ? await getAuthHeadersForFormData() : await getAuthHeaders()
+      const body = attachment
+        ? (() => {
+            const fd = new FormData()
+            fd.append('attendance_attachment', attachment)
+            return fd
+          })()
+        : undefined
       const res = await fetch(
         `${API_BASE_URL}/api/bookings/${bookingId}/attendance/days/${dayId}/exit`,
-        { method: 'POST', headers }
+        { method: 'POST', headers, body }
       )
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json?.error || 'Failed to mark exit')

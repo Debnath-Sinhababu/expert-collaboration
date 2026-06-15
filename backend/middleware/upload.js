@@ -7,7 +7,19 @@ const storage = multer.memoryStorage();
 // PDFs (resume, qualifications) and profile video share the same 20MB cap per file.
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
 
-// File filter: images/PDFs for most fields; MP4/WebM/MOV for profile_video and course_video
+const DOCUMENT_EXTS = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.csv'];
+const DOCUMENT_MIMES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/csv',
+  'application/csv',
+  'text/plain',
+];
+
+// File filter: images/documents for most fields; MP4/WebM/MOV for profile_video and course_video
 const fileFilter = (req, file, cb) => {
   // Accept video files for profile_video and course_video
   if (file.fieldname === 'profile_video' || file.fieldname === 'course_video') {
@@ -22,9 +34,25 @@ const fileFilter = (req, file, cb) => {
     return cb(new Error('Video must be MP4, WebM, or MOV'), false);
   }
 
+  const ext = path.extname(file.originalname).toLowerCase();
+  const documentField =
+    file.fieldname === 'requirement_pdf' ||
+    file.fieldname === 'attendance_attachment' ||
+    file.fieldname === 'entry_attachment' ||
+    file.fieldname === 'exit_attachment';
+
+  if (documentField) {
+    const okExt = DOCUMENT_EXTS.includes(ext);
+    const okMime = DOCUMENT_MIMES.includes(file.mimetype);
+    if (okExt && okMime) {
+      return cb(null, true);
+    }
+    return cb(new Error('Document must be PDF, DOC, DOCX, XLS, XLSX, or CSV'), false);
+  }
+
   // Otherwise accept images and PDFs
   const allowedTypes = /jpeg|jpg|png|webp|pdf/;
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+  const extname = allowedTypes.test(ext);
   const mimetype = allowedTypes.test(file.mimetype) || file.mimetype === 'application/pdf';
 
   if (mimetype && extname) {

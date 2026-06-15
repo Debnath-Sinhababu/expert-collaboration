@@ -68,6 +68,45 @@ function normalizeScreeningQuestionsBody(value) {
   }
   return [];
 }
+
+function parseBooleanBody(value) {
+  return value === true || value === 'true' || value === '1' || value === 'yes';
+}
+
+function normalizePositiveInt(value, fallback = 1) {
+  const n = parseInt(String(value ?? ''), 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+function normalizeInterviewAvailability(value) {
+  if (value == null || value === '') return [];
+  let parsed = value;
+  if (typeof value === 'string') {
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(parsed)) return [];
+  return parsed
+    .map((slot) => {
+      if (!slot || typeof slot !== 'object') return null;
+      const start = slot.start_at || slot.startAt || slot.start;
+      const end = slot.end_at || slot.endAt || slot.end;
+      if (!start || !end) return null;
+      const startDate = new Date(start);
+      const endDate = new Date(end);
+      if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return null;
+      if (endDate <= startDate) return null;
+      return {
+        start_at: startDate.toISOString(),
+        end_at: endDate.toISOString(),
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 3);
+}
 function isCommonEmailProvider(email) {
   if (!email || typeof email !== 'string') return false;
   const commonDomains = [
@@ -340,6 +379,38 @@ app.get('/api/experts', async (req, res) => {
       const endIndex = offset + parseInt(limit);
       filteredData = filteredData.slice(startIndex, endIndex);
     }
+
+    const expertIdsForCounts = filteredData.map((expert) => expert.id).filter(Boolean);
+    const completedTrainingsByExpertId = new Map();
+    if (expertIdsForCounts.length > 0) {
+      try {
+        const serviceClient = createClient(
+          process.env.SUPABASE_URL,
+          process.env.SUPABASE_SERVICE_ROLE_KEY
+        );
+        const { data: bookingRows, error: bookingsError } = await serviceClient
+          .from('bookings')
+          .select('expert_id, status')
+          .in('expert_id', expertIdsForCounts);
+        if (!bookingsError) {
+          for (const booking of bookingRows || []) {
+            if (booking.status !== 'completed' || !booking.expert_id) continue;
+            completedTrainingsByExpertId.set(
+              booking.expert_id,
+              (completedTrainingsByExpertId.get(booking.expert_id) || 0) + 1
+            );
+          }
+        }
+      } catch (countError) {
+        console.warn('GET /api/experts: completed training counts skipped', countError.message);
+      }
+    }
+
+    filteredData = filteredData.map((expert) => ({
+      ...expert,
+      completed_trainings_count: completedTrainingsByExpertId.get(expert.id) || 0,
+      training_count: completedTrainingsByExpertId.get(expert.id) || 0,
+    }));
     
     const { role: expertsListRole } = await superAdminAuth.getUserRoleFromRequest(req);
     const masked = (filteredData || []).map((row) =>
@@ -646,7 +717,8 @@ app.post('/api/experts', upload.fields([
       current_designation: req.body.current_designation || null,
       expert_types: Array.isArray(req.body.expert_types) ? req.body.expert_types : (req.body.expert_types ? JSON.parse(req.body.expert_types) : []),
       expert_services: Array.isArray(req.body.expert_services) ? req.body.expert_services : (req.body.expert_services ? JSON.parse(req.body.expert_services) : []),
-      available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true,
+      available_on_demand: parseBooleanBody(req.body.available_on_demand),
+      open_to_work: parseBooleanBody(req.body.open_to_work),
       city: req.body.city || null,
       state: req.body.state || null,
       pan_number: panNormalized && isValidPan(panNormalized) ? panNormalized : null,
@@ -714,12 +786,32 @@ app.get('/api/experts/:id', async (req, res) => {
       return res.status(404).json({ error: 'Expert not found' });
     }
 
-    let out = data;
+    let enriched = data;
+    try {
+      const serviceClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+      const { data: bookingRows } = await serviceClient
+        .from('bookings')
+        .select('id, status')
+        .eq('expert_id', data.id);
+      const completedCount = (bookingRows || []).filter((b) => b.status === 'completed').length;
+      enriched = {
+        ...data,
+        completed_trainings_count: completedCount,
+        training_count: completedCount,
+      };
+    } catch (countError) {
+      console.warn('GET /api/experts/:id: completed training count skipped', countError.message);
+    }
+
+    let out = enriched;
     if (privacyMask.shouldMaskExpertName(exRole)) {
       const isOwnExpertProfile =
-        exRole === 'expert' && exUser && data.user_id === exUser.id;
+        exRole === 'expert' && exUser && enriched.user_id === exUser.id;
       if (!isOwnExpertProfile) {
-        out = privacyMask.maskExpertObject(data, exRole);
+        out = privacyMask.maskExpertObject(enriched, exRole);
       }
     }
 
@@ -882,7 +974,8 @@ app.put('/api/experts/:id', upload.fields([
       current_designation: req.body.current_designation || null,
       expert_types: Array.isArray(req.body.expert_types) ? req.body.expert_types : (req.body.expert_types ? JSON.parse(req.body.expert_types) : []),
       expert_services: Array.isArray(req.body.expert_services) ? req.body.expert_services : (req.body.expert_services ? JSON.parse(req.body.expert_services) : []),
-      available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true,
+      available_on_demand: parseBooleanBody(req.body.available_on_demand),
+      open_to_work: parseBooleanBody(req.body.open_to_work),
       interested_in_services: req.body.interested_in_services === 'true' || req.body.interested_in_services === true,
       service_price: req.body.service_price !== undefined && req.body.service_price !== '' ? parseFloat(String(req.body.service_price)) : undefined,
       city: req.body.city || null,
@@ -1731,7 +1824,8 @@ app.post('/api/projects', upload.fields([
       screening_questions: normalizeScreeningQuestions(rawBody.screening_questions),
       job_location: jobLocation,
       workplace_type: workplaceType,
-      employment_type: employmentType
+      employment_type: employmentType,
+      opening_count: normalizePositiveInt(rawBody.opening_count || rawBody.openings, 1)
     };
 
     // Handle optional requirement PDF upload
@@ -1739,9 +1833,12 @@ app.post('/api/projects', upload.fields([
     const requirementPdfFile = req.files?.requirement_pdf?.[0];
     if (requirementPdfFile) {
       try {
-        requirementPdfData = await ImageUploadService.uploadPDF(
+        requirementPdfData = await ImageUploadService.uploadDocument(
           requirementPdfFile.buffer,
-          'institution-contract-requirements'
+          'institution-contract-requirements',
+          null,
+          requirementPdfFile.mimetype,
+          requirementPdfFile.originalname
         );
       } catch (e) {
         console.error('Requirement PDF upload exception:', e);
@@ -1874,6 +1971,10 @@ app.put('/api/projects/:id', async (req, res) => {
     if (updateBody.employment_type !== undefined && updateBody.employment_type !== null) {
       const e = String(updateBody.employment_type);
       updateBody.employment_type = ['full_time', 'part_time', 'contract'].includes(e) ? e : null;
+    }
+    if (updateBody.opening_count !== undefined || updateBody.openings !== undefined) {
+      updateBody.opening_count = normalizePositiveInt(updateBody.opening_count || updateBody.openings, 1);
+      delete updateBody.openings;
     }
 
     const { data, error } = await supabaseClient
@@ -4203,16 +4304,20 @@ app.get('/api/applications', async (req, res) => {
           bio,
           experience_years,
           qualifications,
+          qualifications_url,
           domain_expertise,
           subskills,
           hourly_rate,
           resume_url,
           availability,
+          open_to_work,
+          available_on_demand,
           is_verified,
           kyc_status,
           rating,
           total_ratings,
           linkedin_url,
+          current_designation,
           created_at,
           updated_at
         ),
@@ -4231,6 +4336,8 @@ app.get('/api/applications', async (req, res) => {
           subskills,
           status,
           max_applications,
+          opening_count,
+          requirement_pdf_url,
           institutions (
             id,
             name,
@@ -4462,6 +4569,12 @@ app.post('/api/applications', async (req, res) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
     
+    req.body.interview_availability = normalizeInterviewAvailability(req.body.interview_availability);
+    if (req.body.proposed_rate !== undefined && req.body.proposed_rate !== '') {
+      const proposedRate = Number(req.body.proposed_rate);
+      req.body.proposed_rate = Number.isFinite(proposedRate) && proposedRate > 0 ? proposedRate : null;
+    }
+
     console.log('Final request body:', req.body);
     
     const { data, error } = await supabaseClient
@@ -4569,6 +4682,13 @@ app.put('/api/applications/:id', async (req, res) => {
       // Convert to proper timestamp format
       updateData.interview_date = new Date(updateData.interview_date).toISOString();
     }
+    if (updateData.interview_availability !== undefined) {
+      updateData.interview_availability = normalizeInterviewAvailability(updateData.interview_availability);
+    }
+    if (updateData.final_hourly_rate !== undefined && updateData.final_hourly_rate !== '') {
+      const finalRate = Number(updateData.final_hourly_rate);
+      updateData.final_hourly_rate = Number.isFinite(finalRate) && finalRate > 0 ? finalRate : null;
+    }
 
     const { data, error } = await supabaseClient
       .from('applications')
@@ -4675,9 +4795,30 @@ app.post('/api/bookings', async (req, res) => {
     console.log('Authenticated user for booking creation:', userData?.user?.id);
     console.log('User error:', userError);
 
-    const { amount } = req.body;
-    
-  
+    if (req.body.application_id) {
+      try {
+        const serviceClient = createClient(
+          process.env.SUPABASE_URL,
+          process.env.SUPABASE_SERVICE_ROLE_KEY
+        );
+        const { data: applicationForPrice } = await serviceClient
+          .from('applications')
+          .select('final_hourly_rate, proposed_rate, projects(hourly_rate)')
+          .eq('id', req.body.application_id)
+          .maybeSingle();
+        const resolvedAmount =
+          Number(applicationForPrice?.final_hourly_rate) ||
+          Number(applicationForPrice?.proposed_rate) ||
+          Number(applicationForPrice?.projects?.hourly_rate) ||
+          Number(req.body.amount);
+        if (Number.isFinite(resolvedAmount) && resolvedAmount > 0) {
+          req.body.amount = resolvedAmount;
+        }
+      } catch (priceError) {
+        console.warn('Booking price fallback skipped:', priceError.message);
+      }
+    }
+
     
     const { data, error } = await supabaseClient
       .from('bookings')
@@ -4794,16 +4935,20 @@ app.get('/api/bookings', async (req, res) => {
           bio,
           experience_years,
           qualifications,
+          qualifications_url,
           domain_expertise,
           subskills,
           hourly_rate,
           resume_url,
           availability,
+          open_to_work,
+          available_on_demand,
           is_verified,
           kyc_status,
           rating,
           total_ratings,
           linkedin_url,
+          current_designation,
           created_at,
           updated_at
         ),
@@ -4826,7 +4971,9 @@ app.get('/api/bookings', async (req, res) => {
           domain_expertise,
           subskills,
           status,
-          max_applications
+          max_applications,
+          opening_count,
+          requirement_pdf_url
         )
       `)
       .range(offset, offset + parseInt(limit) - 1)
@@ -5799,7 +5946,8 @@ app.post('/api/admin/experts', upload.fields([
       current_designation: req.body.current_designation || null,
       expert_types: Array.isArray(req.body.expert_types) ? req.body.expert_types : (req.body.expert_types ? JSON.parse(req.body.expert_types) : []),
       expert_services: Array.isArray(req.body.expert_services) ? req.body.expert_services : (req.body.expert_services ? JSON.parse(req.body.expert_services) : []),
-      available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true,
+      available_on_demand: parseBooleanBody(req.body.available_on_demand),
+      open_to_work: parseBooleanBody(req.body.open_to_work),
       city: req.body.city || null,
       state: req.body.state || null,
       pan_number: adminPanNormalized,
@@ -6324,7 +6472,7 @@ const { registerExpertAvailabilityRoutes } = require('./routes/expertAvailabilit
 registerExpertAvailabilityRoutes(app);
 
 const { registerTrainingAttendanceRoutes } = require('./routes/trainingAttendanceRoutes');
-registerTrainingAttendanceRoutes(app);
+registerTrainingAttendanceRoutes(app, upload);
 
 
 app.use((req, res) => {

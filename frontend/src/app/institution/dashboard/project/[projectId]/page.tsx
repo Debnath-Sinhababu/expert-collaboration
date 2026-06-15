@@ -23,6 +23,9 @@ import { expertDisplayName } from '@/lib/privacyDisplay'
 import { ExpertAvailabilityTrigger } from '@/components/expert/ExpertAvailabilityTrigger'
 import { isTrainingProjectType } from '@/lib/trainingTypes'
 import { TrainingAttendancePanel } from '@/components/training/TrainingAttendancePanel'
+import { InterviewAvailabilitySelector } from '@/components/requirements/InterviewAvailabilitySelector'
+import type { InterviewSlot } from '@/components/requirements/InterviewAvailabilitySelector'
+import { resolveHourlyRate } from '@/lib/projectPricing'
 import { 
   ArrowLeft,
   Building, 
@@ -79,6 +82,12 @@ export default function InstitutionProjectDetailsPage() {
   const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null)
   const [interviewDate, setInterviewDate] = useState<Date | undefined>(undefined)
   const [interviewTime, setInterviewTime] = useState<string>('')
+  const [selectedInterviewApplication, setSelectedInterviewApplication] = useState<any>(null)
+  const [selectedInterviewSlot, setSelectedInterviewSlot] = useState<InterviewSlot | null>(null)
+  const [showFinalRateModal, setShowFinalRateModal] = useState(false)
+  const [selectedBookingApplication, setSelectedBookingApplication] = useState<any>(null)
+  const [finalHourlyRate, setFinalHourlyRate] = useState('')
+  const [bookingDateEdits, setBookingDateEdits] = useState<Record<string, { actual_start_date?: string; actual_end_date?: string }>>({})
   const [processingApplications, setProcessingApplications] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
@@ -182,9 +191,20 @@ export default function InstitutionProjectDetailsPage() {
     }
   }
 
+  const normalizePaginatedResponse = (response: any, type: 'applications' | 'bookings') => {
+    if (Array.isArray(response)) return response
+    if (!response || typeof response !== 'object') return []
+
+    extractCounts(response, type)
+
+    if (Array.isArray(response.data)) return response.data
+    if (response.data && Array.isArray(response.data.data)) return response.data.data
+    return []
+  }
+
   // Paginated applications for pending status
   const {
-    data: pendingApplications,
+    data: rawPendingApplications,
     loading: pendingLoading,
     hasMore: hasMorePending,
     loadMore: loadMorePending,
@@ -199,22 +219,14 @@ export default function InstitutionProjectDetailsPage() {
         limit: 10
       })
       
-      // Handle new data structure with counts
-      if (response && typeof response === 'object' && 'data' in response) {
-        // Extract counts on first page load
-      
-          extractCounts(response, 'applications')
-        
-        return response.data
-      }
-      return response
+      return normalizePaginatedResponse(response, 'applications')
     },
     [projectId]
   )
 
   // Paginated applications for interview status
   const {
-    data: interviewApplications,
+    data: rawInterviewApplications,
     loading: interviewLoading,
     hasMore: hasMoreInterview,
     loadMore: loadMoreInterview,
@@ -229,19 +241,14 @@ export default function InstitutionProjectDetailsPage() {
         limit: 10
       })
       
-      // Handle new data structure with counts
-      if (response && typeof response === 'object' && 'data' in response) {
-        extractCounts(response, 'applications')
-        return response.data
-      }
-      return response
+      return normalizePaginatedResponse(response, 'applications')
     },
     [projectId]
   )
 
   // Paginated applications for rejected status (read-only)
   const {
-    data: rejectedApplications,
+    data: rawRejectedApplications,
     loading: rejectedLoading,
     hasMore: hasMoreRejected,
     loadMore: loadMoreRejected,
@@ -256,18 +263,14 @@ export default function InstitutionProjectDetailsPage() {
         limit: 10
       })
       
-      if (response && typeof response === 'object' && 'data' in response) {
-        extractCounts(response, 'applications')
-        return response.data
-      }
-      return response
+      return normalizePaginatedResponse(response, 'applications')
     },
     [projectId]
   )
 
   // Paginated bookings for selected status
   const {
-    data: selectedBookings,
+    data: rawSelectedBookings,
     loading: selectedLoading,
     hasMore: hasMoreSelected,
     loadMore: loadMoreSelected,
@@ -281,18 +284,15 @@ export default function InstitutionProjectDetailsPage() {
         limit: 10
       })
       
-      // Handle new data structure with counts
-      if (response && typeof response === 'object' && 'data' in response) {
-        // Extract counts on first page load
-        if (page === 1) {
-          extractCounts(response, 'bookings')
-        }
-        return response.data
-      }
-      return response
+      return normalizePaginatedResponse(response, 'bookings')
     },
     [projectId]
   )
+
+  const pendingApplications = Array.isArray(rawPendingApplications) ? rawPendingApplications : []
+  const interviewApplications = Array.isArray(rawInterviewApplications) ? rawInterviewApplications : []
+  const rejectedApplications = Array.isArray(rawRejectedApplications) ? rawRejectedApplications : []
+  const selectedBookings = Array.isArray(rawSelectedBookings) ? rawSelectedBookings : []
 
   // Infinite scroll logic using Intersection Observer
   useEffect(() => {
@@ -372,10 +372,13 @@ export default function InstitutionProjectDetailsPage() {
   
 
   const handleProceedToInterview = (applicationId: string) => {
+    const application = [...(pendingApplications || []), ...(interviewApplications || [])].find((app: any) => app.id === applicationId)
     setSelectedApplicationId(applicationId)
+    setSelectedInterviewApplication(application || null)
     setShowInterviewModal(true)
     setInterviewDate(undefined)
     setInterviewTime('')
+    setSelectedInterviewSlot(null)
   }
 
   const handleInterviewSubmit = async () => {
@@ -401,6 +404,8 @@ export default function InstitutionProjectDetailsPage() {
       toast.success('Application moved to interview stage!')
       setShowInterviewModal(false)
       setSelectedApplicationId(null)
+      setSelectedInterviewApplication(null)
+      setSelectedInterviewSlot(null)
       setInterviewDate(undefined)
       setInterviewTime('')
       refreshPending()
@@ -414,19 +419,35 @@ export default function InstitutionProjectDetailsPage() {
   }
 
   const handleProceedToBooking = async (applicationId: string) => {
+    const application = [...(pendingApplications || []), ...(interviewApplications || [])].find((app: any) => app.id === applicationId)
+    if (!application) {
+      toast.error('Application not found')
+      return
+    }
+    setSelectedBookingApplication(application)
+    setFinalHourlyRate('')
+    setShowFinalRateModal(true)
+  }
+
+  const confirmProceedToBooking = async () => {
+    const application = selectedBookingApplication
+    if (!application) return
+    const applicationId = application.id
+
     try {
       setProcessingApplications(prev => ({ ...prev, [applicationId]: true }))
-      
-      // Get application details
-      const application = [...(pendingApplications || []), ...(interviewApplications || [])].find((app: any) => app.id === applicationId)
-      if (!application) {
-        toast.error('Application not found')
-        return
-      }
+
+      const resolvedAmount = resolveHourlyRate({
+        finalHourlyRate,
+        proposedRate: (application as any).proposed_rate,
+        projectHourlyRate: project?.hourly_rate,
+        fallback: 1000,
+      })
 
       // Update application status to accepted
       await api.applications.update(applicationId, {
         status: 'accepted',
+        final_hourly_rate: finalHourlyRate ? Number(finalHourlyRate) : null,
         reviewed_at: new Date().toISOString()
       })
 
@@ -436,7 +457,7 @@ export default function InstitutionProjectDetailsPage() {
         institution_id: institution.id,
         project_id: (application as any).project_id,
         application_id: applicationId,
-        amount: (application as any).proposed_rate || 1000,
+        amount: resolvedAmount,
         start_date: project.start_date
           ? String(project.start_date).slice(0, 10)
           : new Date().toISOString().split('T')[0],
@@ -451,6 +472,9 @@ export default function InstitutionProjectDetailsPage() {
       await api.bookings.create(bookingData)
 
       toast.success('Booking created successfully!')
+      setShowFinalRateModal(false)
+      setSelectedBookingApplication(null)
+      setFinalHourlyRate('')
       refreshInterview()
       refreshSelected()
     } catch (error) {
@@ -543,6 +567,21 @@ export default function InstitutionProjectDetailsPage() {
     } catch (error) {
       console.error('Error updating booking status:', error)
       toast.error('Failed to update booking status')
+    }
+  }
+
+  const handleBookingDateUpdate = async (booking: any) => {
+    const edits = bookingDateEdits[booking.id] || {}
+    try {
+      await api.bookings.update(booking.id, {
+        actual_start_date: edits.actual_start_date || booking.actual_start_date || null,
+        actual_end_date: edits.actual_end_date || booking.actual_end_date || null,
+      })
+      toast.success('Project dates updated')
+      refreshSelected()
+    } catch (error) {
+      console.error('Error updating project dates:', error)
+      toast.error('Failed to update project dates')
     }
   }
 
@@ -832,6 +871,14 @@ export default function InstitutionProjectDetailsPage() {
                                   : 'Not specified'}
                               </p>
                             </div>
+                            <div>
+                              <span className="text-[#666666] font-medium text-sm">Completed trainings:</span>
+                              <p className="font-medium text-[#000000] text-sm">{application.experts?.completed_trainings_count || application.experts?.training_count || 0}</p>
+                            </div>
+                            <div>
+                              <span className="text-[#666666] font-medium text-sm">Proposed rate:</span>
+                              <p className="font-medium text-[#000000] text-sm">Rs {application.proposed_rate || project?.hourly_rate || 0}/hr</p>
+                            </div>
                         
                           </div>
 
@@ -852,6 +899,20 @@ export default function InstitutionProjectDetailsPage() {
                             <div className="mb-4">
                               <span className="text-[#666666] font-medium text-sm">Qualifications:</span>
                               <p className="font-medium text-[#000000] text-sm mt-1">{application.experts.qualifications}</p>
+                            </div>
+                          )}
+                          {(application.experts?.qualifications_url || application.experts?.resume_url) && (
+                            <div className="mb-4 flex flex-wrap gap-2">
+                              {application.experts?.qualifications_url && (
+                                <Button asChild size="sm" variant="outline">
+                                  <a href={application.experts.qualifications_url} target="_blank" rel="noopener noreferrer">View certificate</a>
+                                </Button>
+                              )}
+                              {application.experts?.resume_url && (
+                                <Button asChild size="sm" variant="outline">
+                                  <a href={application.experts.resume_url} target="_blank" rel="noopener noreferrer">View resume</a>
+                                </Button>
+                              )}
                             </div>
                           )}
                           
@@ -1235,6 +1296,40 @@ export default function InstitutionProjectDetailsPage() {
               </span>
             </div>
           </div>
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 rounded-lg border border-[#DCDCDC] bg-[#F8FBFA] p-3">
+            <div>
+              <Label className="text-xs text-[#666666]">Actual start date</Label>
+              <Input
+                type="date"
+                value={bookingDateEdits[booking.id]?.actual_start_date ?? (booking.actual_start_date || '').slice(0, 10)}
+                onChange={(event) => setBookingDateEdits((prev) => ({
+                  ...prev,
+                  [booking.id]: { ...prev[booking.id], actual_start_date: event.target.value },
+                }))}
+              />
+            </div>
+            <div>
+              <Label className="text-xs text-[#666666]">Actual end date</Label>
+              <Input
+                type="date"
+                value={bookingDateEdits[booking.id]?.actual_end_date ?? (booking.actual_end_date || '').slice(0, 10)}
+                onChange={(event) => setBookingDateEdits((prev) => ({
+                  ...prev,
+                  [booking.id]: { ...prev[booking.id], actual_end_date: event.target.value },
+                }))}
+              />
+            </div>
+            <div className="flex items-end">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full border-[#008260] text-[#008260]"
+                onClick={() => handleBookingDateUpdate(booking)}
+              >
+                Update dates
+              </Button>
+            </div>
+          </div>
           
           <div className="flex flex-col gap-2 ml-4">
             {/* View Profile Button - Always visible */}
@@ -1429,6 +1524,27 @@ export default function InstitutionProjectDetailsPage() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
+              {selectedInterviewApplication?.expert_id && (
+                <ExpertAvailabilityTrigger
+                  expertId={selectedInterviewApplication.expert_id}
+                  startDate={project?.start_date}
+                  endDate={project?.end_date}
+                  projectId={projectId}
+                />
+              )}
+              {Array.isArray(selectedInterviewApplication?.interview_availability) && selectedInterviewApplication.interview_availability.length > 0 && (
+                <InterviewAvailabilitySelector
+                  selectable
+                  slots={selectedInterviewApplication.interview_availability}
+                  selectedSlot={selectedInterviewSlot}
+                  onSelectSlot={(slot: InterviewSlot) => {
+                    setSelectedInterviewSlot(slot)
+                    const slotDate = new Date(slot.start_at)
+                    setInterviewDate(slotDate)
+                    setInterviewTime(slotDate.toTimeString().slice(0, 5))
+                  }}
+                />
+              )}
               <div>
                 <Label>Interview Date (Optional)</Label>
                 <DatePicker
@@ -1436,7 +1552,7 @@ export default function InstitutionProjectDetailsPage() {
                   onChange={setInterviewDate}
                   placeholder="Select interview date"
                   className="w-full"
-                  minDate={new Date()} // Disable past dates
+                  minDate={new Date(new Date().setHours(0, 0, 0, 0))}
                 />
               </div>
               <div>
@@ -1465,6 +1581,50 @@ export default function InstitutionProjectDetailsPage() {
                 className="bg-[#008260] hover:bg-[#008260]"
               >
                 {processingApplications[selectedApplicationId || ''] ? 'Processing...' : 'Proceed to Interview'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showFinalRateModal} onOpenChange={setShowFinalRateModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm final hourly rate</DialogTitle>
+            <DialogDescription>
+              Leave this blank to use the expert proposed rate or the project rate.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-lg border border-[#DCDCDC] bg-[#F8FBFA] p-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-[#6A6A6A]">Project rate</span>
+                <span className="font-semibold">Rs {project?.hourly_rate || 0}/hr</span>
+              </div>
+              <div className="mt-1 flex justify-between">
+                <span className="text-[#6A6A6A]">Expert proposed</span>
+                <span className="font-semibold">Rs {selectedBookingApplication?.proposed_rate || project?.hourly_rate || 0}/hr</span>
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="finalHourlyRate">Final hourly rate (optional)</Label>
+              <Input
+                id="finalHourlyRate"
+                type="number"
+                min="1"
+                value={finalHourlyRate}
+                onChange={(event) => setFinalHourlyRate(event.target.value)}
+                placeholder="Use previous pricing"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowFinalRateModal(false)}>Cancel</Button>
+              <Button
+                onClick={confirmProceedToBooking}
+                disabled={processingApplications[selectedBookingApplication?.id || '']}
+                className="bg-[#008260] hover:bg-[#008260]"
+              >
+                {processingApplications[selectedBookingApplication?.id || ''] ? 'Processing...' : 'Create Booking'}
               </Button>
             </div>
           </div>
