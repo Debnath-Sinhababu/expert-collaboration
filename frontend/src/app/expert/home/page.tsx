@@ -12,6 +12,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel'
@@ -40,6 +42,8 @@ import { fetchExpertForWorkspace, expertProfileSetupPath } from '@/lib/expertWor
 import { ShareRequirementButton } from '@/components/requirements/ShareRequirementButton'
 import { institutionDisplayName } from '@/lib/privacyDisplay'
 import { ExpertTrainingAttendanceSidebar } from '@/components/training/ExpertTrainingAttendanceSidebar'
+import { InterviewAvailabilitySelector, type InterviewSlot } from '@/components/requirements/InterviewAvailabilitySelector'
+import { RequirementCard } from '@/components/requirements/RequirementCard'
 
 type UserMeta = { role?: string; name?: string }
 type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }
@@ -67,7 +71,10 @@ export default function ExpertHome() {
     start_date?: string
     end_date?: string
     hourly_rate?: number
+    total_budget?: number
     duration_hours?: number
+    opening_count?: number
+    max_applications?: number
     type?: string
     domain_expertise?: string
     required_expertise?: string[]
@@ -97,7 +104,9 @@ export default function ExpertHome() {
   const [maxRate, setMaxRate] = useState('')
   const [applicationForm, setApplicationForm] = useState({
     coverLetter: '',
-    proposedRate: ''
+    proposedRate: '',
+    agreeProjectPrice: true,
+    interviewAvailability: [] as InterviewSlot[]
   })
   const [showApplicationModal, setShowApplicationModal] = useState(false)
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
@@ -276,15 +285,23 @@ export default function ExpertHome() {
       setIsApplying(true)
       setError('')
        
+      const selectedProject = [
+        ...(projects as Project[]),
+        ...recommendedProjects,
+      ].find((p) => p.id === projectId)
+      const proposedRate = applicationForm.agreeProjectPrice
+        ? selectedProject?.hourly_rate
+        : parseFloat(applicationForm.proposedRate)
       const response = await api.applications.create({
         project_id: projectId,
         cover_letter: applicationForm.coverLetter,
-        proposed_rate: parseFloat(applicationForm.proposedRate) || expert?.hourly_rate || 0
+        proposed_rate: proposedRate || expert?.hourly_rate || 0,
+        interview_availability: applicationForm.interviewAvailability
       })
 
       if (response && response.id) {
         setSuccess('Application submitted successfully!')
-        setApplicationForm({ coverLetter: '', proposedRate: '' })
+        setApplicationForm({ coverLetter: '', proposedRate: '', agreeProjectPrice: true, interviewAvailability: [] })
         setShowApplicationModal(false)
         setSelectedProjectId(null)
         refreshProjects()
@@ -310,7 +327,7 @@ export default function ExpertHome() {
   const handleOpenApplicationModal = (projectId: string) => {
     setSelectedProjectId(projectId)
     setShowApplicationModal(true)
-    setApplicationForm({ coverLetter: '', proposedRate: '' })
+    setApplicationForm({ coverLetter: '', proposedRate: '', agreeProjectPrice: true, interviewAvailability: [] })
   }
 
   const getProjectTypeLabel = (type: string) => {
@@ -351,6 +368,12 @@ export default function ExpertHome() {
       </div>
     )
   }
+
+  const selectedApplicationProject = [
+    ...(projects as Project[]),
+    ...recommendedProjects,
+  ].find((project) => project.id === selectedProjectId)
+  const needsCustomRate = !applicationForm.agreeProjectPrice && !applicationForm.proposedRate
 
   return (
     <div className="min-h-screen bg-[#ECF2FF]">
@@ -932,6 +955,48 @@ export default function ExpertHome() {
           </div>
         </div>
 
+        <Tabs defaultValue="recommended" className="mb-8">
+          <TabsList className="bg-white border border-[#DCDCDC]">
+            <TabsTrigger value="recommended">Recommended Jobs</TabsTrigger>
+            <TabsTrigger value="all">All Jobs</TabsTrigger>
+            <TabsTrigger value="requirements">Requirements</TabsTrigger>
+          </TabsList>
+          <TabsContent value="recommended" className="mt-4 space-y-3">
+            {recommendedProjects.length > 0 ? (
+              recommendedProjects.map((project) => (
+                <RequirementCard
+                  key={project.id}
+                  project={project}
+                  detailHref={`${basePath}/project/${project.id}`}
+                  onApply={() => handleOpenApplicationModal(project.id)}
+                />
+              ))
+            ) : (
+              <p className="text-sm text-[#6A6A6A]">No recommended jobs available right now.</p>
+            )}
+          </TabsContent>
+          <TabsContent value="all" className="mt-4 space-y-3">
+            {(projects as Project[]).slice(0, 10).map((project) => (
+              <RequirementCard
+                key={project.id}
+                project={project}
+                detailHref={`${basePath}/project/${project.id}`}
+                onApply={() => handleOpenApplicationModal(project.id)}
+              />
+            ))}
+          </TabsContent>
+          <TabsContent value="requirements" className="mt-4 space-y-3">
+            {(projects as Project[]).filter((project) => project.required_expertise?.length || project.subskills?.length).slice(0, 10).map((project) => (
+              <RequirementCard
+                key={project.id}
+                project={project}
+                detailHref={`${basePath}/project/${project.id}`}
+                onApply={() => handleOpenApplicationModal(project.id)}
+              />
+            ))}
+          </TabsContent>
+        </Tabs>
+
         {/* Projects List */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-4">
@@ -1099,14 +1164,20 @@ export default function ExpertHome() {
 
         {/* Application Modal */}
         <Dialog open={showApplicationModal} onOpenChange={setShowApplicationModal}>
-          <DialogContent className="sm:max-w-md bg-white">
-            <DialogHeader className="space-y-1">
+          <DialogContent className="max-h-[85vh] overflow-hidden bg-white p-0 sm:max-w-2xl">
+            <DialogHeader className="space-y-1 px-6 pt-6">
               <DialogTitle className="text-xl font-bold text-[#000000]">Apply to Project</DialogTitle>
               <DialogDescription className="text-[#000000] text-sm font-normal font-sans">
-                Submit your application for {(projects as Project[]).find(p => p.id === selectedProjectId)?.title || 'this project'}
+                Submit your application for {selectedApplicationProject?.title || 'this project'}
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-6 ">
+            <div className="max-h-[calc(85vh-96px)] space-y-6 overflow-y-auto px-6 pb-6">
+              <div className="rounded-lg border border-[#DCDCDC] bg-[#F8FBFA] p-3 text-sm">
+                <div className="font-semibold text-[#000000]">{selectedApplicationProject?.title || 'Selected project'}</div>
+                <div className="mt-1 text-[#6A6A6A]">
+                  Project price: <span className="font-semibold text-[#008260]">Rs {selectedApplicationProject?.hourly_rate || expert?.hourly_rate || 0}/hr</span>
+                </div>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="coverLetter" className="text-sm font-medium text-slate-700">Cover Letter</Label>
                 <Textarea
@@ -1129,6 +1200,24 @@ export default function ExpertHome() {
                   className="border-2 border-slate-200 focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]"
                 />
               </div>
+              <label className="flex items-start gap-2 rounded-lg border border-[#DCDCDC] p-3 text-sm">
+                <Checkbox
+                  checked={applicationForm.agreeProjectPrice}
+                  onCheckedChange={(checked) => setApplicationForm({
+                    ...applicationForm,
+                    agreeProjectPrice: checked === true,
+                    proposedRate: checked === true ? '' : applicationForm.proposedRate,
+                  })}
+                />
+                <span>
+                  <span className="block font-medium text-[#000000]">Agree with project price</span>
+                  <span className="text-[#6A6A6A]">Proceed at Rs {selectedApplicationProject?.hourly_rate || expert?.hourly_rate || 0}/hr. Uncheck and enter a proposed rate above to negotiate.</span>
+                </span>
+              </label>
+              <InterviewAvailabilitySelector
+                slots={applicationForm.interviewAvailability}
+                onChange={(interviewAvailability) => setApplicationForm({ ...applicationForm, interviewAvailability })}
+              />
               {error && (
                 <Alert variant="destructive" className="border-2 border-red-200 bg-red-50">
                   <AlertCircle className="h-4 w-4" />
@@ -1141,13 +1230,15 @@ export default function ExpertHome() {
                   <AlertDescription className="text-green-700">{success}</AlertDescription>
                 </Alert>
               )}
-              <Button 
-                onClick={() => selectedProjectId && handleApplicationSubmit(selectedProjectId)}
-                className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium shadow-sm hover:shadow-md transition-all duration-200 py-2.5 rounded-lg"
-                disabled={!applicationForm.coverLetter || !selectedProjectId || isApplying}
-              >
-                {isApplying ? 'Submitting...' : 'Submit Application'}
-              </Button>
+              <div className="sticky bottom-0 -mx-6 border-t border-[#ECECEC] bg-white px-6 py-4">
+                <Button 
+                  onClick={() => selectedProjectId && handleApplicationSubmit(selectedProjectId)}
+                  className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium shadow-sm hover:shadow-md transition-all duration-200 py-2.5 rounded-lg"
+                  disabled={!applicationForm.coverLetter || !selectedProjectId || isApplying || needsCustomRate}
+                >
+                  {isApplying ? 'Submitting...' : 'Submit Application'}
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>

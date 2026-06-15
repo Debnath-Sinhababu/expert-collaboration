@@ -93,6 +93,7 @@ export default function ExpertProfileSetup() {
     expert_types: [] as string[],
     expert_services: [] as string[],
     available_on_demand: false,
+    open_to_work: false,
     city: '',
     state: '',
     address: '',
@@ -567,6 +568,7 @@ export default function ExpertProfileSetup() {
       formDataToSend.append('current_designation', formData.current_designation)
       formDataToSend.append('expert_types', JSON.stringify(formData.expert_types))
       formDataToSend.append('expert_services', JSON.stringify(formData.expert_services))
+      formDataToSend.append('open_to_work', String(formData.open_to_work))
       formDataToSend.append('interested_in_services', String(formData.interested_in_services))
       formDataToSend.append('service_price', String(formData.service_price || ''))
       formDataToSend.append('city', formData.city || '')
@@ -1225,6 +1227,19 @@ export default function ExpertProfileSetup() {
                 </div>
 
                 <div className="space-y-2">
+                  <div className="flex items-center gap-2 rounded-lg border border-[#DCDCDC] p-3 bg-[#FAFAFA]">
+                    <input
+                      type="checkbox"
+                      id="open_to_work"
+                      checked={formData.open_to_work}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, open_to_work: e.target.checked }))}
+                      className="w-4 h-4 border-slate-300 rounded text-[#008260] focus:ring-[#008260] focus:ring-offset-0"
+                    />
+                    <Label htmlFor="open_to_work" className="text-slate-700 cursor-pointer">
+                      Open to work currently
+                    </Label>
+                  </div>
+
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"

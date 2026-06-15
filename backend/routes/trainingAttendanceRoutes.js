@@ -9,6 +9,7 @@ const {
   ACTIVE_BOOKING_STATUSES,
   READ_ONLY_BOOKING_STATUSES,
 } = require('../lib/trainingTypes');
+const ImageUploadService = require('../services/imageUploadService');
 
 function normalizeDateOnly(s) {
   if (s == null || s === '') return null;
@@ -211,7 +212,24 @@ async function assertNoOtherOpenDay(service, bookingId, excludeDayId) {
   }
 }
 
-function registerTrainingAttendanceRoutes(app) {
+async function uploadAttendanceAttachment(file, folder) {
+  if (!file) return null;
+  const result = await ImageUploadService.uploadDocument(
+    file.buffer,
+    folder,
+    null,
+    file.mimetype,
+    file.originalname
+  );
+  if (!result?.success) {
+    const err = new Error(result?.error || 'Attendance attachment upload failed');
+    err.statusCode = 500;
+    throw err;
+  }
+  return result;
+}
+
+function registerTrainingAttendanceRoutes(app, upload) {
   app.get('/api/bookings/:bookingId/attendance/summary', async (req, res) => {
     try {
       const ctx = await resolveBookingAttendanceAccess(req, req.params.bookingId);
@@ -353,7 +371,11 @@ function registerTrainingAttendanceRoutes(app) {
     }
   });
 
-  app.post('/api/bookings/:bookingId/attendance/days/:dayId/entry', async (req, res) => {
+  const optionalAttendanceUpload = upload
+    ? upload.single('attendance_attachment')
+    : (req, res, next) => next();
+
+  app.post('/api/bookings/:bookingId/attendance/days/:dayId/entry', optionalAttendanceUpload, async (req, res) => {
     try {
       const ctx = await resolveBookingAttendanceAccess(req, req.params.bookingId);
       if (ctx.error) return res.status(ctx.status).json({ error: ctx.error });
@@ -375,6 +397,10 @@ function registerTrainingAttendanceRoutes(app) {
       await assertNoOtherOpenDay(ctx.service, req.params.bookingId, day.id);
 
       const now = new Date().toISOString();
+      const attachment = await uploadAttendanceAttachment(
+        req.file,
+        'training-attendance-entry'
+      );
       const writeClient = getWriteClient(ctx);
       const updates = {
         expert_entry_at: now,
@@ -382,6 +408,10 @@ function registerTrainingAttendanceRoutes(app) {
         dispute_reason: day.status === 'disputed' ? null : day.dispute_reason,
         updated_at: now,
       };
+      if (attachment) {
+        updates.entry_attachment_url = attachment.url;
+        updates.entry_attachment_public_id = attachment.publicId;
+      }
 
       const { data, error } = await writeClient
         .from('training_attendance_days')
@@ -391,7 +421,10 @@ function registerTrainingAttendanceRoutes(app) {
         .single();
 
       if (error) throw error;
-      await writeAudit(ctx.service, day.id, ctx.user.id, ctx.role, 'mark_entry', { expert_entry_at: now });
+      await writeAudit(ctx.service, day.id, ctx.user.id, ctx.role, 'mark_entry', {
+        expert_entry_at: now,
+        entry_attachment_url: attachment?.url || null,
+      });
       res.json(data);
     } catch (err) {
       console.error('POST mark entry error:', err);
@@ -399,7 +432,7 @@ function registerTrainingAttendanceRoutes(app) {
     }
   });
 
-  app.post('/api/bookings/:bookingId/attendance/days/:dayId/exit', async (req, res) => {
+  app.post('/api/bookings/:bookingId/attendance/days/:dayId/exit', optionalAttendanceUpload, async (req, res) => {
     try {
       const ctx = await resolveBookingAttendanceAccess(req, req.params.bookingId);
       if (ctx.error) return res.status(ctx.status).json({ error: ctx.error });
@@ -425,14 +458,23 @@ function registerTrainingAttendanceRoutes(app) {
       }
 
       const writeClient = getWriteClient(ctx);
+      const attachment = await uploadAttendanceAttachment(
+        req.file,
+        'training-attendance-exit'
+      );
+      const updates = {
+        expert_exit_at: now,
+        status: 'pending_review',
+        dispute_reason: null,
+        updated_at: now,
+      };
+      if (attachment) {
+        updates.exit_attachment_url = attachment.url;
+        updates.exit_attachment_public_id = attachment.publicId;
+      }
       const { data, error } = await writeClient
         .from('training_attendance_days')
-        .update({
-          expert_exit_at: now,
-          status: 'pending_review',
-          dispute_reason: null,
-          updated_at: now,
-        })
+        .update(updates)
         .eq('id', day.id)
         .select()
         .single();
@@ -441,6 +483,7 @@ function registerTrainingAttendanceRoutes(app) {
       await writeAudit(ctx.service, day.id, ctx.user.id, ctx.role, 'mark_exit', {
         expert_exit_at: now,
         status: 'pending_review',
+        exit_attachment_url: attachment?.url || null,
       });
       res.json(data);
     } catch (err) {

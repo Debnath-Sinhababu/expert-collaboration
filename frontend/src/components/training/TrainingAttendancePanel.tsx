@@ -52,6 +52,8 @@ export function TrainingAttendancePanel({
   const [data, setData] = useState<AttendancePayload | null>(null)
   const [month, setMonth] = useState(() => new Date())
   const [selectedDay, setSelectedDay] = useState<Date | undefined>(() => new Date())
+  const [entryAttachment, setEntryAttachment] = useState<File | null>(null)
+  const [exitAttachment, setExitAttachment] = useState<File | null>(null)
 
   const range = useMemo(() => {
     const from = format(startOfMonth(month), 'yyyy-MM-dd')
@@ -102,14 +104,15 @@ export function TrainingAttendancePanel({
     await load()
   }
 
-  const handleMarkEntryForDate = async (sessionDate: string) => {
+  const handleMarkEntryForDate = async (sessionDate: string, attachment?: File | null) => {
     setBusy(true)
     try {
-      const result = await markAttendanceEntryForDate(bookingId, data?.days, sessionDate)
+      const result = await markAttendanceEntryForDate(bookingId, data?.days, sessionDate, attachment)
       if (result.alreadyMarked) {
         toast.info('Entry already recorded')
         return
       }
+      setEntryAttachment(null)
       toast.success('Entry marked')
       await refresh()
     } catch (e: unknown) {
@@ -119,10 +122,11 @@ export function TrainingAttendancePanel({
     }
   }
 
-  const handleMarkExitForDay = async (dayId: string) => {
+  const handleMarkExitForDay = async (dayId: string, attachment?: File | null) => {
     setBusy(true)
     try {
-      await markAttendanceExitForDay(bookingId, dayId)
+      await markAttendanceExitForDay(bookingId, dayId, attachment)
+      setExitAttachment(null)
       toast.success('Exit marked — pending institution review')
       await refresh()
     } catch (e: unknown) {
@@ -226,28 +230,44 @@ export function TrainingAttendancePanel({
             <div className="flex flex-wrap gap-2 p-3 rounded-lg bg-white border border-[#DCDCDC]">
               <span className="text-sm text-[#6A6A6A] w-full sm:w-auto sm:mr-2">Today:</span>
               {!todayRow?.expert_entry_at && (
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={busy}
-                  onClick={() => handleMarkEntryForDate(todayStr)}
-                  className="bg-[#008260] hover:bg-[#006B4F] text-white"
-                >
-                  <LogIn className="h-4 w-4 mr-1" />
-                  Mark entry
-                </Button>
+                <>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.csv"
+                    onChange={(e) => setEntryAttachment(e.target.files?.[0] || null)}
+                    className="text-xs max-w-full"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => handleMarkEntryForDate(todayStr, entryAttachment)}
+                    className="bg-[#008260] hover:bg-[#006B4F] text-white"
+                  >
+                    <LogIn className="h-4 w-4 mr-1" />
+                    Mark entry
+                  </Button>
+                </>
               )}
               {todayRow?.expert_entry_at && !todayRow?.expert_exit_at && (
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={busy}
-                  onClick={() => handleMarkExitForDay(todayRow.id)}
-                  className="bg-[#FF6A00] hover:bg-[#E55F00] text-white"
-                >
-                  <LogOut className="h-4 w-4 mr-1" />
-                  Mark exit
-                </Button>
+                <>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.csv"
+                    onChange={(e) => setExitAttachment(e.target.files?.[0] || null)}
+                    className="text-xs max-w-full"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => handleMarkExitForDay(todayRow.id, exitAttachment)}
+                    className="bg-[#FF6A00] hover:bg-[#E55F00] text-white"
+                  >
+                    <LogOut className="h-4 w-4 mr-1" />
+                    Mark exit
+                  </Button>
+                </>
               )}
               {todayRow?.status === 'pending_review' && (
                 <span className="text-sm text-[#92400E] self-center">Awaiting institution approval</span>

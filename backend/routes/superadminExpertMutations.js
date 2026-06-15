@@ -223,6 +223,8 @@ function registerSuperAdminExpertMutations(app, { upload, normalizePan, isValidP
           : (req.body.expert_services ? JSON.parse(req.body.expert_services) : []),
         available_on_demand:
           req.body.available_on_demand === 'true' || req.body.available_on_demand === true,
+        open_to_work:
+          req.body.open_to_work === 'true' || req.body.open_to_work === true,
         city: req.body.city || null,
         state: req.body.state || null,
         address:

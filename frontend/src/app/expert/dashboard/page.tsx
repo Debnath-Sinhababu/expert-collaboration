@@ -488,6 +488,13 @@ export default function ExpertDashboard() {
   }, [calculateAnalytics])
 
   const expertAggregate = computeExpertRating()
+  const runningStatuses = new Set(['in_progress', 'pending', 'confirmed'])
+  const sortedPagedBookings = [...(pagedBookings || [])].sort((a: any, b: any) => {
+    const aRunning = runningStatuses.has(a.status) ? 0 : 1
+    const bRunning = runningStatuses.has(b.status) ? 0 : 1
+    if (aRunning !== bRunning) return aRunning - bRunning
+    return new Date(b.created_at || b.start_date || 0).getTime() - new Date(a.created_at || a.start_date || 0).getTime()
+  })
 
   // Projects are now filtered by the backend API based on expert_id
 
@@ -667,7 +674,7 @@ export default function ExpertDashboard() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#000000]">Active Bookings</p>
+                  <p className="text-sm font-medium text-[#000000]">Running project</p>
                   <p className="text-2xl font-bold text-[#000000] my-1">{bookingCounts.in_progress || 0}</p>
                   <p className="text-xs text-slate-500">
                     {bookingCounts.completed || 0} completed 
@@ -992,9 +999,9 @@ export default function ExpertDashboard() {
             <TabsContent value="bookings" className="space-y-6">
             <Card className="border-2 border-[#D6D6D6]">
                 <CardHeader>
-                  <CardTitle className="text-[#000000] font-semibold text-[18px]">My Bookings</CardTitle>
+                  <CardTitle className="text-[#000000] font-semibold text-[18px]">Running projects</CardTitle>
                 <CardDescription className="text-[#000000] font-base font-normal">
-                    View and manage your current bookings
+                    Running projects appear first. Closed and cancelled projects appear after them.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -1009,7 +1016,7 @@ export default function ExpertDashboard() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {pagedBookings?.map((booking: any) => (
+                      {sortedPagedBookings?.map((booking: any) => (
                       <div key={booking.id} className="bg-white border border-[#DCDCDC] rounded-lg p-4 sm:p-6 hover:border-[#008260] hover:shadow-md transition-all duration-300 group">
                         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
                           <h3 className="font-bold text-base sm:text-lg text-[#000000] group-hover:text-[#008260] hover:cursor-pointer transition-colors duration-300 break-words"
@@ -1071,6 +1078,23 @@ export default function ExpertDashboard() {
                         )}
                         <div className="flex justify-end pt-3 border-t border-[#ECECEC]">
                           {booking.status === 'in_progress' && (
+                            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                              <Button
+                                size="sm"
+                                className="bg-[#008260] hover:bg-[#006D51] rounded-3xl text-white font-medium w-full sm:w-auto"
+                                onClick={async () => {
+                                  try {
+                                    await api.bookings.update(booking.id, { status: 'completed' })
+                                    await refreshBookings()
+                                  } catch (e) {
+                                    console.error('Failed to mark booking complete', e)
+                                    setError('Failed to mark project complete')
+                                  }
+                                }}
+                              >
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Mark Complete
+                              </Button>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button
@@ -1108,6 +1132,7 @@ export default function ExpertDashboard() {
                                 </AlertDialogFooter>
                               </AlertDialogContent>
                             </AlertDialog>
+                            </div>
                           )}
                         </div>
                       </div>

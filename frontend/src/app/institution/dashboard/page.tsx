@@ -696,6 +696,12 @@ export default function InstitutionDashboardPage() {
   // Load ratings when institution is available
 // Only depend on institution ID
 
+  const runningProjects = projects.filter((project: any) => !['completed', 'closed', 'cancelled'].includes(project.status))
+  const closedProjects = projects.filter((project: any) => ['completed', 'closed', 'cancelled'].includes(project.status))
+  const orderedProjects = [...runningProjects, ...closedProjects]
+  const totalApplications = projects.reduce((total, project) => total + (project.applicationCounts?.total || 0), 0)
+  const pendingApplications = projects.reduce((total, project) => total + (project.applicationCounts?.pending || 0), 0)
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#ECF2FF] flex items-center justify-center">
@@ -1294,10 +1300,10 @@ export default function InstitutionDashboardPage() {
                 <div>
                   <p className="text-sm font-medium text-[#000000]">Applications</p>
                   <p className="text-3xl font-bold text-[#000000] my-2">
-                    {projects.reduce((total, project) => total + (project.applicationCounts?.total || 0), 0)}
+                    {totalApplications}
                   </p>
                   <p className="text-xs text-[#656565]">
-                    {projects.reduce((total, project) => total + (project.applicationCounts?.pending || 0), 0)} pending
+                    {pendingApplications} pending
                   </p>
                 </div>
                 <div className="p-3 bg-[#ECF2FF] rounded-full">
@@ -1311,7 +1317,7 @@ export default function InstitutionDashboardPage() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#000000]">Active Bookings</p>
+                  <p className="text-sm font-medium text-[#000000]">Running projects</p>
                   <p className="text-3xl font-bold text-[#000000] my-2">
                     {bookingCounts.in_progress}
                   </p>
@@ -1394,7 +1400,7 @@ export default function InstitutionDashboardPage() {
             <CardHeader>
               <CardTitle className="text-lg font-semibold text-[#000000]">My Projects</CardTitle>
               <CardDescription className="text-[#000000] font-normal text-base !-mt-[2px]">
-                Manage your posted projects and track their progress
+                Running projects are shown first, followed by closed and completed projects.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -1407,11 +1413,32 @@ export default function InstitutionDashboardPage() {
                 </div>
                 ) : (
                   <div className="space-y-4">
-                    {projects.map((project: any) => (
-                      <div 
-                        key={project.id} 
-                        className="bg-white border border-[#DCDCDC] rounded-lg p-4 sm:p-6 transition-all duration-300 group"
-                      >
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="rounded-lg border border-[#DCDCDC] p-3">
+                        <p className="text-xs text-[#656565]">Running projects</p>
+                        <p className="text-xl font-bold text-[#000000]">{runningProjects.length}</p>
+                      </div>
+                      <div className="rounded-lg border border-[#DCDCDC] p-3">
+                        <p className="text-xs text-[#656565]">Closed projects</p>
+                        <p className="text-xl font-bold text-[#000000]">{closedProjects.length}</p>
+                      </div>
+                      <div className="rounded-lg border border-[#DCDCDC] p-3">
+                        <p className="text-xs text-[#656565]">Pending applications</p>
+                        <p className="text-xl font-bold text-[#000000]">{pendingApplications}</p>
+                      </div>
+                    </div>
+                    {orderedProjects.map((project: any, index: number) => (
+                      <div key={`${project.id}-section`}>
+                        {index === 0 && runningProjects.length > 0 && (
+                          <h3 className="text-sm font-semibold text-[#008260]">Running projects</h3>
+                        )}
+                        {index === runningProjects.length && closedProjects.length > 0 && (
+                          <h3 className="text-sm font-semibold text-[#6A6A6A]">Closed projects</h3>
+                        )}
+                        <div 
+                          key={project.id} 
+                          className="bg-white border border-[#DCDCDC] rounded-lg p-4 sm:p-6 transition-all duration-300 group mt-3"
+                        >
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                           <h3 className="font-bold text-base sm:text-lg text-[#000000]">{project.title}</h3>
                           <div className="flex items-center gap-2 flex-wrap">
@@ -1504,6 +1531,7 @@ export default function InstitutionDashboardPage() {
                             )}
                           </div>
                         </div>
+                      </div>
                       </div>
                     ))}
                     {/* Infinite loader sentinel for projects */}
