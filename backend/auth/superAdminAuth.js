@@ -142,6 +142,7 @@ async function loadSuperAdminAccess(user) {
           adminRecord: null,
           email,
           status: user.user_metadata?.super_admin_status || 'active',
+          disabled_message: user.user_metadata?.super_admin_disabled_message || null,
           metadataFallback: true,
           tableMissing: true,
         };
@@ -178,6 +179,7 @@ async function loadSuperAdminAccess(user) {
         adminRecord: null,
         email,
         status: user.user_metadata?.super_admin_status || 'active',
+        disabled_message: user.user_metadata?.super_admin_disabled_message || null,
         metadataFallback: true,
       };
     }
@@ -218,6 +220,7 @@ async function loadSuperAdminAccess(user) {
     adminRecord: data,
     email,
     status: data.status || 'active',
+    disabled_message: data.disabled_message || null,
   };
 }
 
@@ -251,7 +254,10 @@ async function requireSuperAdmin(req, res) {
   }
 
   if (access.status && access.status !== 'active') {
-    res.status(403).json({ error: 'Admin account is disabled' });
+    res.status(403).json({
+      error: 'Admin account is disabled',
+      message: access.disabled_message || access.adminRecord?.disabled_message || 'Please contact the root super admin.',
+    });
     return null;
   }
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import SuperAdminShell from '@/components/superadmin/layout/SuperAdminShell'
+import { superAdminApi } from '@/lib/superadmin/api'
 
 /** Acting workspace routes use expert/institution UI headers — no console nav. */
 function isActingWorkspacePath(pathname: string | null): boolean {
@@ -36,6 +37,14 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
       const { data: { session } } = await supabase.auth.getSession()
       if (!session?.access_token) {
         router.replace('/auth/login')
+        return
+      }
+      try {
+        await superAdminApi.me()
+      } catch (error) {
+        await supabase.auth.signOut()
+        const message = encodeURIComponent(error instanceof Error ? error.message : 'Your admin account cannot sign in.')
+        router.replace(`/auth/login?message=${message}`)
         return
       }
       setReady(true)

@@ -82,6 +82,16 @@ class SuperAdminRepository {
     return data?.[0] || null;
   }
 
+  async findAdminById(id) {
+    const { data, error } = await this.client
+      .from('super_admin_users')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    if (error && !tableMissing(error)) throw error;
+    return data || null;
+  }
+
   async createAdminRecord(payload) {
     const { data, error } = await this.client
       .from('super_admin_users')
@@ -101,6 +111,7 @@ class SuperAdminRepository {
           auth_user_id: payload.auth_user_id,
           name: payload.name,
           status: payload.status,
+          disabled_message: payload.disabled_message || null,
           permissions: payload.permissions,
           updated_at: new Date().toISOString(),
         })

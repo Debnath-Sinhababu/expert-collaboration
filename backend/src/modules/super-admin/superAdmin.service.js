@@ -79,6 +79,7 @@ class SuperAdminService {
         email,
         name: user.user_metadata?.name || email,
         status: user.user_metadata?.super_admin_status || 'active',
+        disabled_message: user.user_metadata?.super_admin_disabled_message || null,
         permissions: normalizePermissions(user.user_metadata?.super_admin_permissions),
         created_at: user.created_at,
         storage: 'auth_metadata',
@@ -143,6 +144,7 @@ class SuperAdminService {
       email: input.email,
       name: input.name,
       status: 'active',
+      disabled_message: null,
       permissions: normalizePermissions(input.permissions),
       created_by: actorUserId || null,
     };
@@ -160,7 +162,7 @@ class SuperAdminService {
     }
   }
 
-  async updateAdmin(id, body) {
+  async updateAdmin(id, body, actorUserId) {
     const payload = {};
     if (body.name !== undefined) payload.name = String(body.name).trim();
     if (body.status !== undefined) {
@@ -172,7 +174,69 @@ class SuperAdminService {
       payload.status = body.status;
     }
     if (body.permissions !== undefined) payload.permissions = normalizePermissions(body.permissions);
-    return this.repository.updateAdminRecord(id, payload);
+    if (body.disabled_message !== undefined) payload.disabled_message = String(body.disabled_message || '').trim() || null;
+
+    const existingRecord = await this.repository.findAdminById(id);
+    let authUser = null;
+    if (existingRecord?.auth_user_id) {
+      const { data, error } = await this.serviceClient.auth.admin.getUserById(existingRecord.auth_user_id);
+      if (!error && data?.user) authUser = data.user;
+    }
+    if (!authUser && !existingRecord) {
+      const { data, error } = await this.serviceClient.auth.admin.getUserById(id);
+      if (!error && data?.user) authUser = data.user;
+    }
+
+    if (!existingRecord && !authUser) {
+      const err = new Error('Admin not found');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const nextName = payload.name ?? existingRecord?.name ?? authUser?.user_metadata?.name ?? authUser?.email;
+    const nextStatus = payload.status ?? existingRecord?.status ?? authUser?.user_metadata?.super_admin_status ?? 'active';
+    const nextPermissions = payload.permissions ?? normalizePermissions(existingRecord?.permissions || authUser?.user_metadata?.super_admin_permissions);
+    const nextDisabledMessage = payload.disabled_message !== undefined
+      ? payload.disabled_message
+      : existingRecord?.disabled_message || authUser?.user_metadata?.super_admin_disabled_message || null;
+
+    if (authUser?.id) {
+      const meta = authUser.user_metadata || {};
+      const { error } = await this.serviceClient.auth.admin.updateUserById(authUser.id, {
+        user_metadata: {
+          ...meta,
+          role: 'super_admin',
+          name: nextName,
+          super_admin_managed: true,
+          super_admin_permissions: nextPermissions,
+          super_admin_status: nextStatus,
+          super_admin_disabled_message: nextDisabledMessage,
+        },
+      });
+      if (error) throw normalizeServiceError(error);
+    }
+
+    if (existingRecord) {
+      return this.repository.updateAdminRecord(existingRecord.id, {
+        ...payload,
+        name: nextName,
+        status: nextStatus,
+        permissions: nextPermissions,
+        disabled_message: nextDisabledMessage,
+      });
+    }
+
+    return {
+      id: authUser.id,
+      auth_user_id: authUser.id,
+      email: authUser.email,
+      name: nextName,
+      status: nextStatus,
+      permissions: nextPermissions,
+      disabled_message: nextDisabledMessage,
+      updated_by: actorUserId || null,
+      storage: 'auth_metadata',
+    };
   }
 
   async listProfiles(type, params) {

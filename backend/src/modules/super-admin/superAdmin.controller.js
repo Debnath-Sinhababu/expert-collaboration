@@ -24,7 +24,7 @@ class SuperAdminController {
   };
 
   updateAdmin = async (req, res) => {
-    res.json(await this.service.updateAdmin(req.params.id, req.body || {}));
+    res.json(await this.service.updateAdmin(req.params.id, req.body || {}, req.superAdmin.user.id));
   };
 
   listProfiles = async (req, res) => {
