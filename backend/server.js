@@ -1092,34 +1092,8 @@ app.put('/api/experts/:id/calxbook-visibility', async (req, res) => {
   try {
     const expertId = req.params.id;
 
-    // Parse token and verify role directly
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'Authorization required' });
-    }
-    const token = authHeader.substring(7);
-
-    const userClient = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_ANON_KEY,
-      {
-        global: {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      }
-    );
-
-    const { data: userData, error: userErr } = await userClient.auth.getUser();
-    if (userErr || !userData || !userData.user) {
-      return res.status(403).json({ error: 'Invalid token' });
-    }
-
-    const role = userData.user.user_metadata?.role;
-    if (role !== 'super_admin') {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
+    const auth = await superAdminAuth.requireSuperAdminPermission(req, res, 'calxbook_verification:write');
+    if (!auth) return;
 
     // Use service-role client to perform the update
     const writeClient = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -1161,7 +1135,7 @@ function formatHardDeleteError(err) {
 
 app.delete('/api/superadmin/profiles/experts/:id', async (req, res) => {
   try {
-    const auth = await superAdminAuth.requireSuperAdmin(req, res);
+    const auth = await superAdminAuth.requireSuperAdminPermission(req, res, 'profiles:write');
     if (!auth) return;
     const serviceClient = superAdminAuth.getServiceClient();
     const deleted = await superAdminAuth.hardDeleteProfileRow(serviceClient, 'experts', req.params.id);
@@ -1177,7 +1151,7 @@ app.delete('/api/superadmin/profiles/experts/:id', async (req, res) => {
 
 app.delete('/api/superadmin/profiles/institutions/:id', async (req, res) => {
   try {
-    const auth = await superAdminAuth.requireSuperAdmin(req, res);
+    const auth = await superAdminAuth.requireSuperAdminPermission(req, res, 'profiles:write');
     if (!auth) return;
     const serviceClient = superAdminAuth.getServiceClient();
     const deleted = await superAdminAuth.hardDeleteProfileRow(serviceClient, 'institutions', req.params.id);
@@ -1193,7 +1167,7 @@ app.delete('/api/superadmin/profiles/institutions/:id', async (req, res) => {
 
 app.delete('/api/superadmin/profiles/students/:id', async (req, res) => {
   try {
-    const auth = await superAdminAuth.requireSuperAdmin(req, res);
+    const auth = await superAdminAuth.requireSuperAdminPermission(req, res, 'profiles:write');
     if (!auth) return;
     const serviceClient = superAdminAuth.getServiceClient();
     const deleted = await superAdminAuth.hardDeleteProfileRow(serviceClient, 'site_students', req.params.id);
@@ -1209,7 +1183,7 @@ app.delete('/api/superadmin/profiles/students/:id', async (req, res) => {
 
 app.get('/api/superadmin/custom-domains', async (req, res) => {
   try {
-    const auth = await superAdminAuth.requireSuperAdmin(req, res);
+    const auth = await superAdminAuth.requireSuperAdminPermission(req, res, 'profiles:write');
     if (!auth) return;
     const serviceClient = superAdminAuth.getServiceClient();
     const { data, error } = await serviceClient
@@ -6307,11 +6281,14 @@ setupContactRoutes(app);
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
+  res.status(err.statusCode || err.status || 500).json({ error: err.message || 'Something went wrong!' });
 });
 
 
 
+
+const { createSuperAdminRouter } = require('./src/modules/super-admin/superAdmin.routes');
+app.use('/api/superadmin', createSuperAdminRouter());
 
 const { registerSuperAdminExpertMutations } = require('./routes/superadminExpertMutations');
 registerSuperAdminExpertMutations(app, {
@@ -6326,6 +6303,11 @@ registerExpertAvailabilityRoutes(app);
 const { registerTrainingAttendanceRoutes } = require('./routes/trainingAttendanceRoutes');
 registerTrainingAttendanceRoutes(app);
 
+app.use((err, req, res, next) => {
+  console.error(err.stack || err);
+  if (res.headersSent) return next(err);
+  res.status(err.statusCode || err.status || 500).json({ error: err.message || 'Something went wrong!' });
+});
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import SuperAdminShell from '@/components/superadmin/SuperAdminShell'
+import SuperAdminShell from '@/components/superadmin/layout/SuperAdminShell'
 
 /** Acting workspace routes use expert/institution UI headers — no console nav. */
 function isActingWorkspacePath(pathname: string | null): boolean {

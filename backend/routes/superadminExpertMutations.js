@@ -31,7 +31,7 @@ function registerSuperAdminExpertMutations(app, { upload, normalizePan, isValidP
     { name: 'course_video', maxCount: 1 },
   ]), async (req, res) => {
     try {
-      const auth = await superAdminAuth.requireSuperAdmin(req, res);
+      const auth = await superAdminAuth.requireSuperAdminPermission(req, res, 'profiles:write');
       if (!auth) return;
 
       if (!req.body.name || !req.body.email || !req.body.phone) {
@@ -259,7 +259,7 @@ function registerSuperAdminExpertMutations(app, { upload, normalizePan, isValidP
 
   app.post('/api/superadmin/experts/bulk-import', async (req, res) => {
     try {
-      const auth = await superAdminAuth.requireSuperAdmin(req, res);
+      const auth = await superAdminAuth.requireSuperAdminPermission(req, res, 'bulk_import:write');
       if (!auth) return;
 
       const { spreadsheetId, range, gid, usePublicAccess = false, delayBetweenRows = 500, defaultPassword } = req.body;
@@ -316,7 +316,7 @@ function registerSuperAdminExpertMutations(app, { upload, normalizePan, isValidP
 
   app.post('/api/superadmin/students/bulk-import', async (req, res) => {
     try {
-      const auth = await superAdminAuth.requireSuperAdmin(req, res);
+      const auth = await superAdminAuth.requireSuperAdminPermission(req, res, 'bulk_import:write');
       if (!auth) return;
 
       const { spreadsheetId, range, gid, usePublicAccess = false, delayBetweenRows = 500, defaultPassword } = req.body;

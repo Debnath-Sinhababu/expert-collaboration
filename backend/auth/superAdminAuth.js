@@ -2,6 +2,11 @@
  * JWT validation for elevated super_admin operations.
  */
 const { createClient } = require('@supabase/supabase-js');
+const {
+  SUPER_ADMIN_PERMISSIONS,
+  normalizePermissions,
+  hasPermission,
+} = require('../src/modules/super-admin/superAdmin.permissions');
 
 function createUserScopedClient(token) {
   return createClient(
@@ -45,8 +50,65 @@ async function getUserRoleFromRequest(req) {
   return { user, role, token };
 }
 
+async function loadSuperAdminAccess(user) {
+  const email = String(user?.email || '').trim().toLowerCase();
+  const serviceClient = getServiceClient();
+
+  const { data, error } = await serviceClient
+    .from('super_admin_users')
+    .select('*')
+    .eq('auth_user_id', user.id)
+    .maybeSingle();
+
+  if (error) {
+    const message = error.message || '';
+    if (/relation .*super_admin_users.* does not exist/i.test(message) || error.code === '42P01') {
+      return {
+        isRoot: true,
+        hasAllAccess: true,
+        permissions: SUPER_ADMIN_PERMISSIONS,
+        adminRecord: null,
+        tableMissing: true,
+      };
+    }
+    throw error;
+  }
+
+  if (!data) {
+    const metaPermissions = normalizePermissions(user.user_metadata?.super_admin_permissions);
+    if (user.user_metadata?.super_admin_managed === true || metaPermissions.length > 0) {
+      return {
+        isRoot: false,
+        hasAllAccess: false,
+        permissions: metaPermissions,
+        adminRecord: null,
+        email,
+        status: user.user_metadata?.super_admin_status || 'active',
+        metadataFallback: true,
+      };
+    }
+
+    return {
+      isRoot: true,
+      hasAllAccess: true,
+      permissions: SUPER_ADMIN_PERMISSIONS,
+      adminRecord: null,
+      email,
+    };
+  }
+
+  return {
+    isRoot: false,
+    hasAllAccess: false,
+    permissions: normalizePermissions(data.permissions),
+    adminRecord: data,
+    email,
+    status: data.status || 'active',
+  };
+}
+
 /**
- * @returns {Promise<{ user: object, token: string } | null>} null after sending error response.
+ * @returns {Promise<{ user: object, token: string, access: object } | null>} null after sending error response.
  */
 async function requireSuperAdmin(req, res) {
   const authHeader = req.headers.authorization;
@@ -65,7 +127,31 @@ async function requireSuperAdmin(req, res) {
     res.status(403).json({ error: 'Forbidden' });
     return null;
   }
-  return { user, token };
+
+  let access;
+  try {
+    access = await loadSuperAdminAccess(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Failed to load admin access' });
+    return null;
+  }
+
+  if (access.status && access.status !== 'active') {
+    res.status(403).json({ error: 'Admin account is disabled' });
+    return null;
+  }
+
+  return { user, token, access };
+}
+
+async function requireSuperAdminPermission(req, res, permission) {
+  const auth = await requireSuperAdmin(req, res);
+  if (!auth) return null;
+  if (!hasPermission(auth.access, permission)) {
+    res.status(403).json({ error: 'Permission denied' });
+    return null;
+  }
+  return auth;
 }
 
 /**
@@ -136,7 +222,9 @@ module.exports = {
   createUserScopedClient,
   getServiceClient,
   getUserRoleFromRequest,
+  loadSuperAdminAccess,
   requireSuperAdmin,
+  requireSuperAdminPermission,
   deleteLinkedAuthUser,
   hardDeleteProfileRow,
 };
