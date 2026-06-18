@@ -11,6 +11,7 @@ import { SectionCard } from '@/components/superadmin/common/SectionCard'
 import { StatCard } from '@/components/superadmin/common/StatCard'
 import { DataTable } from '@/components/superadmin/common/DataTable'
 import { PaginationControls } from '@/components/superadmin/common/PaginationControls'
+import { PermissionGate } from '@/components/superadmin/common/PermissionGate'
 
 const PAGE_SIZE = 20
 
@@ -85,12 +86,14 @@ export default function SuperAdminRequirementsPage() {
             { key: 'status', header: 'Status', render: (row) => row.status || row.call_status || '-' },
             { key: 'created', header: 'Created', render: (row) => row.created_at ? new Date(row.created_at).toLocaleDateString() : '-' },
             { key: 'action', header: '', render: (row) => (
-              <Button asChild size="sm" variant="outline">
-                <Link href={`/superadmin/requirements/${row.requirement_type}:${row.id}`}>
-                  Manage
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
+              <PermissionGate permission="requirements:candidates" fallback={<span className="text-slate-400">No access</span>}>
+                <Button asChild size="sm" variant="outline">
+                  <Link href={`/superadmin/requirements/${row.requirement_type}:${row.id}`}>
+                    Manage
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+              </PermissionGate>
             ) },
           ]}
           emptyText="No requirements found."

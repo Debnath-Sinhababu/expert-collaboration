@@ -10,6 +10,7 @@ import { superAdminApi } from '@/lib/superadmin/api'
 import { SectionCard } from '@/components/superadmin/common/SectionCard'
 import { DataTable } from '@/components/superadmin/common/DataTable'
 import { PaginationControls } from '@/components/superadmin/common/PaginationControls'
+import { PermissionGate } from '@/components/superadmin/common/PermissionGate'
 
 type ProfileType = 'experts' | 'institutions' | 'students'
 const PAGE_SIZE = 20
@@ -60,12 +61,14 @@ export default function SuperAdminProfilesPage() {
         { key: 'email', header: 'Email', render: (row: any) => row.email },
         { key: 'rate', header: 'Rate', render: (row: any) => row.hourly_rate ? `₹${row.hourly_rate}/hr` : '-' },
         { key: 'workspace', header: 'Workspace', render: (row: any) => (
-          <Button asChild size="sm" className="bg-[#008260] hover:bg-[#006d51]">
-            <Link href={`/superadmin/experts/${row.id}/home`}>
-              Open workspace
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
+          <PermissionGate permission="profiles:write" fallback={<span className="text-slate-400">No access</span>}>
+            <Button asChild size="sm" className="bg-[#008260] hover:bg-[#006d51]">
+              <Link href={`/superadmin/experts/${row.id}/home`}>
+                Open workspace
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </PermissionGate>
         ) },
       ]
     : type === 'institutions'
@@ -75,12 +78,14 @@ export default function SuperAdminProfilesPage() {
           { key: 'type', header: 'Type', render: (row: any) => row.type || '-' },
           { key: 'city', header: 'Location', render: (row: any) => [row.city, row.state].filter(Boolean).join(', ') || '-' },
           { key: 'workspace', header: 'Workspace', render: (row: any) => (
-            <Button asChild size="sm" className="bg-[#008260] hover:bg-[#006d51]">
-              <Link href={`/superadmin/institutions/${row.id}/home`}>
-                Open workspace
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
+            <PermissionGate permission="profiles:write" fallback={<span className="text-slate-400">No access</span>}>
+              <Button asChild size="sm" className="bg-[#008260] hover:bg-[#006d51]">
+                <Link href={`/superadmin/institutions/${row.id}/home`}>
+                  Open workspace
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </PermissionGate>
           ) },
         ]
       : [

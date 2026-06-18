@@ -136,7 +136,7 @@ function LoginForm() {
           } catch (error) {
             router.push('/student/profile-setup')
           }
-        } else if (role === 'super_admin') {
+        } else if (role === 'super_admin' || role === 'superadmin') {
           router.push('/superadmin/home')
         }
          else {

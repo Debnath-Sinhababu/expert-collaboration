@@ -28,7 +28,8 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
         router.replace('/auth/login')
         return
       }
-      if (user.user_metadata?.role !== 'super_admin') {
+      const role = user.user_metadata?.role
+      if (role !== 'super_admin' && role !== 'superadmin') {
         router.replace('/')
         return
       }
