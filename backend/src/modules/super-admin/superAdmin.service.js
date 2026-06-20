@@ -2,8 +2,17 @@ const SuperAdminRepository = require('./superAdmin.repository');
 const { SUPER_ADMIN_PERMISSIONS, normalizePermissions } = require('./superAdmin.permissions');
 const { parseRequirementType } = require('./superAdmin.dto');
 const { createServiceClient } = require('../../config/supabase');
+const notificationService = require('../../../services/notificationService');
+const socketService = require('../../../services/socketService');
+const ImageUploadService = require('../../../services/imageUploadService');
 
 const DEFAULT_ADMIN_PASSWORD = process.env.SUPERADMIN_DEFAULT_USER_PASSWORD || 'ExpertCollaboration@123';
+
+function toArray(value) {
+  if (Array.isArray(value)) return value.map(String).map((item) => item.trim()).filter(Boolean);
+  if (typeof value === 'string') return value.split(',').map((item) => item.trim()).filter(Boolean);
+  return [];
+}
 
 function normalizeServiceError(error) {
   if (!error || error.statusCode) return error;
@@ -305,34 +314,116 @@ class SuperAdminService {
     return this.repository.listRequirements(params);
   }
 
-  async createRequirement(body, actorUserId) {
-    const requirementType = parseRequirementType(body.requirement_type || body.type);
-    if (requirementType !== 'project') {
-      const err = new Error('Creating internships and freelance projects from this endpoint is not enabled yet');
-      err.statusCode = 400;
+  async getRequirementDetail(type, id) {
+    const requirementType = parseRequirementType(type);
+    const detail = await this.repository.getRequirementDetail(requirementType, id);
+    if (!detail) {
+      const err = new Error('Requirement not found');
+      err.statusCode = 404;
       throw err;
     }
+    return detail;
+  }
+
+  async createRequirement(body, actorUserId, files = {}) {
+    const requirementType = parseRequirementType(body.requirement_type || body.type);
     if (!body.institution_id || !body.title) {
       const err = new Error('institution_id and title are required');
       err.statusCode = 400;
       throw err;
     }
 
+    const baseInstitutionId = body.institution_id;
+    const title = String(body.title).trim();
+    const description = body.description || body.responsibilities || '';
+
+    if (requirementType === 'internship') {
+      return this.repository.createInternshipRequirement({
+        corporate_institution_id: baseInstitutionId,
+        title,
+        responsibilities: description,
+        skills_required: toArray(body.skills_required || body.skills),
+        work_mode: body.work_mode || 'Remote',
+        engagement: body.engagement || 'Part-time',
+        openings: body.openings != null ? Number(body.openings) : 1,
+        start_timing: body.start_timing || 'immediately',
+        start_date: body.start_date || null,
+        duration_value: body.duration_value != null ? Number(body.duration_value) : 1,
+        duration_unit: body.duration_unit || 'months',
+        paid: body.paid === true || body.paid === 'true' || body.paid === 'Paid',
+        stipend_min: body.stipend_min != null ? Number(body.stipend_min) : null,
+        stipend_max: body.stipend_max != null ? Number(body.stipend_max) : null,
+        stipend_unit: body.stipend_unit || 'month',
+        incentives_min: body.incentives_min != null ? Number(body.incentives_min) : null,
+        incentives_max: body.incentives_max != null ? Number(body.incentives_max) : null,
+        incentives_unit: body.incentives_unit || 'month',
+        ppo: body.ppo === true || body.ppo === 'true',
+        perks: toArray(body.perks),
+        screening_questions: toArray(body.screening_questions),
+        alt_phone: body.alt_phone || null,
+        location: body.location || null,
+        status: body.status || 'open',
+        visibility_scope: body.visibility_scope || 'public',
+      });
+    }
+
+    if (requirementType === 'freelance') {
+      let draftData = null;
+      const draftFile = files?.draft?.[0];
+      if (draftFile) {
+        draftData = await ImageUploadService.uploadPDF(draftFile.buffer, 'freelance-drafts');
+        if (!draftData?.success) {
+          const err = new Error(`Draft upload failed: ${draftData?.error || 'Unknown error'}`);
+          err.statusCode = 500;
+          throw err;
+        }
+      }
+      return this.repository.createFreelanceRequirement({
+        corporate_institution_id: baseInstitutionId,
+        title,
+        description,
+        required_skills: toArray(body.required_skills || body.skills),
+        deadline: body.deadline || null,
+        budget_min: body.budget_min != null ? Number(body.budget_min) : null,
+        budget_max: body.budget_max != null ? Number(body.budget_max) : null,
+        draft_attachment_url: draftData?.url || null,
+        draft_attachment_public_id: draftData?.publicId || null,
+        status: body.status || 'open',
+      });
+    }
+
+    let requirementPdfData = null;
+    const requirementPdfFile = files?.requirement_pdf?.[0];
+    if (requirementPdfFile) {
+      requirementPdfData = await ImageUploadService.uploadPDF(requirementPdfFile.buffer, 'institution-contract-requirements');
+      if (!requirementPdfData?.success) {
+        const err = new Error(`Requirement PDF upload failed: ${requirementPdfData?.error || 'Unknown error'}`);
+        err.statusCode = 500;
+        throw err;
+      }
+    }
+
     return this.repository.createProjectRequirement({
-      institution_id: body.institution_id,
-      title: String(body.title).trim(),
-      description: body.description || '',
+      institution_id: baseInstitutionId,
+      title,
+      description,
       type: body.project_type || 'training',
       status: body.status || 'open',
       call_status: body.call_status || 'call_now',
-      required_expertise: Array.isArray(body.required_expertise) ? body.required_expertise : [],
+      required_expertise: toArray(body.required_expertise),
       domain_expertise: body.domain_expertise || null,
-      subskills: Array.isArray(body.subskills) ? body.subskills : [],
+      subskills: toArray(body.subskills),
+      job_location: body.job_location || body.location || null,
+      workplace_type: body.workplace_type || null,
+      employment_type: body.employment_type || null,
+      screening_questions: toArray(body.screening_questions),
       hourly_rate: body.hourly_rate != null ? Number(body.hourly_rate) : null,
       total_budget: body.total_budget != null ? Number(body.total_budget) : null,
       start_date: body.start_date || null,
       end_date: body.end_date || null,
       duration_hours: body.duration_hours != null ? Number(body.duration_hours) : null,
+      requirement_pdf_url: requirementPdfData?.url || null,
+      requirement_pdf_public_id: requirementPdfData?.publicId || null,
       created_by: actorUserId || null,
     });
   }
@@ -362,6 +453,99 @@ class SuperAdminService {
       notes: body.notes || null,
       updated_by: actorUserId || null,
     });
+  }
+
+  async runRequirementExpertAction(requirementId, candidateId, body, actorUserId) {
+    const action = String(body.action || '').trim();
+    const candidate = await this.repository.getRequirementExpert(candidateId);
+    if (!candidate || String(candidate.requirement_id) !== String(requirementId)) {
+      const err = new Error('Candidate not found');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const notes = body.notes || candidate.notes || null;
+    const interviewAt = body.interview_scheduled_at || candidate.interview_scheduled_at || null;
+    const stageByAction = {
+      notify: 'added',
+      schedule_interview: 'interview_scheduled',
+      select: 'selected',
+      complete: 'completed',
+      reject: 'rejected',
+    };
+    const nextStage = stageByAction[action];
+    if (!nextStage) {
+      const err = new Error('Invalid action');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    let application = null;
+    let booking = null;
+    let detail = null;
+    if (candidate.requirement_type === 'project') {
+      detail = await this.repository.getRequirementDetail('project', requirementId);
+      const project = detail?.requirement;
+      const institutionName = project?.institutions?.name || 'CalxMap institution';
+      const projectTitle = project?.title || 'Requirement';
+      if (action === 'notify') {
+        application = await this.repository.upsertProjectApplication(requirementId, candidate.expert_id, {
+          status: 'pending',
+        });
+        try {
+          await notificationService.sendExpertInterestShownNotification(candidate.experts?.email, projectTitle, institutionName, requirementId);
+          if (candidate.experts?.user_id) {
+            await socketService.sendExpertInterestShownNotification(candidate.experts.user_id, projectTitle, institutionName, requirementId);
+          }
+        } catch (notificationError) {
+          console.warn('Super-admin notify expert notification failed:', notificationError.message || notificationError);
+        }
+      }
+      if (action === 'schedule_interview') {
+        application = await this.repository.upsertProjectApplication(requirementId, candidate.expert_id, {
+          status: 'interview',
+          interview_date: interviewAt || null,
+        });
+        try {
+          await notificationService.sendMovedToInterviewNotification(candidate.experts?.email, projectTitle, requirementId);
+          if (candidate.experts?.user_id) {
+            await socketService.sendApplicationStatusNotification(candidate.experts.user_id, projectTitle, 'interview', requirementId);
+          }
+        } catch (notificationError) {
+          console.warn('Super-admin interview notification failed:', notificationError.message || notificationError);
+        }
+      }
+      if (action === 'select') {
+        application = await this.repository.upsertProjectApplication(requirementId, candidate.expert_id, {
+          status: 'accepted',
+        });
+        if (project) {
+          booking = await this.repository.createProjectBooking(project, candidate.expert_id);
+        }
+        try {
+          await notificationService.sendExpertSelectedWithBookingNotification(candidate.experts?.email, projectTitle, institutionName);
+          if (candidate.experts?.user_id) {
+            await socketService.sendExpertSelectedWithBookingNotification(candidate.experts.user_id, projectTitle, institutionName, requirementId);
+          }
+        } catch (notificationError) {
+          console.warn('Super-admin selected expert notification failed:', notificationError.message || notificationError);
+        }
+      }
+      if (action === 'reject') {
+        application = await this.repository.upsertProjectApplication(requirementId, candidate.expert_id, {
+          status: 'rejected',
+        });
+      }
+    }
+
+    const updated = await this.repository.updateRequirementExpert(candidateId, {
+      stage: nextStage,
+      interview_scheduled_at: action === 'schedule_interview' ? interviewAt : candidate.interview_scheduled_at,
+      notes,
+      updated_by: actorUserId || null,
+    });
+
+    return { candidate: updated, application, booking };
   }
 
   async listFreelance(params) {

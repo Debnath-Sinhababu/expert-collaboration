@@ -24,6 +24,20 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return json as T
 }
 
+async function requestForm<T>(path: string, formData: FormData): Promise<T> {
+  const { data: { session } } = await supabase.auth.getSession()
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${session?.access_token || ''}`,
+    },
+    body: formData,
+  })
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(json?.message || json?.error || 'Request failed')
+  return json as T
+}
+
 function query(params: Record<string, string | number | boolean | undefined | null>) {
   const q = new URLSearchParams()
   for (const [key, value] of Object.entries(params)) {
@@ -54,12 +68,18 @@ export const superAdminApi = {
     }),
   requirements: (params?: { page?: number; limit?: number; type?: string; status?: string; search?: string }) =>
     request<PaginatedResponse<any>>(`/api/superadmin/requirements?${query({ ...(params || {}), _t: Date.now() })}`),
-  createRequirement: (body: Record<string, unknown>) =>
-    request<any>('/api/superadmin/requirements', { method: 'POST', body: JSON.stringify(body) }),
+  requirementDetail: (type: string, id: string) =>
+    request<any>(`/api/superadmin/requirements/${encodeURIComponent(type)}/${encodeURIComponent(id)}?${query({ _t: Date.now() })}`),
+  createRequirement: (body: Record<string, unknown> | FormData) =>
+    body instanceof FormData
+      ? requestForm<any>('/api/superadmin/requirements', body)
+      : request<any>('/api/superadmin/requirements', { method: 'POST', body: JSON.stringify(body) }),
   addRequirementExpert: (id: string, body: Record<string, unknown>) =>
     request<any>(`/api/superadmin/requirements/${id}/experts`, { method: 'POST', body: JSON.stringify(body) }),
   updateRequirementExpert: (id: string, candidateId: string, body: Record<string, unknown>) =>
     request<any>(`/api/superadmin/requirements/${id}/experts/${candidateId}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  runRequirementExpertAction: (id: string, candidateId: string, body: Record<string, unknown>) =>
+    request<any>(`/api/superadmin/requirements/${id}/experts/${candidateId}/action`, { method: 'POST', body: JSON.stringify(body) }),
   freelance: (params?: { page?: number; limit?: number; search?: string }) =>
     request<PaginatedResponse<any>>(`/api/superadmin/freelance?${query({ ...(params || {}), _t: Date.now() })}`),
   internships: (params?: { page?: number; limit?: number; search?: string }) =>

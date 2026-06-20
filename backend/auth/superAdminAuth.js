@@ -345,6 +345,7 @@ module.exports = {
   loadSuperAdminAccess,
   requireSuperAdmin,
   requireSuperAdminPermission,
+  hasSuperAdminPermission: hasPermission,
   deleteLinkedAuthUser,
   hardDeleteProfileRow,
   isSuperAdminRole,

@@ -4,6 +4,10 @@ function tableMissing(error) {
   return error && (error.code === '42P01' || /relation .* does not exist/i.test(error.message || ''));
 }
 
+function relationMissing(error) {
+  return error && (/relationship|schema cache|foreign key/i.test(error.message || '') || error.code === 'PGRST200');
+}
+
 async function countRows(client, table, apply) {
   let query = client.from(table).select('id', { count: 'exact', head: true });
   if (apply) query = apply(query);
@@ -275,10 +279,184 @@ class SuperAdminRepository {
     return data;
   }
 
+  async createInternshipRequirement(payload) {
+    const { data, error } = await this.client.from('internships').insert([payload]).select().single();
+    if (error) throw error;
+    return data;
+  }
+
+  async createFreelanceRequirement(payload) {
+    const { data, error } = await this.client.from('freelance_projects').insert([payload]).select().single();
+    if (error) throw error;
+    return data;
+  }
+
+  async getRequirementDetail(type, id) {
+    const configs = {
+      project: {
+        table: 'projects',
+        select: '*, institutions:institution_id(id,name,email,phone,type,city,state,website_url)',
+        map: (row) => ({ ...row, requirement_type: 'project' }),
+      },
+      internship: {
+        table: 'internships',
+        select: '*, institutions:corporate_institution_id(id,name,email,phone,type,city,state,website_url)',
+        map: (row) => ({
+          ...row,
+          requirement_type: 'internship',
+          institution_id: row.corporate_institution_id,
+          description: row.responsibilities,
+        }),
+      },
+      freelance: {
+        table: 'freelance_projects',
+        select: '*, institutions:corporate_institution_id(id,name,email,phone,type,city,state,website_url)',
+        map: (row) => ({
+          ...row,
+          requirement_type: 'freelance',
+          institution_id: row.corporate_institution_id,
+        }),
+      },
+    };
+    const cfg = configs[type];
+    if (!cfg) return null;
+
+    const { data, error } = await this.client
+      .from(cfg.table)
+      .select(cfg.select)
+      .eq('id', id)
+      .maybeSingle();
+    if (error) {
+      if (tableMissing(error) || relationMissing(error)) return null;
+      throw error;
+    }
+    if (!data) return null;
+
+    const [pipeline, nativeApplications] = await Promise.all([
+      this.listRequirementExperts(type, id),
+      this.listNativeRequirementApplications(type, id),
+    ]);
+    return {
+      requirement: cfg.map(data),
+      pipeline,
+      nativeApplications,
+      counts: this.buildRequirementCounts(pipeline, nativeApplications),
+    };
+  }
+
+  buildRequirementCounts(pipeline, nativeApplications) {
+    const stages = ['added', 'interview_scheduled', 'selected', 'completed', 'rejected'];
+    const counts = Object.fromEntries(stages.map((stage) => [stage, 0]));
+    for (const item of pipeline || []) {
+      counts[item.stage] = (counts[item.stage] || 0) + 1;
+    }
+    return {
+      ...counts,
+      pipeline_total: (pipeline || []).length,
+      applications_total: (nativeApplications || []).length,
+    };
+  }
+
+  async listRequirementExperts(type, id) {
+    const { data, error } = await this.client
+      .from('super_admin_requirement_experts')
+      .select('*, experts:expert_id(id,name,email,phone,city,state,domain_expertise,hourly_rate)')
+      .eq('requirement_type', type)
+      .eq('requirement_id', id)
+      .order('updated_at', { ascending: false });
+    if (error) {
+      if (tableMissing(error) || relationMissing(error)) return [];
+      throw error;
+    }
+    const rows = data || [];
+    if (!rows.length) return rows;
+
+    const expertIds = [...new Set(rows.map((row) => row.expert_id).filter(Boolean))];
+    let bookingsQuery = this.client
+      .from('bookings')
+      .select('id,expert_id,project_id,status,hours_booked')
+      .in('expert_id', expertIds);
+    if (type === 'project') bookingsQuery = bookingsQuery.eq('project_id', id);
+    const { data: bookings, error: bookingsError } = await bookingsQuery;
+    if (bookingsError && !tableMissing(bookingsError)) throw bookingsError;
+
+    const bookingIds = (bookings || []).map((booking) => booking.id);
+    const { data: attendance, error: attendanceError } = bookingIds.length
+      ? await this.client
+          .from('training_attendance_days')
+          .select('booking_id,status,effective_entry_at,effective_exit_at,expert_entry_at,expert_exit_at')
+          .in('booking_id', bookingIds)
+      : { data: [], error: null };
+    if (attendanceError && !tableMissing(attendanceError)) throw attendanceError;
+
+    const approvedHoursByBooking = {};
+    for (const day of attendance || []) {
+      if (day.status !== 'approved') continue;
+      const entry = day.effective_entry_at || day.expert_entry_at;
+      const exit = day.effective_exit_at || day.expert_exit_at;
+      const minutes = entry && exit ? Math.max(0, new Date(exit) - new Date(entry)) / 60000 : 0;
+      approvedHoursByBooking[day.booking_id] = (approvedHoursByBooking[day.booking_id] || 0) + minutes / 60;
+    }
+
+    const statsByExpert = {};
+    for (const booking of bookings || []) {
+      const stat = statsByExpert[booking.expert_id] || { bookings: 0, completed_trainings: 0, approved_hours: 0 };
+      stat.bookings += 1;
+      if (booking.status === 'completed') stat.completed_trainings += 1;
+      stat.approved_hours += approvedHoursByBooking[booking.id] || 0;
+      statsByExpert[booking.expert_id] = stat;
+    }
+
+    return rows.map((row) => ({
+      ...row,
+      expert_stats: {
+        bookings: statsByExpert[row.expert_id]?.bookings || 0,
+        completed_trainings: statsByExpert[row.expert_id]?.completed_trainings || 0,
+        approved_hours: Math.round((statsByExpert[row.expert_id]?.approved_hours || 0) * 100) / 100,
+      },
+    }));
+  }
+
+  async listNativeRequirementApplications(type, id) {
+    const configs = {
+      project: {
+        table: 'applications',
+        key: 'project_id',
+        select: 'id,status,applied_at,interview_date,expert_id,experts:expert_id(id,name,email,phone,hourly_rate)',
+        order: 'applied_at',
+      },
+      internship: {
+        table: 'internship_applications',
+        key: 'internship_id',
+        select: 'id,status,created_at,updated_at,student_id,site_students:student_id(id,name,email,phone)',
+        order: 'created_at',
+      },
+      freelance: {
+        table: 'freelance_applications',
+        key: 'project_id',
+        select: 'id,status,created_at,updated_at,student_id,site_students:student_id(id,name,email,phone)',
+        order: 'created_at',
+      },
+    };
+    const cfg = configs[type];
+    if (!cfg) return [];
+    const { data, error } = await this.client
+      .from(cfg.table)
+      .select(cfg.select)
+      .eq(cfg.key, id)
+      .order(cfg.order, { ascending: false })
+      .limit(100);
+    if (error) {
+      if (tableMissing(error) || relationMissing(error)) return [];
+      throw error;
+    }
+    return data || [];
+  }
+
   async addRequirementExpert(payload) {
     const { data, error } = await this.client
       .from('super_admin_requirement_experts')
-      .insert([payload])
+      .upsert([payload], { onConflict: 'requirement_id,requirement_type,expert_id' })
       .select('*, experts:expert_id(id, name, email)')
       .single();
     if (error) throw error;
@@ -291,6 +469,80 @@ class SuperAdminRepository {
       .update({ ...payload, updated_at: new Date().toISOString() })
       .eq('id', id)
       .select('*, experts:expert_id(id, name, email)')
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  async getRequirementExpert(id) {
+    const { data, error } = await this.client
+      .from('super_admin_requirement_experts')
+      .select('*, experts:expert_id(id,name,email,user_id,hourly_rate)')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throw error;
+    return data || null;
+  }
+
+  async findProjectApplication(projectId, expertId) {
+    const { data, error } = await this.client
+      .from('applications')
+      .select('*')
+      .eq('project_id', projectId)
+      .eq('expert_id', expertId)
+      .limit(1);
+    if (error) {
+      if (tableMissing(error)) return null;
+      throw error;
+    }
+    return data?.[0] || null;
+  }
+
+  async upsertProjectApplication(projectId, expertId, payload) {
+    const existing = await this.findProjectApplication(projectId, expertId);
+    if (existing) {
+      const { data, error } = await this.client
+        .from('applications')
+        .update(payload)
+        .eq('id', existing.id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    }
+    const { data, error } = await this.client
+      .from('applications')
+      .insert([{ project_id: projectId, expert_id: expertId, ...payload }])
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  async createProjectBooking(project, expertId) {
+    const existing = await this.client
+      .from('bookings')
+      .select('*')
+      .eq('project_id', project.id)
+      .eq('expert_id', expertId)
+      .limit(1);
+    if (existing.error && !tableMissing(existing.error)) throw existing.error;
+    if (existing.data?.[0]) return existing.data[0];
+
+    const { data, error } = await this.client
+      .from('bookings')
+      .insert([{
+        expert_id: expertId,
+        project_id: project.id,
+        institution_id: project.institution_id,
+        amount: project.hourly_rate || 0,
+        start_date: project.start_date || new Date().toISOString().split('T')[0],
+        end_date: project.end_date || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        hours_booked: project.duration_hours || 0,
+        status: 'in_progress',
+        payment_status: 'pending',
+      }])
+      .select()
       .single();
     if (error) throw error;
     return data;

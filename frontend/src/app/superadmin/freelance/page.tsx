@@ -1,11 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { ArrowRight, Plus } from 'lucide-react'
 import { superAdminApi } from '@/lib/superadmin/api'
+import { Button } from '@/components/ui/button'
 import { StatCard } from '@/components/superadmin/common/StatCard'
 import { SectionCard } from '@/components/superadmin/common/SectionCard'
 import { DataTable } from '@/components/superadmin/common/DataTable'
 import { PaginationControls } from '@/components/superadmin/common/PaginationControls'
+import { PermissionGate } from '@/components/superadmin/common/PermissionGate'
 
 const PAGE_SIZE = 20
 
@@ -44,7 +48,20 @@ export default function SuperAdminFreelancePage() {
         <StatCard label="Open" value={rows.filter((r) => r.status === 'open').length} tone="blue" />
         <StatCard label="Ongoing" value={rows.filter((r) => r.status === 'ongoing').length} tone="amber" />
       </div>
-      <SectionCard title="Freelancing" description="Central view of freelance projects created by corporate institutions.">
+      <SectionCard
+        title="Freelancing"
+        description="Open each project to manage details, expert pipeline, interviews, selections, and completions."
+        action={
+          <PermissionGate permission="requirements:write">
+            <Button asChild className="bg-[#008260] hover:bg-[#006d51]">
+              <Link href="/superadmin/requirements">
+                <Plus className="mr-2 h-4 w-4" />
+                New freelance
+              </Link>
+            </Button>
+          </PermissionGate>
+        }
+      >
         {error ? <p className="mb-3 text-sm text-red-600">{error}</p> : null}
         <DataTable
           rows={rows}
@@ -54,6 +71,14 @@ export default function SuperAdminFreelancePage() {
             { key: 'budget', header: 'Budget', render: (row) => [row.budget_min, row.budget_max].filter(Boolean).join(' - ') || '-' },
             { key: 'status', header: 'Status', render: (row) => row.status || '-' },
             { key: 'deadline', header: 'Deadline', render: (row) => row.deadline ? new Date(row.deadline).toLocaleDateString() : '-' },
+            { key: 'action', header: '', render: (row) => (
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/superadmin/requirements/freelance:${row.id}`}>
+                  Manage
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            ) },
           ]}
           emptyText="No freelance projects found."
         />

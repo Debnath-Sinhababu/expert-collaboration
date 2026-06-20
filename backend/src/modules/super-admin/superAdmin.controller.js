@@ -58,8 +58,12 @@ class SuperAdminController {
     }));
   };
 
+  getRequirementDetail = async (req, res) => {
+    res.json(await this.service.getRequirementDetail(req.params.type, req.params.id));
+  };
+
   createRequirement = async (req, res) => {
-    const created = await this.service.createRequirement(req.body || {}, req.superAdmin.user.id);
+    const created = await this.service.createRequirement(req.body || {}, req.superAdmin.user.id, req.files || {});
     res.status(201).json(created);
   };
 
@@ -70,6 +74,15 @@ class SuperAdminController {
 
   updateRequirementExpert = async (req, res) => {
     res.json(await this.service.updateRequirementExpert(req.params.candidateId, req.body || {}, req.superAdmin.user.id));
+  };
+
+  runRequirementExpertAction = async (req, res) => {
+    res.json(await this.service.runRequirementExpertAction(
+      req.params.id,
+      req.params.candidateId,
+      req.body || {},
+      req.superAdmin.user.id,
+    ));
   };
 
   listFreelance = async (req, res) => {

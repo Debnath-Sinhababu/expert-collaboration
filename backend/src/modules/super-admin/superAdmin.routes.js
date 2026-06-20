@@ -1,4 +1,5 @@
 const express = require('express');
+const upload = require('../../../middleware/upload');
 const asyncHandler = require('../../shared/http/asyncHandler');
 const SuperAdminController = require('./superAdmin.controller');
 const { requireSuperAdmin } = require('./superAdmin.middleware');
@@ -22,16 +23,34 @@ function createSuperAdminRouter() {
   );
 
   router.get('/requirements', requireSuperAdmin('requirements:read'), asyncHandler(controller.listRequirements));
-  router.post('/requirements', requireSuperAdmin('requirements:write'), asyncHandler(controller.createRequirement));
+  router.post(
+    '/requirements',
+    requireSuperAdmin('requirements:write'),
+    upload.fields([
+      { name: 'requirement_pdf', maxCount: 1 },
+      { name: 'draft', maxCount: 1 },
+    ]),
+    asyncHandler(controller.createRequirement),
+  );
+  router.get(
+    '/requirements/:type/:id',
+    requireSuperAdmin(['requirements:read', 'freelance:read', 'internships:read']),
+    asyncHandler(controller.getRequirementDetail),
+  );
   router.post(
     '/requirements/:id/experts',
-    requireSuperAdmin('requirements:candidates'),
+    requireSuperAdmin(['requirements:candidates', 'freelance:write', 'internships:write']),
     asyncHandler(controller.addRequirementExpert),
   );
   router.patch(
     '/requirements/:id/experts/:candidateId',
-    requireSuperAdmin('requirements:candidates'),
+    requireSuperAdmin(['requirements:candidates', 'freelance:write', 'internships:write']),
     asyncHandler(controller.updateRequirementExpert),
+  );
+  router.post(
+    '/requirements/:id/experts/:candidateId/action',
+    requireSuperAdmin(['requirements:candidates', 'freelance:write', 'internships:write']),
+    asyncHandler(controller.runRequirementExpertAction),
   );
 
   router.get('/freelance', requireSuperAdmin('freelance:read'), asyncHandler(controller.listFreelance));
