@@ -55,6 +55,7 @@ class SuperAdminController {
       type: req.query.type || 'all',
       status: req.query.status || 'all',
       search: req.query.search || '',
+      institution_id: req.query.institution_id || '',
     }));
   };
 
@@ -80,6 +81,26 @@ class SuperAdminController {
     res.json(await this.service.runRequirementExpertAction(
       req.params.id,
       req.params.candidateId,
+      req.body || {},
+      req.superAdmin.user.id,
+    ));
+  };
+
+  updateNativeRequirementApplication = async (req, res) => {
+    res.json(await this.service.updateNativeRequirementApplication(
+      req.params.type,
+      req.params.id,
+      req.params.applicationId,
+      req.body || {},
+      req.superAdmin.user.id,
+    ));
+  };
+
+  updateRequirementBooking = async (req, res) => {
+    res.json(await this.service.updateRequirementBooking(
+      req.params.type,
+      req.params.id,
+      req.params.bookingId,
       req.body || {},
       req.superAdmin.user.id,
     ));

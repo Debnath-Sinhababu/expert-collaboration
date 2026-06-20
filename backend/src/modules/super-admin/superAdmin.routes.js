@@ -52,6 +52,16 @@ function createSuperAdminRouter() {
     requireSuperAdmin(['requirements:candidates', 'freelance:write', 'internships:write']),
     asyncHandler(controller.runRequirementExpertAction),
   );
+  router.patch(
+    '/requirements/:type/:id/applications/:applicationId',
+    requireSuperAdmin(['requirements:candidates', 'requirements:write', 'freelance:write', 'internships:write']),
+    asyncHandler(controller.updateNativeRequirementApplication),
+  );
+  router.patch(
+    '/requirements/:type/:id/bookings/:bookingId',
+    requireSuperAdmin(['requirements:candidates', 'requirements:write']),
+    asyncHandler(controller.updateRequirementBooking),
+  );
 
   router.get('/freelance', requireSuperAdmin('freelance:read'), asyncHandler(controller.listFreelance));
   router.get('/internships', requireSuperAdmin('internships:read'), asyncHandler(controller.listInternships));

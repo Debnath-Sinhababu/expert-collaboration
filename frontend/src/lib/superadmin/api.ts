@@ -66,7 +66,7 @@ export const superAdminApi = {
       method: 'PATCH',
       body: JSON.stringify({ calxbook_verified }),
     }),
-  requirements: (params?: { page?: number; limit?: number; type?: string; status?: string; search?: string }) =>
+  requirements: (params?: { page?: number; limit?: number; type?: string; status?: string; search?: string; institution_id?: string }) =>
     request<PaginatedResponse<any>>(`/api/superadmin/requirements?${query({ ...(params || {}), _t: Date.now() })}`),
   requirementDetail: (type: string, id: string) =>
     request<any>(`/api/superadmin/requirements/${encodeURIComponent(type)}/${encodeURIComponent(id)}?${query({ _t: Date.now() })}`),
@@ -80,6 +80,16 @@ export const superAdminApi = {
     request<any>(`/api/superadmin/requirements/${id}/experts/${candidateId}`, { method: 'PATCH', body: JSON.stringify(body) }),
   runRequirementExpertAction: (id: string, candidateId: string, body: Record<string, unknown>) =>
     request<any>(`/api/superadmin/requirements/${id}/experts/${candidateId}/action`, { method: 'POST', body: JSON.stringify(body) }),
+  updateNativeRequirementApplication: (type: string, id: string, applicationId: string, body: Record<string, unknown>) =>
+    request<any>(`/api/superadmin/requirements/${encodeURIComponent(type)}/${encodeURIComponent(id)}/applications/${encodeURIComponent(applicationId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+  updateRequirementBooking: (type: string, id: string, bookingId: string, body: Record<string, unknown>) =>
+    request<any>(`/api/superadmin/requirements/${encodeURIComponent(type)}/${encodeURIComponent(id)}/bookings/${encodeURIComponent(bookingId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
   freelance: (params?: { page?: number; limit?: number; search?: string }) =>
     request<PaginatedResponse<any>>(`/api/superadmin/freelance?${query({ ...(params || {}), _t: Date.now() })}`),
   internships: (params?: { page?: number; limit?: number; search?: string }) =>

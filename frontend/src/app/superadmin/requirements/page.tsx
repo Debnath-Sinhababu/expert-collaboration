@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, Plus } from 'lucide-react'
+import { ArrowRight, Plus, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -29,6 +29,7 @@ const PAGE_SIZE = 20
 
 export default function SuperAdminRequirementsPage() {
   const [type, setType] = useState('all')
+  const [status, setStatus] = useState('all')
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
@@ -38,6 +39,9 @@ export default function SuperAdminRequirementsPage() {
   const [error, setError] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
   const [createOpen, setCreateOpen] = useState(false)
+  const [filterInstitutionSearch, setFilterInstitutionSearch] = useState('')
+  const [filterInstitutionOptions, setFilterInstitutionOptions] = useState<any[]>([])
+  const [selectedInstitution, setSelectedInstitution] = useState<any | null>(null)
   const [institutionSearch, setInstitutionSearch] = useState('')
   const [institutions, setInstitutions] = useState<any[]>([])
   const [creating, setCreating] = useState(false)
@@ -91,7 +95,20 @@ export default function SuperAdminRequirementsPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [type, search])
+  }, [type, status, debouncedSearch, selectedInstitution?.id])
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (!filterInstitutionSearch.trim() || selectedInstitution) {
+        setFilterInstitutionOptions([])
+        return
+      }
+      superAdminApi.profiles({ type: 'institutions', search: filterInstitutionSearch, page: 1, limit: 10 })
+        .then((res) => setFilterInstitutionOptions(res.data || []))
+        .catch(() => setFilterInstitutionOptions([]))
+    }, 250)
+    return () => clearTimeout(t)
+  }, [filterInstitutionSearch, selectedInstitution])
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -164,7 +181,14 @@ export default function SuperAdminRequirementsPage() {
   useEffect(() => {
     setLoading(true)
     setError('')
-    superAdminApi.requirements({ type, search: debouncedSearch, page, limit: PAGE_SIZE })
+    superAdminApi.requirements({
+      type,
+      status,
+      search: debouncedSearch,
+      institution_id: selectedInstitution?.id || '',
+      page,
+      limit: PAGE_SIZE,
+    })
       .then((res) => {
         const nextRows = res.data || []
         if (nextRows.length === 0 && page > 1 && (res.total || 0) > 0) {
@@ -180,7 +204,7 @@ export default function SuperAdminRequirementsPage() {
         setError(err instanceof Error ? err.message : 'Failed to load requirements')
       })
       .finally(() => setLoading(false))
-  }, [type, debouncedSearch, page, refreshKey])
+  }, [type, status, debouncedSearch, selectedInstitution?.id, page, refreshKey])
 
   return (
     <div className="space-y-6">
@@ -202,7 +226,7 @@ export default function SuperAdminRequirementsPage() {
           </PermissionGate>
         }
       >
-        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="mb-4 flex flex-col gap-3">
           <Tabs value={type} onValueChange={setType}>
             <TabsList>
               <TabsTrigger value="all">All</TabsTrigger>
@@ -211,7 +235,62 @@ export default function SuperAdminRequirementsPage() {
               <TabsTrigger value="freelance">Freelance</TabsTrigger>
             </TabsList>
           </Tabs>
-          <Input className="md:max-w-xs" placeholder="Search requirements" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <div className="grid gap-3 lg:grid-cols-[1fr_220px_320px]">
+            <Input placeholder="Search title, description, or responsibilities" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="call_now">Call now</SelectItem>
+                <SelectItem value="scheduled">Scheduled</SelectItem>
+                <SelectItem value="open">Open</SelectItem>
+                <SelectItem value="closed">Closed</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="relative">
+              <Input
+                placeholder="Filter by institution"
+                value={selectedInstitution ? `${selectedInstitution.name} (${selectedInstitution.email})` : filterInstitutionSearch}
+                onChange={(e) => {
+                  setSelectedInstitution(null)
+                  setFilterInstitutionSearch(e.target.value)
+                }}
+              />
+              {selectedInstitution ? (
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="absolute right-1 top-1 h-8 w-8"
+                  onClick={() => {
+                    setSelectedInstitution(null)
+                    setFilterInstitutionSearch('')
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              ) : null}
+              {filterInstitutionOptions.length > 0 ? (
+                <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                  {filterInstitutionOptions.map((institution) => (
+                    <button
+                      type="button"
+                      key={institution.id}
+                      className="block w-full border-b border-slate-100 px-3 py-2 text-left text-sm hover:bg-slate-50"
+                      onClick={() => {
+                        setSelectedInstitution(institution)
+                        setFilterInstitutionSearch('')
+                        setFilterInstitutionOptions([])
+                      }}
+                    >
+                      <span className="font-medium text-slate-950">{institution.name}</span>
+                      <span className="ml-2 text-slate-500">{institution.email}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </div>
         </div>
         {loading ? <p className="mb-3 text-sm text-slate-600">Loading requirements...</p> : null}
         {error ? <p className="mb-3 text-sm text-red-600">{error}</p> : null}

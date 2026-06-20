@@ -62,11 +62,9 @@ export function requiredPermissionForSuperAdminPath(pathname: string | null): Su
   if (pathname.startsWith('/superadmin/bulk-import')) return 'bulk_import:write'
   if (pathname.startsWith('/superadmin/calxbook-verification')) return 'calxbook_verification:write'
   if (pathname.startsWith('/superadmin/experts/interested')) return 'calxbook_verification:write'
-  if (pathname.startsWith('/superadmin/requirements/freelance:')) return 'freelance:read'
-  if (pathname.startsWith('/superadmin/requirements/internship:')) return 'internships:read'
   if (pathname.startsWith('/superadmin/requirements')) return 'requirements:read'
-  if (pathname.startsWith('/superadmin/freelance')) return 'freelance:read'
-  if (pathname.startsWith('/superadmin/internships')) return 'internships:read'
+  if (pathname.startsWith('/superadmin/freelance')) return 'requirements:read'
+  if (pathname.startsWith('/superadmin/internships')) return 'requirements:read'
   if (pathname.startsWith('/superadmin/finance')) return 'finance:read'
   if (pathname.startsWith('/superadmin/overview')) return 'overview:read'
   return null

@@ -11,28 +11,47 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { SectionCard } from '@/components/superadmin/common/SectionCard'
-import { DataTable } from '@/components/superadmin/common/DataTable'
 import { StatCard } from '@/components/superadmin/common/StatCard'
+import { TrainingAttendancePanel } from '@/components/training/TrainingAttendancePanel'
 import { useSuperAdminAccess } from '@/components/superadmin/layout/SuperAdminAccessContext'
 import { superAdminApi } from '@/lib/superadmin/api'
 import { canAccessAny } from '@/lib/superadmin/permissions'
 import type { SuperAdminPermission } from '@/lib/superadmin/types'
 
 const STAGES = [
-  { value: 'added', label: 'Added' },
-  { value: 'interview_scheduled', label: 'Interview' },
-  { value: 'selected', label: 'Selected' },
-  { value: 'completed', label: 'Completed' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'interview', label: 'Interview' },
   { value: 'rejected', label: 'Rejected' },
+  { value: 'selected', label: 'Selected' },
+]
+
+const ADD_STAGES = [
+  { value: 'added', label: 'Add as pending and notify' },
+  { value: 'interview_scheduled', label: 'Schedule interview' },
 ]
 
 function stageLabel(value: string) {
+  if (value === 'added') return 'Pending'
+  if (value === 'interview_scheduled') return 'Interview'
+  if (value === 'completed') return 'Completed'
   return STAGES.find((stage) => stage.value === value)?.label || value
 }
 
 function formatDate(value?: string | null) {
   return value ? new Date(value).toLocaleString() : '-'
+}
+
+function toDatetimeLocal(value?: string | null) {
+  if (!value) return ''
+  return value.slice(0, 16)
 }
 
 export default function SuperAdminRequirementDetailPage() {
@@ -49,6 +68,12 @@ export default function SuperAdminRequirementDetailPage() {
   const [interviewAt, setInterviewAt] = useState('')
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
+  const [workflowSaving, setWorkflowSaving] = useState(false)
+  const [interviewDialog, setInterviewDialog] = useState<null | {
+    kind: 'pipeline' | 'native'
+    row: any
+    value: string
+  }>(null)
 
   const decoded = decodeURIComponent(params.id)
   const { requirementType, requirementId } = useMemo(() => {
@@ -95,18 +120,22 @@ export default function SuperAdminRequirementDetailPage() {
     }
     setSaving(true)
     try {
-      await superAdminApi.addRequirementExpert(requirementId, {
+      const created = await superAdminApi.addRequirementExpert(requirementId, {
         expert_id: expertId,
         requirement_type: requirementType,
         stage,
         interview_scheduled_at: interviewAt || null,
         notes,
       })
+      if (!created?.id) {
+        throw new Error('Expert was not added. The backend did not return a pipeline id.')
+      }
       setExpertId('')
+      setExpertSearch('')
       setStage('added')
       setInterviewAt('')
       setNotes('')
-      toast.success('Expert added')
+      toast.success(stage === 'interview_scheduled' ? 'Expert moved to interview' : 'Expert notified')
       await loadDetail()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to add expert')
@@ -115,27 +144,8 @@ export default function SuperAdminRequirementDetailPage() {
     }
   }
 
-  async function updateCandidate(row: any, nextStage: string) {
-    try {
-      await superAdminApi.updateRequirementExpert(requirementId, row.id, {
-        stage: nextStage,
-        interview_scheduled_at: row.interview_scheduled_at || null,
-        notes: row.notes || null,
-      })
-      toast.success('Pipeline updated')
-      await loadDetail()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to update expert')
-    }
-  }
-
-  async function runCandidateAction(row: any, action: string) {
-    let interviewValue = row.interview_scheduled_at || null
-    if (action === 'schedule_interview') {
-      const typed = window.prompt('Interview date/time (YYYY-MM-DDTHH:mm)', interviewValue ? interviewValue.slice(0, 16) : '')
-      if (typed === null) return
-      interviewValue = typed || null
-    }
+  async function runCandidateAction(row: any, action: string, interviewValue = row.interview_scheduled_at || null) {
+    setWorkflowSaving(true)
     try {
       await superAdminApi.runRequirementExpertAction(requirementId, row.id, {
         action,
@@ -146,13 +156,93 @@ export default function SuperAdminRequirementDetailPage() {
       await loadDetail()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update workflow')
+    } finally {
+      setWorkflowSaving(false)
     }
   }
 
+  async function updateNativeApplication(row: any, status: string, interviewValue?: string | null) {
+    setWorkflowSaving(true)
+    try {
+      await superAdminApi.updateNativeRequirementApplication(requirementType, requirementId, row.id, {
+        status,
+        interview_scheduled_at: interviewValue || null,
+      })
+      toast.success('Application updated')
+      await loadDetail()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update application')
+    } finally {
+      setWorkflowSaving(false)
+    }
+  }
+
+  async function updateBooking(row: any, status: string) {
+    setWorkflowSaving(true)
+    try {
+      await superAdminApi.updateRequirementBooking(requirementType, requirementId, row.id, { status })
+      toast.success('Booking updated')
+      await loadDetail()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update booking')
+    } finally {
+      setWorkflowSaving(false)
+    }
+  }
+
+  async function confirmInterview() {
+    if (!interviewDialog) return
+    const current = interviewDialog
+    setInterviewDialog(null)
+    if (current.kind === 'pipeline') {
+      await runCandidateAction(current.row, 'schedule_interview', current.value || null)
+      return
+    }
+    await updateNativeApplication(current.row, 'interview', current.value || null)
+  }
+
+  function nativeActions(row: any) {
+    if (!canManagePipeline) return null
+    if (requirementType === 'project') {
+      return (
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => setInterviewDialog({ kind: 'native', row, value: toDatetimeLocal(row.interview_date) })}>Interview</Button>
+          <Button type="button" size="sm" className="bg-[#008260] hover:bg-[#006d51]" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'accepted')}>Select</Button>
+          <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'pending')}>Pending</Button>
+          <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'rejected')}>Reject</Button>
+        </div>
+      )
+    }
+    if (requirementType === 'internship') {
+      return (
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => setInterviewDialog({ kind: 'native', row, value: toDatetimeLocal(row.interview_scheduled_at) })}>Interview</Button>
+          <Button type="button" size="sm" className="bg-[#008260] hover:bg-[#006d51]" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'shortlisted_corporate')}>Shortlist</Button>
+          <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'pending')}>Pending</Button>
+          <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'rejected_corporate')}>Reject</Button>
+        </div>
+      )
+    }
+    return (
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" size="sm" className="bg-[#008260] hover:bg-[#006d51]" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'shortlisted')}>Shortlist</Button>
+        <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'pending')}>Pending</Button>
+        <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'rejected')}>Reject</Button>
+      </div>
+    )
+  }
+
+  function detailValue(label: string, value: any) {
+    if (value === undefined || value === null || value === '') return null
+    return <div><span className="font-medium text-slate-950">{label}:</span> {String(value)}</div>
+  }
+
   const requirement = detail?.requirement
-  const pipeline = detail?.pipeline || []
-  const stageRows = pipeline.filter((row: any) => row.stage === activeStage)
+  const institution = detail?.institution || requirement?.institutions
+  const pipeline = detail?.pipelineExperts || detail?.pipeline || []
   const nativeApplications = detail?.nativeApplications || []
+  const bookings = detail?.bookings || []
+  const attendanceSummary = detail?.attendanceSummary || {}
   const counts = detail?.counts || {}
   const managePermissions: SuperAdminPermission[] = requirementType === 'freelance'
     ? ['requirements:candidates', 'freelance:write']
@@ -160,6 +250,135 @@ export default function SuperAdminRequirementDetailPage() {
       ? ['requirements:candidates', 'internships:write']
       : ['requirements:candidates']
   const canManagePipeline = canAccessAny(me, managePermissions)
+  const bookingExpertIds = new Set(bookings.map((booking: any) => String(booking.expert_id || '')))
+  const nativeExpertIds = new Set(nativeApplications.map((application: any) => String(application.expert_id || application.student_id || '')))
+  const pendingRows = [
+    ...nativeApplications.filter((row: any) => row.status === 'pending').map((row: any) => ({ kind: 'application', row })),
+    ...pipeline
+      .filter((row: any) => row.stage === 'added' && !nativeExpertIds.has(String(row.expert_id || '')))
+      .map((row: any) => ({ kind: 'pipeline', row })),
+  ]
+  const interviewRows = [
+    ...nativeApplications.filter((row: any) => row.status === 'interview').map((row: any) => ({ kind: 'application', row })),
+    ...pipeline
+      .filter((row: any) => row.stage === 'interview_scheduled' && !nativeExpertIds.has(String(row.expert_id || '')))
+      .map((row: any) => ({ kind: 'pipeline', row })),
+  ]
+  const rejectedRows = [
+    ...nativeApplications
+      .filter((row: any) => ['rejected', 'rejected_corporate'].includes(row.status))
+      .map((row: any) => ({ kind: 'application', row })),
+    ...pipeline
+      .filter((row: any) => row.stage === 'rejected' && !nativeExpertIds.has(String(row.expert_id || '')))
+      .map((row: any) => ({ kind: 'pipeline', row })),
+  ]
+  const selectedRows = [
+    ...bookings.map((row: any) => ({ kind: 'booking', row })),
+    ...nativeApplications
+      .filter((row: any) => ['accepted', 'shortlisted', 'shortlisted_corporate'].includes(row.status) && !bookingExpertIds.has(String(row.expert_id || '')))
+      .map((row: any) => ({ kind: 'application', row })),
+    ...pipeline
+      .filter((row: any) => ['selected', 'completed'].includes(row.stage) && !nativeExpertIds.has(String(row.expert_id || '')))
+      .map((row: any) => ({ kind: 'pipeline', row })),
+  ]
+  const rowsByStage: Record<string, any[]> = {
+    pending: pendingRows,
+    interview: interviewRows,
+    rejected: rejectedRows,
+    selected: selectedRows,
+  }
+  const activeRows = rowsByStage[activeStage] || []
+
+  function getItemPerson(item: any) {
+    if (item.kind === 'booking') return item.row.experts
+    if (item.kind === 'pipeline') return item.row.experts
+    return item.row.experts || item.row.site_students
+  }
+
+  function getItemStatus(item: any) {
+    if (item.kind === 'booking') return item.row.status || 'selected'
+    if (item.kind === 'pipeline') return stageLabel(item.row.stage)
+    return item.row.status || '-'
+  }
+
+  function renderStatusActions(item: any) {
+    if (!canManagePipeline) return null
+    if (item.kind === 'booking') {
+      return (
+        <div className="flex flex-wrap gap-2">
+          {item.row.status !== 'completed' ? (
+            <Button type="button" size="sm" className="bg-[#008260] hover:bg-[#006d51]" disabled={workflowSaving} onClick={() => updateBooking(item.row, 'completed')}>Mark completed</Button>
+          ) : null}
+          {item.row.status !== 'cancelled' ? (
+            <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" disabled={workflowSaving} onClick={() => updateBooking(item.row, 'cancelled')}>Cancel</Button>
+          ) : null}
+        </div>
+      )
+    }
+    if (item.kind === 'pipeline') {
+      return (
+        <div className="flex flex-wrap gap-2">
+          {item.row.stage === 'added' ? (
+            <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => runCandidateAction(item.row, 'notify')}>Notify</Button>
+          ) : null}
+          {item.row.stage !== 'interview_scheduled' ? (
+            <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => setInterviewDialog({ kind: 'pipeline', row: item.row, value: toDatetimeLocal(item.row.interview_scheduled_at) })}>Interview</Button>
+          ) : null}
+          <Button type="button" size="sm" className="bg-[#008260] hover:bg-[#006d51]" disabled={workflowSaving} onClick={() => runCandidateAction(item.row, 'select')}>Select</Button>
+          <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" disabled={workflowSaving} onClick={() => runCandidateAction(item.row, 'reject')}>Reject</Button>
+        </div>
+      )
+    }
+    return nativeActions(item.row)
+  }
+
+  function renderStatusCard(item: any) {
+    const person = getItemPerson(item)
+    const booking = item.kind === 'booking' ? item.row : null
+    const title = person?.name || item.row.expert_id || item.row.student_id || 'Unknown'
+    return (
+      <div key={`${item.kind}-${item.row.id}`} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="truncate text-base font-semibold text-slate-950">{title}</h3>
+              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium capitalize text-slate-700">{getItemStatus(item)}</span>
+              {item.kind === 'booking' ? <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-[#008260]">Booking</span> : null}
+            </div>
+            <p className="mt-1 text-sm text-slate-600">{person?.email || person?.phone || '-'}</p>
+            {person?.bio ? <p className="mt-3 line-clamp-2 text-sm text-slate-700">{person.bio}</p> : null}
+            <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+              <div><span className="text-slate-500">Rate</span><p className="font-medium text-slate-950">{person?.hourly_rate ? `Rs. ${person.hourly_rate}/hr` : '-'}</p></div>
+              <div><span className="text-slate-500">Experience</span><p className="font-medium text-slate-950">{person?.experience_years != null ? `${person.experience_years} years` : '-'}</p></div>
+              <div><span className="text-slate-500">Domain</span><p className="font-medium text-slate-950">{Array.isArray(person?.domain_expertise) ? person.domain_expertise.join(', ') : person?.domain_expertise || '-'}</p></div>
+              <div><span className="text-slate-500">Interview</span><p className="font-medium text-slate-950">{formatDate(item.row.interview_date || item.row.interview_scheduled_at)}</p></div>
+              {booking ? <div><span className="text-slate-500">Booked Hours</span><p className="font-medium text-slate-950">{booking.hours_booked || 0}</p></div> : null}
+              {booking ? <div><span className="text-slate-500">Approved Hours</span><p className="font-medium text-slate-950">{booking.approved_hours || 0}</p></div> : null}
+              {booking ? <div><span className="text-slate-500">Payment</span><p className="font-medium text-slate-950">{booking.payment_status || '-'}</p></div> : null}
+              {booking ? <div><span className="text-slate-500">Dates</span><p className="font-medium text-slate-950">{booking.start_date || '-'} to {booking.end_date || '-'}</p></div> : null}
+            </div>
+            {person?.subskills?.length ? <p className="mt-3 text-sm text-slate-600"><span className="font-medium text-slate-800">Skills:</span> {person.subskills.join(', ')}</p> : null}
+          </div>
+          <div className="flex shrink-0 flex-col gap-2 lg:min-w-56">
+            {renderStatusActions(item)}
+          </div>
+        </div>
+        {booking && requirementType === 'project' ? (
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            <TrainingAttendancePanel
+              bookingId={booking.id}
+              startDate={booking.start_date}
+              endDate={booking.end_date}
+              hoursBooked={booking.hours_booked}
+              bookingStatus={booking.status}
+              expectedViewerRole="institution"
+              defaultExpanded={booking.status === 'in_progress'}
+            />
+          </div>
+        ) : null}
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -181,26 +400,39 @@ export default function SuperAdminRequirementDetailPage() {
 
       {!loading && !error && requirement ? (
         <>
-          <div className="grid gap-4 md:grid-cols-5">
-            <StatCard label="Added" value={counts.added || 0} />
-            <StatCard label="Interview" value={counts.interview_scheduled || 0} tone="blue" />
-            <StatCard label="Selected" value={counts.selected || 0} tone="green" />
-            <StatCard label="Completed" value={counts.completed || 0} tone="violet" />
+          <div className="grid gap-4 md:grid-cols-4 xl:grid-cols-7">
+            <StatCard label="Pending" value={pendingRows.length} />
+            <StatCard label="Interview" value={interviewRows.length} tone="blue" />
+            <StatCard label="Selected" value={selectedRows.length} tone="green" />
+            <StatCard label="Rejected" value={rejectedRows.length} tone="amber" />
             <StatCard label="Applications" value={counts.applications_total || 0} tone="amber" />
+            <StatCard label="Bookings" value={counts.bookings_total || 0} tone="blue" />
+            <StatCard label="Approved Hours" value={counts.approved_hours || 0} tone="green" />
           </div>
 
           <SectionCard title={requirement.title || 'Requirement'} description={`${requirement.requirement_type} requirement`}>
             <div className="grid gap-4 text-sm md:grid-cols-3">
-              <div><span className="font-medium text-slate-950">Institution:</span> {requirement.institutions?.name || '-'}</div>
-              <div><span className="font-medium text-slate-950">Status:</span> {requirement.status || requirement.call_status || '-'}</div>
-              <div><span className="font-medium text-slate-950">Created:</span> {formatDate(requirement.created_at)}</div>
-              {requirement.hourly_rate ? <div><span className="font-medium text-slate-950">Hourly:</span> Rs. {requirement.hourly_rate}</div> : null}
-              {requirement.total_budget ? <div><span className="font-medium text-slate-950">Budget:</span> Rs. {requirement.total_budget}</div> : null}
-              {requirement.budget_min || requirement.budget_max ? <div><span className="font-medium text-slate-950">Budget:</span> {[requirement.budget_min, requirement.budget_max].filter(Boolean).join(' - ')}</div> : null}
-              {requirement.stipend_min || requirement.stipend_max ? <div><span className="font-medium text-slate-950">Stipend:</span> {[requirement.stipend_min, requirement.stipend_max].filter(Boolean).join(' - ')}</div> : null}
-              {requirement.deadline ? <div><span className="font-medium text-slate-950">Deadline:</span> {new Date(requirement.deadline).toLocaleDateString()}</div> : null}
-              {requirement.work_mode ? <div><span className="font-medium text-slate-950">Mode:</span> {requirement.work_mode}</div> : null}
-              {requirement.location ? <div><span className="font-medium text-slate-950">Location:</span> {requirement.location}</div> : null}
+              {detailValue('Institution', institution?.name || '-')}
+              {detailValue('Institution Email', institution?.email)}
+              {detailValue('Status', requirement.status || requirement.call_status || '-')}
+              {detailValue('Created', formatDate(requirement.created_at))}
+              {detailValue('Project Type', requirement.type)}
+              {detailValue('Domain', requirement.domain_expertise)}
+              {detailValue('Required Expertise', Array.isArray(requirement.required_expertise) ? requirement.required_expertise.join(', ') : requirement.required_expertise)}
+              {detailValue('Skills', Array.isArray(requirement.skills_required || requirement.required_skills) ? (requirement.skills_required || requirement.required_skills).join(', ') : requirement.skills_required || requirement.required_skills)}
+              {detailValue('Subskills', Array.isArray(requirement.subskills) ? requirement.subskills.join(', ') : requirement.subskills)}
+              {requirement.hourly_rate ? detailValue('Hourly', `Rs. ${requirement.hourly_rate}`) : null}
+              {requirement.total_budget ? detailValue('Budget', `Rs. ${requirement.total_budget}`) : null}
+              {requirement.budget_min || requirement.budget_max ? detailValue('Budget', [requirement.budget_min, requirement.budget_max].filter(Boolean).join(' - ')) : null}
+              {requirement.stipend_min || requirement.stipend_max ? detailValue('Stipend', [requirement.stipend_min, requirement.stipend_max].filter(Boolean).join(' - ')) : null}
+              {requirement.start_date ? detailValue('Start Date', new Date(requirement.start_date).toLocaleDateString()) : null}
+              {requirement.end_date ? detailValue('End Date', new Date(requirement.end_date).toLocaleDateString()) : null}
+              {requirement.deadline ? detailValue('Deadline', new Date(requirement.deadline).toLocaleDateString()) : null}
+              {detailValue('Duration Hours', requirement.duration_hours)}
+              {detailValue('Work Mode', requirement.work_mode || requirement.workplace_type)}
+              {detailValue('Engagement', requirement.engagement || requirement.employment_type)}
+              {detailValue('Openings', requirement.openings)}
+              {detailValue('Location', requirement.location || requirement.job_location)}
             </div>
             {requirement.description || requirement.responsibilities ? (
               <p className="mt-4 whitespace-pre-wrap rounded-lg bg-slate-50 p-4 text-sm text-slate-700">
@@ -210,99 +442,119 @@ export default function SuperAdminRequirementDetailPage() {
           </SectionCard>
 
           {canManagePipeline ? (
-            <SectionCard title="Add Expert" description="Assign an expert directly to this requirement pipeline.">
+            <SectionCard title="Add Expert" description="Add an expert into the same pending or interview flow used by the institute dashboard.">
               <form onSubmit={addExpert} className="grid gap-4 lg:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="expertSearch">Search expert</Label>
-                  <Input id="expertSearch" value={expertSearch} onChange={(e) => setExpertSearch(e.target.value)} placeholder="Search by name or email" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Expert</Label>
-                  <Select value={expertId} onValueChange={setExpertId}>
-                    <SelectTrigger><SelectValue placeholder="Select expert" /></SelectTrigger>
-                    <SelectContent>
+                <div className="relative space-y-2 lg:col-span-2">
+                  <Label htmlFor="expertSearch">Expert</Label>
+                  <Input
+                    id="expertSearch"
+                    value={expertSearch}
+                    onChange={(e) => {
+                      setExpertSearch(e.target.value)
+                      setExpertId('')
+                    }}
+                    placeholder="Search and select expert by name or email"
+                  />
+                  {experts.length > 0 && !expertId ? (
+                    <div className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
                       {experts.map((expert) => (
-                        <SelectItem key={expert.id} value={expert.id}>{expert.name} ({expert.email})</SelectItem>
+                        <button
+                          type="button"
+                          key={expert.id}
+                          className="block w-full border-b border-slate-100 px-3 py-3 text-left text-sm hover:bg-slate-50"
+                          onClick={() => {
+                            setExpertId(expert.id)
+                            setExpertSearch(`${expert.name} (${expert.email})`)
+                            setExperts([])
+                          }}
+                        >
+                          <span className="font-medium text-slate-950">{expert.name}</span>
+                          <span className="ml-2 text-slate-500">{expert.email}</span>
+                          {expert.hourly_rate ? <span className="ml-2 text-slate-500">Rs. {expert.hourly_rate}/hr</span> : null}
+                        </button>
                       ))}
-                    </SelectContent>
-                  </Select>
+                    </div>
+                  ) : null}
+                  {expertId ? <p className="text-xs font-medium text-[#008260]">Expert selected</p> : null}
                 </div>
                 <div className="space-y-2">
-                  <Label>Stage</Label>
+                  <Label>Initial action</Label>
                   <Select value={stage} onValueChange={setStage}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {STAGES.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
+                      {ADD_STAGES.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="interviewAt">Interview time</Label>
-                  <Input id="interviewAt" type="datetime-local" value={interviewAt} onChange={(e) => setInterviewAt(e.target.value)} />
-                </div>
+                {stage === 'interview_scheduled' ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="interviewAt">Interview time</Label>
+                    <Input id="interviewAt" type="datetime-local" value={interviewAt} onChange={(e) => setInterviewAt(e.target.value)} />
+                  </div>
+                ) : null}
                 <div className="space-y-2 lg:col-span-2">
                   <Label htmlFor="notes">Notes</Label>
                   <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
                 </div>
                 <div className="lg:col-span-2">
                   <Button type="submit" className="bg-[#008260] hover:bg-[#006d51]" disabled={saving}>
-                    {saving ? 'Adding...' : 'Add expert'}
+                    {saving ? 'Saving...' : stage === 'interview_scheduled' ? 'Schedule interview' : 'Add and notify'}
                   </Button>
                 </div>
               </form>
             </SectionCard>
           ) : null}
 
-          <SectionCard title="Expert Pipeline" description="Manage experts through added, interview, selected, completed, and rejected stages.">
+          <SectionCard title="Applications And Expert Flow" description="Manage the same pending, interview, rejected, and selected flow visible in the institute dashboard.">
             <Tabs value={activeStage} onValueChange={setActiveStage} className="mb-4">
-              <TabsList>
+              <TabsList className="grid h-auto w-full grid-cols-2 rounded-xl bg-white p-1 shadow-sm md:grid-cols-4">
                 {STAGES.map((item) => (
-                  <TabsTrigger key={item.value} value={item.value}>{item.label} ({counts[item.value] || 0})</TabsTrigger>
+                  <TabsTrigger
+                    key={item.value}
+                    value={item.value}
+                    className="rounded-lg py-3 text-sm font-semibold data-[state=active]:bg-emerald-50 data-[state=active]:text-[#008260] data-[state=active]:shadow-none"
+                  >
+                    {item.label} ({rowsByStage[item.value]?.length || 0})
+                  </TabsTrigger>
                 ))}
               </TabsList>
             </Tabs>
-            <DataTable
-              rows={stageRows}
-              columns={[
-                { key: 'expert', header: 'Expert', render: (row) => <span className="font-medium text-slate-950">{row.experts?.name || row.expert_id}</span> },
-                { key: 'email', header: 'Email', render: (row) => row.experts?.email || '-' },
-                { key: 'rate', header: 'Rate', render: (row) => row.experts?.hourly_rate ? `Rs. ${row.experts.hourly_rate}/hr` : '-' },
-                { key: 'completed', header: 'Completed', render: (row) => row.expert_stats?.completed_trainings || 0 },
-                { key: 'hours', header: 'Approved Hours', render: (row) => row.expert_stats?.approved_hours || 0 },
-                { key: 'interview', header: 'Interview', render: (row) => formatDate(row.interview_scheduled_at) },
-                { key: 'notes', header: 'Notes', render: (row) => row.notes || '-' },
-                {
-                  key: 'stage',
-                  header: 'Workflow',
-                  render: (row) => canManagePipeline ? (
-                    <div className="flex flex-wrap gap-2">
-                      <Button type="button" size="sm" variant="outline" onClick={() => runCandidateAction(row, 'notify')}>Notify</Button>
-                      <Button type="button" size="sm" variant="outline" onClick={() => runCandidateAction(row, 'schedule_interview')}>Interview</Button>
-                      <Button type="button" size="sm" className="bg-[#008260] hover:bg-[#006d51]" onClick={() => runCandidateAction(row, 'select')}>Select</Button>
-                      <Button type="button" size="sm" variant="outline" onClick={() => runCandidateAction(row, 'complete')}>Complete</Button>
-                      <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" onClick={() => runCandidateAction(row, 'reject')}>Reject</Button>
-                    </div>
-                    ) : <span className="text-slate-400">{stageLabel(row.stage)}</span>,
-                },
-              ]}
-              emptyText="No experts in this stage."
-            />
+            {activeRows.length ? (
+              <div className="space-y-4">
+                {activeRows.map(renderStatusCard)}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center text-sm text-slate-500">
+                No records in {STAGES.find((item) => item.value === activeStage)?.label.toLowerCase()}.
+              </div>
+            )}
           </SectionCard>
 
-          <SectionCard title="Native Applications" description="Applications submitted through the existing student/expert workflows.">
-            <DataTable
-              rows={nativeApplications}
-              columns={[
-                { key: 'person', header: 'Applicant', render: (row) => row.experts?.name || row.site_students?.name || row.expert_id || row.student_id || '-' },
-                { key: 'email', header: 'Email', render: (row) => row.experts?.email || row.site_students?.email || '-' },
-                { key: 'status', header: 'Status', render: (row) => row.status || '-' },
-                { key: 'created', header: 'Created', render: (row) => formatDate(row.created_at || row.applied_at) },
-              ]}
-              emptyText="No native applications found."
-            />
-          </SectionCard>
         </>
       ) : null}
+
+      <Dialog open={Boolean(interviewDialog)} onOpenChange={(open) => !open && setInterviewDialog(null)}>
+        <DialogContent className="bg-white sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Schedule Interview</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="workflowInterviewAt">Interview date and time</Label>
+            <Input
+              id="workflowInterviewAt"
+              type="datetime-local"
+              value={interviewDialog?.value || ''}
+              onChange={(e) => setInterviewDialog((current) => current ? { ...current, value: e.target.value } : current)}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setInterviewDialog(null)} disabled={workflowSaving}>Cancel</Button>
+            <Button type="button" className="bg-[#008260] hover:bg-[#006d51]" onClick={confirmInterview} disabled={workflowSaving}>
+              {workflowSaving ? 'Saving...' : 'Save interview'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
