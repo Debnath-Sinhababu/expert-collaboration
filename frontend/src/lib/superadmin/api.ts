@@ -101,4 +101,22 @@ export const superAdminApi = {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),
+  financeSummary: () =>
+    request<any>(`/api/superadmin/finance/summary?${query({ _t: Date.now() })}`),
+  financePayments: (params: { party_type: 'expert' | 'institution'; status?: string; page?: number; limit?: number; search?: string }) =>
+    request<PaginatedResponse<any>>(`/api/superadmin/finance/payments?${query({ ...params, _t: Date.now() })}`),
+  financePayment: (id: string) =>
+    request<any>(`/api/superadmin/finance/payments/${encodeURIComponent(id)}?${query({ _t: Date.now() })}`),
+  sendFinanceInvoice: (id: string, body: Record<string, unknown>) =>
+    request<any>(`/api/superadmin/finance/payments/${encodeURIComponent(id)}/invoice`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  markFinancePaymentPaid: (id: string, body: Record<string, unknown>) =>
+    request<any>(`/api/superadmin/finance/payments/${encodeURIComponent(id)}/mark-paid`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+  financeInvoices: (params?: { page?: number; limit?: number; recipient_type?: string; search?: string }) =>
+    request<PaginatedResponse<any>>(`/api/superadmin/finance/invoices?${query({ ...(params || {}), _t: Date.now() })}`),
 }

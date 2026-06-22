@@ -120,6 +120,41 @@ class SuperAdminController {
     res.json(await this.service.listFinanceTrainings(parsePage(req.query)));
   };
 
+  financeSummary = async (_req, res) => {
+    res.json(await this.service.getFinanceSummary());
+  };
+
+  listFinancePayments = async (req, res) => {
+    const paging = parsePage(req.query);
+    res.json(await this.service.listFinancePayments({
+      ...paging,
+      party_type: req.query.party_type,
+      status: req.query.status || '',
+      search: req.query.search || '',
+    }));
+  };
+
+  getFinancePayment = async (req, res) => {
+    res.json(await this.service.getFinancePayment(req.params.id));
+  };
+
+  sendFinanceInvoice = async (req, res) => {
+    res.json(await this.service.sendFinanceInvoice(req.params.id, req.body || {}, req.superAdmin.user.id));
+  };
+
+  markFinancePaymentPaid = async (req, res) => {
+    res.json(await this.service.markFinancePaymentPaid(req.params.id, req.body || {}, req.superAdmin.user.id));
+  };
+
+  listFinanceInvoices = async (req, res) => {
+    const paging = parsePage(req.query);
+    res.json(await this.service.listFinanceInvoices({
+      ...paging,
+      recipient_type: req.query.recipient_type || '',
+      search: req.query.search || '',
+    }));
+  };
+
   confirmFinanceTraining = async (req, res) => {
     res.json(await this.service.confirmFinanceTraining(req.params.bookingId, req.body || {}, req.superAdmin.user.id));
   };

@@ -645,6 +645,28 @@ export const api = {
     }
   },
 
+  expertFinance: {
+    summary: async (expertId: string) => {
+      const headers = await getAuthHeaders()
+      const query = serializeQueryParts({ expert_id: expertId, _t: Date.now() })
+      const res = await fetch(`${API_BASE_URL}/api/expert/finance/summary?${query}`, { headers })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to load finance summary')
+      return json
+    }
+  },
+
+  institutionFinance: {
+    summary: async (institutionId: string) => {
+      const headers = await getAuthHeaders()
+      const query = serializeQueryParts({ institution_id: institutionId, _t: Date.now() })
+      const res = await fetch(`${API_BASE_URL}/api/institution/finance/summary?${query}`, { headers })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to load finance summary')
+      return json
+    }
+  },
+
   trainingAttendance: {
     get: async (bookingId: string, params?: { from?: string; to?: string }) => {
       const headers = await getAuthHeaders()

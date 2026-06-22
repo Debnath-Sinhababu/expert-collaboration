@@ -7,6 +7,7 @@ const { createClient } = require('@supabase/supabase-js');
 const http = require('http');
 const upload = require('./middleware/upload');
 const ImageUploadService = require('./services/imageUploadService');
+const FinanceDashboardService = require('./services/financeDashboardService');
 
 dotenv.config();
 
@@ -24,6 +25,7 @@ const {
   requestPasswordReset,
 } = require('./services/authEmailService');
 const privacyMask = require('./privacyMask');
+const financeDashboardService = new FinanceDashboardService();
 
 console.log('Environment variables loaded:');
 console.log('UPSTASH_REDIS_REST_URL:', process.env.UPSTASH_REDIS_REST_URL ? 'Set' : 'Not set');
@@ -147,6 +149,30 @@ app.get('/api/health', async (req, res) => {
 
 app.get('/api/health-static', (req, res) => {
   res.json({ status: 'OK' });
+});
+
+app.get('/api/expert/finance/summary', async (req, res) => {
+  try {
+    const expertId = String(req.query.expert_id || '').trim();
+    if (!expertId) return res.status(400).json({ error: 'expert_id is required' });
+    await expertAccess.resolveExpertAccess(req, expertId);
+    res.json(await financeDashboardService.getExpertSummary(expertId));
+  } catch (err) {
+    const statusCode = err?.statusCode || 500;
+    res.status(statusCode).json({ error: err.message || 'Failed to load expert finance summary' });
+  }
+});
+
+app.get('/api/institution/finance/summary', async (req, res) => {
+  try {
+    const institutionId = String(req.query.institution_id || '').trim();
+    if (!institutionId) return res.status(400).json({ error: 'institution_id is required' });
+    await institutionAccess.resolveInstitutionAccess(req, institutionId);
+    res.json(await financeDashboardService.getInstitutionSummary(institutionId));
+  } catch (err) {
+    const statusCode = err?.statusCode || 500;
+    res.status(statusCode).json({ error: err.message || 'Failed to load institution finance summary' });
+  }
 });
 
 app.post('/api/auth/register', async (req, res) => {

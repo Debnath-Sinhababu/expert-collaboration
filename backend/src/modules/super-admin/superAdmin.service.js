@@ -5,6 +5,8 @@ const { createServiceClient } = require('../../config/supabase');
 const notificationService = require('../../../services/notificationService');
 const socketService = require('../../../services/socketService');
 const ImageUploadService = require('../../../services/imageUploadService');
+const { generateInvoicePdf } = require('../../../services/invoicePdfService');
+const { sendInvoiceEmail } = require('../../../services/financeEmailService');
 
 const DEFAULT_ADMIN_PASSWORD = process.env.SUPERADMIN_DEFAULT_USER_PASSWORD || 'ExpertCollaboration@123';
 
@@ -435,176 +437,64 @@ class SuperAdminService {
       throw err;
     }
     const requirementType = parseRequirementType(body.requirement_type || 'project');
+    if (requirementType !== 'project') {
+      const err = new Error('Expert assignment is only available for project requirements. Internship and freelance use their existing application tables.');
+      err.statusCode = 400;
+      throw err;
+    }
     const requestedStage = body.stage === 'interview_scheduled' ? 'interview_scheduled' : 'added';
     const interviewAt = body.interview_scheduled_at || null;
-    const pipelinePayload = {
+
+    const application = await this.repository.upsertProjectApplication(requirementId, body.expert_id, {
+      status: requestedStage === 'interview_scheduled' ? 'interview' : 'pending',
+      ...(requestedStage === 'interview_scheduled' ? { interview_date: interviewAt } : {}),
+    });
+
+    const project = await this.repository.getProjectRequirementForAction(requirementId).catch(() => null);
+    const expert = await this.repository
+      .hydrateRequirementExpertRows([{ expert_id: body.expert_id }], 'id,name,email,user_id,hourly_rate')
+      .then((rows) => rows?.[0]?.experts)
+      .catch(() => null);
+    const projectTitle = project?.title || 'Requirement';
+    const institutionName = project?.institutions?.name || 'CalxMap institution';
+    try {
+      if (requestedStage === 'interview_scheduled') {
+        await notificationService.sendMovedToInterviewNotification(expert?.email, projectTitle, requirementId);
+        if (expert?.user_id) {
+          await socketService.sendApplicationStatusNotification(expert.user_id, projectTitle, 'interview', requirementId);
+        }
+      } else {
+        await notificationService.sendExpertInterestShownNotification(expert?.email, projectTitle, institutionName, requirementId);
+        if (expert?.user_id) {
+          await socketService.sendExpertInterestShownNotification(expert.user_id, projectTitle, institutionName, requirementId);
+        }
+      }
+    } catch (notificationError) {
+      console.warn('Super-admin add expert notification failed:', notificationError.message || notificationError);
+    }
+
+    return {
+      id: application.id,
+      application,
       requirement_id: requirementId,
       requirement_type: requirementType,
       expert_id: body.expert_id,
       stage: requestedStage,
       interview_scheduled_at: requestedStage === 'interview_scheduled' ? interviewAt : null,
-      notes: body.notes || null,
-      created_by: actorUserId || null,
-      updated_by: actorUserId || null,
+      experts: expert || null,
     };
-
-    let application = null;
-    let pipeline = null;
-    if (requirementType === 'project') {
-      application = await this.repository.upsertProjectApplication(requirementId, body.expert_id, {
-        status: requestedStage === 'interview_scheduled' ? 'interview' : 'pending',
-        ...(requestedStage === 'interview_scheduled' ? { interview_date: interviewAt } : {}),
-      });
-
-      try {
-        pipeline = await this.repository.addRequirementExpert(pipelinePayload);
-      } catch (pipelineError) {
-        console.warn('Super-admin pipeline mirror failed; application was saved:', pipelineError.message || pipelineError);
-      }
-
-      const project = await this.repository.getProjectRequirementForAction(requirementId).catch(() => null);
-      const expert = pipeline?.experts || await this.repository
-        .hydrateRequirementExpertRows([{ expert_id: body.expert_id }], 'id,name,email,user_id,hourly_rate')
-        .then((rows) => rows?.[0]?.experts)
-        .catch(() => null);
-      const projectTitle = project?.title || 'Requirement';
-      const institutionName = project?.institutions?.name || 'CalxMap institution';
-      try {
-        if (requestedStage === 'interview_scheduled') {
-          await notificationService.sendMovedToInterviewNotification(expert?.email, projectTitle, requirementId);
-          if (expert?.user_id) {
-            await socketService.sendApplicationStatusNotification(expert.user_id, projectTitle, 'interview', requirementId);
-          }
-        } else {
-          await notificationService.sendExpertInterestShownNotification(expert?.email, projectTitle, institutionName, requirementId);
-          if (expert?.user_id) {
-            await socketService.sendExpertInterestShownNotification(expert.user_id, projectTitle, institutionName, requirementId);
-          }
-        }
-      } catch (notificationError) {
-        console.warn('Super-admin add expert notification failed:', notificationError.message || notificationError);
-      }
-
-      return {
-        ...(pipeline || {}),
-        id: pipeline?.id || application.id,
-        application,
-        requirement_id: requirementId,
-        requirement_type: requirementType,
-        expert_id: body.expert_id,
-        stage: requestedStage,
-        interview_scheduled_at: requestedStage === 'interview_scheduled' ? interviewAt : null,
-        experts: pipeline?.experts || expert || null,
-      };
-    }
-
-    const created = await this.repository.addRequirementExpert(pipelinePayload);
-    if (!created?.id) {
-      const err = new Error('Expert pipeline row could not be saved. Check super_admin_requirement_experts table columns and permissions.');
-      err.statusCode = 500;
-      throw err;
-    }
-    return created;
   }
 
   async updateRequirementExpert(candidateId, body, actorUserId) {
-    return this.repository.updateRequirementExpert(candidateId, {
-      stage: body.stage,
-      interview_scheduled_at: body.interview_scheduled_at || null,
-      notes: body.notes || null,
-      updated_by: actorUserId || null,
-    });
+    const err = new Error('Admin requirement pipeline is no longer used. Update the native application or booking instead.');
+    err.statusCode = 410;
+    throw err;
   }
 
   async runRequirementExpertAction(requirementId, candidateId, body, actorUserId) {
-    const action = String(body.action || '').trim();
-    const candidate = await this.repository.getRequirementExpert(candidateId);
-    if (!candidate || String(candidate.requirement_id) !== String(requirementId)) {
-      const err = new Error('Candidate not found');
-      err.statusCode = 404;
-      throw err;
-    }
-
-    const notes = body.notes || candidate.notes || null;
-    const interviewAt = body.interview_scheduled_at || candidate.interview_scheduled_at || null;
-    const stageByAction = {
-      notify: 'added',
-      schedule_interview: 'interview_scheduled',
-      select: 'selected',
-      complete: 'completed',
-      reject: 'rejected',
-    };
-    const nextStage = stageByAction[action];
-    if (!nextStage) {
-      const err = new Error('Invalid action');
-      err.statusCode = 400;
-      throw err;
-    }
-
-    let application = null;
-    let booking = null;
-    if (candidate.requirement_type === 'project') {
-      const project = await this.repository.getProjectRequirementForAction(requirementId);
-      const institutionName = project?.institutions?.name || 'CalxMap institution';
-      const projectTitle = project?.title || 'Requirement';
-      if (action === 'notify') {
-        application = await this.repository.upsertProjectApplication(requirementId, candidate.expert_id, {
-          status: 'pending',
-        });
-        try {
-          await notificationService.sendExpertInterestShownNotification(candidate.experts?.email, projectTitle, institutionName, requirementId);
-          if (candidate.experts?.user_id) {
-            await socketService.sendExpertInterestShownNotification(candidate.experts.user_id, projectTitle, institutionName, requirementId);
-          }
-        } catch (notificationError) {
-          console.warn('Super-admin notify expert notification failed:', notificationError.message || notificationError);
-        }
-      }
-      if (action === 'schedule_interview') {
-        application = await this.repository.upsertProjectApplication(requirementId, candidate.expert_id, {
-          status: 'interview',
-          interview_date: interviewAt || null,
-        });
-        try {
-          await notificationService.sendMovedToInterviewNotification(candidate.experts?.email, projectTitle, requirementId);
-          if (candidate.experts?.user_id) {
-            await socketService.sendApplicationStatusNotification(candidate.experts.user_id, projectTitle, 'interview', requirementId);
-          }
-        } catch (notificationError) {
-          console.warn('Super-admin interview notification failed:', notificationError.message || notificationError);
-        }
-      }
-      if (action === 'select') {
-        application = await this.repository.upsertProjectApplication(requirementId, candidate.expert_id, {
-          status: 'accepted',
-        });
-        if (project) {
-          booking = await this.repository.createProjectBooking(project, candidate.expert_id);
-        }
-        try {
-          await notificationService.sendExpertSelectedWithBookingNotification(candidate.experts?.email, projectTitle, institutionName);
-          if (candidate.experts?.user_id) {
-            await socketService.sendExpertSelectedWithBookingNotification(candidate.experts.user_id, projectTitle, institutionName, requirementId);
-          }
-        } catch (notificationError) {
-          console.warn('Super-admin selected expert notification failed:', notificationError.message || notificationError);
-        }
-      }
-      if (action === 'reject') {
-        application = await this.repository.upsertProjectApplication(requirementId, candidate.expert_id, {
-          status: 'rejected',
-        });
-      }
-    }
-
-    const updated = await this.repository.updateRequirementExpert(candidateId, {
-      stage: nextStage,
-      interview_scheduled_at: action === 'schedule_interview' ? interviewAt : candidate.interview_scheduled_at,
-      notes,
-      updated_by: actorUserId || null,
-    });
-
-    return { candidate: updated, application, booking };
+    const err = new Error('Admin requirement pipeline is no longer used. Update the native application or booking instead.');
+    err.statusCode = 410;
+    throw err;
   }
 
   async updateNativeRequirementApplication(type, requirementId, applicationId, body) {
@@ -651,6 +541,125 @@ class SuperAdminService {
 
   async listFinanceTrainings(params) {
     return this.repository.listFinanceTrainings(params);
+  }
+
+  async getFinanceSummary() {
+    return this.repository.getFinanceSummary();
+  }
+
+  async listFinancePayments(params) {
+    return this.repository.listFinancePayments(params);
+  }
+
+  async getFinancePayment(id) {
+    const payment = await this.repository.getFinancePayment(id);
+    if (!payment) {
+      const err = new Error('Payment record not found');
+      err.statusCode = 404;
+      throw err;
+    }
+    return payment;
+  }
+
+  async sendFinanceInvoice(id, body, actorUserId) {
+    const payment = await this.getFinancePayment(id);
+    if (payment.status === 'paid') {
+      const err = new Error('Paid records cannot be invoiced again');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const amount = Number(body.invoice_amount || payment.invoice_amount || payment.calculated_amount || 0);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      const err = new Error('Invoice amount must be greater than zero');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const recipient = payment.party_type === 'expert'
+      ? payment.experts
+      : payment.institutions;
+    if (!recipient?.email) {
+      const err = new Error('Recipient email is missing');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const invoiceNumber = await this.repository.getNextFinanceInvoiceNumber();
+    const printablePayment = {
+      ...payment,
+      invoice_amount: amount,
+      notes: body.notes || payment.notes || null,
+    };
+    const pdfBuffer = await generateInvoicePdf({
+      invoiceNumber,
+      payment: printablePayment,
+      booking: payment.booking,
+      recipient,
+    });
+
+    const upload = await ImageUploadService.uploadPDF(pdfBuffer, 'finance-invoices', invoiceNumber);
+    if (!upload?.success || !upload.url) {
+      const err = new Error(upload?.error || 'Invoice PDF upload failed');
+      err.statusCode = 502;
+      throw err;
+    }
+
+    await sendInvoiceEmail({
+      to: recipient.email,
+      recipientName: recipient.name,
+      invoiceNumber,
+      amount,
+      pdfUrl: upload.url,
+      partyType: payment.party_type,
+      projectTitle: payment.projects?.title,
+    });
+
+    const invoice = await this.repository.createFinanceInvoice({
+      invoice_number: invoiceNumber,
+      payment_record_id: payment.id,
+      booking_id: payment.booking_id,
+      recipient_type: payment.party_type,
+      recipient_email: recipient.email,
+      recipient_name: recipient.name || recipient.email,
+      amount,
+      approved_hours: payment.approved_hours || 0,
+      hourly_rate_snapshot: payment.hourly_rate_snapshot || 0,
+      pdf_url: upload.url,
+      pdf_public_id: upload.publicId || null,
+      sent_at: new Date().toISOString(),
+      sent_by: actorUserId || null,
+      email_status: 'sent',
+    });
+
+    return this.repository.updateFinancePayment(payment.id, {
+      status: 'invoiced',
+      invoice_id: invoice.id,
+      invoice_amount: amount,
+      notes: body.notes || payment.notes || null,
+      updated_by: actorUserId || null,
+    });
+  }
+
+  async markFinancePaymentPaid(id, body, actorUserId) {
+    const payment = await this.getFinancePayment(id);
+    const amount = Number(body.paid_amount || payment.invoice_amount || payment.calculated_amount || 0);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      const err = new Error('Paid amount must be greater than zero');
+      err.statusCode = 400;
+      throw err;
+    }
+    return this.repository.updateFinancePayment(id, {
+      status: 'paid',
+      paid_amount: amount,
+      paid_at: body.paid_at || new Date().toISOString(),
+      notes: body.notes || payment.notes || null,
+      updated_by: actorUserId || null,
+    });
+  }
+
+  async listFinanceInvoices(params) {
+    return this.repository.listFinanceInvoices(params);
   }
 
   async confirmFinanceTraining(bookingId, body, actorUserId) {

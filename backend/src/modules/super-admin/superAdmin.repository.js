@@ -1,4 +1,9 @@
 const { createServiceClient } = require('../../config/supabase');
+const {
+  approvedHoursFromDays,
+  buildPaymentRecordDraft,
+  roundMoney,
+} = require('../../../services/financeCalculationService');
 
 function tableMissing(error) {
   return error && (error.code === '42P01' || /relation .* does not exist/i.test(error.message || ''));
@@ -87,18 +92,7 @@ class SuperAdminRepository {
   }
 
   async findRequirementExpert(requirementId, requirementType, expertId) {
-    const { data, error } = await this.client
-      .from('super_admin_requirement_experts')
-      .select('*')
-      .eq('requirement_id', requirementId)
-      .eq('requirement_type', requirementType)
-      .eq('expert_id', expertId)
-      .limit(1);
-    if (error) {
-      if (tableMissing(error)) return null;
-      throw error;
-    }
-    return data?.[0] || null;
+    return null;
   }
 
   async updateWithMissingColumnRetry(table, id, payload) {
@@ -475,69 +469,17 @@ class SuperAdminRepository {
       approvedHoursByBooking[day.booking_id] = (approvedHoursByBooking[day.booking_id] || 0) + minutes / 60;
     }
 
+    const financeByBooking = await this.getFinanceRecordsByBookingIds(bookingIds);
+
     return rows.map((booking) => ({
       ...booking,
       approved_hours: Math.round((approvedHoursByBooking[booking.id] || 0) * 100) / 100,
+      finance_summary: financeByBooking[booking.id] || { expert: null, institution: null },
     }));
   }
 
   async listRequirementExperts(type, id) {
-    const { data, error } = await this.client
-      .from('super_admin_requirement_experts')
-      .select('*')
-      .eq('requirement_type', type)
-      .eq('requirement_id', id);
-    if (error) {
-      if (tableMissing(error) || relationMissing(error)) return [];
-      throw error;
-    }
-    const rows = await this.hydrateRequirementExpertRows(data || []);
-    if (!rows.length) return rows;
-
-    const expertIds = [...new Set(rows.map((row) => row.expert_id).filter(Boolean))];
-    let bookingsQuery = this.client
-      .from('bookings')
-      .select('id,expert_id,project_id,status,hours_booked')
-      .in('expert_id', expertIds);
-    if (type === 'project') bookingsQuery = bookingsQuery.eq('project_id', id);
-    const { data: bookings, error: bookingsError } = await bookingsQuery;
-    if (bookingsError && !tableMissing(bookingsError)) throw bookingsError;
-
-    const bookingIds = (bookings || []).map((booking) => booking.id);
-    const { data: attendance, error: attendanceError } = bookingIds.length
-      ? await this.client
-          .from('training_attendance_days')
-          .select('booking_id,status,effective_entry_at,effective_exit_at,expert_entry_at,expert_exit_at')
-          .in('booking_id', bookingIds)
-      : { data: [], error: null };
-    if (attendanceError && !tableMissing(attendanceError)) throw attendanceError;
-
-    const approvedHoursByBooking = {};
-    for (const day of attendance || []) {
-      if (day.status !== 'approved') continue;
-      const entry = day.effective_entry_at || day.expert_entry_at;
-      const exit = day.effective_exit_at || day.expert_exit_at;
-      const minutes = entry && exit ? Math.max(0, new Date(exit) - new Date(entry)) / 60000 : 0;
-      approvedHoursByBooking[day.booking_id] = (approvedHoursByBooking[day.booking_id] || 0) + minutes / 60;
-    }
-
-    const statsByExpert = {};
-    for (const booking of bookings || []) {
-      const stat = statsByExpert[booking.expert_id] || { bookings: 0, completed_trainings: 0, approved_hours: 0 };
-      stat.bookings += 1;
-      if (booking.status === 'completed') stat.completed_trainings += 1;
-      stat.approved_hours += approvedHoursByBooking[booking.id] || 0;
-      statsByExpert[booking.expert_id] = stat;
-    }
-
-    return rows.map((row) => ({
-      ...row,
-      expert_stats: {
-        bookings: statsByExpert[row.expert_id]?.bookings || 0,
-        completed_trainings: statsByExpert[row.expert_id]?.completed_trainings || 0,
-        approved_hours: Math.round((statsByExpert[row.expert_id]?.approved_hours || 0) * 100) / 100,
-      },
-    }));
+    return [];
   }
 
   async listNativeRequirementApplications(type, id) {
@@ -577,38 +519,15 @@ class SuperAdminRepository {
   }
 
   async addRequirementExpert(payload) {
-    const existingRow = await this.findRequirementExpert(payload.requirement_id, payload.requirement_type, payload.expert_id);
-
-    if (existingRow) {
-      const data = await this.updateWithMissingColumnRetry('super_admin_requirement_experts', existingRow.id, {
-        stage: payload.stage,
-        interview_scheduled_at: payload.interview_scheduled_at,
-        notes: payload.notes,
-        updated_by: payload.updated_by,
-      });
-      const row = data || await this.findRequirementExpert(payload.requirement_id, payload.requirement_type, payload.expert_id);
-      return row ? (await this.hydrateRequirementExpertRows([row]))[0] : null;
-    }
-
-    const data = await this.insertWithMissingColumnRetry('super_admin_requirement_experts', payload);
-    const row = data || await this.findRequirementExpert(payload.requirement_id, payload.requirement_type, payload.expert_id);
-    return row ? (await this.hydrateRequirementExpertRows([row]))[0] : null;
+    return null;
   }
 
   async updateRequirementExpert(id, payload) {
-    const data = await this.updateWithMissingColumnRetry('super_admin_requirement_experts', id, payload);
-    return (await this.hydrateRequirementExpertRows([data]))[0] || data;
+    return null;
   }
 
   async getRequirementExpert(id) {
-    const { data, error } = await this.client
-      .from('super_admin_requirement_experts')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
-    if (error) throw error;
-    if (!data) return null;
-    return (await this.hydrateRequirementExpertRows([data], 'id,name,email,user_id,hourly_rate'))[0] || data;
+    return null;
   }
 
   async hydrateRequirementExpertRows(rows, select = 'id,name,email,phone,city,state,domain_expertise,hourly_rate,user_id') {
@@ -857,6 +776,293 @@ class SuperAdminRepository {
       .single();
     if (error) throw error;
     return data;
+  }
+
+  async listFinanceSourceBookings({ page, limit, offset, search = '' }) {
+    let query = this.client
+      .from('bookings')
+      .select('*, projects!inner(id,title,type), experts(id,name,email,hourly_rate), institutions(id,name,email)', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (search) {
+      query = query.ilike('projects.title', `%${String(search).trim()}%`);
+    }
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+    return { data: data || [], total: count || 0, page, limit };
+  }
+
+  async approvedHoursForBookingIds(bookingIds) {
+    if (!bookingIds.length) return {};
+    const { data, error } = await this.client
+      .from('training_attendance_days')
+      .select('booking_id,status,effective_entry_at,effective_exit_at,expert_entry_at,expert_exit_at')
+      .in('booking_id', bookingIds);
+    if (error) {
+      if (tableMissing(error)) return {};
+      throw error;
+    }
+    const daysByBooking = {};
+    for (const day of data || []) {
+      daysByBooking[day.booking_id] = daysByBooking[day.booking_id] || [];
+      daysByBooking[day.booking_id].push(day);
+    }
+    return Object.fromEntries(
+      Object.entries(daysByBooking).map(([bookingId, days]) => [bookingId, approvedHoursFromDays(days)]),
+    );
+  }
+
+  async getFinanceRecordsByBookingIds(bookingIds) {
+    if (!bookingIds.length) return {};
+    const { data: records, error } = await this.client
+      .from('finance_payment_records')
+      .select('*')
+      .in('booking_id', bookingIds);
+    if (error) {
+      if (tableMissing(error)) return {};
+      throw error;
+    }
+
+    const invoiceIds = [...new Set((records || []).map((record) => record.invoice_id).filter(Boolean))];
+    const { data: invoices, error: invoiceError } = invoiceIds.length
+      ? await this.client.from('finance_invoices').select('*').in('id', invoiceIds)
+      : { data: [], error: null };
+    if (invoiceError && !tableMissing(invoiceError)) throw invoiceError;
+    const invoiceById = Object.fromEntries((invoices || []).map((invoice) => [invoice.id, invoice]));
+
+    const grouped = {};
+    for (const record of records || []) {
+      grouped[record.booking_id] = grouped[record.booking_id] || { expert: null, institution: null };
+      const invoice = invoiceById[record.invoice_id] || null;
+      grouped[record.booking_id][record.party_type] = {
+        ...record,
+        invoice,
+        pdf_url: invoice?.pdf_url || null,
+        remaining_amount: roundMoney(Number(record.invoice_amount || record.calculated_amount || 0) - Number(record.paid_amount || 0)),
+      };
+    }
+    return grouped;
+  }
+
+  async ensureFinancePaymentRecordsForBookings(bookings) {
+    const rows = bookings || [];
+    const bookingIds = rows.map((booking) => booking.id).filter(Boolean);
+    if (!bookingIds.length) return [];
+
+    const [approvedHoursByBooking, existingByBooking] = await Promise.all([
+      this.approvedHoursForBookingIds(bookingIds),
+      this.getFinanceRecordsByBookingIds(bookingIds),
+    ]);
+
+    const upserts = [];
+    for (const booking of rows) {
+      const approvedHours = approvedHoursByBooking[booking.id] || 0;
+      for (const partyType of ['expert', 'institution']) {
+        const existing = existingByBooking[booking.id]?.[partyType];
+        const draft = buildPaymentRecordDraft(booking, partyType, approvedHours);
+        upserts.push({
+          ...(existing?.id ? { id: existing.id } : {}),
+          ...draft,
+          invoice_amount: existing && existing.status !== 'pending'
+            ? existing.invoice_amount
+            : draft.invoice_amount,
+          status: existing?.status || 'pending',
+          invoice_id: existing?.invoice_id || null,
+          paid_amount: existing?.paid_amount || 0,
+          paid_at: existing?.paid_at || null,
+          notes: existing?.notes || null,
+          created_by: existing?.created_by || null,
+          updated_by: existing?.updated_by || null,
+          updated_at: new Date().toISOString(),
+        });
+      }
+    }
+
+    const { data, error } = await this.client
+      .from('finance_payment_records')
+      .upsert(upserts, { onConflict: 'booking_id,party_type' })
+      .select('*');
+    if (error) throw error;
+    return data || [];
+  }
+
+  async listFinancePayments({ page, limit, offset, party_type, status = '', search = '' }) {
+    if (!party_type || !['expert', 'institution'].includes(party_type)) {
+      const err = new Error('party_type must be expert or institution');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    if (!status && !search) {
+      const bookingsPage = await this.listFinanceSourceBookings({ page, limit, offset });
+      await this.ensureFinancePaymentRecordsForBookings(bookingsPage.data);
+      const bookingIds = bookingsPage.data.map((booking) => booking.id);
+      const recordsByBooking = await this.getFinanceRecordsByBookingIds(bookingIds);
+      const data = bookingsPage.data
+        .map((booking) => recordsByBooking[booking.id]?.[party_type] ? {
+          ...recordsByBooking[booking.id][party_type],
+          booking,
+          projects: booking.projects,
+          experts: booking.experts,
+          institutions: booking.institutions,
+        } : null)
+        .filter(Boolean);
+      return { data, total: bookingsPage.total, page, limit };
+    }
+
+    let query = this.client
+      .from('finance_payment_records')
+      .select('*', { count: 'exact' })
+      .eq('party_type', party_type)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+    if (status) query = query.eq('status', status);
+    const { data: records, error, count } = await query;
+    if (error) throw error;
+    const hydrated = await this.hydrateFinanceRecords(records || []);
+    const needle = String(search || '').trim().toLowerCase();
+    const filtered = needle
+      ? hydrated.filter((row) => [
+          row.projects?.title,
+          row.experts?.name,
+          row.experts?.email,
+          row.institutions?.name,
+          row.institutions?.email,
+        ].some((value) => String(value || '').toLowerCase().includes(needle)))
+      : hydrated;
+    return { data: filtered, total: count || 0, page, limit };
+  }
+
+  async hydrateFinanceRecords(records) {
+    if (!records.length) return [];
+    const bookingIds = [...new Set(records.map((record) => record.booking_id).filter(Boolean))];
+    const invoiceIds = [...new Set(records.map((record) => record.invoice_id).filter(Boolean))];
+    const [{ data: bookings, error: bookingError }, { data: invoices, error: invoiceError }] = await Promise.all([
+      bookingIds.length
+        ? this.client
+            .from('bookings')
+            .select('*, projects(id,title,type), experts(id,name,email,hourly_rate), institutions(id,name,email)')
+            .in('id', bookingIds)
+        : { data: [], error: null },
+      invoiceIds.length
+        ? this.client.from('finance_invoices').select('*').in('id', invoiceIds)
+        : { data: [], error: null },
+    ]);
+    if (bookingError && !relationMissing(bookingError) && !tableMissing(bookingError)) throw bookingError;
+    if (invoiceError && !tableMissing(invoiceError)) throw invoiceError;
+    const bookingById = Object.fromEntries((bookings || []).map((booking) => [booking.id, booking]));
+    const invoiceById = Object.fromEntries((invoices || []).map((invoice) => [invoice.id, invoice]));
+    return records.map((record) => {
+      const booking = bookingById[record.booking_id] || null;
+      const invoice = invoiceById[record.invoice_id] || null;
+      return {
+        ...record,
+        booking,
+        projects: booking?.projects || null,
+        experts: booking?.experts || null,
+        institutions: booking?.institutions || null,
+        invoice,
+        remaining_amount: roundMoney(Number(record.invoice_amount || record.calculated_amount || 0) - Number(record.paid_amount || 0)),
+      };
+    });
+  }
+
+  async getFinancePayment(id) {
+    const { data, error } = await this.client
+      .from('finance_payment_records')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+    return (await this.hydrateFinanceRecords([data]))[0] || data;
+  }
+
+  async getNextFinanceInvoiceNumber() {
+    const { data, error } = await this.client.rpc('next_finance_invoice_number');
+    if (!error && data) return data;
+    const now = new Date();
+    return `CM-FY${String(now.getFullYear()).slice(-2)}-${Date.now()}`;
+  }
+
+  async createFinanceInvoice(payload) {
+    const { data, error } = await this.client
+      .from('finance_invoices')
+      .insert([payload])
+      .select('*')
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  async updateFinancePayment(id, payload) {
+    const { data, error } = await this.client
+      .from('finance_payment_records')
+      .update({ ...payload, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select('*')
+      .single();
+    if (error) throw error;
+    return (await this.hydrateFinanceRecords([data]))[0] || data;
+  }
+
+  async getFinanceSummary(scope = {}) {
+    let query = this.client.from('finance_payment_records').select('*');
+    if (scope.party_type) query = query.eq('party_type', scope.party_type);
+    if (scope.expert_id) query = query.eq('expert_id', scope.expert_id);
+    if (scope.institution_id) query = query.eq('institution_id', scope.institution_id);
+    const { data, error } = await query;
+    if (error) {
+      if (tableMissing(error)) return { total_receivable: 0, total_payable: 0, invoiced: 0, paid: 0, pending: 0, remaining: 0 };
+      throw error;
+    }
+    const summary = { total_receivable: 0, total_payable: 0, invoiced: 0, paid: 0, pending: 0, remaining: 0 };
+    for (const record of data || []) {
+      const amount = Number(record.invoice_amount || record.calculated_amount || 0);
+      const paid = Number(record.paid_amount || 0);
+      if (record.direction === 'receivable') summary.total_receivable += amount;
+      if (record.direction === 'payable') summary.total_payable += amount;
+      if (record.status === 'invoiced') summary.invoiced += amount;
+      if (record.status === 'paid') summary.paid += paid || amount;
+      if (record.status === 'pending') summary.pending += amount;
+      summary.remaining += Math.max(0, amount - paid);
+    }
+    return Object.fromEntries(Object.entries(summary).map(([key, value]) => [key, roundMoney(value)]));
+  }
+
+  async listFinanceInvoices({ page, limit, offset, recipient_type = '', search = '' }) {
+    let query = this.client
+      .from('finance_invoices')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+    if (recipient_type) query = query.eq('recipient_type', recipient_type);
+    if (search) {
+      const s = `%${String(search).trim()}%`;
+      query = query.or(`invoice_number.ilike.${s},recipient_email.ilike.${s},recipient_name.ilike.${s}`);
+    }
+    const { data, error, count } = await query;
+    if (error) throw error;
+    return { data: data || [], total: count || 0, page, limit };
+  }
+
+  async listFinanceRecordsForScope(scope = {}, limit = 20) {
+    let query = this.client
+      .from('finance_payment_records')
+      .select('*')
+      .order('updated_at', { ascending: false })
+      .limit(limit);
+    if (scope.party_type) query = query.eq('party_type', scope.party_type);
+    if (scope.expert_id) query = query.eq('expert_id', scope.expert_id);
+    if (scope.institution_id) query = query.eq('institution_id', scope.institution_id);
+    const { data, error } = await query;
+    if (error) {
+      if (tableMissing(error)) return [];
+      throw error;
+    }
+    return this.hydrateFinanceRecords(data || []);
   }
 }
 

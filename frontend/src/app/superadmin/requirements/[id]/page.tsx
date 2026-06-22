@@ -49,6 +49,35 @@ function formatDate(value?: string | null) {
   return value ? new Date(value).toLocaleString() : '-'
 }
 
+function money(value: unknown) {
+  return `Rs. ${Number(value || 0).toFixed(2)}`
+}
+
+function paymentSummaryCard(label: string, record: any) {
+  if (!record) {
+    return (
+      <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-3">
+        <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
+        <p className="mt-1 text-sm font-medium text-slate-700">Not calculated yet</p>
+      </div>
+    )
+  }
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
+        <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold capitalize text-slate-700">{record.status || 'pending'}</span>
+      </div>
+      <div className="mt-2 grid gap-2 text-sm sm:grid-cols-3">
+        <div><span className="text-slate-500">Amount</span><p className="font-semibold text-slate-950">{money(record.invoice_amount || record.calculated_amount)}</p></div>
+        <div><span className="text-slate-500">Paid</span><p className="font-semibold text-slate-950">{money(record.paid_amount)}</p></div>
+        <div><span className="text-slate-500">Remaining</span><p className="font-semibold text-slate-950">{money(record.remaining_amount)}</p></div>
+      </div>
+      {record.pdf_url ? <a className="mt-2 inline-block text-sm font-medium text-[#008260]" href={record.pdf_url} target="_blank" rel="noreferrer">Open invoice</a> : null}
+    </div>
+  )
+}
+
 function toDatetimeLocal(value?: string | null) {
   if (!value) return ''
   return value.slice(0, 16)
@@ -60,7 +89,7 @@ export default function SuperAdminRequirementDetailPage() {
   const [detail, setDetail] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [activeStage, setActiveStage] = useState('added')
+  const [activeStage, setActiveStage] = useState('pending')
   const [expertSearch, setExpertSearch] = useState('')
   const [experts, setExperts] = useState<any[]>([])
   const [expertId, setExpertId] = useState('')
@@ -128,7 +157,7 @@ export default function SuperAdminRequirementDetailPage() {
         notes,
       })
       if (!created?.id) {
-        throw new Error('Expert was not added. The backend did not return a pipeline id.')
+        throw new Error('Expert was not added. The backend did not return an application id.')
       }
       setExpertId('')
       setExpertSearch('')
@@ -358,6 +387,12 @@ export default function SuperAdminRequirementDetailPage() {
               {booking ? <div><span className="text-slate-500">Dates</span><p className="font-medium text-slate-950">{booking.start_date || '-'} to {booking.end_date || '-'}</p></div> : null}
             </div>
             {person?.subskills?.length ? <p className="mt-3 text-sm text-slate-600"><span className="font-medium text-slate-800">Skills:</span> {person.subskills.join(', ')}</p> : null}
+            {booking ? (
+              <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                {paymentSummaryCard('Expert payable', booking.finance_summary?.expert)}
+                {paymentSummaryCard('Institute receivable', booking.finance_summary?.institution)}
+              </div>
+            ) : null}
           </div>
           <div className="flex shrink-0 flex-col gap-2 lg:min-w-56">
             {renderStatusActions(item)}
