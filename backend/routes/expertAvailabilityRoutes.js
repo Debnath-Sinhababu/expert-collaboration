@@ -170,7 +170,7 @@ function registerExpertAvailabilityRoutes(app) {
         });
       }
 
-      const writeClient = expertAccess.getWriteClientForExpert(access);
+      const writeClient = expertAccess.getServiceClient();
       const { data, error } = await writeClient
         .from('expert_availability_slots')
         .insert(rows)
@@ -244,7 +244,7 @@ function registerExpertAvailabilityRoutes(app) {
         return res.status(400).json({ error: 'No slots generated for the given range' });
       }
 
-      const writeClient = expertAccess.getWriteClientForExpert(access);
+      const writeClient = expertAccess.getServiceClient();
       const { data, error } = await writeClient
         .from('expert_availability_slots')
         .insert(rows)
@@ -267,7 +267,7 @@ function registerExpertAvailabilityRoutes(app) {
         return res.status(403).json({ error: 'Unauthorized' });
       }
 
-      const writeClient = expertAccess.getWriteClientForExpert(access);
+      const writeClient = expertAccess.getServiceClient();
       const { error } = await writeClient
         .from('expert_availability_slots')
         .delete()

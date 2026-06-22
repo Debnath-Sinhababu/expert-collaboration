@@ -75,7 +75,7 @@ class SuperAdminRepository {
 
   async insertWithMissingColumnRetry(table, payload) {
     let nextPayload = { ...payload };
-    for (let attempts = 0; attempts < 4; attempts += 1) {
+    for (let attempts = 0; attempts < 12; attempts += 1) {
       const { data, error } = await this.client
         .from(table)
         .insert([nextPayload])
@@ -97,7 +97,7 @@ class SuperAdminRepository {
 
   async updateWithMissingColumnRetry(table, id, payload) {
     let nextPayload = { ...payload };
-    for (let attempts = 0; attempts < 4; attempts += 1) {
+    for (let attempts = 0; attempts < 12; attempts += 1) {
       const { data, error } = await this.client
         .from(table)
         .update(nextPayload)
@@ -337,9 +337,7 @@ class SuperAdminRepository {
   }
 
   async createProjectRequirement(payload) {
-    const { data, error } = await this.client.from('projects').insert([payload]).select().single();
-    if (error) throw error;
-    return data;
+    return this.insertWithMissingColumnRetry('projects', payload);
   }
 
   async createInternshipRequirement(payload) {

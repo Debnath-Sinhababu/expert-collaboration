@@ -426,7 +426,6 @@ class SuperAdminService {
       duration_hours: body.duration_hours != null ? Number(body.duration_hours) : null,
       requirement_pdf_url: requirementPdfData?.url || null,
       requirement_pdf_public_id: requirementPdfData?.publicId || null,
-      created_by: actorUserId || null,
     });
   }
 
