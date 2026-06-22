@@ -4580,13 +4580,9 @@ app.put('/api/applications/:id', async (req, res) => {
 
     // Send notification to expert about application status change
     try {
-      if (req.body.status === 'interview') {
-        const serviceClient = createClient(
-          process.env.SUPABASE_URL,
-          process.env.SUPABASE_SERVICE_ROLE_KEY
-        );
+      if (['pending', 'interview', 'accepted', 'rejected'].includes(req.body.status)) {
         // Get application details for notification
-        const { data: applicationData } = await supabaseClient
+        const { data: applicationData } = await service
         .from('applications')
         .select(`
           project_id,
@@ -4622,21 +4618,38 @@ app.put('/api/applications/:id', async (req, res) => {
               applicationData.project_id
             );
           } else if (status === 'accepted') {
-            // Email + realtime for accepted (pre-booking)
+            // Email + realtime for selected/accepted
+            await notificationService.sendExpertSelectedWithBookingNotification(
+              applicationData.experts.email,
+              applicationData.projects.title,
+              applicationData.projects.institutions.name
+            );
+            socketService.sendExpertSelectedWithBookingNotification(
+              applicationData.experts.user_id,
+              applicationData.projects.title,
+              applicationData.projects.institutions.name,
+              applicationData.project_id
+            );
+          } else if (status === 'rejected') {
             await notificationService.sendApplicationStatusNotification(
               applicationData.experts.email,
               applicationData.projects.title,
               applicationData.projects.institutions.name,
-              'accepted'
+              'rejected'
             );
-            socketService.sendApplicationStatusNotification(
-              applicationData.experts.user_id,
+          } else if (status === 'pending') {
+            await notificationService.sendExpertInterestShownNotification(
+              applicationData.experts.email,
               applicationData.projects.title,
-              'accepted',
+              applicationData.projects.institutions.name,
               applicationData.project_id
             );
-          } else if (status === 'rejected') {
-            // Do not notify per requirement
+            socketService.sendExpertInterestShownNotification(
+              applicationData.experts.user_id,
+              applicationData.projects.title,
+              applicationData.projects.institutions.name,
+              applicationData.project_id
+            );
           }
         }
       }

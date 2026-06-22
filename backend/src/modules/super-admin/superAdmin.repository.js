@@ -861,7 +861,6 @@ class SuperAdminRepository {
         const existing = existingByBooking[booking.id]?.[partyType];
         const draft = buildPaymentRecordDraft(booking, partyType, approvedHours);
         upserts.push({
-          ...(existing?.id ? { id: existing.id } : {}),
           ...draft,
           invoice_amount: existing && existing.status !== 'pending'
             ? existing.invoice_amount
@@ -871,7 +870,6 @@ class SuperAdminRepository {
           paid_amount: existing?.paid_amount || 0,
           paid_at: existing?.paid_at || null,
           notes: existing?.notes || null,
-          created_by: existing?.created_by || null,
           updated_by: existing?.updated_by || null,
           updated_at: new Date().toISOString(),
         });
