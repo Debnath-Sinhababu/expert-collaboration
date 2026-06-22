@@ -1,6 +1,7 @@
 const { createClient } = require('redis');
 const { Redis } = require('@upstash/redis');
 const sgMail = require('@sendgrid/mail');
+const { sendBrevoEmail } = require('./financeEmailService');
 
 if (process.env.SENDGRID_API_KEY) {
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -47,7 +48,11 @@ class NotificationService {
   }
 
   async addToQueue(notification) {
-    if (!this.initializeRedis()) return;
+    if (!this.initializeRedis()) {
+      console.warn('Notification queue unavailable; sending notification directly:', notification.type);
+      await this.sendNotification(notification);
+      return;
+    }
 
     try {
       const dedupeKey = `notif_${notification.type}_${notification.data.email}_${Date.now()}`;
@@ -71,6 +76,7 @@ class NotificationService {
       console.log('Notification added to queue:', notification.type);
     } catch (error) {
       console.error('Error adding notification to queue:', error);
+      await this.sendNotification(notification);
     }
   }
 
@@ -157,15 +163,27 @@ class NotificationService {
             <p>You have a new notification of type: ${type}</p>`;
       }
 
-      await this.sgMail.send({
-        from: {
-          email: process.env.SENDGRID_FROM_EMAIL || 'noreply@expertcollaboration.com',
-          name: 'Calxmap Team'
-        },
-        to: data.email,
-        subject: `Calxmap - ${type.replace('_', ' ').toUpperCase()}`,
-        html: emailContent,
-      });
+      const subject = `Calxmap - ${type.replace('_', ' ').toUpperCase()}`;
+      const text = emailContent.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+      if (process.env.BREVO_API_KEY) {
+        await sendBrevoEmail({
+          to: data.email,
+          subject,
+          text,
+          html: emailContent,
+        });
+      } else {
+        await this.sgMail.send({
+          from: {
+            email: process.env.SENDGRID_FROM_EMAIL || 'noreply@calxmap.in',
+            name: 'Calxmap Team'
+          },
+          to: data.email,
+          subject,
+          html: emailContent,
+        });
+      }
 
       console.log(`Email notification sent for ${type} to ${data.email}`);
     } catch (error) {

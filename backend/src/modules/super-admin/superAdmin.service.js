@@ -509,9 +509,46 @@ class SuperAdminService {
       const booking = detail?.requirement
         ? await this.repository.createProjectBooking(detail.requirement, updated.expert_id)
         : null;
+      await this.notifyProjectApplicationStatus(requirementId, updated, 'accepted');
       return { ...updated, booking };
     }
+    if (requirementType === 'project' && ['interview', 'rejected', 'pending'].includes(body?.status) && updated.expert_id) {
+      await this.notifyProjectApplicationStatus(requirementId, updated, body.status);
+    }
     return updated;
+  }
+
+  async notifyProjectApplicationStatus(requirementId, application, status) {
+    const project = await this.repository.getProjectRequirementForAction(requirementId).catch(() => null);
+    const projectTitle = project?.title || 'Requirement';
+    const institutionName = project?.institutions?.name || 'CalxMap institution';
+    const expert = application?.experts || await this.repository
+      .hydrateRequirementExpertRows([{ expert_id: application.expert_id }], 'id,name,email,user_id,hourly_rate')
+      .then((rows) => rows?.[0]?.experts)
+      .catch(() => null);
+
+    try {
+      if (status === 'interview') {
+        await notificationService.sendMovedToInterviewNotification(expert?.email, projectTitle, requirementId);
+        if (expert?.user_id) {
+          await socketService.sendApplicationStatusNotification(expert.user_id, projectTitle, 'interview', requirementId);
+        }
+      } else if (status === 'accepted') {
+        await notificationService.sendExpertSelectedWithBookingNotification(expert?.email, projectTitle, institutionName);
+        if (expert?.user_id) {
+          await socketService.sendExpertSelectedWithBookingNotification(expert.user_id, projectTitle, institutionName, requirementId);
+        }
+      } else if (status === 'rejected') {
+        await notificationService.sendApplicationStatusNotification(expert?.email, projectTitle, institutionName, 'rejected');
+      } else if (status === 'pending') {
+        await notificationService.sendExpertInterestShownNotification(expert?.email, projectTitle, institutionName, requirementId);
+        if (expert?.user_id) {
+          await socketService.sendExpertInterestShownNotification(expert.user_id, projectTitle, institutionName, requirementId);
+        }
+      }
+    } catch (notificationError) {
+      console.warn('Super-admin project application notification failed:', notificationError.message || notificationError);
+    }
   }
 
   async updateRequirementBooking(type, requirementId, bookingId, body) {

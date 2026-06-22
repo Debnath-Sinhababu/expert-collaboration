@@ -73,5 +73,6 @@ async function sendInvoiceEmail({ to, recipientName, invoiceNumber, amount, pdfU
 }
 
 module.exports = {
+  sendBrevoEmail,
   sendInvoiceEmail,
 };
