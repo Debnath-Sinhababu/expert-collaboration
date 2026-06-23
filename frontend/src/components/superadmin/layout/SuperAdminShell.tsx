@@ -79,7 +79,7 @@ export default function SuperAdminShell({ children }: { children: React.ReactNod
 
   return (
     <SuperAdminAccessContext.Provider value={me}>
-      <div className="fixed inset-0 flex w-full max-w-[100vw] overflow-hidden bg-slate-50">
+      <div className="fixed inset-0 flex w-full max-w-[100vw] overflow-hidden bg-[#f6faf8]">
         {navOpen ? (
           <button
             type="button"

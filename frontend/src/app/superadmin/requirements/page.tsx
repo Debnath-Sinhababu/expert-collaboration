@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, Plus, X } from 'lucide-react'
+import { ArrowRight, BriefcaseBusiness, GraduationCap, Handshake, ListFilter, Plus, Search, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -209,14 +209,15 @@ export default function SuperAdminRequirementsPage() {
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-4">
-        <StatCard label="All Requirements" value={rows.length} />
-        <StatCard label="Projects" value={rows.filter((r) => r.requirement_type === 'project').length} tone="blue" />
-        <StatCard label="Internships" value={rows.filter((r) => r.requirement_type === 'internship').length} tone="amber" />
-        <StatCard label="Freelance" value={rows.filter((r) => r.requirement_type === 'freelance').length} tone="violet" />
+        <StatCard label="All Requirements" value={total || rows.length} icon={ListFilter} helper="Across all institutes" />
+        <StatCard label="Projects" value={rows.filter((r) => r.requirement_type === 'project').length} icon={BriefcaseBusiness} tone="blue" helper="Current page" />
+        <StatCard label="Internships" value={rows.filter((r) => r.requirement_type === 'internship').length} icon={GraduationCap} tone="amber" helper="Current page" />
+        <StatCard label="Freelance" value={rows.filter((r) => r.requirement_type === 'freelance').length} icon={Handshake} tone="violet" helper="Current page" />
       </div>
       <SectionCard
         title="Requirements"
         description="Manage requirements across institutions without entering each workspace."
+        eyebrow="Requirement hub"
         action={
           <PermissionGate permission="requirements:write">
             <Button type="button" className="bg-[#008260] hover:bg-[#006d51]" onClick={() => setCreateOpen(true)}>
@@ -226,9 +227,9 @@ export default function SuperAdminRequirementsPage() {
           </PermissionGate>
         }
       >
-        <div className="mb-4 flex flex-col gap-3">
+        <div className="mb-5 flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
           <Tabs value={type} onValueChange={setType}>
-            <TabsList>
+            <TabsList className="grid h-auto w-full grid-cols-2 bg-white p-1 md:w-fit md:grid-cols-4">
               <TabsTrigger value="all">All</TabsTrigger>
               <TabsTrigger value="project">Projects</TabsTrigger>
               <TabsTrigger value="internship">Internships</TabsTrigger>
@@ -236,7 +237,10 @@ export default function SuperAdminRequirementsPage() {
             </TabsList>
           </Tabs>
           <div className="grid gap-3 lg:grid-cols-[1fr_220px_320px]">
-            <Input placeholder="Search title, description, or responsibilities" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+              <Input className="pl-9" placeholder="Search title, description, or responsibilities" value={search} onChange={(e) => setSearch(e.target.value)} />
+            </div>
             <Select value={status} onValueChange={setStatus}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -297,10 +301,20 @@ export default function SuperAdminRequirementsPage() {
         <DataTable
           rows={rows}
           columns={[
-            { key: 'title', header: 'Title', render: (row) => <span className="font-medium text-slate-950">{row.title}</span> },
-            { key: 'type', header: 'Type', render: (row) => <span className="capitalize">{row.requirement_type}</span> },
-            { key: 'institution', header: 'Institute', render: (row) => row.institutions?.name || '-' },
-            { key: 'status', header: 'Status', render: (row) => row.status || row.call_status || '-' },
+            { key: 'title', header: 'Title', render: (row) => (
+              <div>
+                <p className="font-semibold text-slate-950">{row.title}</p>
+                <p className="mt-1 max-w-md truncate text-xs text-slate-500">{row.description || row.responsibilities || 'No description'}</p>
+              </div>
+            ) },
+            { key: 'type', header: 'Type', render: (row) => <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold capitalize text-slate-700">{row.requirement_type}</span> },
+            { key: 'institution', header: 'Institute', render: (row) => (
+              <div>
+                <p className="font-medium text-slate-900">{row.institutions?.name || '-'}</p>
+                <p className="text-xs text-slate-500">{row.institutions?.email || ''}</p>
+              </div>
+            ) },
+            { key: 'status', header: 'Status', render: (row) => <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold capitalize text-[#008260]">{row.status || row.call_status || '-'}</span> },
             { key: 'created', header: 'Created', render: (row) => row.created_at ? new Date(row.created_at).toLocaleDateString() : '-' },
             { key: 'action', header: '', render: (row) => (
               <Button asChild size="sm" variant="outline">

@@ -16,7 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { StatCard } from '@/components/superadmin/common/StatCard'
 import { SectionCard } from '@/components/superadmin/common/SectionCard'
 import { DataTable } from '@/components/superadmin/common/DataTable'
 import { PermissionGate } from '@/components/superadmin/common/PermissionGate'
@@ -38,6 +37,44 @@ function statusClass(status?: string) {
   if (status === 'invoiced') return 'bg-blue-50 text-blue-700'
   if (status === 'cancelled') return 'bg-red-50 text-red-700'
   return 'bg-amber-50 text-amber-700'
+}
+
+function FinanceMetricCard({
+  label,
+  value,
+  icon: Icon,
+  tone = 'green',
+  helper,
+}: {
+  label: string
+  value: string
+  icon: typeof Banknote
+  tone?: 'green' | 'blue' | 'amber' | 'slate'
+  helper: string
+}) {
+  const styles = {
+    green: 'border-emerald-200 bg-emerald-50 text-[#008260]',
+    blue: 'border-sky-200 bg-sky-50 text-sky-700',
+    amber: 'border-amber-200 bg-amber-50 text-amber-700',
+    slate: 'border-slate-200 bg-slate-50 text-slate-700',
+  }[tone]
+
+  return (
+    <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-[#008260]/30 hover:shadow-md">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+          <p className="mt-1 text-xs text-slate-500">{helper}</p>
+        </div>
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border ${styles}`}>
+          <Icon className="h-5 w-5" />
+        </div>
+      </div>
+      <p className="break-words text-[clamp(1.25rem,1.7vw,1.9rem)] font-bold leading-tight tracking-tight text-slate-950">
+        {value}
+      </p>
+    </article>
+  )
 }
 
 export default function SuperAdminFinancePage() {
@@ -194,12 +231,12 @@ export default function SuperAdminFinancePage() {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-5">
-        <StatCard label="Total Receivable" value={money(summary.total_receivable)} icon={Banknote} />
-        <StatCard label="Total Payable" value={money(summary.total_payable)} icon={Banknote} tone="blue" />
-        <StatCard label="Invoiced" value={money(summary.invoiced)} icon={ReceiptText} tone="blue" />
-        <StatCard label="Paid" value={money(summary.paid)} icon={ReceiptText} tone="green" />
-        <StatCard label="Pending" value={money(summary.pending)} icon={FileText} tone="amber" />
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <FinanceMetricCard label="Receivable" value={money(summary.total_receivable)} icon={Banknote} helper="Institute collections" />
+        <FinanceMetricCard label="Payable" value={money(summary.total_payable)} icon={Banknote} tone="blue" helper="Expert payouts" />
+        <FinanceMetricCard label="Invoiced" value={money(summary.invoiced)} icon={ReceiptText} tone="blue" helper="Invoices sent" />
+        <FinanceMetricCard label="Paid" value={money(summary.paid)} icon={ReceiptText} helper="Settled amount" />
+        <FinanceMetricCard label="Pending" value={money(summary.pending)} icon={FileText} tone="amber" helper="Awaiting invoice" />
       </div>
 
       <SectionCard
