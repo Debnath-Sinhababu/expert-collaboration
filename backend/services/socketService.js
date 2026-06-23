@@ -303,9 +303,8 @@ class SocketService {
     return this.sendToUser(expertId, 'expert_selected_with_booking', {
       type: 'expert_selected_with_booking',
       projectTitle,
-      institutionName,
       projectId,
-      message: `Congratulations! You've been selected for project: ${projectTitle}`,
+      message: `You have been selected for project: ${projectTitle}. CalxMap will manage the engagement flow.`,
     });
   }
 
@@ -313,9 +312,8 @@ class SocketService {
     return this.sendToUser(expertId, 'expert_interest_shown', {
       type: 'expert_interest_shown',
       projectTitle,
-      institutionName,
       projectId,
-      message: `An institution is interested in your profile for: ${projectTitle}. Tap to view details.`,
+      message: `A verified client requirement matches your profile: ${projectTitle}. Tap to view details.`,
     });
   }
 }

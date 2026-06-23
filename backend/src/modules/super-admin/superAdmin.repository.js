@@ -724,7 +724,7 @@ class SuperAdminRepository {
   async listFinanceTrainings({ page, limit, offset }) {
     const { data, error, count } = await this.client
       .from('bookings')
-      .select('*, projects!inner(id,title,type), experts(id,name,email,hourly_rate), institutions(id,name,email)', { count: 'exact' })
+      .select('*, projects!inner(id,title,type,description,hourly_rate,total_budget,start_date,end_date,duration_hours,job_location,workplace_type,employment_type,status,call_status), experts(id,name,email,hourly_rate), institutions(id,name,email)', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
     if (error) throw error;
@@ -779,7 +779,7 @@ class SuperAdminRepository {
   async listFinanceSourceBookings({ page, limit, offset, search = '' }) {
     let query = this.client
       .from('bookings')
-      .select('*, projects!inner(id,title,type), experts(id,name,email,hourly_rate), institutions(id,name,email)', { count: 'exact' })
+      .select('*, projects!inner(id,title,type,description,hourly_rate,total_budget,start_date,end_date,duration_hours,job_location,workplace_type,employment_type,status,call_status), experts(id,name,email,hourly_rate), institutions(id,name,email)', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -939,7 +939,7 @@ class SuperAdminRepository {
       bookingIds.length
         ? this.client
             .from('bookings')
-            .select('*, projects(id,title,type), experts(id,name,email,hourly_rate), institutions(id,name,email)')
+            .select('*, projects(id,title,type,description,hourly_rate,total_budget,start_date,end_date,duration_hours,job_location,workplace_type,employment_type,status,call_status), experts(id,name,email,hourly_rate), institutions(id,name,email)')
             .in('id', bookingIds)
         : { data: [], error: null },
       invoiceIds.length

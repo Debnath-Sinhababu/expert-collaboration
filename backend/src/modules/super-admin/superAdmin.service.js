@@ -534,12 +534,12 @@ class SuperAdminService {
           await socketService.sendApplicationStatusNotification(expert.user_id, projectTitle, 'interview', requirementId);
         }
       } else if (status === 'accepted') {
-        await notificationService.sendExpertSelectedWithBookingNotification(expert?.email, projectTitle, institutionName);
+        await notificationService.sendExpertSelectedWithBookingNotification(expert?.email, projectTitle, institutionName, requirementId);
         if (expert?.user_id) {
           await socketService.sendExpertSelectedWithBookingNotification(expert.user_id, projectTitle, institutionName, requirementId);
         }
       } else if (status === 'rejected') {
-        await notificationService.sendApplicationStatusNotification(expert?.email, projectTitle, institutionName, 'rejected');
+        await notificationService.sendApplicationStatusNotification(expert?.email, projectTitle, institutionName, 'rejected', requirementId);
       } else if (status === 'pending') {
         await notificationService.sendExpertInterestShownNotification(expert?.email, projectTitle, institutionName, requirementId);
         if (expert?.user_id) {

@@ -4017,7 +4017,7 @@ app.post('/api/notifications/send-expert-selected', async (req, res) => {
     await notificationService.sendExpertSelectedWithBookingNotification(
       expertData.email,
       projectTitle,
-
+      institutionName,
       projectId
     );
     
@@ -4622,7 +4622,8 @@ app.put('/api/applications/:id', async (req, res) => {
             await notificationService.sendExpertSelectedWithBookingNotification(
               applicationData.experts.email,
               applicationData.projects.title,
-              applicationData.projects.institutions.name
+              applicationData.projects.institutions.name,
+              applicationData.project_id
             );
             socketService.sendExpertSelectedWithBookingNotification(
               applicationData.experts.user_id,
@@ -4635,7 +4636,8 @@ app.put('/api/applications/:id', async (req, res) => {
               applicationData.experts.email,
               applicationData.projects.title,
               applicationData.projects.institutions.name,
-              'rejected'
+              'rejected',
+              applicationData.project_id
             );
           } else if (status === 'pending') {
             await notificationService.sendExpertInterestShownNotification(

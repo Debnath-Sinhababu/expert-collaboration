@@ -17,6 +17,15 @@ function brevoSender() {
   };
 }
 
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 async function sendBrevoEmail({ to, subject, text, html }) {
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) throw new Error('BREVO_API_KEY is not configured');
@@ -50,23 +59,37 @@ async function sendBrevoEmail({ to, subject, text, html }) {
 
 async function sendInvoiceEmail({ to, recipientName, invoiceNumber, amount, pdfUrl, partyType, projectTitle }) {
   if (!to) throw new Error('Invoice recipient email is missing');
-  const subject = `CalxMap invoice ${invoiceNumber}`;
-  const label = partyType === 'expert' ? 'expert payout' : 'institute payment';
+  const isExpert = partyType === 'expert';
+  const subject = isExpert
+    ? `CalxMap payout statement ${invoiceNumber}`
+    : `CalxMap payment invoice ${invoiceNumber}`;
+  const label = isExpert ? 'payout statement' : 'payment invoice';
+  const paymentLine = isExpert
+    ? 'This payout will be processed by CalxMap after finance confirmation.'
+    : 'Please process this payment to CalxMap as per your agreed payment terms.';
+  const safeName = escapeHtml(recipientName || 'there');
+  const safeProjectTitle = escapeHtml(projectTitle || 'your training project');
+  const safeInvoiceNumber = escapeHtml(invoiceNumber);
+  const safePdfUrl = escapeHtml(pdfUrl);
   const text = [
     `Hello ${recipientName || 'there'},`,
     '',
-    `Your CalxMap ${label} invoice ${invoiceNumber} has been generated for ${projectTitle || 'your training project'}.`,
+    `Your CalxMap ${label} ${invoiceNumber} has been generated for ${projectTitle || 'your training project'}.`,
     `Amount: Rs. ${Number(amount || 0).toFixed(2)}`,
+    paymentLine,
+    'All payment handling for this engagement is managed through CalxMap. Counterparty names are not shown on this invoice for privacy.',
     `Invoice PDF: ${pdfUrl}`,
     '',
     'Regards,',
     'CalxMap Finance',
   ].join('\n');
   const html = `
-    <p>Hello ${recipientName || 'there'},</p>
-    <p>Your CalxMap ${label} invoice <strong>${invoiceNumber}</strong> has been generated for <strong>${projectTitle || 'your training project'}</strong>.</p>
+    <p>Hello ${safeName},</p>
+    <p>Your CalxMap ${escapeHtml(label)} <strong>${safeInvoiceNumber}</strong> has been generated for <strong>${safeProjectTitle}</strong>.</p>
     <p><strong>Amount:</strong> Rs. ${Number(amount || 0).toFixed(2)}</p>
-    <p><a href="${pdfUrl}">Download invoice PDF</a></p>
+    <p>${escapeHtml(paymentLine)}</p>
+    <p>All payment handling for this engagement is managed through CalxMap. Counterparty names are not shown on this invoice for privacy.</p>
+    <p><a href="${safePdfUrl}">Download invoice PDF</a></p>
     <p>Regards,<br/>CalxMap Finance</p>
   `;
   return sendBrevoEmail({ to, subject, text, html });
