@@ -85,6 +85,12 @@ export function TrainingAttendancePanel({
 
   const todayStr = format(new Date(), 'yyyy-MM-dd')
   const todayRow = data?.days?.find((d) => normalizeDateOnly(d.session_date) === todayStr)
+  const blockingOpenDay = useMemo(() => {
+    if (!data?.days?.length) return null
+    return (
+      data.days.find((d) => d.status === 'open' && normalizeDateOnly(d.session_date) !== todayStr) ?? null
+    )
+  }, [data?.days, todayStr])
 
   const apiStart = normalizeDateOnly(data?.booking?.start_date)
   const apiEnd = normalizeDateOnly(data?.booking?.end_date)
@@ -141,8 +147,8 @@ export function TrainingAttendancePanel({
         ? ['completed', 'cancelled'].includes(st)
         : false
 
-  // Experts: trust booking card status for marking (same source as the list). API canMark can be wrong during rollout / edge cases.
-  const expertCanMark = expectedViewerRole === 'expert' && bookingAllowsMark && !readOnly
+  const apiAllowsMark = data ? Boolean(data.canMark) : true
+  const expertCanMark = expectedViewerRole === 'expert' && bookingAllowsMark && apiAllowsMark && !readOnly
   const canMark = expectedViewerRole === 'expert' ? expertCanMark : Boolean(data?.canMark)
   const summary = data?.summary ?? {
     daysApproved: 0,
@@ -154,8 +160,11 @@ export function TrainingAttendancePanel({
   }
 
   const todayInRange = isDateInRange(todayStr, calendarStart, calendarEnd)
+  const todayBlockedByPreviousOpenDay = Boolean(blockingOpenDay)
   const showTodayQuickActions =
-    role === 'expert' && canMark && todayInRange
+    role === 'expert' && canMark && todayInRange && !todayBlockedByPreviousOpenDay
+  const selectedDayCanMark =
+    canMark && (!blockingOpenDay || selectedDayRow?.id === blockingOpenDay.id)
 
   return (
     <div className="mt-4 rounded-xl border border-[#E8E8E8] bg-[#FAFAFA] overflow-hidden">
@@ -188,6 +197,13 @@ export function TrainingAttendancePanel({
 
           {role === 'expert' && canMark && !todayInRange && (
             <p className="text-sm text-[#92400E] bg-[#FFF7ED] border border-[#FED7AA] rounded-lg px-3 py-2">
+              Today is outside the training period for this booking ({calendarStart} to {calendarEnd}).
+              Select a date inside the training period on the calendar to mark attendance.
+            </p>
+          )}
+
+          {false && role === 'expert' && canMark && !todayInRange && (
+            <p className="text-sm text-[#92400E] bg-[#FFF7ED] border border-[#FED7AA] rounded-lg px-3 py-2">
               Today is outside this booking&apos;s training window ({calendarStart} – {calendarEnd}). Select an
               in-range day on the calendar to mark entry.
             </p>
@@ -196,6 +212,13 @@ export function TrainingAttendancePanel({
           {data && !canMark && !readOnly && role === 'expert' && (
             <p className="text-sm text-[#6A6A6A]">
               Attendance marking is not available for this booking status.
+            </p>
+          )}
+
+          {role === 'expert' && canMark && todayInRange && blockingOpenDay && (
+            <p className="text-sm text-[#92400E] bg-[#FFF7ED] border border-[#FED7AA] rounded-lg px-3 py-2">
+              Attendance for {normalizeDateOnly(blockingOpenDay.session_date) || 'a previous day'} is still open.
+              Select that day on the calendar and mark exit before starting today&apos;s attendance.
             </p>
           )}
 
@@ -249,7 +272,7 @@ export function TrainingAttendancePanel({
               rangeStart={calendarStart}
               rangeEnd={calendarEnd}
               role={role}
-              canMark={canMark}
+              canMark={selectedDayCanMark}
               readOnly={readOnly}
               busy={busy}
               onMarkEntry={() => selectedDateStr && handleMarkEntryForDate(selectedDateStr)}

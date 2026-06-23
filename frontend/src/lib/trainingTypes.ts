@@ -2,7 +2,11 @@ export const TRAINING_PROJECT_TYPES = [
   'guest_lecture',
   'fdp',
   'workshop',
+  'curriculum_dev',
+  'research_collaboration',
   'training_program',
+  'consultation',
+  'other',
 ] as const
 
 export type TrainingProjectType = (typeof TRAINING_PROJECT_TYPES)[number]
