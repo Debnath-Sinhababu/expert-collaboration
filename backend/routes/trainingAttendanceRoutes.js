@@ -196,13 +196,16 @@ async function getDayForBooking(service, bookingId, dayId) {
 async function assertNoOtherOpenDay(service, bookingId, excludeDayId) {
   let q = service
     .from('training_attendance_days')
-    .select('id')
+    .select('id, session_date, expert_entry_at, expert_exit_at')
     .eq('booking_id', bookingId)
     .eq('status', 'open');
   if (excludeDayId) q = q.neq('id', excludeDayId);
   const { data } = await q.limit(1);
   if (data?.length) {
-    const err = new Error('Another day is still open. Mark exit before starting a new day.');
+    const openDay = data[0];
+    const err = new Error(
+      `Attendance for ${normalizeDateOnly(openDay.session_date) || 'a previous day'} is still open. Mark exit for that day before starting a new attendance entry.`
+    );
     err.statusCode = 400;
     throw err;
   }
@@ -253,9 +256,26 @@ function registerTrainingAttendanceRoutes(app) {
       const { data: days, error } = await query;
       if (error) throw error;
 
-      const summary = computeSummary(days || [], ctx.booking.hours_booked);
+      let mergedDays = days || [];
+      if (from || to) {
+        const { data: openDays, error: openError } = await ctx.service
+          .from('training_attendance_days')
+          .select('*')
+          .eq('booking_id', req.params.bookingId)
+          .eq('status', 'open');
+        if (openError) throw openError;
+        const byId = new Map(mergedDays.map((day) => [day.id, day]));
+        for (const day of openDays || []) {
+          byId.set(day.id, day);
+        }
+        mergedDays = Array.from(byId.values()).sort((a, b) =>
+          String(a.session_date || '').localeCompare(String(b.session_date || ''))
+        );
+      }
+
+      const summary = computeSummary(mergedDays, ctx.booking.hours_booked);
       res.json({
-        days: days || [],
+        days: mergedDays,
         summary,
         booking: {
           id: ctx.booking.id,
@@ -352,6 +372,7 @@ function registerTrainingAttendanceRoutes(app) {
       if (day.expert_entry_at && day.status !== 'disputed') {
         return res.status(400).json({ error: 'Entry already marked for this day' });
       }
+      await assertNoOtherOpenDay(ctx.service, req.params.bookingId, day.id);
 
       const now = new Date().toISOString();
       const writeClient = getWriteClient(ctx);

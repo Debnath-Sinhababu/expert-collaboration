@@ -13,6 +13,7 @@ import Logo from '@/components/Logo'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { superAdminApi } from '@/lib/superadmin/api'
 
 function LoginForm() {
   const [email, setEmail] = useState('')
@@ -136,8 +137,14 @@ function LoginForm() {
           } catch (error) {
             router.push('/student/profile-setup')
           }
-        } else if (role === 'super_admin') {
-          router.push('/superadmin/home')
+        } else if (role === 'super_admin' || role === 'superadmin') {
+          try {
+            await superAdminApi.me()
+            router.push('/superadmin/home')
+          } catch (error) {
+            await supabase.auth.signOut()
+            setError(error instanceof Error ? error.message : 'Your admin account cannot sign in.')
+          }
         }
          else {
           router.push('/')

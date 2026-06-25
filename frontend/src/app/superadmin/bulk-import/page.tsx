@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Upload, ArrowLeft, CheckCircle, XCircle, Loader2, FileSpreadsheet } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { api } from '@/lib/api'
+import { superAdminApi } from '@/lib/superadmin/api'
 
 function extractSpreadsheetId(urlOrId: string): string | null {
   const trimmed = urlOrId.trim()
@@ -79,8 +79,8 @@ export default function SuperAdminBulkImport() {
 
       const data =
         kind === 'experts'
-          ? await api.superadmin.bulkImportExperts(body)
-          : await api.superadmin.bulkImportStudents(body)
+          ? await superAdminApi.bulkImportExperts(body)
+          : await superAdminApi.bulkImportStudents(body)
 
       setResult(data as ImportResult)
       const s = (data as ImportResult).summary

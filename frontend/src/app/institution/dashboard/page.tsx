@@ -65,6 +65,7 @@ export default function InstitutionDashboardPage() {
   const [applications, setApplications] = useState<any[]>([])
   const [bookings, setBookings] = useState<any[]>([])
   const [bookingCounts, setBookingCounts] = useState<any>({ total: 0, in_progress: 0, completed: 0, cancelled: 0, pending: 0 })
+  const [financeSummary, setFinanceSummary] = useState<any>(null)
   const [ratings, setRatings] = useState<any[]>([])
   const [allRatings, setAllRatings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -302,6 +303,9 @@ export default function InstitutionDashboardPage() {
       }
 
       setInstitution(institutionsResponse)
+      api.institutionFinance.summary(institutionsResponse.id)
+        .then(setFinanceSummary)
+        .catch(() => setFinanceSummary(null))
       
       // Initial light calls (experts list is paginated below). Lists are fed by paginated hooks
       const [bookingCountsResponse] = await Promise.all([
@@ -1357,6 +1361,32 @@ export default function InstitutionDashboardPage() {
             </CardContent>
           </Card> */}
         </div>
+
+        {financeSummary?.summary ? (
+          <div className="grid md:grid-cols-3 gap-6 mb-8">
+            <Card className="bg-white border-2 border-[#D6D6D6]">
+              <CardContent className="p-4">
+                <p className="text-sm font-medium text-[#000000]">Pending Payable</p>
+                <p className="text-3xl font-bold text-[#000000] my-2">Rs. {Number(financeSummary.summary.pending || 0).toFixed(2)}</p>
+                <p className="text-xs text-[#656565]">Not invoiced yet</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-white border-2 border-[#D6D6D6]">
+              <CardContent className="p-4">
+                <p className="text-sm font-medium text-[#000000]">Invoiced Amount</p>
+                <p className="text-3xl font-bold text-[#000000] my-2">Rs. {Number(financeSummary.summary.invoiced || 0).toFixed(2)}</p>
+                <p className="text-xs text-[#656565]">Awaiting payment confirmation</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-white border-2 border-[#D6D6D6]">
+              <CardContent className="p-4">
+                <p className="text-sm font-medium text-[#000000]">Paid Amount</p>
+                <p className="text-3xl font-bold text-[#000000] my-2">Rs. {Number(financeSummary.summary.paid || 0).toFixed(2)}</p>
+                <p className="text-xs text-[#656565]">{financeSummary.payments?.length || 0} recent finance records</p>
+              </CardContent>
+            </Card>
+          </div>
+        ) : null}
 
         {/* Main Content */}
         <div className="space-y-6">

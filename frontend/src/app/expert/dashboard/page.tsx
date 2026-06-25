@@ -120,6 +120,7 @@ export default function ExpertDashboard() {
     institution?: { name?: string }
   }
   const [bookings, setBookings] = useState<Booking[]>([])
+  const [financeSummary, setFinanceSummary] = useState<any>(null)
   type RatingItem = { rating: number }
   const [expertRatings, setExpertRatings] = useState<RatingItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -224,6 +225,11 @@ export default function ExpertDashboard() {
         profile_photo_small_url: expertProfile.profile_photo_small_url || '',
       }
       setExpert(expertData)
+      if (expertData.id) {
+        api.expertFinance.summary(expertData.id)
+          .then(setFinanceSummary)
+          .catch(() => setFinanceSummary(null))
+      }
     } catch (error) {
       console.error('Error loading expert data:', error)
       const message = error instanceof Error ? error.message : ''
@@ -674,6 +680,32 @@ export default function ExpertDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {financeSummary?.summary ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <Card className="border-2 border-[#D6D6D6] bg-white">
+              <CardContent className="p-4">
+                <p className="text-sm font-medium text-[#000000]">Pending Payouts</p>
+                <p className="text-3xl font-bold text-[#000000] my-1">Rs. {Number(financeSummary.summary.pending || 0).toFixed(2)}</p>
+                <p className="text-xs text-[#656565] font-medium">Not invoiced yet</p>
+              </CardContent>
+            </Card>
+            <Card className="border-2 border-[#D6D6D6] bg-white">
+              <CardContent className="p-4">
+                <p className="text-sm font-medium text-[#000000]">Invoiced Payouts</p>
+                <p className="text-3xl font-bold text-[#000000] my-1">Rs. {Number(financeSummary.summary.invoiced || 0).toFixed(2)}</p>
+                <p className="text-xs text-[#656565] font-medium">Awaiting payment</p>
+              </CardContent>
+            </Card>
+            <Card className="border-2 border-[#D6D6D6] bg-white">
+              <CardContent className="p-4">
+                <p className="text-sm font-medium text-[#000000]">Paid Payouts</p>
+                <p className="text-3xl font-bold text-[#000000] my-1">Rs. {Number(financeSummary.summary.paid || 0).toFixed(2)}</p>
+                <p className="text-xs text-[#656565] font-medium">{financeSummary.payments?.length || 0} recent finance records</p>
+              </CardContent>
+            </Card>
+          </div>
+        ) : null}
 
         {/* Applications Section */}
         <div className="space-y-6">

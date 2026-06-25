@@ -7,6 +7,7 @@ const { createClient } = require('@supabase/supabase-js');
 const http = require('http');
 const upload = require('./middleware/upload');
 const ImageUploadService = require('./services/imageUploadService');
+const FinanceDashboardService = require('./services/financeDashboardService');
 
 dotenv.config();
 
@@ -24,6 +25,7 @@ const {
   requestPasswordReset,
 } = require('./services/authEmailService');
 const privacyMask = require('./privacyMask');
+const financeDashboardService = new FinanceDashboardService();
 
 console.log('Environment variables loaded:');
 console.log('UPSTASH_REDIS_REST_URL:', process.env.UPSTASH_REDIS_REST_URL ? 'Set' : 'Not set');
@@ -147,6 +149,30 @@ app.get('/api/health', async (req, res) => {
 
 app.get('/api/health-static', (req, res) => {
   res.json({ status: 'OK' });
+});
+
+app.get('/api/expert/finance/summary', async (req, res) => {
+  try {
+    const expertId = String(req.query.expert_id || '').trim();
+    if (!expertId) return res.status(400).json({ error: 'expert_id is required' });
+    await expertAccess.resolveExpertAccess(req, expertId);
+    res.json(await financeDashboardService.getExpertSummary(expertId));
+  } catch (err) {
+    const statusCode = err?.statusCode || 500;
+    res.status(statusCode).json({ error: err.message || 'Failed to load expert finance summary' });
+  }
+});
+
+app.get('/api/institution/finance/summary', async (req, res) => {
+  try {
+    const institutionId = String(req.query.institution_id || '').trim();
+    if (!institutionId) return res.status(400).json({ error: 'institution_id is required' });
+    await institutionAccess.resolveInstitutionAccess(req, institutionId);
+    res.json(await financeDashboardService.getInstitutionSummary(institutionId));
+  } catch (err) {
+    const statusCode = err?.statusCode || 500;
+    res.status(statusCode).json({ error: err.message || 'Failed to load institution finance summary' });
+  }
 });
 
 app.post('/api/auth/register', async (req, res) => {
@@ -1092,34 +1118,8 @@ app.put('/api/experts/:id/calxbook-visibility', async (req, res) => {
   try {
     const expertId = req.params.id;
 
-    // Parse token and verify role directly
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'Authorization required' });
-    }
-    const token = authHeader.substring(7);
-
-    const userClient = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_ANON_KEY,
-      {
-        global: {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      }
-    );
-
-    const { data: userData, error: userErr } = await userClient.auth.getUser();
-    if (userErr || !userData || !userData.user) {
-      return res.status(403).json({ error: 'Invalid token' });
-    }
-
-    const role = userData.user.user_metadata?.role;
-    if (role !== 'super_admin') {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
+    const auth = await superAdminAuth.requireSuperAdminPermission(req, res, 'calxbook_verification:write');
+    if (!auth) return;
 
     // Use service-role client to perform the update
     const writeClient = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -1161,7 +1161,7 @@ function formatHardDeleteError(err) {
 
 app.delete('/api/superadmin/profiles/experts/:id', async (req, res) => {
   try {
-    const auth = await superAdminAuth.requireSuperAdmin(req, res);
+    const auth = await superAdminAuth.requireSuperAdminPermission(req, res, 'profiles:write');
     if (!auth) return;
     const serviceClient = superAdminAuth.getServiceClient();
     const deleted = await superAdminAuth.hardDeleteProfileRow(serviceClient, 'experts', req.params.id);
@@ -1177,7 +1177,7 @@ app.delete('/api/superadmin/profiles/experts/:id', async (req, res) => {
 
 app.delete('/api/superadmin/profiles/institutions/:id', async (req, res) => {
   try {
-    const auth = await superAdminAuth.requireSuperAdmin(req, res);
+    const auth = await superAdminAuth.requireSuperAdminPermission(req, res, 'profiles:write');
     if (!auth) return;
     const serviceClient = superAdminAuth.getServiceClient();
     const deleted = await superAdminAuth.hardDeleteProfileRow(serviceClient, 'institutions', req.params.id);
@@ -1193,7 +1193,7 @@ app.delete('/api/superadmin/profiles/institutions/:id', async (req, res) => {
 
 app.delete('/api/superadmin/profiles/students/:id', async (req, res) => {
   try {
-    const auth = await superAdminAuth.requireSuperAdmin(req, res);
+    const auth = await superAdminAuth.requireSuperAdminPermission(req, res, 'profiles:write');
     if (!auth) return;
     const serviceClient = superAdminAuth.getServiceClient();
     const deleted = await superAdminAuth.hardDeleteProfileRow(serviceClient, 'site_students', req.params.id);
@@ -1209,7 +1209,7 @@ app.delete('/api/superadmin/profiles/students/:id', async (req, res) => {
 
 app.get('/api/superadmin/custom-domains', async (req, res) => {
   try {
-    const auth = await superAdminAuth.requireSuperAdmin(req, res);
+    const auth = await superAdminAuth.requireSuperAdminPermission(req, res, 'profiles:write');
     if (!auth) return;
     const serviceClient = superAdminAuth.getServiceClient();
     const { data, error } = await serviceClient
@@ -4017,7 +4017,7 @@ app.post('/api/notifications/send-expert-selected', async (req, res) => {
     await notificationService.sendExpertSelectedWithBookingNotification(
       expertData.email,
       projectTitle,
-
+      institutionName,
       projectId
     );
     
@@ -4580,13 +4580,9 @@ app.put('/api/applications/:id', async (req, res) => {
 
     // Send notification to expert about application status change
     try {
-      if (req.body.status === 'interview') {
-        const serviceClient = createClient(
-          process.env.SUPABASE_URL,
-          process.env.SUPABASE_SERVICE_ROLE_KEY
-        );
+      if (['pending', 'interview', 'accepted', 'rejected'].includes(req.body.status)) {
         // Get application details for notification
-        const { data: applicationData } = await supabaseClient
+        const { data: applicationData } = await service
         .from('applications')
         .select(`
           project_id,
@@ -4622,21 +4618,40 @@ app.put('/api/applications/:id', async (req, res) => {
               applicationData.project_id
             );
           } else if (status === 'accepted') {
-            // Email + realtime for accepted (pre-booking)
+            // Email + realtime for selected/accepted
+            await notificationService.sendExpertSelectedWithBookingNotification(
+              applicationData.experts.email,
+              applicationData.projects.title,
+              applicationData.projects.institutions.name,
+              applicationData.project_id
+            );
+            socketService.sendExpertSelectedWithBookingNotification(
+              applicationData.experts.user_id,
+              applicationData.projects.title,
+              applicationData.projects.institutions.name,
+              applicationData.project_id
+            );
+          } else if (status === 'rejected') {
             await notificationService.sendApplicationStatusNotification(
               applicationData.experts.email,
               applicationData.projects.title,
               applicationData.projects.institutions.name,
-              'accepted'
-            );
-            socketService.sendApplicationStatusNotification(
-              applicationData.experts.user_id,
-              applicationData.projects.title,
-              'accepted',
+              'rejected',
               applicationData.project_id
             );
-          } else if (status === 'rejected') {
-            // Do not notify per requirement
+          } else if (status === 'pending') {
+            await notificationService.sendExpertInterestShownNotification(
+              applicationData.experts.email,
+              applicationData.projects.title,
+              applicationData.projects.institutions.name,
+              applicationData.project_id
+            );
+            socketService.sendExpertInterestShownNotification(
+              applicationData.experts.user_id,
+              applicationData.projects.title,
+              applicationData.projects.institutions.name,
+              applicationData.project_id
+            );
           }
         }
       }
@@ -6307,11 +6322,14 @@ setupContactRoutes(app);
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
+  res.status(err.statusCode || err.status || 500).json({ error: err.message || 'Something went wrong!' });
 });
 
 
 
+
+const { createSuperAdminRouter } = require('./src/modules/super-admin/superAdmin.routes');
+app.use('/api/superadmin', createSuperAdminRouter());
 
 const { registerSuperAdminExpertMutations } = require('./routes/superadminExpertMutations');
 registerSuperAdminExpertMutations(app, {
@@ -6326,6 +6344,11 @@ registerExpertAvailabilityRoutes(app);
 const { registerTrainingAttendanceRoutes } = require('./routes/trainingAttendanceRoutes');
 registerTrainingAttendanceRoutes(app);
 
+app.use((err, req, res, next) => {
+  console.error(err.stack || err);
+  if (res.headersSent) return next(err);
+  res.status(err.statusCode || err.status || 500).json({ error: err.message || 'Something went wrong!' });
+});
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });

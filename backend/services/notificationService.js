@@ -1,6 +1,22 @@
 const { createClient } = require('redis');
 const { Redis } = require('@upstash/redis');
 const sgMail = require('@sendgrid/mail');
+const { sendBrevoEmail } = require('./financeEmailService');
+
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function expertProjectLink(projectId) {
+  return process.env.FRONTEND_URL && projectId
+    ? `<p><a href="${escapeHtml(`${process.env.FRONTEND_URL}/expert/project/${projectId}`)}">View project details</a></p>`
+    : '';
+}
 
 if (process.env.SENDGRID_API_KEY) {
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -47,7 +63,11 @@ class NotificationService {
   }
 
   async addToQueue(notification) {
-    if (!this.initializeRedis()) return;
+    if (!this.initializeRedis()) {
+      console.warn('Notification queue unavailable; sending notification directly:', notification.type);
+      await this.sendNotification(notification);
+      return;
+    }
 
     try {
       const dedupeKey = `notif_${notification.type}_${notification.data.email}_${Date.now()}`;
@@ -71,6 +91,7 @@ class NotificationService {
       console.log('Notification added to queue:', notification.type);
     } catch (error) {
       console.error('Error adding notification to queue:', error);
+      await this.sendNotification(notification);
     }
   }
 
@@ -89,7 +110,7 @@ class NotificationService {
 
       console.log('Raw notification data from Redis:', notificationData);
 
-      let notification = typeof notificationData === 'string'
+      const notification = typeof notificationData === 'string'
         ? JSON.parse(notificationData)
         : notificationData;
 
@@ -100,72 +121,81 @@ class NotificationService {
     }
   }
 
+  buildEmailContent(type, data) {
+    const projectTitle = escapeHtml(data.project_title || 'your project');
+    const expertName = escapeHtml(data.expert_name || 'An expert');
+
+    switch (type) {
+      case 'expert_applied':
+        return `<h2>New Expert Application</h2>
+          <p>${expertName} has applied to your project: <strong>${projectTitle}</strong>.</p>
+          <p>Application Date: ${new Date().toLocaleDateString()}</p>`;
+      case 'application_accepted':
+        return `<h2>Application Accepted</h2>
+          <p>Your application for <strong>${projectTitle}</strong> has been accepted.</p>
+          <p>The engagement and payment flow will be managed through CalxMap. Please check your dashboard for booking and attendance details.</p>
+          ${expertProjectLink(data.project_id)}`;
+      case 'application_rejected':
+        return `<h2>Application Status Update</h2>
+          <p>Your application for <strong>${projectTitle}</strong> was not selected for this engagement.</p>
+          <p>You can continue applying to other matching opportunities from your CalxMap dashboard.</p>
+          ${expertProjectLink(data.project_id)}`;
+      case 'booking_created':
+        return `<h2>Booking Confirmed</h2>
+          <p>A booking has been confirmed for your project: <strong>${projectTitle}</strong>.</p>
+          <p>This engagement is managed through CalxMap. Client details remain private until shared through an approved workflow.</p>
+          ${expertProjectLink(data.project_id)}`;
+      case 'booking_updated':
+        return `<h2>Booking Updated</h2>
+          <p>Your booking has been updated for project: <strong>${projectTitle}</strong>.</p>
+          <p>Amount: Rs. ${Number(data.amount || 0).toFixed(2)}</p>`;
+      case 'expert_selected_with_booking':
+        return `<h2>You Have Been Selected</h2>
+          <p>You have been selected for <strong>${projectTitle}</strong>.</p>
+          <p>Your booking is confirmed. Attendance, project updates, and payout processing will be managed through CalxMap.</p>
+          <p>Please check your dashboard for the next steps.</p>
+          ${expertProjectLink(data.project_id)}`;
+      case 'expert_interest_shown':
+        return `<h2>New Matching Requirement</h2>
+          <p>A verified client requirement on CalxMap matches your profile: <strong>${projectTitle}</strong>.</p>
+          <p>Please review the project and apply if you are interested. Client identity is kept private in this stage.</p>
+          ${expertProjectLink(data.project_id)}`;
+      case 'moved_to_interview':
+        return `<h2>Interview Stage</h2>
+          <p>Your application for <strong>${projectTitle}</strong> has moved to the interview stage.</p>
+          <p>Please check your dashboard for interview details and next steps. Client identity remains protected through CalxMap.</p>
+          ${expertProjectLink(data.project_id)}`;
+      default:
+        return `<h2>Notification</h2><p>You have a new notification from CalxMap.</p>`;
+    }
+  }
+
   async sendNotification(notification) {
     try {
-      console.log('sending notification', notification)
+      console.log('sending notification', notification);
       const { type, data } = notification;
-      let emailContent = '';
+      const emailContent = this.buildEmailContent(type, data || {});
+      const subject = `CalxMap - ${String(type || 'notification').replace(/_/g, ' ').toUpperCase()}`;
+      const text = emailContent.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
-      switch (type) {
-        case 'expert_applied':
-          emailContent = `<h2>New Expert Application</h2>
-            <p>An expert has applied to your project: ${data.project_title}</p>
-            <p>Expert: ${data.expert_name}</p>
-            <p>Application Date: ${new Date().toLocaleDateString()}</p>`;
-          break;
-        case 'application_accepted':
-          emailContent = `<h2>Application Accepted</h2>
-            <p>Your application for project "${data.project_title}" has been accepted!</p>
-            <p>Institution: ${data.institution_name}</p>`;
-          break;
-        case 'application_rejected':
-          emailContent = `<h2>Application Status Update</h2>
-            <p>Your application for project "${data.project_title}" has been rejected.</p>
-            <p>Institution: ${data.institution_name}</p>`;
-          break;
-        case 'booking_created':
-          emailContent = `<h2>New Booking Created</h2>
-            <p>A new booking has been created for your project: ${data.project_title}</p>
-           
-            ${process.env.FRONTEND_URL && data.project_id ? `<p><a href="${process.env.FRONTEND_URL}/expert/project/${data.project_id}">View project details</a></p>` : ''}`;
-          break;
-        case 'booking_updated':
-          emailContent = `<h2>Booking Updated</h2>
-            <p>Your booking has been completed for project: ${data.project_title}</p>
-        
-            <p>Amount: ₹${data.amount}</p>`;
-          break;
-        case 'expert_selected_with_booking':
-          emailContent = `<h2>Congratulations! You've Been Selected</h2>
-            <p>Great news! You have been selected for the project: ${data.project_title}</p>
-            <p>Your booking has been confirmed and you can now start working on this project.</p>
-            <p>Please check your dashboard for more details.</p>`;
-          break;
-        case 'expert_interest_shown':
-          emailContent = `<h2>Someone is Interested in Your Profile</h2>
-            <p>An institution has shown interest in your profile for their project: ${data.project_title}</p>
-            <p>Please apply to this project to confirm your interest and start the collaboration process.</p>
-            ${process.env.FRONTEND_URL && data.project_id ? `<p><a href="${process.env.FRONTEND_URL}/expert/project/${data.project_id}">View project details</a></p>` : ''}`
-          break;
-        case 'moved_to_interview':
-          emailContent = `<h2>Great news!</h2>
-            <p>Your application for ${data.project_title} has been moved to the interview stage.</p>
-            ${process.env.FRONTEND_URL && data.project_id ? `<p><a href="${process.env.FRONTEND_URL}/expert/project/${data.project_id}">View project and interview details</a></p>` : ''}`;
-          break;
-        default:
-          emailContent = `<h2>Notification</h2>
-            <p>You have a new notification of type: ${type}</p>`;
+      if (process.env.BREVO_API_KEY) {
+        await sendBrevoEmail({
+          to: data.email,
+          subject,
+          text,
+          html: emailContent,
+        });
+      } else {
+        await this.sgMail.send({
+          from: {
+            email: process.env.SENDGRID_FROM_EMAIL || 'noreply@calxmap.in',
+            name: 'CalxMap Team',
+          },
+          to: data.email,
+          subject,
+          html: emailContent,
+        });
       }
-
-      await this.sgMail.send({
-        from: {
-          email: process.env.SENDGRID_FROM_EMAIL || 'noreply@expertcollaboration.com',
-          name: 'Calxmap Team'
-        },
-        to: data.email,
-        subject: `Calxmap - ${type.replace('_', ' ').toUpperCase()}`,
-        html: emailContent,
-      });
 
       console.log(`Email notification sent for ${type} to ${data.email}`);
     } catch (error) {
@@ -186,20 +216,31 @@ class NotificationService {
   async sendExpertApplicationNotification(institutionEmail, projectTitle, expertName, expertDomain, expertRate) {
     await this.addToQueue({
       type: 'expert_applied',
-      data: { email: institutionEmail, project_title: projectTitle, expert_name: expertName, expert_domain: expertDomain, expert_rate: expertRate }
+      data: {
+        email: institutionEmail,
+        project_title: projectTitle,
+        expert_name: expertName,
+        expert_domain: expertDomain,
+        expert_rate: expertRate,
+      },
     });
   }
 
-  async sendApplicationStatusNotification(expertEmail, projectTitle, institutionName, status) {
+  async sendApplicationStatusNotification(expertEmail, projectTitle, institutionName, status, projectId = null) {
     const type = status === 'accepted' ? 'application_accepted' : 'application_rejected';
     await this.addToQueue({
       type,
-      data: { email: expertEmail, project_title: projectTitle, institution_name: institutionName, status }
+      data: {
+        email: expertEmail,
+        project_title: projectTitle,
+        status,
+        project_id: projectId,
+      },
     });
   }
 
-  async sendBookingNotification(expertEmail, projectTitle, institutionName, bookingData,isCreation=false) {
-    console.log('bookingData', bookingData,isCreation)
+  async sendBookingNotification(expertEmail, projectTitle, institutionName, bookingData, isCreation = false) {
+    console.log('bookingData', bookingData, isCreation);
     await this.addToQueue({
       type: isCreation ? 'booking_created' : 'booking_updated',
       data: {
@@ -208,42 +249,42 @@ class NotificationService {
         project_id: bookingData.project_id,
         amount: bookingData.amount,
         start_date: new Date(bookingData.start_date).toLocaleDateString(),
-        end_date: new Date(bookingData.end_date).toLocaleDateString()
-      }
+        end_date: new Date(bookingData.end_date).toLocaleDateString(),
+      },
     });
   }
 
   async sendMovedToInterviewNotification(expertEmail, projectTitle, projectId) {
-    console.log('moved to interview reached', expertEmail, projectTitle, projectId)
+    console.log('moved to interview reached', expertEmail, projectTitle, projectId);
     await this.addToQueue({
       type: 'moved_to_interview',
       data: {
         email: expertEmail,
         project_title: projectTitle,
-        project_id: projectId
-      }
+        project_id: projectId,
+      },
     });
   }
 
-  async sendExpertSelectedWithBookingNotification(expertEmail, projectTitle, institutionName) {
+  async sendExpertSelectedWithBookingNotification(expertEmail, projectTitle, institutionName, projectId = null) {
     await this.addToQueue({
       type: 'expert_selected_with_booking',
       data: {
         email: expertEmail,
         project_title: projectTitle,
-        institution_name: institutionName
-      }
+        project_id: projectId,
+      },
     });
   }
 
-  async sendExpertInterestShownNotification(expertEmail, projectTitle, institutionName,projectId) {
+  async sendExpertInterestShownNotification(expertEmail, projectTitle, institutionName, projectId) {
     await this.addToQueue({
       type: 'expert_interest_shown',
       data: {
         email: expertEmail,
         project_title: projectTitle,
-        project_id: projectId
-      }
+        project_id: projectId,
+      },
     });
   }
 }
