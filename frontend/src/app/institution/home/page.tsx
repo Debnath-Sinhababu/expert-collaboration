@@ -62,7 +62,6 @@ import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
 import { fetchInstitutionForWorkspace } from '@/lib/institutionWorkspace'
 import { ExpertAvailabilityTrigger } from '@/components/expert/ExpertAvailabilityTrigger'
 import { profileBrowseRange } from '@/lib/expertAvailabilityUtils'
-import { sortExpertsByAvailability } from '@/lib/expertAvailabilitySort'
 
 type UserMeta = { role?: string; name?: string }
 type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }
@@ -99,8 +98,6 @@ export default function InstitutionHomePage() {
     photo_url?: string
     qualifications?: string
     resume_url?: string
-    open_to_work?: boolean
-    available_today?: boolean
   }
 
   const [user, setUser] = useState<any>(null)
@@ -137,7 +134,6 @@ export default function InstitutionHomePage() {
   // Featured experts (top-rated, independent of filters)
   const [featuredExperts, setFeaturedExperts] = useState<Expert[]>([])
   const [featuredLoading, setFeaturedLoading] = useState(false)
-  const [todayAvailability, setTodayAvailability] = useState<Record<string, boolean>>({})
   // Infinite experts list (filtered)
   const {
     data: allExperts,
@@ -217,41 +213,6 @@ export default function InstitutionHomePage() {
     observer.observe(el)
     return () => observer.disconnect()
   }, [hasMoreExperts, expertsListLoading, loadMoreExperts, allExperts])
-
-  useEffect(() => {
-    const expertsToCheck = ((allExperts || []) as Expert[]).filter((expert) => expert.open_to_work).slice(0, 10)
-    if (expertsToCheck.length === 0) {
-      setTodayAvailability({})
-      return
-    }
-
-    let cancelled = false
-    const todayStart = new Date()
-    todayStart.setHours(0, 0, 0, 0)
-    const todayEnd = new Date(todayStart)
-    todayEnd.setHours(23, 59, 59, 999)
-
-    Promise.all(
-      expertsToCheck.map(async (expert) => {
-        try {
-          const availability = await api.experts.getAvailability(expert.id, {
-            from: todayStart.toISOString(),
-            to: todayEnd.toISOString(),
-          })
-          const slots = Array.isArray(availability) ? availability : (availability?.slots || availability?.data || [])
-          return [expert.id, slots.length > 0] as const
-        } catch {
-          return [expert.id, false] as const
-        }
-      })
-    ).then((entries) => {
-      if (!cancelled) setTodayAvailability(Object.fromEntries(entries))
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [allExperts])
 
   const router = useRouter()
   const pathname = usePathname()
@@ -786,14 +747,8 @@ export default function InstitutionHomePage() {
     )
   }
 
-  const availabilityRankedExperts = sortExpertsByAvailability(
-    ((allExperts || []) as Expert[]).map((expert) => ({
-      ...expert,
-      available_today: !!todayAvailability[expert.id],
-    }))
-  )
-  const visibleExperts = availabilityRankedExperts.slice(0, 10)
-  const lockedPreviewExperts = availabilityRankedExperts.slice(10, 14)
+  const visibleExperts = (allExperts || []).slice(0, 10)
+  const lockedPreviewExperts = (allExperts || []).slice(10, 14)
   const showLockedExperts = (allExperts || []).length > 10 || hasMoreExperts
 
   return (
@@ -1635,15 +1590,9 @@ export default function InstitutionHomePage() {
 
         {/* All Experts (List View with infinite scrolling) */}
         <div className="mb-12">
-          <div className="mb-6 rounded-2xl border border-[#DCDCDC] bg-white p-5 shadow-sm">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-wide text-[#008260]">Expert marketplace</p>
-                <h2 className="mt-1 text-2xl font-bold text-[#000000]">Browse available experts</h2>
-                <p className="mt-1 text-sm text-[#6A6A6A]">Open-to-work experts with availability today are prioritized first.</p>
-              </div>
-              <span className="rounded-full bg-[#ECF2FF] px-4 py-2 text-sm font-semibold text-[#000000]">{visibleExperts.length} shown</span>
-            </div>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-[#000000]">All Experts</h2>
+            <span className="text-slate-600">{visibleExperts.length} shown</span>
           </div>
           {(!allExperts || allExperts.length === 0) && !expertsListLoading ? (
             <div className="text-center py-12">
@@ -1671,11 +1620,8 @@ export default function InstitutionHomePage() {
                           <Star className="h-4 w-4 mr-1 fill-yellow-400 text-yellow-400" />
                           {expert.rating?.toFixed(1) || '0.0'} ({expert.total_ratings || 0})
                         </div>
-                        {expert.open_to_work && expert.available_today && (
-                          <Badge className="mt-2 bg-[#DFF7EA] text-[#006D51] border border-[#BFE8D0]">Available today</Badge>
-                        )}
                       </div>
-                      
+
                       {/* Description and other info */}
                       <p className="text-slate-600 text-sm line-clamp-2 mt-1">{expert.bio}</p>
                       <div className="flex flex-wrap gap-1 mt-2">
@@ -1839,9 +1785,6 @@ export default function InstitutionHomePage() {
                             <Star className="h-4 w-4 mr-1 fill-yellow-400 text-yellow-400" />
                             {expert.rating?.toFixed(1) || '0.0'} ({expert.total_ratings || 0})
                           </div>
-                          {expert.open_to_work && expert.available_today && (
-                            <Badge className="bg-[#DFF7EA] text-[#006D51] border border-[#BFE8D0]">Available today</Badge>
-                          )}
                         </div>
                         <p className="text-slate-600 text-sm line-clamp-2 mt-1">{expert.bio}</p>
                         <div className="flex flex-wrap gap-1 mt-2">

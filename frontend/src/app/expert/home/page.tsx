@@ -13,7 +13,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel'
@@ -43,7 +42,6 @@ import { ShareRequirementButton } from '@/components/requirements/ShareRequireme
 import { institutionDisplayName } from '@/lib/privacyDisplay'
 import { ExpertTrainingAttendanceSidebar } from '@/components/training/ExpertTrainingAttendanceSidebar'
 import { InterviewAvailabilitySelector, type InterviewSlot } from '@/components/requirements/InterviewAvailabilitySelector'
-import { RequirementCard } from '@/components/requirements/RequirementCard'
 
 type UserMeta = { role?: string; name?: string }
 type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }
@@ -71,10 +69,7 @@ export default function ExpertHome() {
     start_date?: string
     end_date?: string
     hourly_rate?: number
-    total_budget?: number
     duration_hours?: number
-    opening_count?: number
-    max_applications?: number
     type?: string
     domain_expertise?: string
     required_expertise?: string[]
@@ -416,36 +411,13 @@ export default function ExpertHome() {
       {/* Main Content */}
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Welcome Section */}
-          <div className="hidden">
+          <div className="mb-8">
             <h1 className="text-4xl font-bold text-slate-900 mb-3 tracking-tight">
               Welcome back, {expert?.name}! 👋
             </h1>
             <p className="text-lg text-slate-600 font-normal">
               Discover new opportunities and grow your expertise
             </p>
-          </div>
-          <div className="mb-8 overflow-hidden rounded-2xl border border-[#DCDCDC] bg-white shadow-sm">
-            <div className="flex flex-col gap-5 p-5 sm:p-7 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-wide text-[#008260]">Expert workspace</p>
-                <h1 className="mt-2 text-3xl font-bold tracking-tight text-[#000000] sm:text-4xl">
-                  Welcome back, {expert?.name || 'Expert'}
-                </h1>
-                <p className="mt-2 max-w-2xl text-base text-[#6A6A6A]">
-                  Review matched requirements, apply with your preferred pricing, and manage attendance from one place.
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-3 sm:min-w-[320px]">
-                <div className="rounded-xl bg-[#ECF2FF] p-4">
-                  <p className="text-xs font-medium text-[#6A6A6A]">Recommended</p>
-                  <p className="mt-1 text-2xl font-bold text-[#000000]">{recommendedProjects.length}</p>
-                </div>
-                <div className="rounded-xl bg-[#E8F5F1] p-4">
-                  <p className="text-xs font-medium text-[#6A6A6A]">Profile rate</p>
-                  <p className="mt-1 text-2xl font-bold text-[#008260]">Rs {expert?.hourly_rate || 0}/hr</p>
-                </div>
-              </div>
-            </div>
           </div>
 
           <ExpertTrainingAttendanceSidebar expertId={expert?.id} basePath={basePath} />
@@ -978,48 +950,6 @@ export default function ExpertHome() {
           </div>
         </div>
 
-        <Tabs defaultValue="recommended" className="mb-8">
-          <TabsList className="bg-white border border-[#DCDCDC]">
-            <TabsTrigger value="recommended">Recommended Jobs</TabsTrigger>
-            <TabsTrigger value="all">All Jobs</TabsTrigger>
-            <TabsTrigger value="requirements">Requirements</TabsTrigger>
-          </TabsList>
-          <TabsContent value="recommended" className="mt-4 space-y-3">
-            {recommendedProjects.length > 0 ? (
-              recommendedProjects.map((project) => (
-                <RequirementCard
-                  key={project.id}
-                  project={project}
-                  detailHref={`${basePath}/project/${project.id}`}
-                  onApply={() => handleOpenApplicationModal(project.id)}
-                />
-              ))
-            ) : (
-              <p className="text-sm text-[#6A6A6A]">No recommended jobs available right now.</p>
-            )}
-          </TabsContent>
-          <TabsContent value="all" className="mt-4 space-y-3">
-            {(projects as Project[]).slice(0, 10).map((project) => (
-              <RequirementCard
-                key={project.id}
-                project={project}
-                detailHref={`${basePath}/project/${project.id}`}
-                onApply={() => handleOpenApplicationModal(project.id)}
-              />
-            ))}
-          </TabsContent>
-          <TabsContent value="requirements" className="mt-4 space-y-3">
-            {(projects as Project[]).filter((project) => project.required_expertise?.length || project.subskills?.length).slice(0, 10).map((project) => (
-              <RequirementCard
-                key={project.id}
-                project={project}
-                detailHref={`${basePath}/project/${project.id}`}
-                onApply={() => handleOpenApplicationModal(project.id)}
-              />
-            ))}
-          </TabsContent>
-        </Tabs>
-
         {/* Projects List */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-4">
@@ -1187,20 +1117,14 @@ export default function ExpertHome() {
 
         {/* Application Modal */}
         <Dialog open={showApplicationModal} onOpenChange={setShowApplicationModal}>
-          <DialogContent className="max-h-[85vh] overflow-hidden bg-white p-0 sm:max-w-2xl">
-            <DialogHeader className="space-y-1 px-6 pt-6">
+          <DialogContent className="sm:max-w-md bg-white">
+            <DialogHeader className="space-y-1">
               <DialogTitle className="text-xl font-bold text-[#000000]">Apply to Project</DialogTitle>
               <DialogDescription className="text-[#000000] text-sm font-normal font-sans">
                 Submit your application for {selectedApplicationProject?.title || 'this project'}
               </DialogDescription>
             </DialogHeader>
-            <div className="max-h-[calc(85vh-96px)] space-y-6 overflow-y-auto px-6 pb-6">
-              <div className="rounded-lg border border-[#DCDCDC] bg-[#F8FBFA] p-3 text-sm">
-                <div className="font-semibold text-[#000000]">{selectedApplicationProject?.title || 'Selected project'}</div>
-                <div className="mt-1 text-[#6A6A6A]">
-                  Project price: <span className="font-semibold text-[#008260]">Rs {selectedApplicationProject?.hourly_rate || expert?.hourly_rate || 0}/hr</span>
-                </div>
-              </div>
+            <div className="space-y-6 ">
               <div className="space-y-2">
                 <Label htmlFor="coverLetter" className="text-sm font-medium text-slate-700">Cover Letter</Label>
                 <Textarea
@@ -1253,15 +1177,13 @@ export default function ExpertHome() {
                   <AlertDescription className="text-green-700">{success}</AlertDescription>
                 </Alert>
               )}
-              <div className="sticky bottom-0 -mx-6 border-t border-[#ECECEC] bg-white px-6 py-4">
-                <Button 
-                  onClick={() => selectedProjectId && handleApplicationSubmit(selectedProjectId)}
-                  className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium shadow-sm hover:shadow-md transition-all duration-200 py-2.5 rounded-lg"
-                  disabled={!applicationForm.coverLetter || !selectedProjectId || isApplying || needsCustomRate}
-                >
-                  {isApplying ? 'Submitting...' : 'Submit Application'}
-                </Button>
-              </div>
+              <Button
+                onClick={() => selectedProjectId && handleApplicationSubmit(selectedProjectId)}
+                className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium shadow-sm hover:shadow-md transition-all duration-200 py-2.5 rounded-lg"
+                disabled={!applicationForm.coverLetter || !selectedProjectId || isApplying || needsCustomRate}
+              >
+                {isApplying ? 'Submitting...' : 'Submit Application'}
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
