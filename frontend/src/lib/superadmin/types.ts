@@ -2,6 +2,7 @@ export type SuperAdminPermission =
   | 'overview:read'
   | 'admins:read'
   | 'admins:write'
+  | 'activity:read'
   | 'profiles:read'
   | 'profiles:write'
   | 'bulk_import:write'
@@ -9,6 +10,10 @@ export type SuperAdminPermission =
   | 'requirements:read'
   | 'requirements:write'
   | 'requirements:candidates'
+  | 'assignments:read'
+  | 'assignments:write'
+  | 'daily_reports:read'
+  | 'daily_reports:write'
   | 'freelance:read'
   | 'freelance:write'
   | 'internships:read'
@@ -16,6 +21,7 @@ export type SuperAdminPermission =
   | 'finance:read'
   | 'finance:write'
   | 'finance:confirm'
+  | 'exports:download'
 
 export type SuperAdminMe = {
   user: {

@@ -146,16 +146,16 @@ class ImageUploadService {
   }
 
   /**
-   * Upload a generic document to Cloudinary raw storage.
-   * @param {Buffer} documentBuffer
+   * Upload a general document to Cloudinary raw storage.
+   * @param {Buffer} fileBuffer
    * @param {string} folder
    * @param {string|null} publicId
    * @param {string} mimeType
    * @param {string} originalName
    */
   static async uploadDocument(
-    documentBuffer,
-    folder = 'documents',
+    fileBuffer,
+    folder = 'admin-documents',
     publicId = null,
     mimeType = 'application/octet-stream',
     originalName = 'document'
@@ -165,7 +165,7 @@ class ImageUploadService {
         typeof mimeType === 'string' && mimeType.trim()
           ? mimeType
           : 'application/octet-stream';
-      const base64Document = `data:${safeMime};base64,${documentBuffer.toString('base64')}`;
+      const base64File = `data:${safeMime};base64,${fileBuffer.toString('base64')}`;
       const uploadOptions = {
         folder,
         resource_type: 'raw',
@@ -178,15 +178,14 @@ class ImageUploadService {
         uploadOptions.public_id = publicId;
       }
 
-      const result = await cloudinary.uploader.upload(base64Document, uploadOptions);
-
+      const result = await cloudinary.uploader.upload(base64File, uploadOptions);
       return {
         success: true,
         url: result.secure_url,
         publicId: result.public_id,
         format: result.format,
         size: result.bytes,
-        originalName: result.original_filename || originalName,
+        originalName: originalName || result.original_filename || 'document',
       };
     } catch (error) {
       console.error('Document upload error:', error);

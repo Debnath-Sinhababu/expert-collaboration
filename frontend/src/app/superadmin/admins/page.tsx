@@ -27,8 +27,11 @@ import type { SuperAdminPermission } from '@/lib/superadmin/types'
 const PAGE_SIZE = 20
 const DEPENDENTS: Partial<Record<SuperAdminPermission, SuperAdminPermission[]>> = {
   'admins:read': ['admins:write'],
+  'activity:read': ['admins:read'],
   'profiles:read': ['profiles:write', 'bulk_import:write', 'calxbook_verification:write'],
-  'requirements:read': ['requirements:write', 'requirements:candidates'],
+  'requirements:read': ['requirements:write', 'requirements:candidates', 'assignments:read', 'daily_reports:read'],
+  'assignments:read': ['assignments:write', 'daily_reports:write'],
+  'daily_reports:read': ['daily_reports:write'],
   'freelance:read': ['freelance:write'],
   'internships:read': ['internships:write'],
   'finance:read': ['finance:write', 'finance:confirm'],
@@ -124,7 +127,7 @@ export default function SuperAdminAdminsPage() {
             <DataTable
               rows={rows}
               columns={[
-                { key: 'name', header: 'Name', render: (row) => <span className="font-medium text-slate-950">{row.name}</span> },
+                { key: 'name', header: 'Name', render: (row) => <Link href={`/superadmin/admins/${row.id}`} className="font-medium text-[#008260] hover:underline">{row.name}</Link> },
                 { key: 'email', header: 'Email', render: (row) => row.email },
                 {
                   key: 'status',

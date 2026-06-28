@@ -23,8 +23,11 @@ export default function NewSuperAdminAdminPage() {
   function togglePermission(permission: SuperAdminPermission, checked: boolean) {
     const dependents: Partial<Record<SuperAdminPermission, SuperAdminPermission[]>> = {
       'admins:read': ['admins:write'],
+      'activity:read': ['admins:read'],
       'profiles:read': ['profiles:write', 'bulk_import:write', 'calxbook_verification:write'],
-      'requirements:read': ['requirements:write', 'requirements:candidates'],
+      'requirements:read': ['requirements:write', 'requirements:candidates', 'assignments:read', 'daily_reports:read'],
+      'assignments:read': ['assignments:write', 'daily_reports:write'],
+      'daily_reports:read': ['daily_reports:write'],
       'freelance:read': ['freelance:write'],
       'internships:read': ['internships:write'],
       'finance:read': ['finance:write', 'finance:confirm'],

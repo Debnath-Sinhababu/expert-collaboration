@@ -50,15 +50,15 @@ const fileFilter = (req, file, cb) => {
     return cb(new Error('Document must be PDF, DOC, DOCX, XLS, XLSX, or CSV'), false);
   }
 
-  // Otherwise accept images and PDFs
-  const allowedTypes = /jpeg|jpg|png|webp|pdf/;
+  // Otherwise accept images and common documents.
+  const allowedTypes = /jpeg|jpg|png|webp|pdf|doc|docx|xls|xlsx|csv/;
   const extname = allowedTypes.test(ext);
-  const mimetype = allowedTypes.test(file.mimetype) || file.mimetype === 'application/pdf';
+  const mimetype = allowedTypes.test(file.mimetype) || DOCUMENT_MIMES.includes(file.mimetype);
 
   if (mimetype && extname) {
     return cb(null, true);
   }
-  cb(new Error('Only image files (jpeg, jpg, png, webp) and PDF files are allowed!'), false);
+  cb(new Error('Only image files (jpeg, jpg, png, webp) and documents (PDF, DOC, DOCX, XLS, XLSX, CSV) are allowed!'), false);
 };
 
 const limits = {

@@ -6,6 +6,7 @@ import {
   GraduationCap,
   LayoutDashboard,
   ListChecks,
+  ClipboardList,
   Shield,
   UserPlus,
   Users,
@@ -30,5 +31,6 @@ export const superAdminNavItems: SuperAdminNavItem[] = [
   { href: '/superadmin/bulk-import', label: 'Bulk Import', permission: 'bulk_import:write', icon: FileSpreadsheet },
   { href: '/superadmin/calxbook-verification', label: 'CalxBook Verification', permission: 'calxbook_verification:write', icon: BadgeCheck },
   { href: '/superadmin/requirements', label: 'Requirements', permission: 'requirements:read', icon: ListChecks },
+  { href: '/superadmin/my-requirements', label: 'My Requirements', permission: 'assignments:read', icon: ClipboardList },
   { href: '/superadmin/finance', label: 'Finance', permission: 'finance:read', icon: Banknote },
 ]

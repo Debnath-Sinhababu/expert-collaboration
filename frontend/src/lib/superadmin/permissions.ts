@@ -4,6 +4,7 @@ export const SUPER_ADMIN_PERMISSIONS: SuperAdminPermission[] = [
   'overview:read',
   'admins:read',
   'admins:write',
+  'activity:read',
   'profiles:read',
   'profiles:write',
   'bulk_import:write',
@@ -11,6 +12,10 @@ export const SUPER_ADMIN_PERMISSIONS: SuperAdminPermission[] = [
   'requirements:read',
   'requirements:write',
   'requirements:candidates',
+  'assignments:read',
+  'assignments:write',
+  'daily_reports:read',
+  'daily_reports:write',
   'freelance:read',
   'freelance:write',
   'internships:read',
@@ -18,6 +23,7 @@ export const SUPER_ADMIN_PERMISSIONS: SuperAdminPermission[] = [
   'finance:read',
   'finance:write',
   'finance:confirm',
+  'exports:download',
 ]
 
 export function canAccess(me: SuperAdminMe | null, permission?: SuperAdminPermission) {
@@ -36,19 +42,32 @@ export function normalizeUiPermissions(permissions: SuperAdminPermission[]) {
   const out = new Set<SuperAdminPermission>(permissions)
   const implied: Partial<Record<SuperAdminPermission, SuperAdminPermission>> = {
     'admins:write': 'admins:read',
+    'activity:read': 'admins:read',
     'profiles:write': 'profiles:read',
     'bulk_import:write': 'profiles:read',
     'calxbook_verification:write': 'profiles:read',
     'requirements:write': 'requirements:read',
     'requirements:candidates': 'requirements:read',
+    'assignments:write': 'assignments:read',
+    'assignments:read': 'requirements:read',
+    'daily_reports:write': 'daily_reports:read',
+    'daily_reports:read': 'assignments:read',
     'freelance:write': 'freelance:read',
     'internships:write': 'internships:read',
     'finance:write': 'finance:read',
     'finance:confirm': 'finance:read',
+    'exports:download': 'overview:read',
   }
-  for (const permission of [...out]) {
-    const read = implied[permission]
-    if (read) out.add(read)
+  let changed = true
+  while (changed) {
+    changed = false
+    for (const permission of [...out]) {
+      const read = implied[permission]
+      if (read && !out.has(read)) {
+        out.add(read)
+        changed = true
+      }
+    }
   }
   return [...out]
 }
@@ -57,6 +76,7 @@ export function requiredPermissionForSuperAdminPath(pathname: string | null): Su
   if (!pathname || pathname === '/superadmin' || pathname === '/superadmin/home') return null
   if (pathname.startsWith('/superadmin/admins/new')) return 'admins:write'
   if (pathname.startsWith('/superadmin/admins')) return 'admins:read'
+  if (pathname.startsWith('/superadmin/my-requirements')) return 'assignments:read'
   if (pathname.startsWith('/superadmin/create-')) return 'profiles:write'
   if (pathname.startsWith('/superadmin/profiles')) return 'profiles:read'
   if (pathname.startsWith('/superadmin/bulk-import')) return 'bulk_import:write'

@@ -273,6 +273,8 @@ export default function SuperAdminRequirementDetailPage() {
   const bookings = detail?.bookings || []
   const attendanceSummary = detail?.attendanceSummary || {}
   const counts = detail?.counts || {}
+  const reports = detail?.reports || []
+  const assignment = detail?.assignment || requirement?.assignment
   const managePermissions: SuperAdminPermission[] = requirementType === 'freelance'
     ? ['requirements:candidates', 'freelance:write']
     : requirementType === 'internship'
@@ -450,6 +452,9 @@ export default function SuperAdminRequirementDetailPage() {
               {detailValue('Institution', institution?.name || '-')}
               {detailValue('Institution Email', institution?.email)}
               {detailValue('Status', requirement.status || requirement.call_status || '-')}
+              {detailValue('Operations State', requirement.derived_status || '-')}
+              {detailValue('Progress', requirement.progress_label || 'Unknown')}
+              {detailValue('Assigned Admin', assignment?.admin?.name || assignment?.admin?.email || 'Unassigned')}
               {detailValue('Created', formatDate(requirement.created_at))}
               {detailValue('Project Type', requirement.type)}
               {detailValue('Domain', requirement.domain_expertise)}
@@ -474,6 +479,33 @@ export default function SuperAdminRequirementDetailPage() {
                 {requirement.description || requirement.responsibilities}
               </p>
             ) : null}
+          </SectionCard>
+
+          <SectionCard title="Daily Reports" description="Reports uploaded by the admin assigned to this requirement.">
+            {reports.length ? (
+              <div className="grid gap-3">
+                {reports.map((report: any) => (
+                  <div key={report.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-950">{report.report_date ? new Date(report.report_date).toLocaleDateString() : 'Daily report'}</p>
+                        <p className="mt-1 text-sm text-slate-600">{report.summary || 'No summary provided'}</p>
+                        <p className="mt-1 text-xs text-slate-500">{report.original_filename || report.mime_type || 'Document'}</p>
+                      </div>
+                      {report.file_url ? (
+                        <Button asChild variant="outline" size="sm">
+                          <a href={report.file_url} target="_blank" rel="noreferrer">Open report</a>
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                No daily reports uploaded yet.
+              </div>
+            )}
           </SectionCard>
 
           {canManagePipeline ? (
