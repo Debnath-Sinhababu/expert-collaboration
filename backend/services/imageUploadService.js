@@ -242,6 +242,29 @@ class ImageUploadService {
   }
 
   /**
+   * Delete a raw document asset from Cloudinary.
+   * @param {string} publicId
+   */
+  static async deleteDocument(publicId) {
+    if (!publicId) {
+      return { success: true, result: null };
+    }
+    try {
+      const result = await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
+      return {
+        success: true,
+        result: result
+      };
+    } catch (error) {
+      console.error('Document deletion error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
    * Update image (delete old and upload new)
    * @param {Buffer} newImageBuffer - New image buffer
    * @param {string} oldPublicId - Old image public ID to delete

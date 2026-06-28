@@ -548,7 +548,8 @@ app.post('/api/experts', upload.fields([
   { name: 'resume', maxCount: 1 },
   { name: 'qualifications', maxCount: 1 },
   { name: 'profile_video', maxCount: 1 },
-  { name: 'course_video', maxCount: 1 }
+  { name: 'course_video', maxCount: 1 },
+  { name: 'cancelled_cheque', maxCount: 1 }
 ]), async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
@@ -590,6 +591,7 @@ app.post('/api/experts', upload.fields([
     let resumeData = null;
     let qualificationsData = null;
     let profileVideoData = null;
+    let cancelledChequeData = null;
 
     // Handle profile photo upload
     if (req.files?.profile_photo?.[0]) {
@@ -643,6 +645,23 @@ app.post('/api/experts', upload.fields([
       if (!profileVideoData.success) {
         return res.status(500).json({
           error: `Profile video upload failed: ${profileVideoData.error}`
+        });
+      }
+    }
+
+    if (req.files?.cancelled_cheque?.[0]) {
+      const chequeFile = req.files.cancelled_cheque[0];
+      cancelledChequeData = await ImageUploadService.uploadDocument(
+        chequeFile.buffer,
+        'expert-bank-documents',
+        null,
+        chequeFile.mimetype,
+        chequeFile.originalname
+      );
+
+      if (!cancelledChequeData.success) {
+        return res.status(500).json({
+          error: `Cancelled cheque upload failed: ${cancelledChequeData.error}`
         });
       }
     }
@@ -749,6 +768,11 @@ app.post('/api/experts', upload.fields([
       state: req.body.state || null,
       pan_number: panNormalized && isValidPan(panNormalized) ? panNormalized : null,
       address: req.body.address != null && String(req.body.address).trim() !== '' ? String(req.body.address).trim() : null,
+      bank_account_number: req.body.bank_account_number != null && String(req.body.bank_account_number).trim() !== '' ? String(req.body.bank_account_number).trim() : null,
+      bank_name: req.body.bank_name != null && String(req.body.bank_name).trim() !== '' ? String(req.body.bank_name).trim() : null,
+      ifsc_code: req.body.ifsc_code != null && String(req.body.ifsc_code).trim() !== '' ? String(req.body.ifsc_code).trim().toUpperCase() : null,
+      cancelled_cheque_url: cancelledChequeData?.url || null,
+      cancelled_cheque_public_id: cancelledChequeData?.publicId || null,
       profile_video_url: profileVideoData?.url || null,
       profile_video_public_id: profileVideoData?.publicId || null,
       interested_in_services: req.body.interested_in_services === 'true' || req.body.interested_in_services === true,
@@ -879,7 +903,8 @@ app.put('/api/experts/:id', upload.fields([
   { name: 'resume', maxCount: 1 },
   { name: 'qualifications', maxCount: 1 },
   { name: 'profile_video', maxCount: 1 },
-  { name: 'course_video', maxCount: 1 }
+  { name: 'course_video', maxCount: 1 },
+  { name: 'cancelled_cheque', maxCount: 1 }
 ]), async (req, res) => {
   try {
     console.log('PUT /api/experts/:id - Request body:', req.body);
@@ -934,7 +959,7 @@ app.put('/api/experts/:id', upload.fields([
     // Get current expert data to check if files need updating
     const { data: currentExpert, error: fetchError } = await supabaseClient
       .from('experts')
-      .select('photo_url, profile_photo_public_id, resume_public_id, qualifications_public_id, profile_video_public_id, pan_number')
+      .select('photo_url, profile_photo_public_id, resume_public_id, qualifications_public_id, profile_video_public_id, cancelled_cheque_public_id, pan_number')
       .eq('id', req.params.id)
       .single();
 
@@ -1006,6 +1031,18 @@ app.put('/api/experts/:id', upload.fields([
       service_price: req.body.service_price !== undefined && req.body.service_price !== '' ? parseFloat(String(req.body.service_price)) : undefined,
       city: req.body.city || null,
       state: req.body.state || null,
+      bank_account_number:
+        req.body.bank_account_number !== undefined
+          ? (String(req.body.bank_account_number).trim() === '' ? null : String(req.body.bank_account_number).trim())
+          : undefined,
+      bank_name:
+        req.body.bank_name !== undefined
+          ? (String(req.body.bank_name).trim() === '' ? null : String(req.body.bank_name).trim())
+          : undefined,
+      ifsc_code:
+        req.body.ifsc_code !== undefined
+          ? (String(req.body.ifsc_code).trim() === '' ? null : String(req.body.ifsc_code).trim().toUpperCase())
+          : undefined,
       address:
         req.body.address !== undefined
           ? (String(req.body.address).trim() === '' ? null : String(req.body.address).trim())
@@ -1013,6 +1050,7 @@ app.put('/api/experts/:id', upload.fields([
     };
 
     delete updateData.profile_video;
+    delete updateData.cancelled_cheque;
     delete updateData.pan_number;
 
     // Handle explicit removal flags for videos (sent from form as 'true')
@@ -1144,6 +1182,30 @@ app.put('/api/experts/:id', upload.fields([
 
       updateData.profile_video_url = videoData.url;
       updateData.profile_video_public_id = videoData.publicId;
+    }
+
+    if (req.files?.cancelled_cheque?.[0]) {
+      if (currentExpert?.cancelled_cheque_public_id) {
+        await ImageUploadService.deleteDocument(currentExpert.cancelled_cheque_public_id);
+      }
+
+      const chequeFile = req.files.cancelled_cheque[0];
+      const cancelledChequeData = await ImageUploadService.uploadDocument(
+        chequeFile.buffer,
+        'expert-bank-documents',
+        null,
+        chequeFile.mimetype,
+        chequeFile.originalname
+      );
+
+      if (!cancelledChequeData.success) {
+        return res.status(500).json({
+          error: `Cancelled cheque upload failed: ${cancelledChequeData.error}`
+        });
+      }
+
+      updateData.cancelled_cheque_url = cancelledChequeData.url;
+      updateData.cancelled_cheque_public_id = cancelledChequeData.publicId;
     }
 
     // Handle course video update if uploaded
