@@ -62,12 +62,11 @@ function setupContactRoutes(app) {
         return res.status(401).json({ success: false, error: 'Authorization required' });
       }
 
-      const token = authHeader.substring(7);
-      
-      // Verify the token contains the authorized email
-      if (!token.includes('debnathsinhababu2017@gmail.com')) {
-        return res.status(403).json({ success: false, error: 'Access denied' });
-      }
+      // Legacy hard-coded email validation, disabled in favor of /api/admin middleware:
+      // const token = authHeader.substring(7);
+      // if (!token.includes('debnathsinhababu2017@gmail.com')) {
+      //   return res.status(403).json({ success: false, error: 'Access denied' });
+      // }
 
       // Get pagination parameters
       const page = parseInt(req.query.page) || 1;
@@ -89,10 +88,11 @@ function setupContactRoutes(app) {
         return res.status(401).json({ success: false, error: 'Authorization required' });
       }
 
-      const token = authHeader.substring(7);
-      if (!token.includes('debnathsinhababu2017@gmail.com')) {
-        return res.status(403).json({ success: false, error: 'Access denied' });
-      }
+      // Legacy hard-coded email validation, disabled in favor of /api/admin middleware:
+      // const token = authHeader.substring(7);
+      // if (!token.includes('debnathsinhababu2017@gmail.com')) {
+      //   return res.status(403).json({ success: false, error: 'Access denied' });
+      // }
 
       const { id } = req.params;
       const { status, notes } = req.body;
@@ -122,10 +122,11 @@ function setupContactRoutes(app) {
         return res.status(401).json({ success: false, error: 'Authorization required' });
       }
 
-      const token = authHeader.substring(7);
-      if (!token.includes('debnathsinhababu2017@gmail.com')) {
-        return res.status(403).json({ success: false, error: 'Access denied' });
-      }
+      // Legacy hard-coded email validation, disabled in favor of /api/admin middleware:
+      // const token = authHeader.substring(7);
+      // if (!token.includes('debnathsinhababu2017@gmail.com')) {
+      //   return res.status(403).json({ success: false, error: 'Access denied' });
+      // }
 
       const { id } = req.params;
       const result = await contactService.deleteSubmission(id);

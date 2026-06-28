@@ -132,21 +132,30 @@ function isCommonEmailProvider(email) {
   return !!domain && commonDomains.some(common => domain === common || domain.endsWith(`.${common}`));
 }
 
-const ADMIN_AUTH_EMAIL = 'debnathsinhababu2017@gmail.com';
+// Legacy admin auth used to trust a hard-coded email string inside the bearer token.
+// It is intentionally left disabled; /api/admin is now protected by real Supabase
+// super_admin JWT validation in the middleware below.
+// const ADMIN_AUTH_EMAIL = 'debnathsinhababu2017@gmail.com';
+//
+// function legacyRequireAdminAuth(req, res) {
+//   const authHeader = req.headers.authorization;
+//   if (!authHeader || !authHeader.startsWith('Bearer ')) {
+//     res.status(401).json({ error: 'Authorization required' });
+//     return null;
+//   }
+//
+//   const token = authHeader.substring(7);
+//   if (!token.includes(ADMIN_AUTH_EMAIL)) {
+//     res.status(403).json({ error: 'Access denied' });
+//     return null;
+//   }
+//
+//   return token;
+// }
 function requireAdminAuth(req, res) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    res.status(401).json({ error: 'Authorization required' });
-    return null;
-  }
-
-  const token = authHeader.substring(7);
-  if (!token.includes(ADMIN_AUTH_EMAIL)) {
-    res.status(403).json({ error: 'Access denied' });
-    return null;
-  }
-
-  return token;
+  if (req.legacyAdmin?.token) return req.legacyAdmin.token;
+  res.status(403).json({ error: 'Access denied' });
+  return null;
 }
 
 app.use(helmet());
@@ -165,6 +174,13 @@ app.use(cors({
 app.use(morgan('combined'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use('/api/admin', async (req, res, next) => {
+  const auth = await superAdminAuth.requireSuperAdmin(req, res);
+  if (!auth) return;
+  req.legacyAdmin = auth;
+  next();
+});
 
 app.get('/api/health', async (req, res) => {
   try {
@@ -5683,12 +5699,11 @@ app.get('/api/admin/feedback-analytics', async (req, res) => {
       return res.status(401).json({ success: false, error: 'Authorization required' });
     }
 
-    const token = authHeader.substring(7);
-    
-    // Verify the token contains the authorized email
-    if (!token.includes('debnathsinhababu2017@gmail.com')) {
-      return res.status(403).json({ success: false, error: 'Access denied' });
-    }
+    // Legacy hard-coded email validation, disabled in favor of /api/admin middleware:
+    // const token = authHeader.substring(7);
+    // if (!token.includes('debnathsinhababu2017@gmail.com')) {
+    //   return res.status(403).json({ success: false, error: 'Access denied' });
+    // }
 
     // Get pagination parameters
     const page = parseInt(req.query.page) || 1;
@@ -5851,10 +5866,11 @@ app.post('/api/admin/experts', upload.fields([
       return res.status(401).json({ error: 'Authorization required' });
     }
 
-    const token = authHeader.substring(7);
-    if (!token.includes('debnathsinhababu2017@gmail.com')) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
+    // Legacy hard-coded email validation, disabled in favor of /api/admin middleware:
+    // const token = authHeader.substring(7);
+    // if (!token.includes('debnathsinhababu2017@gmail.com')) {
+    //   return res.status(403).json({ error: 'Access denied' });
+    // }
 
     // Validate required fields
     if (!req.body.name || !req.body.email || !req.body.phone) {
@@ -6215,11 +6231,11 @@ app.post('/api/admin/experts/bulk-import', async (req, res) => {
       return res.status(401).json({ error: 'Authorization required' });
     }
 
-    const token = authHeader.substring(7);
-    // You can customize this admin check
-    if (!token.includes('debnathsinhababu2017@gmail.com')) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
+    // Legacy hard-coded email validation, disabled in favor of /api/admin middleware:
+    // const token = authHeader.substring(7);
+    // if (!token.includes('debnathsinhababu2017@gmail.com')) {
+    //   return res.status(403).json({ error: 'Access denied' });
+    // }
 
     const { spreadsheetId, range, gid, usePublicAccess = false, delayBetweenRows = 500, defaultPassword } = req.body;
 
