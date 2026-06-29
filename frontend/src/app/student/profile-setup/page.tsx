@@ -68,7 +68,7 @@ export default function StudentProfileSetup() {
   const [superAdminConfirmPassword, setSuperAdminConfirmPassword] = useState('')
   const router = useRouter()
   const pathname = usePathname()
-  const isSuperAdminStudentCreate = pathname?.startsWith('/superadmin/create-student') ?? false
+  const isSuperAdminStudentCreate = (pathname?.startsWith('/superadmin/create-student') || pathname?.startsWith('/superadmin/create-profiles')) ?? false
 
   useEffect(() => {
     const init = async () => {

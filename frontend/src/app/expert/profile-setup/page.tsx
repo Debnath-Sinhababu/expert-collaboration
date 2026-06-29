@@ -72,7 +72,7 @@ export default function ExpertProfileSetup() {
   const [success, setSuccess] = useState('')
   const router = useRouter()
   const pathname = usePathname()
-  const isSuperAdminExpertCreate = pathname?.startsWith('/superadmin/create-expert') ?? false
+  const isSuperAdminExpertCreate = (pathname?.startsWith('/superadmin/create-expert') || pathname?.startsWith('/superadmin/create-profiles')) ?? false
   const { viewer, basePath } = useExpertWorkspace()
 
   const [formData, setFormData] = useState({

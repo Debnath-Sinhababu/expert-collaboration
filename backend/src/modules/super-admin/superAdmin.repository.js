@@ -401,16 +401,17 @@ class SuperAdminRepository {
   async listReportsForAdmin(adminUserId, limit = 20) {
     if (!adminUserId) return [];
     const { data, error } = await this.client
-      .from('requirement_daily_reports')
+      .from('requirement_documents')
       .select('*')
       .eq('admin_user_id', adminUserId)
-      .order('report_date', { ascending: false })
+      .eq('document_type', 'daily_report')
+      .order('document_date', { ascending: false })
       .limit(limit);
     if (error) {
       if (tableMissing(error)) return [];
       throw error;
     }
-    return data || [];
+    return this.mapRequirementDocumentsToReports(data || []);
   }
 
   async listAssignmentsForAdmin(adminUserId, limit = 100) {
@@ -881,27 +882,36 @@ class SuperAdminRepository {
 
   async listRequirementReports(type, id, { page, limit, offset }) {
     const { data, error, count } = await this.client
-      .from('requirement_daily_reports')
+      .from('requirement_documents')
       .select('*', { count: 'exact' })
       .eq('requirement_type', type)
       .eq('requirement_id', id)
-      .order('report_date', { ascending: false })
+      .eq('document_type', 'daily_report')
+      .order('document_date', { ascending: false })
       .range(offset, offset + limit - 1);
     if (error) {
       if (tableMissing(error)) return { data: [], total: 0, page, limit };
       throw error;
     }
-    return { data: data || [], total: count || 0, page, limit };
+    return { data: this.mapRequirementDocumentsToReports(data || []), total: count || 0, page, limit };
   }
 
   async createRequirementReport(payload) {
     const { data, error } = await this.client
-      .from('requirement_daily_reports')
+      .from('requirement_documents')
       .insert([payload])
       .select('*')
       .single();
     if (error) throw error;
-    return data;
+    return this.mapRequirementDocumentsToReports([data])[0] || data;
+  }
+
+  mapRequirementDocumentsToReports(rows = []) {
+    return rows.map((row) => ({
+      ...row,
+      report_date: row.document_date,
+      summary: row.notes,
+    }));
   }
 
   buildRequirementCounts(pipeline, nativeApplications, bookings = [], attendanceSummary = {}) {

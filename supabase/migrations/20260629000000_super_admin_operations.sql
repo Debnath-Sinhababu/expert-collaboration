@@ -54,15 +54,17 @@ create index if not exists idx_requirement_admin_assignments_admin
 create index if not exists idx_requirement_admin_assignments_requirement
   on public.requirement_admin_assignments (requirement_type, requirement_id, status);
 
-create table if not exists public.requirement_daily_reports (
+create table if not exists public.requirement_documents (
   id uuid primary key default gen_random_uuid(),
   assignment_id uuid null references public.requirement_admin_assignments(id) on delete set null,
   requirement_type text not null check (requirement_type in ('project', 'internship', 'freelance')),
   requirement_id uuid not null,
+  document_type text not null default 'daily_report' check (document_type in ('daily_report', 'requirement_note', 'supporting_document')),
   admin_user_id uuid not null,
   admin_record_id uuid null references public.super_admin_users(id) on delete set null,
-  report_date date not null,
-  summary text null,
+  document_date date not null default current_date,
+  title text null,
+  notes text null,
   file_url text not null,
   file_public_id text null,
   original_filename text null,
@@ -72,11 +74,11 @@ create table if not exists public.requirement_daily_reports (
   updated_at timestamptz not null default now()
 );
 
-create index if not exists idx_requirement_daily_reports_requirement
-  on public.requirement_daily_reports (requirement_type, requirement_id, report_date desc);
+create index if not exists idx_requirement_documents_requirement
+  on public.requirement_documents (requirement_type, requirement_id, document_type, document_date desc);
 
-create index if not exists idx_requirement_daily_reports_admin_date
-  on public.requirement_daily_reports (admin_user_id, report_date desc);
+create index if not exists idx_requirement_documents_admin_date
+  on public.requirement_documents (admin_user_id, document_type, document_date desc);
 
-create index if not exists idx_requirement_daily_reports_assignment
-  on public.requirement_daily_reports (assignment_id, report_date desc);
+create index if not exists idx_requirement_documents_assignment
+  on public.requirement_documents (assignment_id, document_type, document_date desc);
