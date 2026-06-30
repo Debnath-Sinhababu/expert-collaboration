@@ -55,7 +55,7 @@ export default function InstitutionProfileSetup() {
   const [success, setSuccess] = useState('')
   const router = useRouter()
   const pathname = usePathname()
-  const isSuperAdminInstitutionCreate = pathname?.startsWith('/superadmin/create-institution') ?? false
+  const isSuperAdminInstitutionCreate = (pathname?.startsWith('/superadmin/create-institution') || pathname?.startsWith('/superadmin/create-profiles')) ?? false
   const { viewer } = useInstitutionWorkspace()
 
   const [logoFile, setLogoFile] = useState<File | null>(null)

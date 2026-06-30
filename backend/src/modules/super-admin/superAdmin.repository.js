@@ -21,6 +21,32 @@ function missingColumnName(error) {
   return schemaMatch?.[1] || null;
 }
 
+function requirementKey(type, id) {
+  return `${type}:${id}`;
+}
+
+function closedStatus(status) {
+  return ['closed', 'completed', 'cancelled', 'canceled'].includes(String(status || '').toLowerCase());
+}
+
+function activeStatus(status) {
+  return ['in_progress', 'ongoing', 'active', 'accepted', 'shortlisted'].includes(String(status || '').toLowerCase());
+}
+
+function roundPercent(value) {
+  if (!Number.isFinite(value)) return null;
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function dateProgress(startValue, endValue) {
+  if (!startValue || !endValue) return null;
+  const start = new Date(startValue).getTime();
+  const end = new Date(endValue).getTime();
+  const now = Date.now();
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
+  return roundPercent(((now - start) / (end - start)) * 100);
+}
+
 async function countRows(client, table, apply) {
   let query = client.from(table).select('id', { count: 'exact', head: true });
   if (apply) query = apply(query);
@@ -60,6 +86,8 @@ class SuperAdminRepository {
       countRows(this.client, 'training_attendance_days', (q) => q.eq('status', 'pending_review')),
     ]);
 
+    const requirementStats = await this.getRequirementStats();
+
     return {
       experts,
       verifiedExperts,
@@ -70,6 +98,117 @@ class SuperAdminRepository {
       freelance,
       bookings,
       pendingAttendance,
+      requirements: requirementStats,
+    };
+  }
+
+  async getRequirementStats() {
+    const [projects, internships, freelance] = await Promise.all([
+      this.fetchRequirementRowsForStats('project'),
+      this.fetchRequirementRowsForStats('internship'),
+      this.fetchRequirementRowsForStats('freelance'),
+    ]);
+    const byCategory = {
+      projects: this.summarizeRequirementRows(await this.enrichRequirementRows(projects)),
+      internships: this.summarizeRequirementRows(await this.enrichRequirementRows(internships)),
+      freelance: this.summarizeRequirementRows(await this.enrichRequirementRows(freelance)),
+    };
+    const all = [...projects, ...internships, ...freelance];
+    return {
+      total: byCategory.projects.total + byCategory.internships.total + byCategory.freelance.total,
+      running: byCategory.projects.running + byCategory.internships.running + byCategory.freelance.running,
+      pending: byCategory.projects.pending + byCategory.internships.pending + byCategory.freelance.pending,
+      closed: byCategory.projects.closed + byCategory.internships.closed + byCategory.freelance.closed,
+      categories: byCategory,
+      recent_total: all.filter((row) => row.created_at && Date.now() - new Date(row.created_at).getTime() < 30 * 24 * 60 * 60 * 1000).length,
+    };
+  }
+
+  summarizeRequirementRows(rows = []) {
+    return rows.reduce((summary, row) => {
+      summary.total += 1;
+      const status = row.derived_status || 'pending';
+      summary[status] = (summary[status] || 0) + 1;
+      return summary;
+    }, { total: 0, running: 0, pending: 0, closed: 0 });
+  }
+
+  async fetchRequirementRowsForStats(type) {
+    const configs = {
+      project: {
+        table: 'projects',
+        select: 'id,title,status,call_status,created_at,start_date,end_date,duration_hours,institution_id',
+        map: (r) => ({ ...r, requirement_type: 'project' }),
+      },
+      internship: {
+        table: 'internships',
+        select: 'id,title,status,created_at,start_date,application_deadline,duration_value,duration_unit,corporate_institution_id',
+        map: (r) => ({ ...r, requirement_type: 'internship', institution_id: r.corporate_institution_id }),
+      },
+      freelance: {
+        table: 'freelance_projects',
+        select: 'id,title,status,created_at,deadline,corporate_institution_id',
+        map: (r) => ({ ...r, requirement_type: 'freelance', institution_id: r.corporate_institution_id }),
+      },
+    };
+    const cfg = configs[type];
+    const { data, error } = await this.client.from(cfg.table).select(cfg.select).limit(1000);
+    if (error) {
+      if (tableMissing(error)) return [];
+      throw error;
+    }
+    return (data || []).map(cfg.map);
+  }
+
+  async getOverviewCategory(category, period = 'monthly') {
+    const type = category === 'projects' ? 'project' : category === 'internships' ? 'internship' : 'freelance';
+    const rows = await this.enrichRequirementRows(await this.fetchRequirementRowsForStats(type));
+    const summary = this.summarizeRequirementRows(rows);
+    const buckets = {};
+    for (const row of rows) {
+      const date = row.created_at ? new Date(row.created_at) : null;
+      if (!date || Number.isNaN(date.getTime())) continue;
+      const key = period === 'yearly'
+        ? String(date.getFullYear())
+        : period === 'weekly'
+          ? `${date.getFullYear()}-W${Math.ceil((((date - new Date(date.getFullYear(), 0, 1)) / 86400000) + 1) / 7)}`
+          : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      buckets[key] = buckets[key] || { label: key, total: 0, running: 0, pending: 0, closed: 0 };
+      buckets[key].total += 1;
+      buckets[key][row.derived_status] = (buckets[key][row.derived_status] || 0) + 1;
+    }
+    return {
+      category,
+      summary,
+      trend: Object.values(buckets).sort((a, b) => String(a.label).localeCompare(String(b.label))).slice(-24),
+      data: rows.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)).slice(0, 100),
+    };
+  }
+
+  async getBusinessExportData({ date_from = '', date_to = '' } = {}) {
+    const [experts, institutions, students, requirements, finance] = await Promise.all([
+      this.client.from('experts').select('id,name,email,phone,city,state,domain_expertise,calxbook_verified,is_verified,created_at').limit(5000),
+      this.client.from('institutions').select('id,name,email,phone,type,city,state,created_at').limit(5000),
+      this.client.from('site_students').select('id,name,email,phone,city,state,degree,created_at').limit(5000),
+      this.listRequirements({ page: 1, limit: 5000, offset: 0, type: 'all', date_from, date_to }),
+      this.getFinanceSummary(),
+    ]);
+    for (const result of [experts, institutions, students]) {
+      if (result.error && !tableMissing(result.error)) throw result.error;
+    }
+    const requirementRows = (requirements.data || []).filter((row) => {
+      const created = row.created_at ? new Date(row.created_at).getTime() : 0;
+      if (date_from && created < new Date(date_from).getTime()) return false;
+      if (date_to && created > new Date(date_to).getTime()) return false;
+      return true;
+    });
+    return {
+      experts: experts.data || [],
+      institutions: institutions.data || [],
+      students: students.data || [],
+      requirements: requirementRows,
+      finance,
+      generated_at: new Date().toISOString(),
     };
   }
 
@@ -206,6 +345,106 @@ class SuperAdminRepository {
     return data;
   }
 
+  async logActivity(payload) {
+    const { error } = await this.client
+      .from('super_admin_activity_logs')
+      .insert([{ ...payload, metadata: payload.metadata || {} }]);
+    if (error && !tableMissing(error)) throw error;
+  }
+
+  async getAdminDetail(id) {
+    const admin = await this.findAdminById(id);
+    if (!admin) return null;
+    const [activity, reports, assignments] = await Promise.all([
+      this.listAdminActivity(id, { page: 1, limit: 10, offset: 0 }),
+      this.listReportsForAdmin(admin.auth_user_id, 10),
+      this.listAssignmentsForAdmin(admin.auth_user_id, 20),
+    ]);
+    const activitySummary = (activity.data || []).reduce((acc, item) => {
+      acc[item.action] = (acc[item.action] || 0) + 1;
+      return acc;
+    }, {});
+    return {
+      admin,
+      assignmentSummary: {
+        active: assignments.total,
+        recent: assignments.data,
+      },
+      activitySummary,
+      recentActivity: activity.data,
+      recentReports: reports,
+    };
+  }
+
+  async listAdminActivity(adminId, { page, limit, offset, action = '', requirement_type = '', requirement_id = '', date_from = '', date_to = '' }) {
+    const admin = await this.findAdminById(adminId);
+    if (!admin) return { data: [], total: 0, page, limit };
+    let query = this.client
+      .from('super_admin_activity_logs')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+    query = query.or(`actor_admin_id.eq.${admin.id},actor_user_id.eq.${admin.auth_user_id}`);
+    if (action) query = query.eq('action', action);
+    if (requirement_type) query = query.eq('requirement_type', requirement_type);
+    if (requirement_id) query = query.eq('requirement_id', requirement_id);
+    if (date_from) query = query.gte('created_at', date_from);
+    if (date_to) query = query.lte('created_at', date_to);
+    const { data, error, count } = await query;
+    if (error) {
+      if (tableMissing(error)) return { data: [], total: 0, page, limit };
+      throw error;
+    }
+    return { data: data || [], total: count || 0, page, limit };
+  }
+
+  async listReportsForAdmin(adminUserId, limit = 20) {
+    if (!adminUserId) return [];
+    const { data, error } = await this.client
+      .from('requirement_documents')
+      .select('*')
+      .eq('admin_user_id', adminUserId)
+      .eq('document_type', 'daily_report')
+      .order('document_date', { ascending: false })
+      .limit(limit);
+    if (error) {
+      if (tableMissing(error)) return [];
+      throw error;
+    }
+    return this.mapRequirementDocumentsToReports(data || []);
+  }
+
+  async listAssignmentsForAdmin(adminUserId, limit = 100) {
+    if (!adminUserId) return { data: [], total: 0 };
+    const { data, error, count } = await this.client
+      .from('requirement_admin_assignments')
+      .select('*', { count: 'exact' })
+      .eq('admin_user_id', adminUserId)
+      .eq('status', 'active')
+      .order('assigned_at', { ascending: false })
+      .limit(limit);
+    if (error) {
+      if (tableMissing(error)) return { data: [], total: 0 };
+      throw error;
+    }
+    const rows = await this.hydrateAssignmentsWithRequirements(data || []);
+    return { data: rows, total: count || 0 };
+  }
+
+  async hydrateAssignmentsWithRequirements(assignments = []) {
+    if (!assignments.length) return [];
+    const rows = [];
+    for (const assignment of assignments) {
+      const detail = await this.getRequirementDetail(assignment.requirement_type, assignment.requirement_id).catch(() => null);
+      rows.push({
+        ...assignment,
+        requirement: detail?.requirement || null,
+        requirementDetail: detail || null,
+      });
+    }
+    return rows;
+  }
+
   async listProfiles(type, { page, limit, offset, search, interested }) {
     const table = type === 'institutions' ? 'institutions' : type === 'students' ? 'site_students' : 'experts';
     const select = type === 'students'
@@ -245,7 +484,7 @@ class SuperAdminRepository {
     return data;
   }
 
-  async listRequirements({ page, limit, offset, type = 'all', search = '', status = 'all', institution_id = '' }) {
+  async listRequirements({ page, limit, offset, type = 'all', search = '', status = 'all', derived_status = '', institution_id = '', assigned_admin_id = '' }) {
     const boundedEnd = type === 'all' ? offset + limit - 1 : offset + limit - 1;
     const boundedStart = type === 'all' ? 0 : offset;
     const needle = String(search || '').trim();
@@ -262,7 +501,7 @@ class SuperAdminRepository {
       internship: {
         table: 'internships',
         institutionField: 'corporate_institution_id',
-        select: 'id,title,responsibilities,status,created_at,corporate_institution_id,call_status,stipend_min,stipend_max,location,work_mode,engagement,institutions:corporate_institution_id(id,name,email,type,city,state)',
+        select: 'id,title,responsibilities,status,created_at,corporate_institution_id,call_status,stipend_min,stipend_max,location,work_mode,engagement,start_date,application_deadline,duration_value,duration_unit,institutions:corporate_institution_id(id,name,email,type,city,state)',
         searchFields: 'title,responsibilities',
         map: (r) => ({
           ...r,
@@ -324,16 +563,183 @@ class SuperAdminRepository {
       rows.push(...(data || []).map(cfg.map));
     }
 
-    rows.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
-    const pagedRows = type === 'all' ? rows.slice(offset, offset + limit) : rows;
+    const enrichedRows = await this.enrichRequirementRows(rows);
+    let filteredRows = enrichedRows;
+    if (derived_status) filteredRows = filteredRows.filter((row) => row.derived_status === derived_status);
+    if (assigned_admin_id) {
+      filteredRows = filteredRows.filter((row) => {
+        if (assigned_admin_id === 'unassigned') return !row.assignment;
+        return row.assignment?.admin_user_id === assigned_admin_id || row.assignment?.admin_record_id === assigned_admin_id;
+      });
+    }
+    filteredRows.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    const pagedRows = type === 'all' || derived_status || assigned_admin_id ? filteredRows.slice(offset, offset + limit) : filteredRows;
 
     return {
       data: pagedRows,
-      total,
+      total: derived_status || assigned_admin_id ? filteredRows.length : total,
       page,
       limit,
-      hasMore: total > offset + limit,
+      hasMore: (derived_status || assigned_admin_id ? filteredRows.length : total) > offset + limit,
     };
+  }
+
+  async enrichRequirementRows(rows = []) {
+    if (!rows.length) return [];
+    const byType = rows.reduce((acc, row) => {
+      const type = row.requirement_type;
+      acc[type] = acc[type] || [];
+      acc[type].push(row.id);
+      return acc;
+    }, {});
+    const [assignments, projectMetrics, internshipMetrics, freelanceMetrics] = await Promise.all([
+      this.getActiveAssignmentsForRows(rows),
+      this.getProjectRequirementMetrics(byType.project || []),
+      this.getApplicationMetrics('internship', byType.internship || []),
+      this.getApplicationMetrics('freelance', byType.freelance || []),
+    ]);
+
+    return rows.map((row) => {
+      const key = requirementKey(row.requirement_type, row.id);
+      const assignment = assignments[key] || null;
+      const metrics = row.requirement_type === 'project'
+        ? projectMetrics[row.id] || {}
+        : row.requirement_type === 'internship'
+          ? internshipMetrics[row.id] || {}
+          : freelanceMetrics[row.id] || {};
+      const derived = this.deriveRequirementState(row, metrics);
+      return {
+        ...row,
+        assignment,
+        derived_status: derived.status,
+        progress_percent: derived.progressPercent,
+        progress_label: derived.progressLabel,
+        metrics,
+      };
+    });
+  }
+
+  deriveRequirementState(row, metrics = {}) {
+    const status = row.status || row.call_status;
+    if (closedStatus(status) || metrics.completed_count > 0 || metrics.completed_bookings > 0) {
+      return { status: 'closed', progressPercent: 100, progressLabel: 'Complete' };
+    }
+    if (row.requirement_type === 'project') {
+      if ((metrics.running_bookings || 0) > 0 || (metrics.accepted_applications || 0) > 0) {
+        const target = Number(metrics.target_hours || row.duration_hours || 0);
+        const progress = target > 0 ? roundPercent((Number(metrics.approved_hours || 0) / target) * 100) : null;
+        return { status: 'running', progressPercent: progress, progressLabel: progress == null ? 'Unknown' : `${progress}%` };
+      }
+      return { status: 'pending', progressPercent: 0, progressLabel: 'Not started' };
+    }
+    if (row.requirement_type === 'internship') {
+      if ((metrics.shortlisted_count || 0) > 0 || activeStatus(status)) {
+        const end = row.application_deadline || row.end_date;
+        const progress = dateProgress(row.start_date || row.created_at, end);
+        return { status: 'running', progressPercent: progress, progressLabel: progress == null ? 'Unknown' : `${progress}%` };
+      }
+      return { status: 'pending', progressPercent: 0, progressLabel: 'Not started' };
+    }
+    if ((metrics.shortlisted_count || 0) > 0 || activeStatus(status)) {
+      const progress = dateProgress(row.created_at, row.deadline);
+      return { status: 'running', progressPercent: progress, progressLabel: progress == null ? 'Unknown' : `${progress}%` };
+    }
+    return { status: 'pending', progressPercent: 0, progressLabel: 'Not started' };
+  }
+
+  async getActiveAssignmentsForRows(rows = []) {
+    const byType = rows.reduce((acc, row) => {
+      acc[row.requirement_type] = acc[row.requirement_type] || [];
+      acc[row.requirement_type].push(row.id);
+      return acc;
+    }, {});
+    const all = [];
+    for (const [type, ids] of Object.entries(byType)) {
+      if (!ids.length) continue;
+      const { data, error } = await this.client
+        .from('requirement_admin_assignments')
+        .select('*')
+        .eq('requirement_type', type)
+        .eq('status', 'active')
+        .in('requirement_id', ids);
+      if (error) {
+        if (tableMissing(error)) continue;
+        throw error;
+      }
+      all.push(...(data || []));
+    }
+    const adminIds = [...new Set(all.map((item) => item.admin_record_id).filter(Boolean))];
+    const { data: admins, error: adminError } = adminIds.length
+      ? await this.client.from('super_admin_users').select('id,auth_user_id,name,email,status').in('id', adminIds)
+      : { data: [], error: null };
+    if (adminError && !tableMissing(adminError)) throw adminError;
+    const adminById = Object.fromEntries((admins || []).map((admin) => [admin.id, admin]));
+    return Object.fromEntries(all.map((item) => [
+      requirementKey(item.requirement_type, item.requirement_id),
+      { ...item, admin: adminById[item.admin_record_id] || null },
+    ]));
+  }
+
+  async getProjectRequirementMetrics(projectIds = []) {
+    if (!projectIds.length) return {};
+    const [{ data: applications, error: appError }, { data: bookings, error: bookingError }] = await Promise.all([
+      this.client.from('applications').select('project_id,status').in('project_id', projectIds),
+      this.client.from('bookings').select('id,project_id,status,hours_booked').in('project_id', projectIds),
+    ]);
+    if (appError && !tableMissing(appError)) throw appError;
+    if (bookingError && !tableMissing(bookingError)) throw bookingError;
+    const bookingIds = (bookings || []).map((booking) => booking.id);
+    const approvedHoursByBooking = await this.approvedHoursForBookingIds(bookingIds);
+    const out = Object.fromEntries(projectIds.map((id) => [id, {
+      applications_total: 0,
+      accepted_applications: 0,
+      bookings_total: 0,
+      running_bookings: 0,
+      completed_bookings: 0,
+      approved_hours: 0,
+      target_hours: 0,
+    }]));
+    for (const app of applications || []) {
+      const item = out[app.project_id];
+      if (!item) continue;
+      item.applications_total += 1;
+      if (String(app.status).toLowerCase() === 'accepted') item.accepted_applications += 1;
+    }
+    for (const booking of bookings || []) {
+      const item = out[booking.project_id];
+      if (!item) continue;
+      item.bookings_total += 1;
+      if (activeStatus(booking.status)) item.running_bookings += 1;
+      if (String(booking.status).toLowerCase() === 'completed') item.completed_bookings += 1;
+      item.approved_hours += Number(approvedHoursByBooking[booking.id] || 0);
+      item.target_hours += Number(booking.hours_booked || 0);
+    }
+    return out;
+  }
+
+  async getApplicationMetrics(type, ids = []) {
+    if (!ids.length) return {};
+    const config = type === 'internship'
+      ? { table: 'internship_applications', key: 'internship_id' }
+      : { table: 'freelance_applications', key: 'project_id' };
+    const { data, error } = await this.client
+      .from(config.table)
+      .select(`${config.key},status`)
+      .in(config.key, ids);
+    if (error) {
+      if (tableMissing(error)) return {};
+      throw error;
+    }
+    const out = Object.fromEntries(ids.map((id) => [id, { applications_total: 0, shortlisted_count: 0, completed_count: 0 }]));
+    for (const app of data || []) {
+      const item = out[app[config.key]];
+      if (!item) continue;
+      const status = String(app.status || '').toLowerCase();
+      item.applications_total += 1;
+      if (['shortlisted', 'accepted', 'selected'].includes(status)) item.shortlisted_count += 1;
+      if (['completed', 'closed'].includes(status)) item.completed_count += 1;
+    }
+    return out;
   }
 
   async createProjectRequirement(payload) {
@@ -393,15 +799,20 @@ class SuperAdminRepository {
     }
     if (!data) return null;
 
-    const [pipeline, nativeApplications, bookings] = await Promise.all([
+    const [pipeline, nativeApplications, bookings, assignment, reports] = await Promise.all([
       this.listRequirementExperts(type, id),
       this.listNativeRequirementApplications(type, id),
       this.listRequirementBookings(type, id),
+      this.getActiveAssignment(type, id),
+      this.listRequirementReports(type, id, { page: 1, limit: 10, offset: 0 }),
     ]);
     const attendanceSummary = this.buildAttendanceSummary(bookings);
+    const enriched = (await this.enrichRequirementRows([cfg.map(data)]))[0] || cfg.map(data);
     return {
-      requirement: cfg.map(data),
+      requirement: enriched,
       institution: data.institutions || null,
+      assignment,
+      reports: reports.data || [],
       pipeline,
       pipelineExperts: pipeline,
       nativeApplications,
@@ -409,6 +820,98 @@ class SuperAdminRepository {
       attendanceSummary,
       counts: this.buildRequirementCounts(pipeline, nativeApplications, bookings, attendanceSummary),
     };
+  }
+
+  async getActiveAssignment(type, id) {
+    const { data, error } = await this.client
+      .from('requirement_admin_assignments')
+      .select('*')
+      .eq('requirement_type', type)
+      .eq('requirement_id', id)
+      .eq('status', 'active')
+      .maybeSingle();
+    if (error) {
+      if (tableMissing(error)) return null;
+      throw error;
+    }
+    if (!data) return null;
+    const { data: admin } = data.admin_record_id
+      ? await this.client.from('super_admin_users').select('id,auth_user_id,name,email,status').eq('id', data.admin_record_id).maybeSingle()
+      : { data: null };
+    return { ...data, admin: admin || null };
+  }
+
+  async assignRequirement(type, id, admin, actor, notes = '') {
+    await this.client
+      .from('requirement_admin_assignments')
+      .update({ status: 'unassigned', unassigned_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq('requirement_type', type)
+      .eq('requirement_id', id)
+      .eq('status', 'active');
+    const { data, error } = await this.client
+      .from('requirement_admin_assignments')
+      .insert([{
+        requirement_type: type,
+        requirement_id: id,
+        admin_user_id: admin.auth_user_id,
+        admin_record_id: admin.id,
+        assigned_by_user_id: actor.userId || null,
+        assigned_by_admin_id: actor.adminId || null,
+        notes: notes || null,
+      }])
+      .select('*')
+      .single();
+    if (error) throw error;
+    return { ...data, admin };
+  }
+
+  async unassignRequirement(type, id) {
+    const { data, error } = await this.client
+      .from('requirement_admin_assignments')
+      .update({ status: 'unassigned', unassigned_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq('requirement_type', type)
+      .eq('requirement_id', id)
+      .eq('status', 'active')
+      .select('*');
+    if (error) {
+      if (tableMissing(error)) return [];
+      throw error;
+    }
+    return data || [];
+  }
+
+  async listRequirementReports(type, id, { page, limit, offset }) {
+    const { data, error, count } = await this.client
+      .from('requirement_documents')
+      .select('*', { count: 'exact' })
+      .eq('requirement_type', type)
+      .eq('requirement_id', id)
+      .eq('document_type', 'daily_report')
+      .order('document_date', { ascending: false })
+      .range(offset, offset + limit - 1);
+    if (error) {
+      if (tableMissing(error)) return { data: [], total: 0, page, limit };
+      throw error;
+    }
+    return { data: this.mapRequirementDocumentsToReports(data || []), total: count || 0, page, limit };
+  }
+
+  async createRequirementReport(payload) {
+    const { data, error } = await this.client
+      .from('requirement_documents')
+      .insert([payload])
+      .select('*')
+      .single();
+    if (error) throw error;
+    return this.mapRequirementDocumentsToReports([data])[0] || data;
+  }
+
+  mapRequirementDocumentsToReports(rows = []) {
+    return rows.map((row) => ({
+      ...row,
+      report_date: row.document_date,
+      summary: row.notes,
+    }));
   }
 
   buildRequirementCounts(pipeline, nativeApplications, bookings = [], attendanceSummary = {}) {

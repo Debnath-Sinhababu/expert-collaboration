@@ -1,5 +1,19 @@
 const SuperAdminService = require('./superAdmin.service');
 const { parseCreateAdminBody, parsePage } = require('./superAdmin.dto');
+const superAdminAuth = require('../../../auth/superAdminAuth');
+
+function requestMeta(req) {
+  return {
+    ip_address: req.ip || req.headers['x-forwarded-for'] || null,
+    user_agent: req.headers['user-agent'] || null,
+  };
+}
+
+function sendWorkbook(res, result) {
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+  res.send(Buffer.from(result.buffer));
+}
 
 class SuperAdminController {
   constructor(service = new SuperAdminService()) {
@@ -19,12 +33,46 @@ class SuperAdminController {
   };
 
   createAdmin = async (req, res) => {
-    const created = await this.service.createAdmin(parseCreateAdminBody(req.body || {}), req.superAdmin.user.id);
+    const created = await this.service.createAdmin(parseCreateAdminBody(req.body || {}), req.superAdmin.user.id, req.superAdmin);
     res.status(201).json(created);
   };
 
   updateAdmin = async (req, res) => {
-    res.json(await this.service.updateAdmin(req.params.id, req.body || {}, req.superAdmin.user.id));
+    res.json(await this.service.updateAdmin(req.params.id, req.body || {}, req.superAdmin.user.id, req.superAdmin));
+  };
+
+  getAdminDetail = async (req, res) => {
+    res.json(await this.service.getAdminDetail(req.params.id));
+  };
+
+  listAdminActivity = async (req, res) => {
+    const paging = parsePage(req.query);
+    res.json(await this.service.listAdminActivity(req.params.id, {
+      ...paging,
+      action: req.query.action || '',
+      requirement_type: req.query.requirement_type || '',
+      requirement_id: req.query.requirement_id || '',
+      date_from: req.query.date_from || '',
+      date_to: req.query.date_to || '',
+    }));
+  };
+
+  exportAdminActivity = async (req, res) => {
+    if (
+      !superAdminAuth.hasSuperAdminPermission(req.superAdmin.access, 'activity:read')
+      || !superAdminAuth.hasSuperAdminPermission(req.superAdmin.access, 'exports:download')
+    ) {
+      res.status(403).json({ error: 'Permission denied' });
+      return;
+    }
+    const result = await this.service.exportAdminActivity(req.params.id, {
+      action: req.query.action || '',
+      requirement_type: req.query.requirement_type || '',
+      requirement_id: req.query.requirement_id || '',
+      date_from: req.query.date_from || '',
+      date_to: req.query.date_to || '',
+    }, req.superAdmin);
+    sendWorkbook(res, result);
   };
 
   listProfiles = async (req, res) => {
@@ -37,15 +85,15 @@ class SuperAdminController {
   };
 
   bulkImportExperts = async (req, res) => {
-    res.json(await this.service.bulkImport('experts', req.body || {}));
+    res.json(await this.service.bulkImport('experts', req.body || {}, req.superAdmin));
   };
 
   bulkImportStudents = async (req, res) => {
-    res.json(await this.service.bulkImport('students', req.body || {}));
+    res.json(await this.service.bulkImport('students', req.body || {}, req.superAdmin));
   };
 
   setExpertCalxbookVerification = async (req, res) => {
-    res.json(await this.service.setExpertCalxbookVerification(req.params.id, req.body?.calxbook_verified));
+    res.json(await this.service.setExpertCalxbookVerification(req.params.id, req.body?.calxbook_verified, req.superAdmin));
   };
 
   listRequirements = async (req, res) => {
@@ -54,8 +102,10 @@ class SuperAdminController {
       ...paging,
       type: req.query.type || 'all',
       status: req.query.status || 'all',
+      derived_status: req.query.derived_status || '',
       search: req.query.search || '',
       institution_id: req.query.institution_id || '',
+      assigned_admin_id: req.query.assigned_admin_id || '',
     }));
   };
 
@@ -64,12 +114,46 @@ class SuperAdminController {
   };
 
   createRequirement = async (req, res) => {
-    const created = await this.service.createRequirement(req.body || {}, req.superAdmin.user.id, req.files || {});
+    const created = await this.service.createRequirement(req.body || {}, req.superAdmin.user.id, req.files || {}, req.superAdmin);
     res.status(201).json(created);
   };
 
+  listAssignedRequirements = async (req, res) => {
+    res.json(await this.service.listAssignedRequirements(req.superAdmin));
+  };
+
+  assignRequirement = async (req, res) => {
+    res.status(201).json(await this.service.assignRequirement(req.params.type, req.params.id, req.body || {}, req.superAdmin, requestMeta(req)));
+  };
+
+  unassignRequirement = async (req, res) => {
+    res.json(await this.service.unassignRequirement(req.params.type, req.params.id, req.superAdmin, requestMeta(req)));
+  };
+
+  listRequirementReports = async (req, res) => {
+    res.json(await this.service.listRequirementReports(req.params.type, req.params.id, parsePage(req.query)));
+  };
+
+  createRequirementReport = async (req, res) => {
+    res.status(201).json(await this.service.createRequirementReport(req.params.type, req.params.id, req.body || {}, req.files || {}, req.superAdmin, requestMeta(req)));
+  };
+
+  overviewCategory = async (req, res) => {
+    res.json(await this.service.getOverviewCategory(req.params.category, req.query.period || 'monthly'));
+  };
+
+  exportOverview = async (req, res) => {
+    const result = await this.service.exportOverview({
+      date_from: req.query.date_from || '',
+      date_to: req.query.date_to || '',
+      month: req.query.month || '',
+      year: req.query.year || '',
+    }, req.superAdmin);
+    sendWorkbook(res, result);
+  };
+
   addRequirementExpert = async (req, res) => {
-    const created = await this.service.addRequirementExpert(req.params.id, req.body || {}, req.superAdmin.user.id);
+    const created = await this.service.addRequirementExpert(req.params.id, req.body || {}, req.superAdmin.user.id, req.superAdmin);
     res.status(201).json(created);
   };
 
@@ -93,6 +177,7 @@ class SuperAdminController {
       req.params.applicationId,
       req.body || {},
       req.superAdmin.user.id,
+      req.superAdmin,
     ));
   };
 
@@ -102,7 +187,7 @@ class SuperAdminController {
       req.params.id,
       req.params.bookingId,
       req.body || {},
-      req.superAdmin.user.id,
+      req.superAdmin,
     ));
   };
 
@@ -139,11 +224,11 @@ class SuperAdminController {
   };
 
   sendFinanceInvoice = async (req, res) => {
-    res.json(await this.service.sendFinanceInvoice(req.params.id, req.body || {}, req.superAdmin.user.id));
+    res.json(await this.service.sendFinanceInvoice(req.params.id, req.body || {}, req.superAdmin.user.id, req.superAdmin));
   };
 
   markFinancePaymentPaid = async (req, res) => {
-    res.json(await this.service.markFinancePaymentPaid(req.params.id, req.body || {}, req.superAdmin.user.id));
+    res.json(await this.service.markFinancePaymentPaid(req.params.id, req.body || {}, req.superAdmin.user.id, req.superAdmin));
   };
 
   listFinanceInvoices = async (req, res) => {
@@ -156,7 +241,7 @@ class SuperAdminController {
   };
 
   confirmFinanceTraining = async (req, res) => {
-    res.json(await this.service.confirmFinanceTraining(req.params.bookingId, req.body || {}, req.superAdmin.user.id));
+    res.json(await this.service.confirmFinanceTraining(req.params.bookingId, req.body || {}, req.superAdmin.user.id, req.superAdmin));
   };
 }
 

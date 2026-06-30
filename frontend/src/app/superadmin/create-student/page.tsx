@@ -1,7 +1,5 @@
-'use client'
-
-import StudentProfileSetup from '@/app/student/profile-setup/page'
+import { redirect } from 'next/navigation'
 
 export default function SuperAdminCreateStudentPage() {
-  return <StudentProfileSetup />
+  redirect('/superadmin/create-profiles?type=student')
 }

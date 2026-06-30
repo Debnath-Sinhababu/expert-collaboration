@@ -7,13 +7,11 @@ import { supabase } from '@/lib/supabase'
 import Logo from '@/components/Logo'
 import ProfileDropdown from '@/components/ProfileDropdown'
 import {
-  Building2,
   HeartHandshake,
   LayoutDashboard,
   Shield,
   Upload,
   UserPlus,
-  Users,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -67,25 +65,11 @@ export default function SuperAdminShell({ children }: { children: React.ReactNod
                 <span className="whitespace-nowrap">Directory</span>
               </Link>
               <Link
-                href="/superadmin/create-expert"
-                className={cn(navClass, pathname?.startsWith('/superadmin/create-expert') && navActive)}
+                href="/superadmin/create-profiles"
+                className={cn(navClass, pathname?.startsWith('/superadmin/create-profiles') && navActive)}
               >
                 <UserPlus className="h-4 w-4 shrink-0 opacity-90" />
-                <span className="whitespace-nowrap">Expert</span>
-              </Link>
-              <Link
-                href="/superadmin/create-institution"
-                className={cn(navClass, pathname?.startsWith('/superadmin/create-institution') && navActive)}
-              >
-                <Building2 className="h-4 w-4 shrink-0 opacity-90" />
-                <span className="whitespace-nowrap">Institution</span>
-              </Link>
-              <Link
-                href="/superadmin/create-student"
-                className={cn(navClass, pathname?.startsWith('/superadmin/create-student') && navActive)}
-              >
-                <Users className="h-4 w-4 shrink-0 opacity-90" />
-                <span className="whitespace-nowrap">Student</span>
+                <span className="whitespace-nowrap">Create Profiles</span>
               </Link>
               <Link
                 href="/superadmin/bulk-import"

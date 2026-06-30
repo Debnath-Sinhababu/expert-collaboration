@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, BriefcaseBusiness, GraduationCap, Handshake, ListFilter, Plus, Search, X } from 'lucide-react'
+import { ArrowRight, BriefcaseBusiness, CalendarDays, GraduationCap, Handshake, ListFilter, Plus, Search, UserRound, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -21,7 +21,6 @@ import {
 import { superAdminApi } from '@/lib/superadmin/api'
 import { SectionCard } from '@/components/superadmin/common/SectionCard'
 import { StatCard } from '@/components/superadmin/common/StatCard'
-import { DataTable } from '@/components/superadmin/common/DataTable'
 import { PaginationControls } from '@/components/superadmin/common/PaginationControls'
 import { PermissionGate } from '@/components/superadmin/common/PermissionGate'
 
@@ -30,6 +29,8 @@ const PAGE_SIZE = 20
 export default function SuperAdminRequirementsPage() {
   const [type, setType] = useState('all')
   const [status, setStatus] = useState('all')
+  const [derivedStatus, setDerivedStatus] = useState('all')
+  const [assignedAdminId, setAssignedAdminId] = useState('all')
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
@@ -38,6 +39,8 @@ export default function SuperAdminRequirementsPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
+  const [admins, setAdmins] = useState<any[]>([])
+  const [assignmentSaving, setAssignmentSaving] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
   const [filterInstitutionSearch, setFilterInstitutionSearch] = useState('')
   const [filterInstitutionOptions, setFilterInstitutionOptions] = useState<any[]>([])
@@ -95,7 +98,13 @@ export default function SuperAdminRequirementsPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [type, status, debouncedSearch, selectedInstitution?.id])
+  }, [type, status, derivedStatus, assignedAdminId, debouncedSearch, selectedInstitution?.id])
+
+  useEffect(() => {
+    superAdminApi.admins({ page: 1, limit: 100 })
+      .then((res) => setAdmins(res.data || []))
+      .catch(() => setAdmins([]))
+  }, [])
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -184,8 +193,10 @@ export default function SuperAdminRequirementsPage() {
     superAdminApi.requirements({
       type,
       status,
+      derived_status: derivedStatus === 'all' ? '' : derivedStatus,
       search: debouncedSearch,
       institution_id: selectedInstitution?.id || '',
+      assigned_admin_id: assignedAdminId === 'all' ? '' : assignedAdminId,
       page,
       limit: PAGE_SIZE,
     })
@@ -204,7 +215,42 @@ export default function SuperAdminRequirementsPage() {
         setError(err instanceof Error ? err.message : 'Failed to load requirements')
       })
       .finally(() => setLoading(false))
-  }, [type, status, debouncedSearch, selectedInstitution?.id, page, refreshKey])
+  }, [type, status, derivedStatus, assignedAdminId, debouncedSearch, selectedInstitution?.id, page, refreshKey])
+
+  async function assignRequirement(row: any, adminId: string) {
+    setAssignmentSaving(`${row.requirement_type}:${row.id}`)
+    try {
+      if (adminId === 'unassigned') {
+        await superAdminApi.unassignRequirement(row.requirement_type, row.id)
+        toast.success('Requirement unassigned')
+      } else {
+        await superAdminApi.assignRequirement(row.requirement_type, row.id, { admin_id: adminId })
+        toast.success('Requirement assigned')
+      }
+      setRefreshKey((current) => current + 1)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update assignment')
+    } finally {
+      setAssignmentSaving('')
+    }
+  }
+
+  function progressBar(row: any) {
+    if (row.progress_percent === null || row.progress_percent === undefined) {
+      return <span className="text-xs font-medium text-slate-500">Progress unknown</span>
+    }
+    return (
+      <div className="w-full">
+        <div className="mb-1 flex items-center justify-between text-xs">
+          <span className="font-medium text-slate-600">Completion</span>
+          <span className="font-semibold text-slate-900">{row.progress_percent}%</span>
+        </div>
+        <div className="h-2 rounded-full bg-slate-100">
+          <div className="h-2 rounded-full bg-[#008260]" style={{ width: `${Math.max(0, Math.min(100, Number(row.progress_percent || 0)))}%` }} />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -236,7 +282,7 @@ export default function SuperAdminRequirementsPage() {
               <TabsTrigger value="freelance">Freelance</TabsTrigger>
             </TabsList>
           </Tabs>
-          <div className="grid gap-3 lg:grid-cols-[1fr_220px_320px]">
+          <div className="grid gap-3 lg:grid-cols-[1fr_180px_180px_220px_320px]">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
               <Input className="pl-9" placeholder="Search title, description, or responsibilities" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -249,6 +295,25 @@ export default function SuperAdminRequirementsPage() {
                 <SelectItem value="scheduled">Scheduled</SelectItem>
                 <SelectItem value="open">Open</SelectItem>
                 <SelectItem value="closed">Closed</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={derivedStatus} onValueChange={setDerivedStatus}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All states</SelectItem>
+                <SelectItem value="running">Running / live</SelectItem>
+                <SelectItem value="pending">Pending start</SelectItem>
+                <SelectItem value="closed">Closed</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={assignedAdminId} onValueChange={setAssignedAdminId}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All owners</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                {admins.map((admin) => (
+                  <SelectItem key={admin.id} value={admin.id}>{admin.name || admin.email}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <div className="relative">
@@ -298,35 +363,78 @@ export default function SuperAdminRequirementsPage() {
         </div>
         {loading ? <p className="mb-3 text-sm text-slate-600">Loading requirements...</p> : null}
         {error ? <p className="mb-3 text-sm text-red-600">{error}</p> : null}
-        <DataTable
-          rows={rows}
-          columns={[
-            { key: 'title', header: 'Title', render: (row) => (
-              <div>
-                <p className="font-semibold text-slate-950">{row.title}</p>
-                <p className="mt-1 max-w-md truncate text-xs text-slate-500">{row.description || row.responsibilities || 'No description'}</p>
+        <div className="space-y-3">
+          {rows.length ? rows.map((row) => (
+            <article key={`${row.requirement_type}:${row.id}`} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-[#008260]/30 hover:shadow-md">
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold capitalize text-slate-700">{row.requirement_type}</span>
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${row.derived_status === 'running' ? 'bg-sky-50 text-sky-700' : row.derived_status === 'closed' ? 'bg-slate-100 text-slate-700' : 'bg-amber-50 text-amber-700'}`}>
+                      {row.derived_status || row.status || 'pending'}
+                    </span>
+                    <span className="text-xs text-slate-500">{row.status || row.call_status || 'open'}</span>
+                  </div>
+                  <h3 className="mt-3 text-base font-semibold text-slate-950">{row.title}</h3>
+                  <p className="mt-1 max-h-10 overflow-hidden text-sm text-slate-600">{row.description || row.responsibilities || 'No description'}</p>
+                  <div className="mt-3 grid gap-3 text-sm text-slate-600 md:grid-cols-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase text-slate-400">Institution</p>
+                      <p className="mt-1 font-medium text-slate-800">{row.institutions?.name || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase text-slate-400">Owner</p>
+                      <p className="mt-1 font-medium text-slate-800">{row.assignment?.admin?.name || row.assignment?.admin?.email || 'Unassigned'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase text-slate-400">Counts</p>
+                      <p className="mt-1 font-medium text-slate-800">
+                        {(row.metrics?.applications_total || 0)} applications
+                        {row.metrics?.bookings_total ? `, ${row.metrics.bookings_total} bookings` : ''}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid w-full gap-3 xl:w-[360px]">
+                  {progressBar(row)}
+                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
+                    <div className="rounded-md bg-slate-50 p-2">
+                      <CalendarDays className="mb-1 h-4 w-4 text-[#008260]" />
+                      {row.created_at ? new Date(row.created_at).toLocaleDateString() : '-'}
+                    </div>
+                    <div className="rounded-md bg-slate-50 p-2">
+                      <UserRound className="mb-1 h-4 w-4 text-[#008260]" />
+                      {row.assignment?.admin?.email || 'No owner'}
+                    </div>
+                  </div>
+                  <PermissionGate permission="assignments:write">
+                    <Select
+                      value={row.assignment?.admin_record_id || 'unassigned'}
+                      onValueChange={(value) => assignRequirement(row, value)}
+                      disabled={assignmentSaving === `${row.requirement_type}:${row.id}`}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Assign admin" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
+                        {admins.map((admin) => (
+                          <SelectItem key={admin.id} value={admin.id}>{admin.name || admin.email}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </PermissionGate>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/superadmin/requirements/${row.requirement_type}:${row.id}`}>
+                      Manage
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                </div>
               </div>
-            ) },
-            { key: 'type', header: 'Type', render: (row) => <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold capitalize text-slate-700">{row.requirement_type}</span> },
-            { key: 'institution', header: 'Institute', render: (row) => (
-              <div>
-                <p className="font-medium text-slate-900">{row.institutions?.name || '-'}</p>
-                <p className="text-xs text-slate-500">{row.institutions?.email || ''}</p>
-              </div>
-            ) },
-            { key: 'status', header: 'Status', render: (row) => <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold capitalize text-[#008260]">{row.status || row.call_status || '-'}</span> },
-            { key: 'created', header: 'Created', render: (row) => row.created_at ? new Date(row.created_at).toLocaleDateString() : '-' },
-            { key: 'action', header: '', render: (row) => (
-              <Button asChild size="sm" variant="outline">
-                <Link href={`/superadmin/requirements/${row.requirement_type}:${row.id}`}>
-                  Manage
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-            ) },
-          ]}
-          emptyText="No requirements found."
-        />
+            </article>
+          )) : (
+            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-600">No requirements found.</div>
+          )}
+        </div>
         <PaginationControls page={page} limit={PAGE_SIZE} total={total} loading={loading} onPageChange={setPage} />
       </SectionCard>
 

@@ -38,6 +38,28 @@ async function requestForm<T>(path: string, formData: FormData): Promise<T> {
   return json as T
 }
 
+async function requestBlob(path: string): Promise<Blob> {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    headers: await headers(),
+  })
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}))
+    throw new Error(json?.message || json?.error || 'Download failed')
+  }
+  return res.blob()
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
 function query(params: Record<string, string | number | boolean | undefined | null>) {
   const q = new URLSearchParams()
   for (const [key, value] of Object.entries(params)) {
@@ -48,9 +70,23 @@ function query(params: Record<string, string | number | boolean | undefined | nu
 
 export const superAdminApi = {
   me: () => request<SuperAdminMe>('/api/superadmin/me'),
-  overviewStats: () => request<Record<string, number>>('/api/superadmin/overview/stats'),
+  overviewStats: () => request<any>('/api/superadmin/overview/stats'),
+  overviewCategory: (category: 'projects' | 'internships' | 'freelance', params?: { period?: string }) =>
+    request<any>(`/api/superadmin/overview/${category}?${query({ ...(params || {}), _t: Date.now() })}`),
+  exportOverview: async (params?: { date_from?: string; date_to?: string; month?: string; year?: string }) => {
+    const blob = await requestBlob(`/api/superadmin/overview/export?${query({ ...(params || {}), _t: Date.now() })}`)
+    downloadBlob(blob, 'calxmap-business-overview.xlsx')
+  },
   admins: (params?: { page?: number; limit?: number }) =>
     request<PaginatedResponse<any>>(`/api/superadmin/admins?${query({ ...(params || {}), _t: Date.now() })}`),
+  adminDetail: (id: string) =>
+    request<any>(`/api/superadmin/admins/${encodeURIComponent(id)}?${query({ _t: Date.now() })}`),
+  adminActivity: (id: string, params?: { page?: number; limit?: number; action?: string; requirement_type?: string; requirement_id?: string; date_from?: string; date_to?: string }) =>
+    request<PaginatedResponse<any>>(`/api/superadmin/admins/${encodeURIComponent(id)}/activity?${query({ ...(params || {}), _t: Date.now() })}`),
+  exportAdminActivity: async (id: string, params?: { action?: string; requirement_type?: string; requirement_id?: string; date_from?: string; date_to?: string }) => {
+    const blob = await requestBlob(`/api/superadmin/admins/${encodeURIComponent(id)}/activity/export?${query({ ...(params || {}), _t: Date.now() })}`)
+    downloadBlob(blob, `admin-activity-${id}.xlsx`)
+  },
   createAdmin: (body: { name: string; email: string; password?: string; permissions: SuperAdminPermission[] }) =>
     request<any>('/api/superadmin/admins', { method: 'POST', body: JSON.stringify(body) }),
   updateAdmin: (id: string, body: Record<string, unknown>) =>
@@ -66,8 +102,10 @@ export const superAdminApi = {
       method: 'PATCH',
       body: JSON.stringify({ calxbook_verified }),
     }),
-  requirements: (params?: { page?: number; limit?: number; type?: string; status?: string; search?: string; institution_id?: string }) =>
+  requirements: (params?: { page?: number; limit?: number; type?: string; status?: string; derived_status?: string; search?: string; institution_id?: string; assigned_admin_id?: string }) =>
     request<PaginatedResponse<any>>(`/api/superadmin/requirements?${query({ ...(params || {}), _t: Date.now() })}`),
+  assignedRequirements: () =>
+    request<PaginatedResponse<any>>(`/api/superadmin/requirements/assigned?${query({ _t: Date.now() })}`),
   requirementDetail: (type: string, id: string) =>
     request<any>(`/api/superadmin/requirements/${encodeURIComponent(type)}/${encodeURIComponent(id)}?${query({ _t: Date.now() })}`),
   createRequirement: (body: Record<string, unknown> | FormData) =>
@@ -90,6 +128,17 @@ export const superAdminApi = {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),
+  assignRequirement: (type: string, id: string, body: { admin_id: string; notes?: string }) =>
+    request<any>(`/api/superadmin/requirements/${encodeURIComponent(type)}/${encodeURIComponent(id)}/assignment`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  unassignRequirement: (type: string, id: string) =>
+    request<any>(`/api/superadmin/requirements/${encodeURIComponent(type)}/${encodeURIComponent(id)}/assignment`, { method: 'DELETE' }),
+  requirementReports: (type: string, id: string, params?: { page?: number; limit?: number }) =>
+    request<PaginatedResponse<any>>(`/api/superadmin/requirements/${encodeURIComponent(type)}/${encodeURIComponent(id)}/reports?${query({ ...(params || {}), _t: Date.now() })}`),
+  uploadRequirementReport: (type: string, id: string, formData: FormData) =>
+    requestForm<any>(`/api/superadmin/requirements/${encodeURIComponent(type)}/${encodeURIComponent(id)}/reports`, formData),
   freelance: (params?: { page?: number; limit?: number; search?: string }) =>
     request<PaginatedResponse<any>>(`/api/superadmin/freelance?${query({ ...(params || {}), _t: Date.now() })}`),
   internships: (params?: { page?: number; limit?: number; search?: string }) =>

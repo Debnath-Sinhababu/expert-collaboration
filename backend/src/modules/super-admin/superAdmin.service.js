@@ -7,8 +7,20 @@ const socketService = require('../../../services/socketService');
 const ImageUploadService = require('../../../services/imageUploadService');
 const { generateInvoicePdf } = require('../../../services/invoicePdfService');
 const { sendInvoiceEmail } = require('../../../services/financeEmailService');
+const { addSheet, workbookBuffer } = require('./superAdmin.excel');
+const { checkExportRateLimit } = require('./superAdmin.exportLimiter');
 
 const DEFAULT_ADMIN_PASSWORD = process.env.SUPERADMIN_DEFAULT_USER_PASSWORD || 'ExpertCollaboration@123';
+const REPORT_MIME_TYPES = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+]);
 
 function toArray(value) {
   if (Array.isArray(value)) return value.map(String).map((item) => item.trim()).filter(Boolean);
@@ -65,6 +77,26 @@ class SuperAdminService {
     return this.repository.getOverviewStats();
   }
 
+  async logActivity(auth, action, options = {}) {
+    try {
+      await this.repository.logActivity({
+        actor_user_id: auth?.user?.id || null,
+        actor_admin_id: auth?.access?.adminRecord?.id || null,
+        actor_email: auth?.user?.email || null,
+        action,
+        entity_type: options.entity_type || null,
+        entity_id: options.entity_id ? String(options.entity_id) : null,
+        requirement_type: options.requirement_type || null,
+        requirement_id: options.requirement_id || null,
+        metadata: options.metadata || {},
+        ip_address: options.ip_address || null,
+        user_agent: options.user_agent || null,
+      });
+    } catch (error) {
+      console.warn('Super-admin activity log failed:', error.message || error);
+    }
+  }
+
   async listAdmins(params) {
     const dbResult = await this.repository.listAdmins(params);
     let authAdmins = [];
@@ -105,7 +137,49 @@ class SuperAdminService {
     };
   }
 
-  async createAdmin(input, actorUserId) {
+  async getAdminDetail(id) {
+    const detail = await this.repository.getAdminDetail(id);
+    if (!detail) {
+      const err = new Error('Admin not found');
+      err.statusCode = 404;
+      throw err;
+    }
+    return detail;
+  }
+
+  async listAdminActivity(id, params) {
+    return this.repository.listAdminActivity(id, params);
+  }
+
+  async exportAdminActivity(id, params, auth) {
+    await this.ensureExportAllowed(auth);
+    const rows = await this.repository.listAdminActivity(id, { ...params, page: 1, limit: 5000, offset: 0 });
+    const buffer = await workbookBuffer(async (workbook) => {
+      addSheet(workbook, 'Activity', [
+        { header: 'Date', key: 'created_at', width: 24 },
+        { header: 'Admin Email', key: 'actor_email', width: 28 },
+        { header: 'Action', key: 'action', width: 28 },
+        { header: 'Entity Type', key: 'entity_type', width: 18 },
+        { header: 'Entity ID', key: 'entity_id', width: 36 },
+        { header: 'Requirement Type', key: 'requirement_type', width: 18 },
+        { header: 'Requirement ID', key: 'requirement_id', width: 36 },
+        { header: 'Metadata', key: 'metadata', width: 50 },
+      ], rows.data || []);
+    });
+    await this.logActivity(auth, 'export.admin_activity', { entity_type: 'admin', entity_id: id, metadata: { filters: params } });
+    return { buffer, filename: `admin-activity-${id}.xlsx` };
+  }
+
+  async ensureExportAllowed(auth) {
+    const result = await checkExportRateLimit(auth?.user?.id || auth?.user?.email);
+    if (!result.allowed) {
+      const err = new Error(`Export rate limit exceeded. Try again later. Limit: ${result.limit} per hour.`);
+      err.statusCode = 429;
+      throw err;
+    }
+  }
+
+  async createAdmin(input, actorUserId, auth = null) {
     const existingRecord = await this.repository.findAdminByEmail(input.email);
     let authUser = null;
     let createdAuthUserId = null;
@@ -161,7 +235,9 @@ class SuperAdminService {
     };
 
     try {
-      return await this.repository.saveAdminRecord(recordPayload);
+      const created = await this.repository.saveAdminRecord(recordPayload);
+      await this.logActivity(auth, 'admin.created', { entity_type: 'admin', entity_id: created.id, metadata: { email: input.email } });
+      return created;
     } catch (err) {
       console.error('Super-admin DB record save failed; using auth metadata fallback:', err);
       return {
@@ -173,7 +249,7 @@ class SuperAdminService {
     }
   }
 
-  async updateAdmin(id, body, actorUserId) {
+  async updateAdmin(id, body, actorUserId, auth = null) {
     const payload = {};
     if (body.name !== undefined) payload.name = String(body.name).trim();
     if (body.status !== undefined) {
@@ -228,13 +304,19 @@ class SuperAdminService {
     }
 
     if (existingRecord) {
-      return this.repository.updateAdminRecord(existingRecord.id, {
+      const updated = await this.repository.updateAdminRecord(existingRecord.id, {
         ...payload,
         name: nextName,
         status: nextStatus,
         permissions: nextPermissions,
         disabled_message: nextDisabledMessage,
       });
+      await this.logActivity(auth, nextStatus === 'disabled' ? 'admin.disabled' : 'admin.updated', {
+        entity_type: 'admin',
+        entity_id: updated.id,
+        metadata: { email: updated.email, changed: Object.keys(payload) },
+      });
+      return updated;
     }
 
     return {
@@ -259,7 +341,7 @@ class SuperAdminService {
     return this.repository.listProfiles(type, params);
   }
 
-  async bulkImport(kind, body) {
+  async bulkImport(kind, body, auth = null) {
     const { spreadsheetId, range, gid, usePublicAccess = true, delayBetweenRows = 500, defaultPassword } = body || {};
     if (!spreadsheetId) {
       const err = new Error('spreadsheetId is required');
@@ -289,7 +371,7 @@ class SuperAdminService {
           defaultPassword,
         });
 
-    return {
+    const response = {
       success: true,
       summary: {
         total: results.total,
@@ -306,10 +388,18 @@ class SuperAdminService {
         errors: detail.errors,
       })),
     };
+    await this.logActivity(auth, `bulk_import.${kind}`, { entity_type: kind, metadata: response.summary });
+    return response;
   }
 
-  async setExpertCalxbookVerification(id, visible) {
-    return this.repository.setExpertCalxbookVerification(id, visible);
+  async setExpertCalxbookVerification(id, visible, auth = null) {
+    const updated = await this.repository.setExpertCalxbookVerification(id, visible);
+    await this.logActivity(auth, 'expert.calxbook_verification.updated', {
+      entity_type: 'expert',
+      entity_id: id,
+      metadata: { calxbook_verified: Boolean(visible) },
+    });
+    return updated;
   }
 
   async listRequirements(params) {
@@ -327,7 +417,7 @@ class SuperAdminService {
     return detail;
   }
 
-  async createRequirement(body, actorUserId, files = {}) {
+  async createRequirement(body, actorUserId, files = {}, auth = null) {
     const requirementType = parseRequirementType(body.requirement_type || body.type);
     if (!body.institution_id || !body.title) {
       const err = new Error('institution_id and title are required');
@@ -340,7 +430,7 @@ class SuperAdminService {
     const description = body.description || body.responsibilities || '';
 
     if (requirementType === 'internship') {
-      return this.repository.createInternshipRequirement({
+      const created = await this.repository.createInternshipRequirement({
         corporate_institution_id: baseInstitutionId,
         title,
         responsibilities: description,
@@ -367,6 +457,13 @@ class SuperAdminService {
         status: body.status || 'open',
         visibility_scope: body.visibility_scope || 'public',
       });
+      await this.logActivity(auth, 'requirement.created', {
+        entity_type: 'requirement',
+        entity_id: created.id,
+        requirement_type: 'internship',
+        requirement_id: created.id,
+      });
+      return created;
     }
 
     if (requirementType === 'freelance') {
@@ -380,7 +477,7 @@ class SuperAdminService {
           throw err;
         }
       }
-      return this.repository.createFreelanceRequirement({
+      const created = await this.repository.createFreelanceRequirement({
         corporate_institution_id: baseInstitutionId,
         title,
         description,
@@ -392,6 +489,13 @@ class SuperAdminService {
         draft_attachment_public_id: draftData?.publicId || null,
         status: body.status || 'open',
       });
+      await this.logActivity(auth, 'requirement.created', {
+        entity_type: 'requirement',
+        entity_id: created.id,
+        requirement_type: 'freelance',
+        requirement_id: created.id,
+      });
+      return created;
     }
 
     let requirementPdfData = null;
@@ -405,7 +509,7 @@ class SuperAdminService {
       }
     }
 
-    return this.repository.createProjectRequirement({
+    const created = await this.repository.createProjectRequirement({
       institution_id: baseInstitutionId,
       title,
       description,
@@ -431,9 +535,214 @@ class SuperAdminService {
       requirement_pdf_url: requirementPdfData?.url || null,
       requirement_pdf_public_id: requirementPdfData?.publicId || null,
     });
+    await this.logActivity(auth, 'requirement.created', {
+      entity_type: 'requirement',
+      entity_id: created.id,
+      requirement_type: 'project',
+      requirement_id: created.id,
+    });
+    return created;
   }
 
-  async addRequirementExpert(requirementId, body, actorUserId) {
+  async listAssignedRequirements(auth) {
+    const assignments = await this.repository.listAssignmentsForAdmin(auth?.user?.id, 200);
+    return {
+      data: assignments.data || [],
+      total: assignments.total || 0,
+      page: 1,
+      limit: 200,
+    };
+  }
+
+  async assignRequirement(type, id, body, auth, reqMeta = {}) {
+    const requirementType = parseRequirementType(type);
+    const adminId = String(body.admin_id || body.admin_record_id || '').trim();
+    if (!adminId) {
+      const err = new Error('admin_id is required');
+      err.statusCode = 400;
+      throw err;
+    }
+    const admin = await this.repository.findAdminById(adminId);
+    if (!admin || admin.status === 'disabled' || !admin.auth_user_id) {
+      const err = new Error('Active admin not found');
+      err.statusCode = 404;
+      throw err;
+    }
+    const assigned = await this.repository.assignRequirement(requirementType, id, admin, {
+      userId: auth?.user?.id,
+      adminId: auth?.access?.adminRecord?.id,
+    }, String(body.notes || '').trim());
+    await this.logActivity(auth, 'requirement.assigned', {
+      entity_type: 'requirement_assignment',
+      entity_id: assigned.id,
+      requirement_type: requirementType,
+      requirement_id: id,
+      metadata: { assigned_admin_id: admin.id, assigned_admin_email: admin.email },
+      ...reqMeta,
+    });
+    return assigned;
+  }
+
+  async unassignRequirement(type, id, auth, reqMeta = {}) {
+    const requirementType = parseRequirementType(type);
+    const rows = await this.repository.unassignRequirement(requirementType, id);
+    await this.logActivity(auth, 'requirement.unassigned', {
+      entity_type: 'requirement_assignment',
+      entity_id: rows?.[0]?.id,
+      requirement_type: requirementType,
+      requirement_id: id,
+      metadata: { count: rows.length },
+      ...reqMeta,
+    });
+    return { data: rows, count: rows.length };
+  }
+
+  async listRequirementReports(type, id, params) {
+    return this.repository.listRequirementReports(parseRequirementType(type), id, params);
+  }
+
+  async createRequirementReport(type, id, body, files, auth, reqMeta = {}) {
+    const requirementType = parseRequirementType(type);
+    const assignment = await this.repository.getActiveAssignment(requirementType, id);
+    if (!assignment || assignment.admin_user_id !== auth?.user?.id) {
+      const err = new Error('Only the assigned admin can upload a daily report for this requirement');
+      err.statusCode = 403;
+      throw err;
+    }
+    const file = files?.report?.[0] || files?.document?.[0] || files?.file?.[0];
+    if (!file) {
+      const err = new Error('Report document is required');
+      err.statusCode = 400;
+      throw err;
+    }
+    if (!REPORT_MIME_TYPES.has(file.mimetype)) {
+      const err = new Error('Unsupported report file type');
+      err.statusCode = 400;
+      throw err;
+    }
+    const upload = await ImageUploadService.uploadDocument(
+      file.buffer,
+      'requirement-daily-reports',
+      null,
+      file.mimetype,
+      file.originalname,
+    );
+    if (!upload?.success || !upload.url) {
+      const err = new Error(upload?.error || 'Report upload failed');
+      err.statusCode = 502;
+      throw err;
+    }
+    const report = await this.repository.createRequirementReport({
+      assignment_id: assignment.id,
+      requirement_type: requirementType,
+      requirement_id: id,
+      document_type: 'daily_report',
+      admin_user_id: auth.user.id,
+      admin_record_id: auth.access?.adminRecord?.id || assignment.admin_record_id || null,
+      document_date: body.report_date || body.document_date || new Date().toISOString().slice(0, 10),
+      title: body.title || 'Daily report',
+      notes: String(body.summary || body.notes || '').trim() || null,
+      file_url: upload.url,
+      file_public_id: upload.publicId || null,
+      original_filename: file.originalname || upload.originalName || null,
+      mime_type: file.mimetype || null,
+      file_size: file.size || upload.size || null,
+    });
+    await this.logActivity(auth, 'daily_report.uploaded', {
+      entity_type: 'daily_report',
+      entity_id: report.id,
+      requirement_type: requirementType,
+      requirement_id: id,
+      metadata: { report_date: report.report_date, filename: report.original_filename },
+      ...reqMeta,
+    });
+    return report;
+  }
+
+  async getOverviewCategory(category, period) {
+    if (!['projects', 'internships', 'freelance'].includes(category)) {
+      const err = new Error('Invalid overview category');
+      err.statusCode = 400;
+      throw err;
+    }
+    return this.repository.getOverviewCategory(category, period);
+  }
+
+  async exportOverview(params, auth) {
+    await this.ensureExportAllowed(auth);
+    const normalizedParams = { ...(params || {}) };
+    if (normalizedParams.year && normalizedParams.month && !normalizedParams.date_from && !normalizedParams.date_to) {
+      const year = Number(normalizedParams.year);
+      const month = Number(normalizedParams.month);
+      if (Number.isInteger(year) && Number.isInteger(month) && month >= 1 && month <= 12) {
+        const start = new Date(Date.UTC(year, month - 1, 1));
+        const end = new Date(Date.UTC(year, month, 0, 23, 59, 59));
+        normalizedParams.date_from = start.toISOString();
+        normalizedParams.date_to = end.toISOString();
+      }
+    } else if (normalizedParams.year && !normalizedParams.date_from && !normalizedParams.date_to) {
+      const year = Number(normalizedParams.year);
+      if (Number.isInteger(year)) {
+        normalizedParams.date_from = new Date(Date.UTC(year, 0, 1)).toISOString();
+        normalizedParams.date_to = new Date(Date.UTC(year, 11, 31, 23, 59, 59)).toISOString();
+      }
+    }
+    const data = await this.repository.getBusinessExportData(normalizedParams);
+    const buffer = await workbookBuffer(async (workbook) => {
+      addSheet(workbook, 'Summary', [
+        { header: 'Metric', key: 'metric', width: 28 },
+        { header: 'Value', key: 'value', width: 18 },
+      ], [
+        { metric: 'Generated At', value: data.generated_at },
+        { metric: 'Experts', value: data.experts.length },
+        { metric: 'Institutions', value: data.institutions.length },
+        { metric: 'Students', value: data.students.length },
+        { metric: 'Requirements', value: data.requirements.length },
+        { metric: 'Receivable', value: data.finance.total_receivable },
+        { metric: 'Payable', value: data.finance.total_payable },
+        { metric: 'Remaining', value: data.finance.remaining },
+      ]);
+      addSheet(workbook, 'Requirements', [
+        { header: 'Type', key: 'requirement_type' },
+        { header: 'Title', key: 'title', width: 32 },
+        { header: 'Institution', key: 'institution', value: (r) => r.institutions?.name || '' },
+        { header: 'Derived Status', key: 'derived_status' },
+        { header: 'Progress', key: 'progress_label' },
+        { header: 'Owner', key: 'owner', value: (r) => r.assignment?.admin?.email || '' },
+        { header: 'Applications', key: 'applications', value: (r) => r.metrics?.applications_total || 0 },
+        { header: 'Bookings', key: 'bookings', value: (r) => r.metrics?.bookings_total || 0 },
+        { header: 'Created', key: 'created_at', width: 24 },
+      ], data.requirements);
+      addSheet(workbook, 'Experts', [
+        { header: 'Name', key: 'name' },
+        { header: 'Email', key: 'email', width: 28 },
+        { header: 'Phone', key: 'phone' },
+        { header: 'Domain', key: 'domain_expertise' },
+        { header: 'CalxBook Verified', key: 'calxbook_verified' },
+        { header: 'Created', key: 'created_at' },
+      ], data.experts);
+      addSheet(workbook, 'Institutions', [
+        { header: 'Name', key: 'name' },
+        { header: 'Email', key: 'email', width: 28 },
+        { header: 'Type', key: 'type' },
+        { header: 'City', key: 'city' },
+        { header: 'State', key: 'state' },
+        { header: 'Created', key: 'created_at' },
+      ], data.institutions);
+      addSheet(workbook, 'Students', [
+        { header: 'Name', key: 'name' },
+        { header: 'Email', key: 'email', width: 28 },
+        { header: 'Degree', key: 'degree' },
+        { header: 'City', key: 'city' },
+        { header: 'State', key: 'state' },
+        { header: 'Created', key: 'created_at' },
+      ], data.students);
+    });
+    await this.logActivity(auth, 'export.business_overview', { entity_type: 'overview', metadata: { filters: normalizedParams } });
+    return { buffer, filename: 'calxmap-business-overview.xlsx' };
+  }
+
+  async addRequirementExpert(requirementId, body, actorUserId, auth = null) {
     if (!body.expert_id) {
       const err = new Error('expert_id is required');
       err.statusCode = 400;
@@ -476,7 +785,7 @@ class SuperAdminService {
       console.warn('Super-admin add expert notification failed:', notificationError.message || notificationError);
     }
 
-    return {
+    const response = {
       id: application.id,
       application,
       requirement_id: requirementId,
@@ -486,6 +795,14 @@ class SuperAdminService {
       interview_scheduled_at: requestedStage === 'interview_scheduled' ? interviewAt : null,
       experts: expert || null,
     };
+    await this.logActivity(auth, 'requirement.expert_added', {
+      entity_type: 'application',
+      entity_id: application.id,
+      requirement_type: requirementType,
+      requirement_id: requirementId,
+      metadata: { expert_id: body.expert_id, stage: requestedStage },
+    });
+    return response;
   }
 
   async updateRequirementExpert(candidateId, body, actorUserId) {
@@ -500,7 +817,7 @@ class SuperAdminService {
     throw err;
   }
 
-  async updateNativeRequirementApplication(type, requirementId, applicationId, body) {
+  async updateNativeRequirementApplication(type, requirementId, applicationId, body, actorUserId = null, auth = null) {
     const requirementType = parseRequirementType(type);
     const updated = await this.repository.updateNativeRequirementApplication(requirementType, requirementId, applicationId, body || {});
     if (!updated) {
@@ -514,11 +831,26 @@ class SuperAdminService {
         ? await this.repository.createProjectBooking(detail.requirement, updated.expert_id)
         : null;
       await this.notifyProjectApplicationStatus(requirementId, updated, 'accepted');
-      return { ...updated, booking };
+      const response = { ...updated, booking };
+      await this.logActivity(auth, 'requirement.application_updated', {
+        entity_type: 'application',
+        entity_id: applicationId,
+        requirement_type: requirementType,
+        requirement_id: requirementId,
+        metadata: { status: body?.status, booking_id: booking?.id || null },
+      });
+      return response;
     }
     if (requirementType === 'project' && ['interview', 'rejected', 'pending'].includes(body?.status) && updated.expert_id) {
       await this.notifyProjectApplicationStatus(requirementId, updated, body.status);
     }
+    await this.logActivity(auth, 'requirement.application_updated', {
+      entity_type: 'application',
+      entity_id: applicationId,
+      requirement_type: requirementType,
+      requirement_id: requirementId,
+      metadata: { status: body?.status },
+    });
     return updated;
   }
 
@@ -555,7 +887,7 @@ class SuperAdminService {
     }
   }
 
-  async updateRequirementBooking(type, requirementId, bookingId, body) {
+  async updateRequirementBooking(type, requirementId, bookingId, body, auth = null) {
     const requirementType = parseRequirementType(type);
     if (requirementType !== 'project') {
       const err = new Error('Bookings are only available for project requirements');
@@ -568,6 +900,13 @@ class SuperAdminService {
       err.statusCode = 404;
       throw err;
     }
+    await this.logActivity(auth, 'requirement.booking_updated', {
+      entity_type: 'booking',
+      entity_id: bookingId,
+      requirement_type: requirementType,
+      requirement_id: requirementId,
+      metadata: { status: body?.status },
+    });
     return updated;
   }
 
@@ -601,7 +940,7 @@ class SuperAdminService {
     return payment;
   }
 
-  async sendFinanceInvoice(id, body, actorUserId) {
+  async sendFinanceInvoice(id, body, actorUserId, auth = null) {
     const payment = await this.getFinancePayment(id);
     if (payment.status === 'paid') {
       const err = new Error('Paid records cannot be invoiced again');
@@ -672,16 +1011,18 @@ class SuperAdminService {
       email_status: 'sent',
     });
 
-    return this.repository.updateFinancePayment(payment.id, {
+    const updated = await this.repository.updateFinancePayment(payment.id, {
       status: 'invoiced',
       invoice_id: invoice.id,
       invoice_amount: amount,
       notes: body.notes || payment.notes || null,
       updated_by: actorUserId || null,
     });
+    await this.logActivity(auth, 'finance.invoice_sent', { entity_type: 'finance_payment', entity_id: id, metadata: { amount, invoice_id: invoice.id } });
+    return updated;
   }
 
-  async markFinancePaymentPaid(id, body, actorUserId) {
+  async markFinancePaymentPaid(id, body, actorUserId, auth = null) {
     const payment = await this.getFinancePayment(id);
     const amount = Number(body.paid_amount || payment.invoice_amount || payment.calculated_amount || 0);
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -689,21 +1030,23 @@ class SuperAdminService {
       err.statusCode = 400;
       throw err;
     }
-    return this.repository.updateFinancePayment(id, {
+    const updated = await this.repository.updateFinancePayment(id, {
       status: 'paid',
       paid_amount: amount,
       paid_at: body.paid_at || new Date().toISOString(),
       notes: body.notes || payment.notes || null,
       updated_by: actorUserId || null,
     });
+    await this.logActivity(auth, 'finance.payment_marked_paid', { entity_type: 'finance_payment', entity_id: id, metadata: { amount } });
+    return updated;
   }
 
   async listFinanceInvoices(params) {
     return this.repository.listFinanceInvoices(params);
   }
 
-  async confirmFinanceTraining(bookingId, body, actorUserId) {
-    return this.repository.upsertFinanceRecord(bookingId, {
+  async confirmFinanceTraining(bookingId, body, actorUserId, auth = null) {
+    const updated = await this.repository.upsertFinanceRecord(bookingId, {
       approved_hours: Number(body.approved_hours || 0),
       expert_amount: Number(body.expert_amount || 0),
       institution_amount: Number(body.institution_amount || 0),
@@ -713,6 +1056,8 @@ class SuperAdminService {
       confirmed_at: new Date().toISOString(),
       notes: body.notes || null,
     });
+    await this.logActivity(auth, 'finance.training_confirmed', { entity_type: 'booking', entity_id: bookingId, metadata: { approved_hours: updated.approved_hours } });
+    return updated;
   }
 }
 

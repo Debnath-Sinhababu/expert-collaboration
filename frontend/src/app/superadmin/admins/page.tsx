@@ -21,14 +21,22 @@ import { SectionCard } from '@/components/superadmin/common/SectionCard'
 import { DataTable } from '@/components/superadmin/common/DataTable'
 import { PermissionGate } from '@/components/superadmin/common/PermissionGate'
 import { PaginationControls } from '@/components/superadmin/common/PaginationControls'
-import { normalizeUiPermissions, SUPER_ADMIN_PERMISSIONS } from '@/lib/superadmin/permissions'
+import {
+  normalizeUiPermissions,
+  SUPER_ADMIN_PERMISSIONS,
+  SUPER_ADMIN_PERMISSION_DETAILS,
+  SUPER_ADMIN_PERMISSION_GROUPS,
+} from '@/lib/superadmin/permissions'
 import type { SuperAdminPermission } from '@/lib/superadmin/types'
 
 const PAGE_SIZE = 20
 const DEPENDENTS: Partial<Record<SuperAdminPermission, SuperAdminPermission[]>> = {
   'admins:read': ['admins:write'],
+  'activity:read': ['admins:read'],
   'profiles:read': ['profiles:write', 'bulk_import:write', 'calxbook_verification:write'],
-  'requirements:read': ['requirements:write', 'requirements:candidates'],
+  'requirements:read': ['requirements:write', 'requirements:candidates', 'assignments:read', 'daily_reports:read'],
+  'assignments:read': ['assignments:write', 'daily_reports:write'],
+  'daily_reports:read': ['daily_reports:write'],
   'freelance:read': ['freelance:write'],
   'internships:read': ['internships:write'],
   'finance:read': ['finance:write', 'finance:confirm'],
@@ -124,7 +132,7 @@ export default function SuperAdminAdminsPage() {
             <DataTable
               rows={rows}
               columns={[
-                { key: 'name', header: 'Name', render: (row) => <span className="font-medium text-slate-950">{row.name}</span> },
+                { key: 'name', header: 'Name', render: (row) => <Link href={`/superadmin/admins/${row.id}`} className="font-medium text-[#008260] hover:underline">{row.name}</Link> },
                 { key: 'email', header: 'Email', render: (row) => row.email },
                 {
                   key: 'status',
@@ -196,17 +204,46 @@ export default function SuperAdminAdminsPage() {
             ) : null}
 
             <div className="space-y-3">
-              <Label>Permissions</Label>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {SUPER_ADMIN_PERMISSIONS.map((permission) => (
-                  <label key={permission} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 text-sm font-medium text-slate-700">
-                    <Checkbox
-                      checked={editPermissions.includes(permission)}
-                      onCheckedChange={(checked) => togglePermission(permission, checked === true)}
-                    />
-                    <span>{permission}</span>
-                  </label>
-                ))}
+              <div>
+                <Label>Permissions</Label>
+                <p className="mt-1 text-xs text-slate-500">
+                  Choose what this admin can access. Some write permissions automatically include required read permissions.
+                </p>
+              </div>
+              <div className="space-y-4">
+                {SUPER_ADMIN_PERMISSION_GROUPS.map((group) => {
+                  const groupPermissions = SUPER_ADMIN_PERMISSIONS.filter((permission) => SUPER_ADMIN_PERMISSION_DETAILS[permission].group === group)
+                  if (!groupPermissions.length) return null
+                  return (
+                    <div key={group} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <div>
+                          <h3 className="text-sm font-semibold text-slate-950">{group}</h3>
+                          <p className="text-xs text-slate-500">{groupPermissions.filter((permission) => editPermissions.includes(permission)).length} of {groupPermissions.length} selected</p>
+                        </div>
+                      </div>
+                      <div className="grid gap-3 lg:grid-cols-2">
+                        {groupPermissions.map((permission) => {
+                          const detail = SUPER_ADMIN_PERMISSION_DETAILS[permission]
+                          return (
+                            <label key={permission} className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-white p-4 text-sm transition hover:border-[#008260]/40 hover:bg-emerald-50/30">
+                              <Checkbox
+                                className="mt-1"
+                                checked={editPermissions.includes(permission)}
+                                onCheckedChange={(checked) => togglePermission(permission, checked === true)}
+                              />
+                              <span className="min-w-0">
+                                <span className="block font-semibold text-slate-900">{detail.label}</span>
+                                <span className="mt-1 block leading-5 text-slate-600">{detail.description}</span>
+                                <span className="mt-2 block font-mono text-[11px] text-slate-400">{permission}</span>
+                              </span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           </div>

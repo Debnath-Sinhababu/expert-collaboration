@@ -1,12 +1,5 @@
-'use client'
-
-import InstitutionProfileSetup from '@/app/institution/profile-setup/page'
-import { InstitutionWorkspaceProvider } from '@/contexts/InstitutionWorkspaceContext'
+import { redirect } from 'next/navigation'
 
 export default function SuperAdminCreateInstitutionPage() {
-  return (
-    <InstitutionWorkspaceProvider viewer="super_admin">
-      <InstitutionProfileSetup />
-    </InstitutionWorkspaceProvider>
-  )
+  redirect('/superadmin/create-profiles?type=institution')
 }

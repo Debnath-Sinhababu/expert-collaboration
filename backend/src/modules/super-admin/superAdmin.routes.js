@@ -10,9 +10,14 @@ function createSuperAdminRouter() {
 
   router.get('/me', requireSuperAdmin(), asyncHandler(controller.me));
   router.get('/overview/stats', requireSuperAdmin('overview:read'), asyncHandler(controller.overviewStats));
+  router.get('/overview/export', requireSuperAdmin('exports:download'), asyncHandler(controller.exportOverview));
+  router.get('/overview/:category', requireSuperAdmin('overview:read'), asyncHandler(controller.overviewCategory));
 
   router.get('/admins', requireSuperAdmin('admins:read'), asyncHandler(controller.listAdmins));
   router.post('/admins', requireSuperAdmin('admins:write'), asyncHandler(controller.createAdmin));
+  router.get('/admins/:id/activity/export', requireSuperAdmin(['activity:read', 'exports:download']), asyncHandler(controller.exportAdminActivity));
+  router.get('/admins/:id/activity', requireSuperAdmin('activity:read'), asyncHandler(controller.listAdminActivity));
+  router.get('/admins/:id', requireSuperAdmin('admins:read'), asyncHandler(controller.getAdminDetail));
   router.patch('/admins/:id', requireSuperAdmin('admins:write'), asyncHandler(controller.updateAdmin));
 
   router.get('/profiles', requireSuperAdmin('profiles:read'), asyncHandler(controller.listProfiles));
@@ -23,6 +28,7 @@ function createSuperAdminRouter() {
   );
 
   router.get('/requirements', requireSuperAdmin('requirements:read'), asyncHandler(controller.listRequirements));
+  router.get('/requirements/assigned', requireSuperAdmin(['assignments:read', 'daily_reports:write']), asyncHandler(controller.listAssignedRequirements));
   router.post(
     '/requirements',
     requireSuperAdmin('requirements:write'),
@@ -36,6 +42,27 @@ function createSuperAdminRouter() {
     '/requirements/:type/:id',
     requireSuperAdmin(['requirements:read', 'freelance:read', 'internships:read']),
     asyncHandler(controller.getRequirementDetail),
+  );
+  router.post(
+    '/requirements/:type/:id/assignment',
+    requireSuperAdmin('assignments:write'),
+    asyncHandler(controller.assignRequirement),
+  );
+  router.delete(
+    '/requirements/:type/:id/assignment',
+    requireSuperAdmin('assignments:write'),
+    asyncHandler(controller.unassignRequirement),
+  );
+  router.get(
+    '/requirements/:type/:id/reports',
+    requireSuperAdmin('daily_reports:read'),
+    asyncHandler(controller.listRequirementReports),
+  );
+  router.post(
+    '/requirements/:type/:id/reports',
+    requireSuperAdmin('daily_reports:write'),
+    upload.fields([{ name: 'report', maxCount: 1 }, { name: 'document', maxCount: 1 }, { name: 'file', maxCount: 1 }]),
+    asyncHandler(controller.createRequirementReport),
   );
   router.post(
     '/requirements/:id/experts',
