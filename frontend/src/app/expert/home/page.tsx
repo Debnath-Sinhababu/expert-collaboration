@@ -71,6 +71,7 @@ export default function ExpertHome() {
     hourly_rate?: number
     duration_hours?: number
     type?: string
+    interview_period_interval?: string | null
     domain_expertise?: string
     required_expertise?: string[]
     subskills?: string[]
@@ -1161,6 +1162,12 @@ export default function ExpertHome() {
                   <span className="text-[#6A6A6A]">Proceed at Rs {selectedApplicationProject?.hourly_rate || expert?.hourly_rate || 0}/hr. Uncheck and enter a proposed rate above to negotiate.</span>
                 </span>
               </label>
+              {selectedApplicationProject?.interview_period_interval && (
+                <div className="rounded-lg border border-[#DCDCDC] bg-[#F8FBFA] p-3 text-sm">
+                  <span className="block font-medium text-[#000000]">Interview period</span>
+                  <span className="text-[#6A6A6A]">{selectedApplicationProject.interview_period_interval}</span>
+                </div>
+              )}
               <InterviewAvailabilitySelector
                 slots={applicationForm.interviewAvailability}
                 onChange={(interviewAvailability) => setApplicationForm({ ...applicationForm, interviewAvailability })}

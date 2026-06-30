@@ -1894,6 +1894,10 @@ app.post('/api/projects', upload.fields([
       rawBody.job_location != null && String(rawBody.job_location).trim() !== ''
         ? String(rawBody.job_location).trim()
         : null;
+    const interviewPeriodInterval =
+      rawBody.interview_period_interval != null && String(rawBody.interview_period_interval).trim() !== ''
+        ? String(rawBody.interview_period_interval).trim()
+        : null;
 
     const projectPayload = {
       ...rawBody,
@@ -1901,10 +1905,13 @@ app.post('/api/projects', upload.fields([
       subskills: normalizeArrayField(rawBody.subskills),
       screening_questions: normalizeScreeningQuestions(rawBody.screening_questions),
       job_location: jobLocation,
+      interview_period_interval: interviewPeriodInterval,
       workplace_type: workplaceType,
       employment_type: employmentType,
       opening_count: normalizePositiveInt(rawBody.opening_count || rawBody.openings, 1)
     };
+    delete projectPayload.interview_period_start_date;
+    delete projectPayload.interview_period_end_date;
 
     // Handle optional requirement PDF upload
     let requirementPdfData = null;
@@ -2054,6 +2061,14 @@ app.put('/api/projects/:id', async (req, res) => {
       updateBody.opening_count = normalizePositiveInt(updateBody.opening_count || updateBody.openings, 1);
       delete updateBody.openings;
     }
+    if (updateBody.interview_period_interval !== undefined) {
+      updateBody.interview_period_interval =
+        updateBody.interview_period_interval != null && String(updateBody.interview_period_interval).trim() !== ''
+          ? String(updateBody.interview_period_interval).trim()
+          : null;
+    }
+    delete updateBody.interview_period_start_date;
+    delete updateBody.interview_period_end_date;
 
     const { data, error } = await supabaseClient
       .from('projects')
@@ -4415,6 +4430,7 @@ app.get('/api/applications', async (req, res) => {
           status,
           max_applications,
           opening_count,
+          interview_period_interval,
           requirement_pdf_url,
           institutions (
             id,
@@ -5066,6 +5082,7 @@ app.get('/api/bookings', async (req, res) => {
           status,
           max_applications,
           opening_count,
+          interview_period_interval,
           requirement_pdf_url
         )
       `)

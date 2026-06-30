@@ -418,6 +418,10 @@ class SuperAdminService {
       job_location: body.job_location || body.location || null,
       workplace_type: body.workplace_type || null,
       employment_type: body.employment_type || null,
+      interview_period_interval:
+        body.interview_period_interval != null && String(body.interview_period_interval).trim() !== ''
+          ? String(body.interview_period_interval).trim()
+          : null,
       screening_questions: toArray(body.screening_questions),
       hourly_rate: body.hourly_rate != null ? Number(body.hourly_rate) : null,
       total_budget: body.total_budget != null ? Number(body.total_budget) : null,

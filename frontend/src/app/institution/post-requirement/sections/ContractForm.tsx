@@ -26,6 +26,25 @@ import { EMPLOYMENT_TYPE_OPTIONS, WORKPLACE_TYPE_OPTIONS } from '@/lib/requireme
 import { expertDisplayName } from '@/lib/privacyDisplay'
 import { ExpertAvailabilityTrigger } from '@/components/expert/ExpertAvailabilityTrigger'
 
+function formatInterviewPeriodDate(value: string) {
+  if (!value) return ''
+  const date = new Date(`${value}T00:00:00Z`)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
+}
+
+function formatInterviewPeriodInterval(startDate: string, endDate: string) {
+  const start = formatInterviewPeriodDate(startDate)
+  const end = formatInterviewPeriodDate(endDate)
+  if (!start || !end) return ''
+  return start === end ? start : `${start} to ${end}`
+}
+
 export default function ContractForm() {
   const router = useRouter()
   const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
@@ -60,6 +79,8 @@ export default function ContractForm() {
     job_location: '',
     workplace_type: '',
     employment_type: '',
+    interview_period_start_date: '',
+    interview_period_end_date: '',
     screening_questions: [] as string[],
   })
 
@@ -106,6 +127,18 @@ export default function ContractForm() {
     if (!form.workplace_type) { toast.error('Select workplace type'); return false }
     if (!form.employment_type) { toast.error('Select employment type'); return false }
     if (!form.job_location.trim()) { toast.error('Enter job location'); return false }
+    if ((form.interview_period_start_date && !form.interview_period_end_date) || (!form.interview_period_start_date && form.interview_period_end_date)) {
+      toast.error('Select both interview period dates or leave both blank')
+      return false
+    }
+    if (
+      form.interview_period_start_date &&
+      form.interview_period_end_date &&
+      new Date(form.interview_period_end_date) < new Date(form.interview_period_start_date)
+    ) {
+      toast.error('Interview period end date must be on or after start date')
+      return false
+    }
     if (!form.description.trim()) { toast.error('Add description'); return false }
     return true
   }
@@ -239,8 +272,13 @@ export default function ContractForm() {
     }
     setSubmitting(true)
     try {
+      const interviewPeriodInterval = formatInterviewPeriodInterval(
+        form.interview_period_start_date,
+        form.interview_period_end_date
+      )
       const payload = {
         ...form,
+        interview_period_interval: interviewPeriodInterval || undefined,
         institution_id: institution?.id,
         hourly_rate: parseFloat(form.hourly_rate),
         total_budget: parseFloat(form.total_budget),
@@ -248,6 +286,8 @@ export default function ContractForm() {
         opening_count: parseInt(form.opening_count),
         required_expertise: form.required_expertise.split(',').map(s => s.trim()).filter(Boolean)
       }
+      delete (payload as any).interview_period_start_date
+      delete (payload as any).interview_period_end_date
       const formData = new FormData()
       const screeningFiltered = form.screening_questions.map((q) => q.trim()).filter(Boolean)
 
@@ -364,6 +404,35 @@ export default function ContractForm() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="md:col-span-2">
+              <Label className="text-[#000000] font-medium mb-2 block">Interview period (optional)</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-lg border border-[#DCDCDC] p-3">
+                <div>
+                  <Label className="text-xs text-[#6A6A6A] mb-1 block">Start date</Label>
+                  <Input
+                    type="date"
+                    value={form.interview_period_start_date}
+                    onChange={(e) => setForm(prev => ({ ...prev, interview_period_start_date: e.target.value }))}
+                    className="border-[#DCDCDC]"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-[#6A6A6A] mb-1 block">End date</Label>
+                  <Input
+                    type="date"
+                    value={form.interview_period_end_date}
+                    min={form.interview_period_start_date || undefined}
+                    onChange={(e) => setForm(prev => ({ ...prev, interview_period_end_date: e.target.value }))}
+                    className="border-[#DCDCDC]"
+                  />
+                </div>
+              </div>
+              {form.interview_period_start_date && form.interview_period_end_date && (
+                <p className="mt-2 text-xs text-[#6A6A6A]">
+                  Expert will see: <span className="font-medium text-[#000000]">{formatInterviewPeriodInterval(form.interview_period_start_date, form.interview_period_end_date)}</span>
+                </p>
+              )}
             </div>
             <div>
               <Label className="text-[#000000] font-medium mb-2 block">Domain Expertise *</Label>

@@ -3,13 +3,14 @@
 import { Badge } from '@/components/ui/badge'
 import { formatEmploymentType, formatWorkplaceType } from '@/lib/requirementLabels'
 import { institutionDisplayName } from '@/lib/privacyDisplay'
-import { Building, MapPin } from 'lucide-react'
+import { Building, Clock, MapPin } from 'lucide-react'
 
 type ProjectLike = {
   type?: string
   job_location?: string | null
   workplace_type?: string | null
   employment_type?: string | null
+  interview_period_interval?: string | null
   total_budget?: number | null
   screening_questions?: string[] | null
   institutions?: { name?: string; display_name?: string; city?: string; state?: string } | null
@@ -75,6 +76,12 @@ export function ProjectRequirementMeta({ project }: { project: ProjectLike }) {
       {project.total_budget != null && (
         <p className="text-sm text-[#6A6A6A]">
           Total budget: <span className="font-semibold text-[#000000]">₹{project.total_budget}</span>
+        </p>
+      )}
+      {project.interview_period_interval && (
+        <p className="flex items-center text-sm text-[#6A6A6A]">
+          <Clock className="h-4 w-4 mr-2 shrink-0 text-[#008260]" />
+          <span>Interview period: <span className="font-semibold text-[#000000]">{project.interview_period_interval}</span></span>
         </p>
       )}
       {questions.length > 0 && (

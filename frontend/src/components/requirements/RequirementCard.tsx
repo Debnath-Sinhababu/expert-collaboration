@@ -18,6 +18,7 @@ type Project = {
   end_date?: string
   opening_count?: number
   max_applications?: number
+  interview_period_interval?: string | null
   required_expertise?: string[]
   subskills?: string[]
   institutions?: { name?: string; city?: string; state?: string }
@@ -62,6 +63,12 @@ export function RequirementCard({ project, detailHref, onApply }: Props) {
               <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> Approx end {formatDate(project.end_date)}</span>
               <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" /> Openings {project.opening_count || project.max_applications || 1}</span>
             </div>
+            {project.interview_period_interval && (
+              <p className="mt-2 flex items-center gap-1 text-xs text-[#4B5563]">
+                <Clock className="h-3.5 w-3.5" />
+                Interview period: <span className="font-medium">{project.interview_period_interval}</span>
+              </p>
+            )}
             {skills.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-3">
                 {skills.map((skill) => (

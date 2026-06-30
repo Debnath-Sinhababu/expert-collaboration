@@ -75,6 +75,7 @@ interface Project {
   employment_type?: string | null
   total_budget?: number | null
   screening_questions?: string[] | null
+  interview_period_interval?: string | null
   requirement_pdf_url?: string | null
 }
 
@@ -557,6 +558,12 @@ export default function ExpertProjectPage() {
                             <span className="text-[#6A6A6A]">Proceed at Rs {project.hourly_rate}/hr. Uncheck and enter a proposed rate above to negotiate.</span>
                           </span>
                         </label>
+                        {project.interview_period_interval && (
+                          <div className="rounded-lg border border-[#DCDCDC] bg-[#F8FBFA] p-3 text-sm">
+                            <span className="block font-medium text-[#000000]">Interview period</span>
+                            <span className="text-[#6A6A6A]">{project.interview_period_interval}</span>
+                          </div>
+                        )}
                         <InterviewAvailabilitySelector
                           slots={applicationForm.interviewAvailability}
                           onChange={(interviewAvailability) => setApplicationForm({ ...applicationForm, interviewAvailability })}
