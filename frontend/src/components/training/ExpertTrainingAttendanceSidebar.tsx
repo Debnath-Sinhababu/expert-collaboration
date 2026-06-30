@@ -14,6 +14,7 @@ import {
   isTodayInTrainingRange,
   markAttendanceEntryForDate,
   markAttendanceExitForDay,
+  TRAINING_ATTENDANCE_UPDATED_EVENT,
   type AttendanceDayFull,
 } from '@/lib/trainingAttendance'
 import { Button } from '@/components/ui/button'
@@ -26,6 +27,8 @@ type TrainingBooking = {
   hours_booked?: number | null
   start_date?: string | null
   end_date?: string | null
+  actual_start_date?: string | null
+  actual_end_date?: string | null
   project_id?: string
   institutions?: {
     id?: string
@@ -37,6 +40,7 @@ type TrainingBooking = {
     title?: string
     description?: string
     type?: string
+    status?: string
     start_date?: string | null
     end_date?: string | null
     duration_hours?: number | null
@@ -52,6 +56,14 @@ type Props = {
 }
 
 const ACTIVE_BOOKING_STATUSES = new Set(['confirmed', 'in_progress'])
+
+function todayDateOnly() {
+  const date = new Date()
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
 
 function formatDate(value?: string | null) {
   const dateOnly = normalizeDateOnly(value)
@@ -83,10 +95,18 @@ function normalizeBookingsPayload(payload: unknown): TrainingBooking[] {
 }
 
 function sortTrainingBookings(a: TrainingBooking, b: TrainingBooking) {
-  const aInRange = isTodayInTrainingRange(a.start_date, a.end_date)
-  const bInRange = isTodayInTrainingRange(b.start_date, b.end_date)
+  const aInRange = isTodayInTrainingRange(a.actual_start_date || a.start_date, a.actual_end_date || a.end_date)
+  const bInRange = isTodayInTrainingRange(b.actual_start_date || b.start_date, b.actual_end_date || b.end_date)
   if (aInRange !== bInRange) return aInRange ? -1 : 1
-  return String(a.start_date || '').localeCompare(String(b.start_date || ''))
+  return String(a.actual_start_date || a.start_date || '').localeCompare(String(b.actual_start_date || b.start_date || ''))
+}
+
+function isClosedAndPastActualEnd(booking: TrainingBooking) {
+  const status = String(booking.projects?.status || booking.status || '').toLowerCase()
+  const isClosed = ['closed', 'completed', 'cancelled'].includes(status)
+  const endDate = normalizeDateOnly(booking.actual_end_date || booking.end_date || booking.projects?.end_date)
+  const today = todayDateOnly()
+  return isClosed && !!endDate && endDate < today
 }
 
 function statusText(booking: TrainingBooking, todayRow: AttendanceDayFull | null, todayInRange: boolean) {
@@ -102,11 +122,13 @@ function AttendanceActionCard({ booking, basePath }: { booking: TrainingBooking;
   const [todayRow, setTodayRow] = useState<AttendanceDayFull | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [entryAttachment, setEntryAttachment] = useState<File | null>(null)
+  const [exitAttachment, setExitAttachment] = useState<File | null>(null)
 
   const today = new Date().toISOString().slice(0, 10)
   const project = booking.projects
   const projectUrl = booking.project_id || project?.id ? `${basePath}/project/${booking.project_id || project?.id}` : `${basePath}/dashboard`
-  const todayInRange = isTodayInTrainingRange(booking.start_date, booking.end_date)
+  const todayInRange = isTodayInTrainingRange(booking.actual_start_date || booking.start_date, booking.actual_end_date || booking.end_date)
   const canMark = canExpertMarkAttendance(booking.status) && todayInRange
   const entryTime = formatTime(todayRow?.expert_entry_at)
   const exitTime = formatTime(todayRow?.expert_exit_at)
@@ -132,8 +154,9 @@ function AttendanceActionCard({ booking, basePath }: { booking: TrainingBooking;
   const markEntry = async () => {
     setBusy(true)
     try {
-      const result = await markAttendanceEntryForDate(booking.id, days, today)
+      const result = await markAttendanceEntryForDate(booking.id, days, today, entryAttachment)
       toast.success(result.alreadyMarked ? 'Entry already recorded' : 'Entry marked')
+      setEntryAttachment(null)
       await loadAttendance()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to mark entry')
@@ -146,8 +169,9 @@ function AttendanceActionCard({ booking, basePath }: { booking: TrainingBooking;
     if (!todayRow) return
     setBusy(true)
     try {
-      await markAttendanceExitForDay(booking.id, todayRow.id)
+      await markAttendanceExitForDay(booking.id, todayRow.id, exitAttachment)
       toast.success('Exit marked - pending institution review')
+      setExitAttachment(null)
       await loadAttendance()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to mark exit')
@@ -185,7 +209,7 @@ function AttendanceActionCard({ booking, basePath }: { booking: TrainingBooking;
             Window
           </div>
           <p className="mt-1 font-semibold text-[#000000]">
-            {formatDate(booking.start_date)} - {formatDate(booking.end_date)}
+            {formatDate(booking.actual_start_date || booking.start_date)} - {formatDate(booking.actual_end_date || booking.end_date)}
           </p>
         </div>
         <div className="rounded-md bg-[#F7FAFF] p-2">
@@ -235,28 +259,45 @@ function AttendanceActionCard({ booking, basePath }: { booking: TrainingBooking;
 
         <div className="mt-3">
           {canMark && !todayRow?.expert_entry_at && (
-            <Button
-              type="button"
-              size="sm"
-              disabled={busy || loading}
-              onClick={markEntry}
-              className="w-full bg-[#008260] text-white hover:bg-[#006B4F]"
-            >
-              <LogIn className="mr-2 h-4 w-4" />
-              Mark entry
-            </Button>
+            <div className="space-y-2">
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.csv"
+                onChange={(event) => setEntryAttachment(event.target.files?.[0] || null)}
+                className="block w-full rounded-md border border-[#DCDCDC] bg-white px-2 py-1 text-xs"
+              />
+              <Button
+                type="button"
+                size="sm"
+                disabled={busy || loading}
+                onClick={markEntry}
+                className="w-full bg-[#008260] text-white hover:bg-[#006B4F]"
+              >
+                <LogIn className="mr-2 h-4 w-4" />
+                Mark entry
+              </Button>
+            </div>
           )}
           {canMark && todayRow?.expert_entry_at && !todayRow?.expert_exit_at && (
-            <Button
-              type="button"
-              size="sm"
-              disabled={busy || loading}
-              onClick={markExit}
-              className="w-full bg-[#FF6A00] text-white hover:bg-[#E55F00]"
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Mark exit
-            </Button>
+            <div className="space-y-2">
+              <p className="text-[11px] text-[#6A6A6A]">Optional document visible until you mark exit.</p>
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.csv"
+                onChange={(event) => setExitAttachment(event.target.files?.[0] || null)}
+                className="block w-full rounded-md border border-[#DCDCDC] bg-white px-2 py-1 text-xs"
+              />
+              <Button
+                type="button"
+                size="sm"
+                disabled={busy || loading}
+                onClick={markExit}
+                className="w-full bg-[#FF6A00] text-white hover:bg-[#E55F00]"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Mark exit
+              </Button>
+            </div>
           )}
           {(!canMark || todayRow?.expert_exit_at) && (
             <Link href={projectUrl}>
@@ -284,10 +325,31 @@ export function ExpertTrainingAttendanceSidebar({ expertId, basePath }: Props) {
       setLoading(true)
       try {
         const payload = await api.bookings.getAll({ expert_id: expertId, page: 1, limit: 30 })
-        const next = normalizeBookingsPayload(payload)
+        const today = todayDateOnly()
+        const candidates = normalizeBookingsPayload(payload)
           .filter((booking) => isTrainingBooking(booking))
           .filter((booking) => ACTIVE_BOOKING_STATUSES.has(String(booking.status || '').toLowerCase()))
+          .filter((booking) => !isClosedAndPastActualEnd(booking))
           .sort(sortTrainingBookings)
+
+        const withTodayState = await Promise.all(
+          candidates.map(async (booking) => {
+            if (!isTodayInTrainingRange(booking.actual_start_date || booking.start_date, booking.actual_end_date || booking.end_date)) {
+              return { booking, completedToday: false }
+            }
+            try {
+              const attendance = await getTrainingAttendance(booking.id, { from: today, to: today })
+              const todayRow = attendance.days.find((day) => normalizeDateOnly(day.session_date) === today)
+              return { booking, completedToday: !!todayRow?.expert_entry_at && !!todayRow?.expert_exit_at }
+            } catch {
+              return { booking, completedToday: false }
+            }
+          })
+        )
+
+        const next = withTodayState
+          .filter((item) => !item.completedToday)
+          .map((item) => item.booking)
           .slice(0, 5)
         if (!ignore) setBookings(next)
       } catch (error) {
@@ -299,14 +361,17 @@ export function ExpertTrainingAttendanceSidebar({ expertId, basePath }: Props) {
     }
 
     loadBookings()
+    const refreshForAttendanceChange = () => loadBookings()
+    window.addEventListener(TRAINING_ATTENDANCE_UPDATED_EVENT, refreshForAttendanceChange)
 
     return () => {
       ignore = true
+      window.removeEventListener(TRAINING_ATTENDANCE_UPDATED_EVENT, refreshForAttendanceChange)
     }
   }, [expertId])
 
   const activeTodayCount = useMemo(
-    () => bookings.filter((booking) => isTodayInTrainingRange(booking.start_date, booking.end_date)).length,
+    () => bookings.filter((booking) => isTodayInTrainingRange(booking.actual_start_date || booking.start_date, booking.actual_end_date || booking.end_date)).length,
     [bookings]
   )
 

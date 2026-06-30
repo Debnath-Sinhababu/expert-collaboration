@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel'
@@ -40,6 +41,7 @@ import { fetchExpertForWorkspace, expertProfileSetupPath } from '@/lib/expertWor
 import { ShareRequirementButton } from '@/components/requirements/ShareRequirementButton'
 import { institutionDisplayName } from '@/lib/privacyDisplay'
 import { ExpertTrainingAttendanceSidebar } from '@/components/training/ExpertTrainingAttendanceSidebar'
+import { InterviewAvailabilitySelector, type InterviewSlot } from '@/components/requirements/InterviewAvailabilitySelector'
 
 type UserMeta = { role?: string; name?: string }
 type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }
@@ -69,6 +71,7 @@ export default function ExpertHome() {
     hourly_rate?: number
     duration_hours?: number
     type?: string
+    interview_period_interval?: string | null
     domain_expertise?: string
     required_expertise?: string[]
     subskills?: string[]
@@ -97,7 +100,9 @@ export default function ExpertHome() {
   const [maxRate, setMaxRate] = useState('')
   const [applicationForm, setApplicationForm] = useState({
     coverLetter: '',
-    proposedRate: ''
+    proposedRate: '',
+    agreeProjectPrice: true,
+    interviewAvailability: [] as InterviewSlot[]
   })
   const [showApplicationModal, setShowApplicationModal] = useState(false)
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
@@ -276,15 +281,23 @@ export default function ExpertHome() {
       setIsApplying(true)
       setError('')
        
+      const selectedProject = [
+        ...(projects as Project[]),
+        ...recommendedProjects,
+      ].find((p) => p.id === projectId)
+      const proposedRate = applicationForm.agreeProjectPrice
+        ? selectedProject?.hourly_rate
+        : parseFloat(applicationForm.proposedRate)
       const response = await api.applications.create({
         project_id: projectId,
         cover_letter: applicationForm.coverLetter,
-        proposed_rate: parseFloat(applicationForm.proposedRate) || expert?.hourly_rate || 0
+        proposed_rate: proposedRate || expert?.hourly_rate || 0,
+        interview_availability: applicationForm.interviewAvailability
       })
 
       if (response && response.id) {
         setSuccess('Application submitted successfully!')
-        setApplicationForm({ coverLetter: '', proposedRate: '' })
+        setApplicationForm({ coverLetter: '', proposedRate: '', agreeProjectPrice: true, interviewAvailability: [] })
         setShowApplicationModal(false)
         setSelectedProjectId(null)
         refreshProjects()
@@ -310,7 +323,7 @@ export default function ExpertHome() {
   const handleOpenApplicationModal = (projectId: string) => {
     setSelectedProjectId(projectId)
     setShowApplicationModal(true)
-    setApplicationForm({ coverLetter: '', proposedRate: '' })
+    setApplicationForm({ coverLetter: '', proposedRate: '', agreeProjectPrice: true, interviewAvailability: [] })
   }
 
   const getProjectTypeLabel = (type: string) => {
@@ -351,6 +364,12 @@ export default function ExpertHome() {
       </div>
     )
   }
+
+  const selectedApplicationProject = [
+    ...(projects as Project[]),
+    ...recommendedProjects,
+  ].find((project) => project.id === selectedProjectId)
+  const needsCustomRate = !applicationForm.agreeProjectPrice && !applicationForm.proposedRate
 
   return (
     <div className="min-h-screen bg-[#ECF2FF]">
@@ -1103,7 +1122,7 @@ export default function ExpertHome() {
             <DialogHeader className="space-y-1">
               <DialogTitle className="text-xl font-bold text-[#000000]">Apply to Project</DialogTitle>
               <DialogDescription className="text-[#000000] text-sm font-normal font-sans">
-                Submit your application for {(projects as Project[]).find(p => p.id === selectedProjectId)?.title || 'this project'}
+                Submit your application for {selectedApplicationProject?.title || 'this project'}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-6 ">
@@ -1129,6 +1148,30 @@ export default function ExpertHome() {
                   className="border-2 border-slate-200 focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]"
                 />
               </div>
+              <label className="flex items-start gap-2 rounded-lg border border-[#DCDCDC] p-3 text-sm">
+                <Checkbox
+                  checked={applicationForm.agreeProjectPrice}
+                  onCheckedChange={(checked) => setApplicationForm({
+                    ...applicationForm,
+                    agreeProjectPrice: checked === true,
+                    proposedRate: checked === true ? '' : applicationForm.proposedRate,
+                  })}
+                />
+                <span>
+                  <span className="block font-medium text-[#000000]">Agree with project price</span>
+                  <span className="text-[#6A6A6A]">Proceed at Rs {selectedApplicationProject?.hourly_rate || expert?.hourly_rate || 0}/hr. Uncheck and enter a proposed rate above to negotiate.</span>
+                </span>
+              </label>
+              {selectedApplicationProject?.interview_period_interval && (
+                <div className="rounded-lg border border-[#DCDCDC] bg-[#F8FBFA] p-3 text-sm">
+                  <span className="block font-medium text-[#000000]">Interview period</span>
+                  <span className="text-[#6A6A6A]">{selectedApplicationProject.interview_period_interval}</span>
+                </div>
+              )}
+              <InterviewAvailabilitySelector
+                slots={applicationForm.interviewAvailability}
+                onChange={(interviewAvailability) => setApplicationForm({ ...applicationForm, interviewAvailability })}
+              />
               {error && (
                 <Alert variant="destructive" className="border-2 border-red-200 bg-red-50">
                   <AlertCircle className="h-4 w-4" />
@@ -1141,10 +1184,10 @@ export default function ExpertHome() {
                   <AlertDescription className="text-green-700">{success}</AlertDescription>
                 </Alert>
               )}
-              <Button 
+              <Button
                 onClick={() => selectedProjectId && handleApplicationSubmit(selectedProjectId)}
                 className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium shadow-sm hover:shadow-md transition-all duration-200 py-2.5 rounded-lg"
-                disabled={!applicationForm.coverLetter || !selectedProjectId || isApplying}
+                disabled={!applicationForm.coverLetter || !selectedProjectId || isApplying || needsCustomRate}
               >
                 {isApplying ? 'Submitting...' : 'Submit Application'}
               </Button>

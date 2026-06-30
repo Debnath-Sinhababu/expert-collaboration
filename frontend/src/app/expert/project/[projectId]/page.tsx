@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel'
 import Autoplay from "embla-carousel-autoplay"
@@ -40,6 +41,7 @@ import { fetchExpertForWorkspace, expertProfileSetupPath } from '@/lib/expertWor
 import { ShareRequirementButton } from '@/components/requirements/ShareRequirementButton'
 import { ProjectRequirementMeta } from '@/components/requirements/ProjectRequirementMeta'
 import { projectLocationLine } from '@/lib/requirementLabels'
+import { InterviewAvailabilitySelector, type InterviewSlot } from '@/components/requirements/InterviewAvailabilitySelector'
 
 type UserMeta = { role?: string; name?: string }
 type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }
@@ -73,6 +75,7 @@ interface Project {
   employment_type?: string | null
   total_budget?: number | null
   screening_questions?: string[] | null
+  interview_period_interval?: string | null
   requirement_pdf_url?: string | null
 }
 
@@ -115,7 +118,9 @@ export default function ExpertProjectPage() {
   const [success, setSuccess] = useState('')
   const [applicationForm, setApplicationForm] = useState({
     coverLetter: '',
-    proposedRate: ''
+    proposedRate: '',
+    agreeProjectPrice: true,
+    interviewAvailability: [] as InterviewSlot[]
   })
   const [isApplying, setIsApplying] = useState(false)
   const [hasApplied, setHasApplied] = useState(false)
@@ -217,11 +222,14 @@ export default function ExpertProjectPage() {
       await api.applications.create({
         project_id: projectId,
         cover_letter: applicationForm.coverLetter,
-        proposed_rate: parseFloat(applicationForm.proposedRate) || project?.hourly_rate || 0
+        proposed_rate: applicationForm.agreeProjectPrice
+          ? project?.hourly_rate || 0
+          : parseFloat(applicationForm.proposedRate) || project?.hourly_rate || 0,
+        interview_availability: applicationForm.interviewAvailability
       })
       
       setSuccess('Application submitted successfully!')
-      setApplicationForm({ coverLetter: '', proposedRate: '' })
+      setApplicationForm({ coverLetter: '', proposedRate: '', agreeProjectPrice: true, interviewAvailability: [] })
       setHasApplied(true)
       
       // Refresh similar and recommended projects
@@ -500,14 +508,20 @@ export default function ExpertProjectPage() {
                           Apply Now
                         </Button>
                       </DialogTrigger>
-                    <DialogContent className="sm:max-w-md bg-white border-2 border-[#D6D6D6] shadow-xl">
-                      <DialogHeader className="space-y-1">
+                    <DialogContent className="max-h-[85vh] overflow-hidden bg-white p-0 shadow-xl sm:max-w-2xl">
+                      <DialogHeader className="space-y-1 px-6 pt-6">
                         <DialogTitle className="text-xl font-bold text-black">Apply to Project</DialogTitle>
                         <DialogDescription className="text-[#6A6A6A]">
                           Submit your application for {project.title}
                         </DialogDescription>
                       </DialogHeader>
-                      <div className="space-y-6 py-2">
+                      <div className="max-h-[calc(85vh-96px)] space-y-6 overflow-y-auto px-6 pb-6 pt-2">
+                        <div className="rounded-lg border border-[#DCDCDC] bg-[#F8FBFA] p-3 text-sm">
+                          <div className="font-semibold text-[#000000]">{project.title}</div>
+                          <div className="mt-1 text-[#6A6A6A]">
+                            Project price: <span className="font-semibold text-[#008260]">Rs {project.hourly_rate}/hr</span>
+                          </div>
+                        </div>
                         <div className="space-y-2">
                           <Label htmlFor="coverLetter" className="text-sm font-medium text-black">Cover Letter</Label>
                           <Textarea
@@ -530,6 +544,30 @@ export default function ExpertProjectPage() {
                             className="w-full px-3 py-2 border-2 border-[#D6D6D6] rounded-md focus:outline-none focus:border-[#008260] focus:ring-1 focus:ring-[#008260] transition-all duration-200"
                           />
                         </div>
+                        <label className="flex items-start gap-2 rounded-lg border border-[#DCDCDC] p-3 text-sm">
+                          <Checkbox
+                            checked={applicationForm.agreeProjectPrice}
+                            onCheckedChange={(checked) => setApplicationForm({
+                              ...applicationForm,
+                              agreeProjectPrice: checked === true,
+                              proposedRate: checked === true ? '' : applicationForm.proposedRate,
+                            })}
+                          />
+                          <span>
+                            <span className="block font-medium text-[#000000]">Agree with project price</span>
+                            <span className="text-[#6A6A6A]">Proceed at Rs {project.hourly_rate}/hr. Uncheck and enter a proposed rate above to negotiate.</span>
+                          </span>
+                        </label>
+                        {project.interview_period_interval && (
+                          <div className="rounded-lg border border-[#DCDCDC] bg-[#F8FBFA] p-3 text-sm">
+                            <span className="block font-medium text-[#000000]">Interview period</span>
+                            <span className="text-[#6A6A6A]">{project.interview_period_interval}</span>
+                          </div>
+                        )}
+                        <InterviewAvailabilitySelector
+                          slots={applicationForm.interviewAvailability}
+                          onChange={(interviewAvailability) => setApplicationForm({ ...applicationForm, interviewAvailability })}
+                        />
                         {error && (
                           <Alert variant="destructive" className="border-2 border-red-200 bg-red-50">
                             <AlertCircle className="h-4 w-4" />
@@ -542,13 +580,15 @@ export default function ExpertProjectPage() {
                             <AlertDescription className="text-green-700">{success}</AlertDescription>
                           </Alert>
                         )}
-                        <Button 
-                          onClick={handleApplicationSubmit}
-                          className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium rounded-lg h-11"
-                          disabled={!applicationForm.coverLetter || isApplying}
-                        >
-                          {isApplying ? 'Submitting...' : 'Submit Application'}
-                        </Button>
+                        <div className="sticky bottom-0 -mx-6 border-t border-[#ECECEC] bg-white px-6 py-4">
+                          <Button 
+                            onClick={handleApplicationSubmit}
+                            className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium rounded-lg h-11"
+                            disabled={!applicationForm.coverLetter || isApplying || (!applicationForm.agreeProjectPrice && !applicationForm.proposedRate)}
+                          >
+                            {isApplying ? 'Submitting...' : 'Submit Application'}
+                          </Button>
+                        </div>
                       </div>
                     </DialogContent>
                     </Dialog>

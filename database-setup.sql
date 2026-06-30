@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS projects (
     total_budget DECIMAL(10,2),
     start_date DATE,
     end_date DATE,
+    interview_period_interval TEXT,
     duration_hours INTEGER,
     required_expertise TEXT[],
     status VARCHAR(50) DEFAULT 'open', -- open, in_progress, completed, cancelled

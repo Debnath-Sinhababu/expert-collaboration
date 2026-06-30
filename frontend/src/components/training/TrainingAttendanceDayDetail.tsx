@@ -55,6 +55,8 @@ export type AttendanceDayFull = AttendanceDay & {
   effective_entry_at?: string | null
   effective_exit_at?: string | null
   dispute_reason?: string | null
+  entry_attachment_url?: string | null
+  exit_attachment_url?: string | null
 }
 
 type Props = {
@@ -66,8 +68,8 @@ type Props = {
   canMark: boolean
   readOnly: boolean
   busy?: boolean
-  onMarkEntry: () => void
-  onMarkExit: () => void
+  onMarkEntry: (attachment?: File | null) => void
+  onMarkExit: (attachment?: File | null) => void
   onApprove: () => void
   onDispute: (reason: string) => void
   onEditTimes: (entry: string, exit: string, approve: boolean) => void
@@ -95,6 +97,8 @@ export function TrainingAttendanceDayDetail({
   const [editEntry, setEditEntry] = useState('')
   const [editExit, setEditExit] = useState('')
   const [showEdit, setShowEdit] = useState(false)
+  const [entryAttachment, setEntryAttachment] = useState<File | null>(null)
+  const [exitAttachment, setExitAttachment] = useState<File | null>(null)
 
   if (!sessionDate) {
     return (
@@ -120,14 +124,23 @@ export function TrainingAttendanceDayDetail({
           <p className="text-sm text-[#92400E]">This day is outside the booking training period.</p>
         )}
         {role === 'expert' && canMark && !readOnly && dayInRange && (
+          <div className="space-y-2">
+            <Label className="text-xs text-[#717171]">Optional entry document</Label>
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.csv"
+              onChange={(event) => setEntryAttachment(event.target.files?.[0] || null)}
+              className="block w-full rounded-md border border-[#DCDCDC] bg-white px-2 py-1 text-xs"
+            />
           <Button
             type="button"
             disabled={busy}
-            onClick={onMarkEntry}
+            onClick={() => onMarkEntry(entryAttachment)}
             className="bg-[#008260] hover:bg-[#006B4F] text-white w-full sm:w-auto"
           >
             Start day — mark entry
           </Button>
+          </div>
         )}
       </div>
     )
@@ -177,6 +190,22 @@ export function TrainingAttendanceDayDetail({
         )}
       </dl>
 
+      {(day.entry_attachment_url || day.exit_attachment_url) && (
+        <div className="rounded-lg border border-[#ECECEC] bg-[#FAFAFA] p-3 text-sm space-y-1">
+          <p className="font-medium text-[#000000]">Attachments</p>
+          {day.entry_attachment_url && (
+            <a href={day.entry_attachment_url} target="_blank" rel="noreferrer" className="block text-[#008260] hover:underline">
+              Open entry attachment
+            </a>
+          )}
+          {day.exit_attachment_url && (
+            <a href={day.exit_attachment_url} target="_blank" rel="noreferrer" className="block text-[#008260] hover:underline">
+              Open exit attachment
+            </a>
+          )}
+        </div>
+      )}
+
       {role === 'expert' && canMark && !readOnly && dayInRange && (
         <div className="flex flex-wrap gap-2 pt-2 border-t border-[#ECECEC]">
           {day.status === 'disputed' && (
@@ -195,26 +224,44 @@ export function TrainingAttendanceDayDetail({
             </Button>
           )}
           {(day.status === 'open' || day.status === 'disputed') && !day.expert_entry_at && (
-            <Button
-              type="button"
-              disabled={busy}
-              onClick={onMarkEntry}
-              className="bg-[#008260] hover:bg-[#006B4F] text-white"
-            >
-              Mark entry
-            </Button>
+            <div className="w-full space-y-2 sm:w-auto">
+              <Label className="text-xs text-[#717171]">Optional entry document</Label>
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.csv"
+                onChange={(event) => setEntryAttachment(event.target.files?.[0] || null)}
+                className="block w-full rounded-md border border-[#DCDCDC] bg-white px-2 py-1 text-xs"
+              />
+              <Button
+                type="button"
+                disabled={busy}
+                onClick={() => onMarkEntry(entryAttachment)}
+                className="bg-[#008260] hover:bg-[#006B4F] text-white"
+              >
+                Mark entry
+              </Button>
+            </div>
           )}
           {(day.status === 'open' || day.status === 'disputed') &&
             day.expert_entry_at &&
             !day.expert_exit_at && (
-              <Button
-                type="button"
-                disabled={busy}
-                onClick={onMarkExit}
-                className="bg-[#FF6A00] hover:bg-[#E55F00] text-white"
-              >
-                Mark exit
-              </Button>
+              <div className="w-full space-y-2 sm:w-auto">
+                <Label className="text-xs text-[#717171]">Optional document before exit</Label>
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.csv"
+                  onChange={(event) => setExitAttachment(event.target.files?.[0] || null)}
+                  className="block w-full rounded-md border border-[#DCDCDC] bg-white px-2 py-1 text-xs"
+                />
+                <Button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => onMarkExit(exitAttachment)}
+                  className="bg-[#FF6A00] hover:bg-[#E55F00] text-white"
+                >
+                  Mark exit
+                </Button>
+              </div>
             )}
         </div>
       )}

@@ -70,6 +70,45 @@ function normalizeScreeningQuestionsBody(value) {
   }
   return [];
 }
+
+function parseBooleanBody(value) {
+  return value === true || value === 'true' || value === '1' || value === 'yes';
+}
+
+function normalizePositiveInt(value, fallback = 1) {
+  const n = parseInt(String(value ?? ''), 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+function normalizeInterviewAvailability(value) {
+  if (value == null || value === '') return [];
+  let parsed = value;
+  if (typeof value === 'string') {
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(parsed)) return [];
+  return parsed
+    .map((slot) => {
+      if (!slot || typeof slot !== 'object') return null;
+      const start = slot.start_at || slot.startAt || slot.start;
+      const end = slot.end_at || slot.endAt || slot.end;
+      if (!start || !end) return null;
+      const startDate = new Date(start);
+      const endDate = new Date(end);
+      if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return null;
+      if (endDate <= startDate) return null;
+      return {
+        start_at: startDate.toISOString(),
+        end_at: endDate.toISOString(),
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 3);
+}
 function isCommonEmailProvider(email) {
   if (!email || typeof email !== 'string') return false;
   const commonDomains = [
@@ -93,21 +132,30 @@ function isCommonEmailProvider(email) {
   return !!domain && commonDomains.some(common => domain === common || domain.endsWith(`.${common}`));
 }
 
-const ADMIN_AUTH_EMAIL = 'debnathsinhababu2017@gmail.com';
+// Legacy admin auth used to trust a hard-coded email string inside the bearer token.
+// It is intentionally left disabled; /api/admin is now protected by real Supabase
+// super_admin JWT validation in the middleware below.
+// const ADMIN_AUTH_EMAIL = 'debnathsinhababu2017@gmail.com';
+//
+// function legacyRequireAdminAuth(req, res) {
+//   const authHeader = req.headers.authorization;
+//   if (!authHeader || !authHeader.startsWith('Bearer ')) {
+//     res.status(401).json({ error: 'Authorization required' });
+//     return null;
+//   }
+//
+//   const token = authHeader.substring(7);
+//   if (!token.includes(ADMIN_AUTH_EMAIL)) {
+//     res.status(403).json({ error: 'Access denied' });
+//     return null;
+//   }
+//
+//   return token;
+// }
 function requireAdminAuth(req, res) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    res.status(401).json({ error: 'Authorization required' });
-    return null;
-  }
-
-  const token = authHeader.substring(7);
-  if (!token.includes(ADMIN_AUTH_EMAIL)) {
-    res.status(403).json({ error: 'Access denied' });
-    return null;
-  }
-
-  return token;
+  if (req.legacyAdmin?.token) return req.legacyAdmin.token;
+  res.status(403).json({ error: 'Access denied' });
+  return null;
 }
 
 app.use(helmet());
@@ -126,6 +174,13 @@ app.use(cors({
 app.use(morgan('combined'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use('/api/admin', async (req, res, next) => {
+  const auth = await superAdminAuth.requireSuperAdmin(req, res);
+  if (!auth) return;
+  req.legacyAdmin = auth;
+  next();
+});
 
 app.get('/api/health', async (req, res) => {
   try {
@@ -366,6 +421,38 @@ app.get('/api/experts', async (req, res) => {
       const endIndex = offset + parseInt(limit);
       filteredData = filteredData.slice(startIndex, endIndex);
     }
+
+    const expertIdsForCounts = filteredData.map((expert) => expert.id).filter(Boolean);
+    const completedTrainingsByExpertId = new Map();
+    if (expertIdsForCounts.length > 0) {
+      try {
+        const serviceClient = createClient(
+          process.env.SUPABASE_URL,
+          process.env.SUPABASE_SERVICE_ROLE_KEY
+        );
+        const { data: bookingRows, error: bookingsError } = await serviceClient
+          .from('bookings')
+          .select('expert_id, status')
+          .in('expert_id', expertIdsForCounts);
+        if (!bookingsError) {
+          for (const booking of bookingRows || []) {
+            if (booking.status !== 'completed' || !booking.expert_id) continue;
+            completedTrainingsByExpertId.set(
+              booking.expert_id,
+              (completedTrainingsByExpertId.get(booking.expert_id) || 0) + 1
+            );
+          }
+        }
+      } catch (countError) {
+        console.warn('GET /api/experts: completed training counts skipped', countError.message);
+      }
+    }
+
+    filteredData = filteredData.map((expert) => ({
+      ...expert,
+      completed_trainings_count: completedTrainingsByExpertId.get(expert.id) || 0,
+      training_count: completedTrainingsByExpertId.get(expert.id) || 0,
+    }));
     
     const { role: expertsListRole } = await superAdminAuth.getUserRoleFromRequest(req);
     const masked = (filteredData || []).map((row) =>
@@ -477,7 +564,8 @@ app.post('/api/experts', upload.fields([
   { name: 'resume', maxCount: 1 },
   { name: 'qualifications', maxCount: 1 },
   { name: 'profile_video', maxCount: 1 },
-  { name: 'course_video', maxCount: 1 }
+  { name: 'course_video', maxCount: 1 },
+  { name: 'cancelled_cheque', maxCount: 1 }
 ]), async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
@@ -519,6 +607,7 @@ app.post('/api/experts', upload.fields([
     let resumeData = null;
     let qualificationsData = null;
     let profileVideoData = null;
+    let cancelledChequeData = null;
 
     // Handle profile photo upload
     if (req.files?.profile_photo?.[0]) {
@@ -572,6 +661,23 @@ app.post('/api/experts', upload.fields([
       if (!profileVideoData.success) {
         return res.status(500).json({
           error: `Profile video upload failed: ${profileVideoData.error}`
+        });
+      }
+    }
+
+    if (req.files?.cancelled_cheque?.[0]) {
+      const chequeFile = req.files.cancelled_cheque[0];
+      cancelledChequeData = await ImageUploadService.uploadDocument(
+        chequeFile.buffer,
+        'expert-bank-documents',
+        null,
+        chequeFile.mimetype,
+        chequeFile.originalname
+      );
+
+      if (!cancelledChequeData.success) {
+        return res.status(500).json({
+          error: `Cancelled cheque upload failed: ${cancelledChequeData.error}`
         });
       }
     }
@@ -672,11 +778,17 @@ app.post('/api/experts', upload.fields([
       current_designation: req.body.current_designation || null,
       expert_types: Array.isArray(req.body.expert_types) ? req.body.expert_types : (req.body.expert_types ? JSON.parse(req.body.expert_types) : []),
       expert_services: Array.isArray(req.body.expert_services) ? req.body.expert_services : (req.body.expert_services ? JSON.parse(req.body.expert_services) : []),
-      available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true,
+      available_on_demand: parseBooleanBody(req.body.available_on_demand),
+      open_to_work: parseBooleanBody(req.body.open_to_work),
       city: req.body.city || null,
       state: req.body.state || null,
       pan_number: panNormalized && isValidPan(panNormalized) ? panNormalized : null,
       address: req.body.address != null && String(req.body.address).trim() !== '' ? String(req.body.address).trim() : null,
+      bank_account_number: req.body.bank_account_number != null && String(req.body.bank_account_number).trim() !== '' ? String(req.body.bank_account_number).trim() : null,
+      bank_name: req.body.bank_name != null && String(req.body.bank_name).trim() !== '' ? String(req.body.bank_name).trim() : null,
+      ifsc_code: req.body.ifsc_code != null && String(req.body.ifsc_code).trim() !== '' ? String(req.body.ifsc_code).trim().toUpperCase() : null,
+      cancelled_cheque_url: cancelledChequeData?.url || null,
+      cancelled_cheque_public_id: cancelledChequeData?.publicId || null,
       profile_video_url: profileVideoData?.url || null,
       profile_video_public_id: profileVideoData?.publicId || null,
       interested_in_services: req.body.interested_in_services === 'true' || req.body.interested_in_services === true,
@@ -740,12 +852,32 @@ app.get('/api/experts/:id', async (req, res) => {
       return res.status(404).json({ error: 'Expert not found' });
     }
 
-    let out = data;
+    let enriched = data;
+    try {
+      const serviceClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+      const { data: bookingRows } = await serviceClient
+        .from('bookings')
+        .select('id, status')
+        .eq('expert_id', data.id);
+      const completedCount = (bookingRows || []).filter((b) => b.status === 'completed').length;
+      enriched = {
+        ...data,
+        completed_trainings_count: completedCount,
+        training_count: completedCount,
+      };
+    } catch (countError) {
+      console.warn('GET /api/experts/:id: completed training count skipped', countError.message);
+    }
+
+    let out = enriched;
     if (privacyMask.shouldMaskExpertName(exRole)) {
       const isOwnExpertProfile =
-        exRole === 'expert' && exUser && data.user_id === exUser.id;
+        exRole === 'expert' && exUser && enriched.user_id === exUser.id;
       if (!isOwnExpertProfile) {
-        out = privacyMask.maskExpertObject(data, exRole);
+        out = privacyMask.maskExpertObject(enriched, exRole);
       }
     }
 
@@ -787,7 +919,8 @@ app.put('/api/experts/:id', upload.fields([
   { name: 'resume', maxCount: 1 },
   { name: 'qualifications', maxCount: 1 },
   { name: 'profile_video', maxCount: 1 },
-  { name: 'course_video', maxCount: 1 }
+  { name: 'course_video', maxCount: 1 },
+  { name: 'cancelled_cheque', maxCount: 1 }
 ]), async (req, res) => {
   try {
     console.log('PUT /api/experts/:id - Request body:', req.body);
@@ -842,7 +975,7 @@ app.put('/api/experts/:id', upload.fields([
     // Get current expert data to check if files need updating
     const { data: currentExpert, error: fetchError } = await supabaseClient
       .from('experts')
-      .select('photo_url, profile_photo_public_id, resume_public_id, qualifications_public_id, profile_video_public_id, pan_number')
+      .select('photo_url, profile_photo_public_id, resume_public_id, qualifications_public_id, profile_video_public_id, cancelled_cheque_public_id, pan_number')
       .eq('id', req.params.id)
       .single();
 
@@ -908,11 +1041,24 @@ app.put('/api/experts/:id', upload.fields([
       current_designation: req.body.current_designation || null,
       expert_types: Array.isArray(req.body.expert_types) ? req.body.expert_types : (req.body.expert_types ? JSON.parse(req.body.expert_types) : []),
       expert_services: Array.isArray(req.body.expert_services) ? req.body.expert_services : (req.body.expert_services ? JSON.parse(req.body.expert_services) : []),
-      available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true,
+      available_on_demand: parseBooleanBody(req.body.available_on_demand),
+      open_to_work: parseBooleanBody(req.body.open_to_work),
       interested_in_services: req.body.interested_in_services === 'true' || req.body.interested_in_services === true,
       service_price: req.body.service_price !== undefined && req.body.service_price !== '' ? parseFloat(String(req.body.service_price)) : undefined,
       city: req.body.city || null,
       state: req.body.state || null,
+      bank_account_number:
+        req.body.bank_account_number !== undefined
+          ? (String(req.body.bank_account_number).trim() === '' ? null : String(req.body.bank_account_number).trim())
+          : undefined,
+      bank_name:
+        req.body.bank_name !== undefined
+          ? (String(req.body.bank_name).trim() === '' ? null : String(req.body.bank_name).trim())
+          : undefined,
+      ifsc_code:
+        req.body.ifsc_code !== undefined
+          ? (String(req.body.ifsc_code).trim() === '' ? null : String(req.body.ifsc_code).trim().toUpperCase())
+          : undefined,
       address:
         req.body.address !== undefined
           ? (String(req.body.address).trim() === '' ? null : String(req.body.address).trim())
@@ -920,6 +1066,7 @@ app.put('/api/experts/:id', upload.fields([
     };
 
     delete updateData.profile_video;
+    delete updateData.cancelled_cheque;
     delete updateData.pan_number;
 
     // Handle explicit removal flags for videos (sent from form as 'true')
@@ -1051,6 +1198,30 @@ app.put('/api/experts/:id', upload.fields([
 
       updateData.profile_video_url = videoData.url;
       updateData.profile_video_public_id = videoData.publicId;
+    }
+
+    if (req.files?.cancelled_cheque?.[0]) {
+      if (currentExpert?.cancelled_cheque_public_id) {
+        await ImageUploadService.deleteDocument(currentExpert.cancelled_cheque_public_id);
+      }
+
+      const chequeFile = req.files.cancelled_cheque[0];
+      const cancelledChequeData = await ImageUploadService.uploadDocument(
+        chequeFile.buffer,
+        'expert-bank-documents',
+        null,
+        chequeFile.mimetype,
+        chequeFile.originalname
+      );
+
+      if (!cancelledChequeData.success) {
+        return res.status(500).json({
+          error: `Cancelled cheque upload failed: ${cancelledChequeData.error}`
+        });
+      }
+
+      updateData.cancelled_cheque_url = cancelledChequeData.url;
+      updateData.cancelled_cheque_public_id = cancelledChequeData.publicId;
     }
 
     // Handle course video update if uploaded
@@ -1723,6 +1894,10 @@ app.post('/api/projects', upload.fields([
       rawBody.job_location != null && String(rawBody.job_location).trim() !== ''
         ? String(rawBody.job_location).trim()
         : null;
+    const interviewPeriodInterval =
+      rawBody.interview_period_interval != null && String(rawBody.interview_period_interval).trim() !== ''
+        ? String(rawBody.interview_period_interval).trim()
+        : null;
 
     const projectPayload = {
       ...rawBody,
@@ -1730,18 +1905,25 @@ app.post('/api/projects', upload.fields([
       subskills: normalizeArrayField(rawBody.subskills),
       screening_questions: normalizeScreeningQuestions(rawBody.screening_questions),
       job_location: jobLocation,
+      interview_period_interval: interviewPeriodInterval,
       workplace_type: workplaceType,
-      employment_type: employmentType
+      employment_type: employmentType,
+      opening_count: normalizePositiveInt(rawBody.opening_count || rawBody.openings, 1)
     };
+    delete projectPayload.interview_period_start_date;
+    delete projectPayload.interview_period_end_date;
 
     // Handle optional requirement PDF upload
     let requirementPdfData = null;
     const requirementPdfFile = req.files?.requirement_pdf?.[0];
     if (requirementPdfFile) {
       try {
-        requirementPdfData = await ImageUploadService.uploadPDF(
+        requirementPdfData = await ImageUploadService.uploadDocument(
           requirementPdfFile.buffer,
-          'institution-contract-requirements'
+          'institution-contract-requirements',
+          null,
+          requirementPdfFile.mimetype,
+          requirementPdfFile.originalname
         );
       } catch (e) {
         console.error('Requirement PDF upload exception:', e);
@@ -1875,6 +2057,18 @@ app.put('/api/projects/:id', async (req, res) => {
       const e = String(updateBody.employment_type);
       updateBody.employment_type = ['full_time', 'part_time', 'contract'].includes(e) ? e : null;
     }
+    if (updateBody.opening_count !== undefined || updateBody.openings !== undefined) {
+      updateBody.opening_count = normalizePositiveInt(updateBody.opening_count || updateBody.openings, 1);
+      delete updateBody.openings;
+    }
+    if (updateBody.interview_period_interval !== undefined) {
+      updateBody.interview_period_interval =
+        updateBody.interview_period_interval != null && String(updateBody.interview_period_interval).trim() !== ''
+          ? String(updateBody.interview_period_interval).trim()
+          : null;
+    }
+    delete updateBody.interview_period_start_date;
+    delete updateBody.interview_period_end_date;
 
     const { data, error } = await supabaseClient
       .from('projects')
@@ -4203,16 +4397,20 @@ app.get('/api/applications', async (req, res) => {
           bio,
           experience_years,
           qualifications,
+          qualifications_url,
           domain_expertise,
           subskills,
           hourly_rate,
           resume_url,
           availability,
+          open_to_work,
+          available_on_demand,
           is_verified,
           kyc_status,
           rating,
           total_ratings,
           linkedin_url,
+          current_designation,
           created_at,
           updated_at
         ),
@@ -4231,6 +4429,9 @@ app.get('/api/applications', async (req, res) => {
           subskills,
           status,
           max_applications,
+          opening_count,
+          interview_period_interval,
+          requirement_pdf_url,
           institutions (
             id,
             name,
@@ -4462,6 +4663,12 @@ app.post('/api/applications', async (req, res) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
     
+    req.body.interview_availability = normalizeInterviewAvailability(req.body.interview_availability);
+    if (req.body.proposed_rate !== undefined && req.body.proposed_rate !== '') {
+      const proposedRate = Number(req.body.proposed_rate);
+      req.body.proposed_rate = Number.isFinite(proposedRate) && proposedRate > 0 ? proposedRate : null;
+    }
+
     console.log('Final request body:', req.body);
     
     const { data, error } = await supabaseClient
@@ -4568,6 +4775,13 @@ app.put('/api/applications/:id', async (req, res) => {
     if (updateData.interview_date) {
       // Convert to proper timestamp format
       updateData.interview_date = new Date(updateData.interview_date).toISOString();
+    }
+    if (updateData.interview_availability !== undefined) {
+      updateData.interview_availability = normalizeInterviewAvailability(updateData.interview_availability);
+    }
+    if (updateData.final_hourly_rate !== undefined && updateData.final_hourly_rate !== '') {
+      const finalRate = Number(updateData.final_hourly_rate);
+      updateData.final_hourly_rate = Number.isFinite(finalRate) && finalRate > 0 ? finalRate : null;
     }
 
     const { data, error } = await supabaseClient
@@ -4690,9 +4904,30 @@ app.post('/api/bookings', async (req, res) => {
     console.log('Authenticated user for booking creation:', userData?.user?.id);
     console.log('User error:', userError);
 
-    const { amount } = req.body;
-    
-  
+    if (req.body.application_id) {
+      try {
+        const serviceClient = createClient(
+          process.env.SUPABASE_URL,
+          process.env.SUPABASE_SERVICE_ROLE_KEY
+        );
+        const { data: applicationForPrice } = await serviceClient
+          .from('applications')
+          .select('final_hourly_rate, proposed_rate, projects(hourly_rate)')
+          .eq('id', req.body.application_id)
+          .maybeSingle();
+        const resolvedAmount =
+          Number(applicationForPrice?.final_hourly_rate) ||
+          Number(applicationForPrice?.proposed_rate) ||
+          Number(applicationForPrice?.projects?.hourly_rate) ||
+          Number(req.body.amount);
+        if (Number.isFinite(resolvedAmount) && resolvedAmount > 0) {
+          req.body.amount = resolvedAmount;
+        }
+      } catch (priceError) {
+        console.warn('Booking price fallback skipped:', priceError.message);
+      }
+    }
+
     
     const { data, error } = await supabaseClient
       .from('bookings')
@@ -4809,16 +5044,20 @@ app.get('/api/bookings', async (req, res) => {
           bio,
           experience_years,
           qualifications,
+          qualifications_url,
           domain_expertise,
           subskills,
           hourly_rate,
           resume_url,
           availability,
+          open_to_work,
+          available_on_demand,
           is_verified,
           kyc_status,
           rating,
           total_ratings,
           linkedin_url,
+          current_designation,
           created_at,
           updated_at
         ),
@@ -4841,7 +5080,10 @@ app.get('/api/bookings', async (req, res) => {
           domain_expertise,
           subskills,
           status,
-          max_applications
+          max_applications,
+          opening_count,
+          interview_period_interval,
+          requirement_pdf_url
         )
       `)
       .range(offset, offset + parseInt(limit) - 1)
@@ -5474,12 +5716,11 @@ app.get('/api/admin/feedback-analytics', async (req, res) => {
       return res.status(401).json({ success: false, error: 'Authorization required' });
     }
 
-    const token = authHeader.substring(7);
-    
-    // Verify the token contains the authorized email
-    if (!token.includes('debnathsinhababu2017@gmail.com')) {
-      return res.status(403).json({ success: false, error: 'Access denied' });
-    }
+    // Legacy hard-coded email validation, disabled in favor of /api/admin middleware:
+    // const token = authHeader.substring(7);
+    // if (!token.includes('debnathsinhababu2017@gmail.com')) {
+    //   return res.status(403).json({ success: false, error: 'Access denied' });
+    // }
 
     // Get pagination parameters
     const page = parseInt(req.query.page) || 1;
@@ -5642,10 +5883,11 @@ app.post('/api/admin/experts', upload.fields([
       return res.status(401).json({ error: 'Authorization required' });
     }
 
-    const token = authHeader.substring(7);
-    if (!token.includes('debnathsinhababu2017@gmail.com')) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
+    // Legacy hard-coded email validation, disabled in favor of /api/admin middleware:
+    // const token = authHeader.substring(7);
+    // if (!token.includes('debnathsinhababu2017@gmail.com')) {
+    //   return res.status(403).json({ error: 'Access denied' });
+    // }
 
     // Validate required fields
     if (!req.body.name || !req.body.email || !req.body.phone) {
@@ -5814,7 +6056,8 @@ app.post('/api/admin/experts', upload.fields([
       current_designation: req.body.current_designation || null,
       expert_types: Array.isArray(req.body.expert_types) ? req.body.expert_types : (req.body.expert_types ? JSON.parse(req.body.expert_types) : []),
       expert_services: Array.isArray(req.body.expert_services) ? req.body.expert_services : (req.body.expert_services ? JSON.parse(req.body.expert_services) : []),
-      available_on_demand: req.body.available_on_demand === 'true' || req.body.available_on_demand === true,
+      available_on_demand: parseBooleanBody(req.body.available_on_demand),
+      open_to_work: parseBooleanBody(req.body.open_to_work),
       city: req.body.city || null,
       state: req.body.state || null,
       pan_number: adminPanNormalized,
@@ -6005,11 +6248,11 @@ app.post('/api/admin/experts/bulk-import', async (req, res) => {
       return res.status(401).json({ error: 'Authorization required' });
     }
 
-    const token = authHeader.substring(7);
-    // You can customize this admin check
-    if (!token.includes('debnathsinhababu2017@gmail.com')) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
+    // Legacy hard-coded email validation, disabled in favor of /api/admin middleware:
+    // const token = authHeader.substring(7);
+    // if (!token.includes('debnathsinhababu2017@gmail.com')) {
+    //   return res.status(403).json({ error: 'Access denied' });
+    // }
 
     const { spreadsheetId, range, gid, usePublicAccess = false, delayBetweenRows = 500, defaultPassword } = req.body;
 
@@ -6342,7 +6585,7 @@ const { registerExpertAvailabilityRoutes } = require('./routes/expertAvailabilit
 registerExpertAvailabilityRoutes(app);
 
 const { registerTrainingAttendanceRoutes } = require('./routes/trainingAttendanceRoutes');
-registerTrainingAttendanceRoutes(app);
+registerTrainingAttendanceRoutes(app, upload);
 
 app.use((err, req, res, next) => {
   console.error(err.stack || err);

@@ -488,6 +488,13 @@ export default function ExpertDashboard() {
   }, [calculateAnalytics])
 
   const expertAggregate = computeExpertRating()
+  const runningStatuses = new Set(['in_progress', 'pending', 'confirmed'])
+  const sortedPagedBookings = [...(pagedBookings || [])].sort((a: any, b: any) => {
+    const aRunning = runningStatuses.has(a.status) ? 0 : 1
+    const bRunning = runningStatuses.has(b.status) ? 0 : 1
+    if (aRunning !== bRunning) return aRunning - bRunning
+    return new Date(b.created_at || b.start_date || 0).getTime() - new Date(a.created_at || a.start_date || 0).getTime()
+  })
 
   // Projects are now filtered by the backend API based on expert_id
 
@@ -535,13 +542,22 @@ export default function ExpertDashboard() {
           </Alert>
         )}
 
-        <div className="mb-8 text-center">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-3 tracking-tight">Expert Dashboard</h1>
-          <p className="text-base sm:text-lg md:text-xl text-slate-600 font-medium">Welcome back, {expert?.name}</p>
+        <div className="mb-8 rounded-2xl border border-[#DCDCDC] bg-white p-5 shadow-sm sm:p-7">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-[#008260]">Expert dashboard</p>
+              <h1 className="mt-2 text-3xl font-bold tracking-tight text-[#000000]">Welcome back, {expert?.name || 'Expert'}</h1>
+              <p className="mt-2 text-sm text-[#6A6A6A] sm:text-base">Track applications, running projects, attendance, and earnings.</p>
+            </div>
+            <div className="rounded-xl bg-[#E8F5F1] px-4 py-3 text-left sm:text-right">
+              <p className="text-xs font-medium text-[#6A6A6A]">Running project</p>
+              <p className="text-2xl font-bold text-[#008260]">{bookingCounts.in_progress || 0}</p>
+            </div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          <Card className="border-2 border-[#D6D6D6] bg-white">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+          <Card className="border border-[#DCDCDC] bg-white shadow-sm rounded-2xl">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -667,7 +683,7 @@ export default function ExpertDashboard() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#000000]">Active Bookings</p>
+                  <p className="text-sm font-medium text-[#000000]">Running project</p>
                   <p className="text-2xl font-bold text-[#000000] my-1">{bookingCounts.in_progress || 0}</p>
                   <p className="text-xs text-slate-500">
                     {bookingCounts.completed || 0} completed 
@@ -992,9 +1008,9 @@ export default function ExpertDashboard() {
             <TabsContent value="bookings" className="space-y-6">
             <Card className="border-2 border-[#D6D6D6]">
                 <CardHeader>
-                  <CardTitle className="text-[#000000] font-semibold text-[18px]">My Bookings</CardTitle>
+                  <CardTitle className="text-[#000000] font-semibold text-[18px]">Running projects</CardTitle>
                 <CardDescription className="text-[#000000] font-base font-normal">
-                    View and manage your current bookings
+                    Running projects appear first. Closed and cancelled projects appear after them.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -1009,7 +1025,7 @@ export default function ExpertDashboard() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {pagedBookings?.map((booking: any) => (
+                      {sortedPagedBookings?.map((booking: any) => (
                       <div key={booking.id} className="bg-white border border-[#DCDCDC] rounded-lg p-4 sm:p-6 hover:border-[#008260] hover:shadow-md transition-all duration-300 group">
                         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
                           <h3 className="font-bold text-base sm:text-lg text-[#000000] group-hover:text-[#008260] hover:cursor-pointer transition-colors duration-300 break-words"
@@ -1071,6 +1087,23 @@ export default function ExpertDashboard() {
                         )}
                         <div className="flex justify-end pt-3 border-t border-[#ECECEC]">
                           {booking.status === 'in_progress' && (
+                            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                              <Button
+                                size="sm"
+                                className="bg-[#008260] hover:bg-[#006D51] rounded-3xl text-white font-medium w-full sm:w-auto"
+                                onClick={async () => {
+                                  try {
+                                    await api.bookings.update(booking.id, { status: 'completed' })
+                                    await refreshBookings()
+                                  } catch (e) {
+                                    console.error('Failed to mark booking complete', e)
+                                    setError('Failed to mark project complete')
+                                  }
+                                }}
+                              >
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Mark Complete
+                              </Button>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button
@@ -1108,6 +1141,7 @@ export default function ExpertDashboard() {
                                 </AlertDialogFooter>
                               </AlertDialogContent>
                             </AlertDialog>
+                            </div>
                           )}
                         </div>
                       </div>

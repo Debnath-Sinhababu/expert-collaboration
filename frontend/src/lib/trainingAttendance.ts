@@ -10,6 +10,8 @@ export type AttendanceDayFull = {
   effective_entry_at?: string | null
   effective_exit_at?: string | null
   dispute_reason?: string | null
+  entry_attachment_url?: string | null
+  exit_attachment_url?: string | null
 }
 
 export type AttendanceSummary = {
@@ -35,6 +37,12 @@ export type AttendancePayload = {
 }
 
 export const ACTIVE_ATTENDANCE_BOOKING_STATUSES = ['confirmed', 'in_progress']
+export const TRAINING_ATTENDANCE_UPDATED_EVENT = 'training-attendance-updated'
+
+export function notifyTrainingAttendanceUpdated(bookingId?: string) {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new CustomEvent(TRAINING_ATTENDANCE_UPDATED_EVENT, { detail: { bookingId } }))
+}
 
 export function normalizeBookingStatus(status: string | undefined | null) {
   return String(status || '')
@@ -75,16 +83,21 @@ export async function ensureAttendanceDay(
 export async function markAttendanceEntryForDate(
   bookingId: string,
   days: AttendanceDayFull[] | undefined,
-  sessionDate: string
+  sessionDate: string,
+  attachment?: File | null
 ) {
   const day = await ensureAttendanceDay(bookingId, days, sessionDate)
   if (day.expert_entry_at && day.status !== 'disputed') {
+    notifyTrainingAttendanceUpdated(bookingId)
     return { day, changed: false, alreadyMarked: true }
   }
-  await api.trainingAttendance.markEntry(bookingId, day.id)
+  await api.trainingAttendance.markEntry(bookingId, day.id, attachment)
+  notifyTrainingAttendanceUpdated(bookingId)
   return { day, changed: true, alreadyMarked: false }
 }
 
-export async function markAttendanceExitForDay(bookingId: string, dayId: string) {
-  return api.trainingAttendance.markExit(bookingId, dayId)
+export async function markAttendanceExitForDay(bookingId: string, dayId: string, attachment?: File | null) {
+  const result = await api.trainingAttendance.markExit(bookingId, dayId, attachment)
+  notifyTrainingAttendanceUpdated(bookingId)
+  return result
 }

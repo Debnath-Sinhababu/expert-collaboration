@@ -146,6 +146,58 @@ class ImageUploadService {
   }
 
   /**
+   * Upload a generic document to Cloudinary raw storage.
+   * @param {Buffer} documentBuffer
+   * @param {string} folder
+   * @param {string|null} publicId
+   * @param {string} mimeType
+   * @param {string} originalName
+   */
+  static async uploadDocument(
+    documentBuffer,
+    folder = 'documents',
+    publicId = null,
+    mimeType = 'application/octet-stream',
+    originalName = 'document'
+  ) {
+    try {
+      const safeMime =
+        typeof mimeType === 'string' && mimeType.trim()
+          ? mimeType
+          : 'application/octet-stream';
+      const base64Document = `data:${safeMime};base64,${documentBuffer.toString('base64')}`;
+      const uploadOptions = {
+        folder,
+        resource_type: 'raw',
+        flags: 'attachment',
+        use_filename: true,
+        unique_filename: true,
+      };
+
+      if (publicId) {
+        uploadOptions.public_id = publicId;
+      }
+
+      const result = await cloudinary.uploader.upload(base64Document, uploadOptions);
+
+      return {
+        success: true,
+        url: result.secure_url,
+        publicId: result.public_id,
+        format: result.format,
+        size: result.bytes,
+        originalName: result.original_filename || originalName,
+      };
+    } catch (error) {
+      console.error('Document upload error:', error);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  }
+
+  /**
    * Delete image from Cloudinary
    * @param {string} publicId - Cloudinary public ID
    * @returns {Promise<Object>} Deletion result
@@ -182,6 +234,29 @@ class ImageUploadService {
       };
     } catch (error) {
       console.error('Video deletion error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Delete a raw document asset from Cloudinary.
+   * @param {string} publicId
+   */
+  static async deleteDocument(publicId) {
+    if (!publicId) {
+      return { success: true, result: null };
+    }
+    try {
+      const result = await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
+      return {
+        success: true,
+        result: result
+      };
+    } catch (error) {
+      console.error('Document deletion error:', error);
       return {
         success: false,
         error: error.message

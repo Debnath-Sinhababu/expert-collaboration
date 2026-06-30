@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { ArrowLeft, Save, User, Briefcase, Upload, Camera, X, FileText, IndianRupee, Info, Video } from 'lucide-react'
+import { ArrowLeft, Save, User, Briefcase, Upload, Camera, X, FileText, IndianRupee, Info, Video, Landmark } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { ExpertAvailabilityCalendar } from '@/components/expert/ExpertAvailabilityCalendar'
 import Link from 'next/link'
@@ -66,10 +66,14 @@ export default function ExpertProfileEdit() {
     expert_types: [] as string[],
     expert_services: [] as string[],
     available_on_demand: false,
+    open_to_work: false,
     city: '',
     state: '',
     address: '',
-    pan_number: ''
+    pan_number: '',
+    bank_account_number: '',
+    bank_name: '',
+    ifsc_code: ''
     ,interested_in_services: false,
     service_price: ''
   })
@@ -83,6 +87,8 @@ export default function ExpertProfileEdit() {
   
   const [selectedQualifications, setSelectedQualifications] = useState<File | null>(null)
   const [qualificationsError, setQualificationsError] = useState('')
+  const [selectedCancelledCheque, setSelectedCancelledCheque] = useState<File | null>(null)
+  const [cancelledChequeError, setCancelledChequeError] = useState('')
 
   const [selectedProfileVideo, setSelectedProfileVideo] = useState<File | null>(null)
   const [profileVideoError, setProfileVideoError] = useState('')
@@ -175,10 +181,14 @@ export default function ExpertProfileEdit() {
             Array.isArray(expertProfile.service_prices) && expertProfile.service_prices.length > 0 ? String(expertProfile.service_prices[0].price || '') : ''
           ),
           available_on_demand: expertProfile.available_on_demand || false,
+          open_to_work: !!expertProfile.open_to_work,
           city: expertProfile.city || '',
           state: expertProfile.state || '',
           pan_number: expertProfile.pan_number || '',
-          address: expertProfile.address || ''
+          address: expertProfile.address || '',
+          bank_account_number: expertProfile.bank_account_number || '',
+          bank_name: expertProfile.bank_name || '',
+          ifsc_code: expertProfile.ifsc_code || ''
         })
         
         setSelectedSubskills(expertProfile.subskills || [])
@@ -372,6 +382,31 @@ export default function ExpertProfileEdit() {
     setQualificationsError('')
   }
 
+  const handleCancelledChequeSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      setCancelledChequeError('Please select a PDF or image file')
+      return
+    }
+
+    if (file.size > 20 * 1024 * 1024) {
+      setCancelledChequeError('File size must be less than 20MB')
+      return
+    }
+
+    setCancelledChequeError('')
+    setSelectedCancelledCheque(file)
+    e.target.value = ''
+  }
+
+  const removeCancelledCheque = () => {
+    setSelectedCancelledCheque(null)
+    setCancelledChequeError('')
+  }
+
   const handlePanChange = (value: string) => {
     const normalized = value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10)
     setFormData(prev => ({ ...prev, pan_number: normalized }))
@@ -501,11 +536,15 @@ export default function ExpertProfileEdit() {
       formDataToSend.append('current_designation', formData.current_designation)
       formDataToSend.append('expert_types', JSON.stringify(formData.expert_types))
       formDataToSend.append('expert_services', JSON.stringify(formData.expert_services))
+      formDataToSend.append('open_to_work', String(formData.open_to_work))
       formDataToSend.append('interested_in_services', String(formData.interested_in_services))
       formDataToSend.append('service_price', String(formData.service_price || ''))
       formDataToSend.append('city', formData.city || '')
       formDataToSend.append('state', formData.state || '')
       formDataToSend.append('address', formData.address || '')
+      formDataToSend.append('bank_account_number', formData.bank_account_number || '')
+      formDataToSend.append('bank_name', formData.bank_name || '')
+      formDataToSend.append('ifsc_code', formData.ifsc_code || '')
       if (panNormalized) {
         formDataToSend.append('pan_number', panNormalized)
       }
@@ -523,6 +562,10 @@ export default function ExpertProfileEdit() {
 
       if (selectedQualifications) {
         formDataToSend.append('qualifications', selectedQualifications)
+      }
+
+      if (selectedCancelledCheque) {
+        formDataToSend.append('cancelled_cheque', selectedCancelledCheque)
       }
 
       if (selectedProfileVideo) {
@@ -1183,7 +1226,29 @@ export default function ExpertProfileEdit() {
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="open_to_work"
+                          checked={formData.open_to_work}
+                          onChange={(e) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              open_to_work: e.target.checked,
+                            }))
+                          }
+                          className="w-4 h-4 border-slate-300 rounded text-[#008260] focus:ring-[#008260] focus:ring-offset-0"
+                        />
+
+                        <Label
+                          htmlFor="open_to_work"
+                          className="text-slate-700 cursor-pointer"
+                        >
+                          Open to work currently
+                        </Label>
+                      </div>
+
+                    <div className="flex items-center gap-2">
                         <input
                           type="checkbox"
                           id="interested_in_services"
@@ -1258,6 +1323,108 @@ export default function ExpertProfileEdit() {
                           <Label className="text-slate-700">Service price (optional)</Label>
                           <p className="text-xs text-slate-500">You can update the price above if needed.</p>
                         </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-4 pt-4 border-t border-slate-200">
+                  <h3 className="text-lg font-semibold text-slate-800 flex items-center space-x-2">
+                    <Landmark className="h-5 w-5 text-[#008260]" />
+                    <span>Bank Details</span>
+                  </h3>
+                  <p className="text-sm text-slate-600">
+                    Optional payout information. You can leave these blank and update them later.
+                  </p>
+
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="bank_account_number" className="text-slate-700">Bank Account Number</Label>
+                      <Input
+                        id="bank_account_number"
+                        placeholder="Enter account number"
+                        value={formData.bank_account_number}
+                        onChange={(e) => handleInputChange('bank_account_number', e.target.value.replace(/[^0-9]/g, ''))}
+                        autoComplete="off"
+                        className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="bank_name" className="text-slate-700">Bank Name</Label>
+                      <Input
+                        id="bank_name"
+                        placeholder="Enter bank name"
+                        value={formData.bank_name}
+                        onChange={(e) => handleInputChange('bank_name', e.target.value)}
+                        className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="ifsc_code" className="text-slate-700">IFSC Code</Label>
+                      <Input
+                        id="ifsc_code"
+                        placeholder="e.g. HDFC0001234"
+                        value={formData.ifsc_code}
+                        onChange={(e) => handleInputChange('ifsc_code', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11))}
+                        autoComplete="off"
+                        maxLength={11}
+                        className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300 uppercase font-mono tracking-wide"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="cancelled_cheque" className="text-slate-700">Cancelled Cheque</Label>
+                    <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center transition-all duration-300 hover:border-[#008260]">
+                      <input
+                        type="file"
+                        id="cancelled_cheque"
+                        accept=".pdf,image/jpeg,image/jpg,image/png,image/webp"
+                        onChange={handleCancelledChequeSelect}
+                        className="hidden"
+                      />
+                      <label htmlFor="cancelled_cheque" className="cursor-pointer">
+                        <FileText className="mx-auto h-12 w-12 text-[#008260] mb-4" />
+                        <p className="text-sm text-slate-600 mb-2">
+                          <span className="font-medium text-[#008260]">Click to upload</span>{' '}
+                          cancelled cheque
+                        </p>
+                        <p className="text-xs text-slate-500">PDF or image files, max 20MB (optional)</p>
+                      </label>
+                    </div>
+
+                    {selectedCancelledCheque && (
+                      <div className="mt-3 p-3 bg-[#ECF2FF] border border-[#008260] rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <FileText className="h-5 w-5 text-[#008260]" />
+                            <span className="text-sm font-medium text-[#008260] break-all">
+                              {selectedCancelledCheque.name}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={removeCancelledCheque}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {cancelledChequeError && (
+                      <Alert variant="destructive" className="mt-2">
+                        <AlertDescription>{cancelledChequeError}</AlertDescription>
+                      </Alert>
+                    )}
+
+                    {expert?.cancelled_cheque_url && !selectedCancelledCheque && (
+                      <div className="mt-2 flex items-center space-x-2 text-sm text-slate-600">
+                        <FileText className="h-4 w-4 text-[#008260]" />
+                        <span>Current cancelled cheque uploaded</span>
                       </div>
                     )}
                   </div>

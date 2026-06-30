@@ -26,6 +26,25 @@ import { EMPLOYMENT_TYPE_OPTIONS, WORKPLACE_TYPE_OPTIONS } from '@/lib/requireme
 import { expertDisplayName } from '@/lib/privacyDisplay'
 import { ExpertAvailabilityTrigger } from '@/components/expert/ExpertAvailabilityTrigger'
 
+function formatInterviewPeriodDate(value: string) {
+  if (!value) return ''
+  const date = new Date(`${value}T00:00:00Z`)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
+}
+
+function formatInterviewPeriodInterval(startDate: string, endDate: string) {
+  const start = formatInterviewPeriodDate(startDate)
+  const end = formatInterviewPeriodDate(endDate)
+  if (!start || !end) return ''
+  return start === end ? start : `${start} to ${end}`
+}
+
 export default function ContractForm() {
   const router = useRouter()
   const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
@@ -53,12 +72,15 @@ export default function ContractForm() {
     start_date: '',
     end_date: '',
     duration_hours: '',
+    opening_count: '1',
     required_expertise: '',
     domain_expertise: '',
     subskills: [] as string[],
     job_location: '',
     workplace_type: '',
     employment_type: '',
+    interview_period_start_date: '',
+    interview_period_end_date: '',
     screening_questions: [] as string[],
   })
 
@@ -99,11 +121,24 @@ export default function ContractForm() {
     if (!form.end_date) { toast.error('Select end date'); return false }
     if (new Date(form.end_date) <= new Date(form.start_date)) { toast.error('End date must be after start date'); return false }
     if (!form.duration_hours || parseInt(form.duration_hours) <= 0) { toast.error('Enter duration hours'); return false }
+    if (!form.opening_count || parseInt(form.opening_count) <= 0) { toast.error('Enter opening people count'); return false }
     if (!form.domain_expertise) { toast.error('Select domain expertise'); return false }
     if (!form.subskills || form.subskills.length === 0) { toast.error('Select required specializations'); return false }
     if (!form.workplace_type) { toast.error('Select workplace type'); return false }
     if (!form.employment_type) { toast.error('Select employment type'); return false }
     if (!form.job_location.trim()) { toast.error('Enter job location'); return false }
+    if ((form.interview_period_start_date && !form.interview_period_end_date) || (!form.interview_period_start_date && form.interview_period_end_date)) {
+      toast.error('Select both interview period dates or leave both blank')
+      return false
+    }
+    if (
+      form.interview_period_start_date &&
+      form.interview_period_end_date &&
+      new Date(form.interview_period_end_date) < new Date(form.interview_period_start_date)
+    ) {
+      toast.error('Interview period end date must be on or after start date')
+      return false
+    }
     if (!form.description.trim()) { toast.error('Add description'); return false }
     return true
   }
@@ -237,14 +272,22 @@ export default function ContractForm() {
     }
     setSubmitting(true)
     try {
+      const interviewPeriodInterval = formatInterviewPeriodInterval(
+        form.interview_period_start_date,
+        form.interview_period_end_date
+      )
       const payload = {
         ...form,
+        interview_period_interval: interviewPeriodInterval || undefined,
         institution_id: institution?.id,
         hourly_rate: parseFloat(form.hourly_rate),
         total_budget: parseFloat(form.total_budget),
         duration_hours: parseInt(form.duration_hours),
+        opening_count: parseInt(form.opening_count),
         required_expertise: form.required_expertise.split(',').map(s => s.trim()).filter(Boolean)
       }
+      delete (payload as any).interview_period_start_date
+      delete (payload as any).interview_period_end_date
       const formData = new FormData()
       const screeningFiltered = form.screening_questions.map((q) => q.trim()).filter(Boolean)
 
@@ -321,12 +364,16 @@ export default function ContractForm() {
               <Input type="date" value={form.start_date} onChange={(e) => setForm(prev => ({ ...prev, start_date: e.target.value }))} placeholder="DD/MM/YYYY" className="border-[#DCDCDC]" />
             </div>
             <div>
-              <Label className="text-[#000000] font-medium mb-2 block">End Date *</Label>
+              <Label className="text-[#000000] font-medium mb-2 block">Approx End Date *</Label>
               <Input type="date" value={form.end_date} onChange={(e) => setForm(prev => ({ ...prev, end_date: e.target.value }))} placeholder="DD/MM/YYYY" className="border-[#DCDCDC]" />
             </div>
             <div>
               <Label className="text-[#000000] font-medium mb-2 block">Duration (Hours) *</Label>
               <Input type="number" placeholder="40" value={form.duration_hours} onChange={(e) => setForm(prev => ({ ...prev, duration_hours: e.target.value }))} className="border-[#DCDCDC]" />
+            </div>
+            <div>
+              <Label className="text-[#000000] font-medium mb-2 block">Opening people count *</Label>
+              <Input type="number" min="1" placeholder="1" value={form.opening_count} onChange={(e) => setForm(prev => ({ ...prev, opening_count: e.target.value }))} className="border-[#DCDCDC]" />
             </div>
             <div>
               <Label className="text-[#000000] font-medium mb-2 block">Job location *</Label>
@@ -358,6 +405,35 @@ export default function ContractForm() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="md:col-span-2">
+              <Label className="text-[#000000] font-medium mb-2 block">Interview period (optional)</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-lg border border-[#DCDCDC] p-3">
+                <div>
+                  <Label className="text-xs text-[#6A6A6A] mb-1 block">Start date</Label>
+                  <Input
+                    type="date"
+                    value={form.interview_period_start_date}
+                    onChange={(e) => setForm(prev => ({ ...prev, interview_period_start_date: e.target.value }))}
+                    className="border-[#DCDCDC]"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-[#6A6A6A] mb-1 block">End date</Label>
+                  <Input
+                    type="date"
+                    value={form.interview_period_end_date}
+                    min={form.interview_period_start_date || undefined}
+                    onChange={(e) => setForm(prev => ({ ...prev, interview_period_end_date: e.target.value }))}
+                    className="border-[#DCDCDC]"
+                  />
+                </div>
+              </div>
+              {form.interview_period_start_date && form.interview_period_end_date && (
+                <p className="mt-2 text-xs text-[#6A6A6A]">
+                  Expert will see: <span className="font-medium text-[#000000]">{formatInterviewPeriodInterval(form.interview_period_start_date, form.interview_period_end_date)}</span>
+                </p>
+              )}
+            </div>
             <div>
               <Label className="text-[#000000] font-medium mb-2 block">Domain Expertise *</Label>
               <Select value={form.domain_expertise} onValueChange={handleDomainChange}>
@@ -381,14 +457,44 @@ export default function ContractForm() {
             <div className="mt-4 min-w-0 max-w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
               <Label className="text-[#000000] font-medium mb-2 block">Required Specializations *</Label>
               <MultiSelect options={availableSubskills} selected={selectedSubskills} onSelectionChange={handleSubskillChange} placeholder="Select required specializations..." className="w-full min-w-0" />
+              <div className="flex gap-2 mt-2">
+                <Input
+                  placeholder="Not found? Type specialization and press Add"
+                  onKeyDown={(e) => {
+                    if (e.key !== 'Enter') return
+                    e.preventDefault()
+                    const value = e.currentTarget.value.trim()
+                    if (!value) return
+                    const next = [...new Set([...selectedSubskills, value])]
+                    handleSubskillChange(next)
+                    e.currentTarget.value = ''
+                  }}
+                  className="border-[#DCDCDC]"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={(e) => {
+                    const input = e.currentTarget.previousElementSibling as HTMLInputElement | null
+                    if (!input) return
+                    const value = input?.value.trim()
+                    if (!value) return
+                    const next = [...new Set([...selectedSubskills, value])]
+                    handleSubskillChange(next)
+                    input.value = ''
+                  }}
+                >
+                  Add
+                </Button>
+              </div>
             </div>
           )}
 
           <div className="mt-4">
-            <Label className="text-[#000000] font-medium mb-2 block">Requirement PDF (optional)</Label>
+            <Label className="text-[#000000] font-medium mb-2 block">Requirement document (optional)</Label>
             <Input
               type="file"
-              accept=".pdf"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.csv"
               className="border-[#DCDCDC]"
               onChange={(e) => {
                 const file = e.target.files?.[0]
@@ -397,9 +503,11 @@ export default function ContractForm() {
                   setRequirementPdf(null)
                   return
                 }
-                if (file.type !== 'application/pdf') {
+                const allowedExt = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv']
+                const ext = file.name.split('.').pop()?.toLowerCase()
+                if (!ext || !allowedExt.includes(ext)) {
                   setRequirementPdf(null)
-                  setRequirementPdfError('Only PDF files are allowed.')
+                  setRequirementPdfError('Only PDF, DOC, DOCX, XLS, XLSX, or CSV files are allowed.')
                   return
                 }
                 const maxSizeBytes = 20 * 1024 * 1024
