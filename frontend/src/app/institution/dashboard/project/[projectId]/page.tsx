@@ -389,6 +389,15 @@ export default function InstitutionProjectDetailsPage() {
       
       let interviewDateValue = null
       if (interviewDate && interviewTime) {
+        const todayStart = new Date()
+        todayStart.setHours(0, 0, 0, 0)
+        const selectedStart = new Date(interviewDate)
+        selectedStart.setHours(0, 0, 0, 0)
+        if (selectedStart < todayStart) {
+          toast.error('Interview date cannot be in the past')
+          setProcessingApplications(prev => ({ ...prev, [selectedApplicationId]: false }))
+          return
+        }
         const [hours, minutes] = interviewTime.split(':').map(Number)
         const combinedDateTime = new Date(interviewDate)
         combinedDateTime.setHours(hours, minutes, 0, 0)
@@ -1552,7 +1561,6 @@ export default function InstitutionProjectDetailsPage() {
                   onChange={setInterviewDate}
                   placeholder="Select interview date"
                   className="w-full"
-                  minDate={new Date(new Date().setHours(0, 0, 0, 0))}
                 />
               </div>
               <div>

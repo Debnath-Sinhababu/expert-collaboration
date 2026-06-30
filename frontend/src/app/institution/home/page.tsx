@@ -62,6 +62,7 @@ import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
 import { fetchInstitutionForWorkspace } from '@/lib/institutionWorkspace'
 import { ExpertAvailabilityTrigger } from '@/components/expert/ExpertAvailabilityTrigger'
 import { profileBrowseRange } from '@/lib/expertAvailabilityUtils'
+import { InstitutionTrainingAttendanceSidebar } from '@/components/training/InstitutionTrainingAttendanceSidebar'
 
 type UserMeta = { role?: string; name?: string }
 type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }
@@ -1326,6 +1327,10 @@ export default function InstitutionHomePage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 md:pb-8">
+        {institution?.id && (
+          <InstitutionTrainingAttendanceSidebar institutionId={institution.id} basePath={basePath} />
+        )}
+
         {/* Welcome Section */}
         <div className="mb-8">
           <h1 className="text-3xl font-semibold text-black mb-2 leading-tight">

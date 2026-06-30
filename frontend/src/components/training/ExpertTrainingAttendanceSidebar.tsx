@@ -14,6 +14,7 @@ import {
   isTodayInTrainingRange,
   markAttendanceEntryForDate,
   markAttendanceExitForDay,
+  TRAINING_ATTENDANCE_UPDATED_EVENT,
   type AttendanceDayFull,
 } from '@/lib/trainingAttendance'
 import { Button } from '@/components/ui/button'
@@ -56,6 +57,14 @@ type Props = {
 
 const ACTIVE_BOOKING_STATUSES = new Set(['confirmed', 'in_progress'])
 
+function todayDateOnly() {
+  const date = new Date()
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 function formatDate(value?: string | null) {
   const dateOnly = normalizeDateOnly(value)
   if (!dateOnly) return 'Date not set'
@@ -96,7 +105,7 @@ function isClosedAndPastActualEnd(booking: TrainingBooking) {
   const status = String(booking.projects?.status || booking.status || '').toLowerCase()
   const isClosed = ['closed', 'completed', 'cancelled'].includes(status)
   const endDate = normalizeDateOnly(booking.actual_end_date || booking.end_date || booking.projects?.end_date)
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayDateOnly()
   return isClosed && !!endDate && endDate < today
 }
 
@@ -316,7 +325,7 @@ export function ExpertTrainingAttendanceSidebar({ expertId, basePath }: Props) {
       setLoading(true)
       try {
         const payload = await api.bookings.getAll({ expert_id: expertId, page: 1, limit: 30 })
-        const today = new Date().toISOString().slice(0, 10)
+        const today = todayDateOnly()
         const candidates = normalizeBookingsPayload(payload)
           .filter((booking) => isTrainingBooking(booking))
           .filter((booking) => ACTIVE_BOOKING_STATUSES.has(String(booking.status || '').toLowerCase()))
@@ -352,9 +361,12 @@ export function ExpertTrainingAttendanceSidebar({ expertId, basePath }: Props) {
     }
 
     loadBookings()
+    const refreshForAttendanceChange = () => loadBookings()
+    window.addEventListener(TRAINING_ATTENDANCE_UPDATED_EVENT, refreshForAttendanceChange)
 
     return () => {
       ignore = true
+      window.removeEventListener(TRAINING_ATTENDANCE_UPDATED_EVENT, refreshForAttendanceChange)
     }
   }, [expertId])
 

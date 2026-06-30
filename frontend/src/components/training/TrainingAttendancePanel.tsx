@@ -19,6 +19,8 @@ import {
   markAttendanceEntryForDate,
   markAttendanceExitForDay,
   normalizeBookingStatus,
+  notifyTrainingAttendanceUpdated,
+  TRAINING_ATTENDANCE_UPDATED_EVENT,
   type AttendancePayload,
 } from '@/lib/trainingAttendance'
 
@@ -77,6 +79,28 @@ export function TrainingAttendancePanel({
     if (expanded) load()
   }, [expanded, load])
 
+  useEffect(() => {
+    if (!expanded) return
+
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') load()
+    }
+    const refreshForAttendanceChange = (event: Event) => {
+      const detail = (event as CustomEvent<{ bookingId?: string }>).detail
+      if (!detail?.bookingId || detail.bookingId === bookingId) load()
+    }
+
+    window.addEventListener('focus', load)
+    document.addEventListener('visibilitychange', refreshIfVisible)
+    window.addEventListener(TRAINING_ATTENDANCE_UPDATED_EVENT, refreshForAttendanceChange)
+
+    return () => {
+      window.removeEventListener('focus', load)
+      document.removeEventListener('visibilitychange', refreshIfVisible)
+      window.removeEventListener(TRAINING_ATTENDANCE_UPDATED_EVENT, refreshForAttendanceChange)
+    }
+  }, [bookingId, expanded, load])
+
   const selectedDateStr = selectedDay ? format(selectedDay, 'yyyy-MM-dd') : null
   const selectedDayRow = useMemo(() => {
     if (!selectedDateStr || !data?.days) return null
@@ -110,10 +134,10 @@ export function TrainingAttendancePanel({
       const result = await markAttendanceEntryForDate(bookingId, data?.days, sessionDate, attachment)
       if (result.alreadyMarked) {
         toast.info('Entry already recorded')
-        return
+      } else {
+        setEntryAttachment(null)
+        toast.success('Entry marked')
       }
-      setEntryAttachment(null)
-      toast.success('Entry marked')
       await refresh()
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed to mark entry')
@@ -302,6 +326,7 @@ export function TrainingAttendancePanel({
                 setBusy(true)
                 try {
                   await api.trainingAttendance.approve(bookingId, selectedDayRow.id)
+                  notifyTrainingAttendanceUpdated(bookingId)
                   toast.success('Attendance approved')
                   await refresh()
                 } catch (e: unknown) {
@@ -315,6 +340,7 @@ export function TrainingAttendancePanel({
                 setBusy(true)
                 try {
                   await api.trainingAttendance.dispute(bookingId, selectedDayRow.id, reason)
+                  notifyTrainingAttendanceUpdated(bookingId)
                   toast.success('Dispute submitted')
                   await refresh()
                 } catch (e: unknown) {
@@ -332,6 +358,7 @@ export function TrainingAttendancePanel({
                     effective_exit_at: exit,
                     approve,
                   })
+                  notifyTrainingAttendanceUpdated(bookingId)
                   toast.success('Times updated')
                   await refresh()
                 } catch (e: unknown) {
@@ -348,6 +375,7 @@ export function TrainingAttendancePanel({
                     expert_entry_at: entry,
                     expert_exit_at: exit,
                   })
+                  notifyTrainingAttendanceUpdated(bookingId)
                   toast.success('Resubmitted for review')
                   await refresh()
                 } catch (e: unknown) {
