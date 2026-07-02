@@ -25,12 +25,35 @@ function requirementKey(type, id) {
   return `${type}:${id}`;
 }
 
-function closedStatus(status) {
-  return ['closed', 'completed', 'cancelled', 'canceled'].includes(String(status || '').toLowerCase());
+function cancelledStatus(status) {
+  return ['closed', 'cancelled', 'canceled'].includes(String(status || '').toLowerCase());
 }
 
 function activeStatus(status) {
   return ['in_progress', 'ongoing', 'active', 'accepted', 'shortlisted'].includes(String(status || '').toLowerCase());
+}
+
+function boolParam(value) {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (typeof value === 'boolean') return value;
+  const normalized = String(value).trim().toLowerCase();
+  if (['true', '1', 'yes'].includes(normalized)) return true;
+  if (['false', '0', 'no'].includes(normalized)) return false;
+  return undefined;
+}
+
+function numberParam(value) {
+  if (value === undefined || value === null || value === '') return undefined;
+  const num = Number(value);
+  return Number.isFinite(num) ? num : undefined;
+}
+
+function splitParam(value) {
+  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
+  return String(value || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function roundPercent(value) {
@@ -118,6 +141,8 @@ class SuperAdminRepository {
       total: byCategory.projects.total + byCategory.internships.total + byCategory.freelance.total,
       running: byCategory.projects.running + byCategory.internships.running + byCategory.freelance.running,
       pending: byCategory.projects.pending + byCategory.internships.pending + byCategory.freelance.pending,
+      completed: byCategory.projects.completed + byCategory.internships.completed + byCategory.freelance.completed,
+      closed_incomplete: byCategory.projects.closed_incomplete + byCategory.internships.closed_incomplete + byCategory.freelance.closed_incomplete,
       closed: byCategory.projects.closed + byCategory.internships.closed + byCategory.freelance.closed,
       categories: byCategory,
       recent_total: all.filter((row) => row.created_at && Date.now() - new Date(row.created_at).getTime() < 30 * 24 * 60 * 60 * 1000).length,
@@ -129,8 +154,9 @@ class SuperAdminRepository {
       summary.total += 1;
       const status = row.derived_status || 'pending';
       summary[status] = (summary[status] || 0) + 1;
+      if (status === 'completed' || status === 'closed_incomplete') summary.closed += 1;
       return summary;
-    }, { total: 0, running: 0, pending: 0, closed: 0 });
+    }, { total: 0, running: 0, pending: 0, completed: 0, closed_incomplete: 0, closed: 0 });
   }
 
   async fetchRequirementRowsForStats(type) {
@@ -173,9 +199,10 @@ class SuperAdminRepository {
         : period === 'weekly'
           ? `${date.getFullYear()}-W${Math.ceil((((date - new Date(date.getFullYear(), 0, 1)) / 86400000) + 1) / 7)}`
           : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      buckets[key] = buckets[key] || { label: key, total: 0, running: 0, pending: 0, closed: 0 };
+      buckets[key] = buckets[key] || { label: key, total: 0, running: 0, pending: 0, completed: 0, closed_incomplete: 0, closed: 0 };
       buckets[key].total += 1;
       buckets[key][row.derived_status] = (buckets[key][row.derived_status] || 0) + 1;
+      if (row.derived_status === 'completed' || row.derived_status === 'closed_incomplete') buckets[key].closed += 1;
     }
     return {
       category,
@@ -445,13 +472,14 @@ class SuperAdminRepository {
     return rows;
   }
 
-  async listProfiles(type, { page, limit, offset, search, interested }) {
+  async listProfiles(type, params = {}) {
+    const { page, limit, offset, search } = params;
     const table = type === 'institutions' ? 'institutions' : type === 'students' ? 'site_students' : 'experts';
     const select = type === 'students'
-      ? 'id, name, email, phone, city, state, degree, institution_id, created_at, institutions:institution_id(id, name)'
+      ? 'id, name, email, phone, city, state, degree, specialization, skills, year, availability, preferred_engagement, preferred_work_mode, currently_studying, institution_id, created_at, institutions:institution_id(id, name)'
       : type === 'institutions'
-        ? 'id, name, email, phone, type, city, state, logo_url, created_at'
-        : 'id, name, email, phone, city, state, domain_expertise, hourly_rate, is_verified, calxbook_verified, interested_in_services, expert_services, service_price, course_video_url, created_at';
+        ? 'id, name, email, phone, type, city, state, logo_url, is_verified, student_count, established_year, created_at'
+        : 'id, name, email, phone, city, state, domain_expertise, subskills, expert_types, expert_services, current_designation, experience_years, hourly_rate, is_verified, kyc_status, calxbook_verified, interested_in_services, service_price, course_video_url, created_at';
 
     let query = this.client
       .from(table)
@@ -464,8 +492,68 @@ class SuperAdminRepository {
       query = query.or(`name.ilike.${s},email.ilike.${s}`);
     }
 
-    if (type === 'experts' && interested !== undefined) {
-      query = query.eq('interested_in_services', Boolean(interested));
+    if (type === 'experts') {
+      const domains = splitParam(params.domain_expertise);
+      const skills = splitParam(params.skill);
+      const expertTypes = splitParam(params.expert_type);
+      const expertServices = splitParam(params.expert_service);
+      const experienceMin = numberParam(params.experience_min);
+      const experienceMax = numberParam(params.experience_max);
+      const hourlyRateMin = numberParam(params.hourly_rate_min);
+      const hourlyRateMax = numberParam(params.hourly_rate_max);
+      const isVerified = boolParam(params.is_verified);
+      const calxbookVerified = boolParam(params.calxbook_verified);
+      const interested = boolParam(params.interested);
+
+      if (domains.length) query = query.overlaps('domain_expertise', domains);
+      if (skills.length) query = query.overlaps('subskills', skills);
+      if (expertTypes.length) query = query.overlaps('expert_types', expertTypes);
+      if (expertServices.length) query = query.overlaps('expert_services', expertServices);
+      if (params.designation) query = query.ilike('current_designation', `%${String(params.designation).trim()}%`);
+      if (experienceMin !== undefined) query = query.gte('experience_years', experienceMin);
+      if (experienceMax !== undefined) query = query.lte('experience_years', experienceMax);
+      if (hourlyRateMin !== undefined) query = query.gte('hourly_rate', hourlyRateMin);
+      if (hourlyRateMax !== undefined) query = query.lte('hourly_rate', hourlyRateMax);
+      if (params.state) query = query.ilike('state', `%${String(params.state).trim()}%`);
+      if (params.city) query = query.ilike('city', `%${String(params.city).trim()}%`);
+      if (isVerified !== undefined) query = query.eq('is_verified', isVerified);
+      if (params.kyc_status) query = query.eq('kyc_status', String(params.kyc_status).trim());
+      if (calxbookVerified !== undefined) query = query.eq('calxbook_verified', calxbookVerified);
+      if (interested !== undefined) query = query.eq('interested_in_services', interested);
+    }
+
+    if (type === 'institutions') {
+      const isVerified = boolParam(params.is_verified);
+      const studentCountMin = numberParam(params.student_count_min);
+      const studentCountMax = numberParam(params.student_count_max);
+      const establishedYearMin = numberParam(params.established_year_min);
+      const establishedYearMax = numberParam(params.established_year_max);
+
+      if (params.institution_type) query = query.eq('type', String(params.institution_type).trim());
+      if (params.city) query = query.ilike('city', `%${String(params.city).trim()}%`);
+      if (params.state) query = query.ilike('state', `%${String(params.state).trim()}%`);
+      if (isVerified !== undefined) query = query.eq('is_verified', isVerified);
+      if (studentCountMin !== undefined) query = query.gte('student_count', studentCountMin);
+      if (studentCountMax !== undefined) query = query.lte('student_count', studentCountMax);
+      if (establishedYearMin !== undefined) query = query.gte('established_year', establishedYearMin);
+      if (establishedYearMax !== undefined) query = query.lte('established_year', establishedYearMax);
+    }
+
+    if (type === 'students') {
+      const skills = splitParam(params.skill);
+      const currentlyStudying = boolParam(params.currently_studying);
+
+      if (params.institution_id) query = query.eq('institution_id', String(params.institution_id).trim());
+      if (params.degree) query = query.ilike('degree', `%${String(params.degree).trim()}%`);
+      if (params.specialization) query = query.ilike('specialization', `%${String(params.specialization).trim()}%`);
+      if (skills.length) query = query.overlaps('skills', skills);
+      if (params.city) query = query.ilike('city', `%${String(params.city).trim()}%`);
+      if (params.state) query = query.ilike('state', `%${String(params.state).trim()}%`);
+      if (params.year) query = query.eq('year', String(params.year).trim());
+      if (params.availability) query = query.eq('availability', String(params.availability).trim());
+      if (params.preferred_engagement) query = query.eq('preferred_engagement', String(params.preferred_engagement).trim());
+      if (params.preferred_work_mode) query = query.eq('preferred_work_mode', String(params.preferred_work_mode).trim());
+      if (currentlyStudying !== undefined) query = query.eq('currently_studying', currentlyStudying);
     }
 
     const { data, error, count } = await query;
@@ -565,7 +653,13 @@ class SuperAdminRepository {
 
     const enrichedRows = await this.enrichRequirementRows(rows);
     let filteredRows = enrichedRows;
-    if (derived_status) filteredRows = filteredRows.filter((row) => row.derived_status === derived_status);
+    if (derived_status) {
+      filteredRows = filteredRows.filter((row) => (
+        derived_status === 'closed'
+          ? ['completed', 'closed_incomplete'].includes(row.derived_status)
+          : row.derived_status === derived_status
+      ));
+    }
     if (assigned_admin_id) {
       filteredRows = filteredRows.filter((row) => {
         if (assigned_admin_id === 'unassigned') return !row.assignment;
@@ -621,8 +715,11 @@ class SuperAdminRepository {
 
   deriveRequirementState(row, metrics = {}) {
     const status = row.status || row.call_status;
-    if (closedStatus(status) || metrics.completed_count > 0 || metrics.completed_bookings > 0) {
-      return { status: 'closed', progressPercent: 100, progressLabel: 'Complete' };
+    if (String(status || '').toLowerCase() === 'completed' || metrics.completed_count > 0 || metrics.completed_bookings > 0) {
+      return { status: 'completed', progressPercent: 100, progressLabel: 'Completed' };
+    }
+    if (cancelledStatus(status)) {
+      return { status: 'closed_incomplete', progressPercent: 0, progressLabel: 'Closed incomplete' };
     }
     if (row.requirement_type === 'project') {
       if ((metrics.running_bookings || 0) > 0 || (metrics.accepted_applications || 0) > 0) {

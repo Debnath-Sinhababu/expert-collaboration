@@ -45,6 +45,15 @@ function stageLabel(value: string) {
   return STAGES.find((stage) => stage.value === value)?.label || value
 }
 
+function operationsStateLabel(value?: string | null) {
+  if (value === 'running') return 'Running / live'
+  if (value === 'pending') return 'Pending start'
+  if (value === 'completed') return 'Completed'
+  if (value === 'closed_incomplete') return 'Closed incomplete'
+  if (value === 'closed') return 'Closed'
+  return value || '-'
+}
+
 function formatDate(value?: string | null) {
   return value ? new Date(value).toLocaleString() : '-'
 }
@@ -452,7 +461,7 @@ export default function SuperAdminRequirementDetailPage() {
               {detailValue('Institution', institution?.name || '-')}
               {detailValue('Institution Email', institution?.email)}
               {detailValue('Status', requirement.status || requirement.call_status || '-')}
-              {detailValue('Operations State', requirement.derived_status || '-')}
+              {detailValue('Operations State', operationsStateLabel(requirement.derived_status))}
               {detailValue('Progress', requirement.progress_label || 'Unknown')}
               {detailValue('Assigned Admin', assignment?.admin?.name || assignment?.admin?.email || 'Unassigned')}
               {detailValue('Created', formatDate(requirement.created_at))}

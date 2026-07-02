@@ -16,7 +16,7 @@ function statusValue(stats: any, key: string) {
 }
 
 function category(stats: any, key: 'projects' | 'internships' | 'freelance') {
-  return stats?.requirements?.categories?.[key] || { total: 0, running: 0, pending: 0, closed: 0 }
+  return stats?.requirements?.categories?.[key] || { total: 0, running: 0, pending: 0, completed: 0, closed_incomplete: 0, closed: 0 }
 }
 
 export default function SuperAdminOverviewPage() {
@@ -90,11 +90,12 @@ export default function SuperAdminOverviewPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard label="Total Requirements" value={statusValue(stats, 'total')} icon={ListChecks} helper="All business work items" />
         <StatCard label="Running / Live" value={statusValue(stats, 'running')} icon={Activity} tone="blue" helper="Expert or worker selected" />
         <StatCard label="Pending Start" value={statusValue(stats, 'pending')} icon={TrendingUp} tone="amber" helper="Open and not started" />
-        <StatCard label="Closed" value={statusValue(stats, 'closed')} icon={BriefcaseBusiness} tone="slate" helper="Completed or closed" />
+        <StatCard label="Completed" value={statusValue(stats, 'completed')} icon={ListChecks} tone="green" helper="Work completed" />
+        <StatCard label="Closed Incomplete" value={statusValue(stats, 'closed_incomplete')} icon={BriefcaseBusiness} tone="slate" helper="Closed without completion" />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -114,17 +115,17 @@ export default function SuperAdminOverviewPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-semibold text-slate-950">{item.label}</p>
-                    <p className="mt-1 text-xs text-slate-500">Total, running, pending, closed</p>
+                    <p className="mt-1 text-xs text-slate-500">Total, running, pending, completed, incomplete</p>
                   </div>
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-[#008260] shadow-sm">
                     <Icon className="h-5 w-5" />
                   </div>
                 </div>
-                <div className="mt-4 grid grid-cols-4 gap-2 text-center">
-                  {['total', 'running', 'pending', 'closed'].map((key) => (
+                <div className="mt-4 grid grid-cols-5 gap-2 text-center">
+                  {['total', 'running', 'pending', 'completed', 'closed_incomplete'].map((key) => (
                     <div key={key} className="rounded-md bg-white px-2 py-2">
                       <p className="text-lg font-bold text-slate-950">{values[key] || 0}</p>
-                      <p className="text-[11px] capitalize text-slate-500">{key}</p>
+                      <p className="text-[11px] capitalize text-slate-500">{key === 'closed_incomplete' ? 'incomplete' : key}</p>
                     </div>
                   ))}
                 </div>

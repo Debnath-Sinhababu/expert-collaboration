@@ -26,6 +26,25 @@ import { PermissionGate } from '@/components/superadmin/common/PermissionGate'
 
 const PAGE_SIZE = 20
 
+function derivedStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    running: 'Running / live',
+    pending: 'Pending start',
+    completed: 'Completed',
+    closed_incomplete: 'Closed incomplete',
+    closed: 'Closed',
+  }
+  return labels[status] || status || 'Pending'
+}
+
+function derivedStatusClass(status: string) {
+  if (status === 'running') return 'bg-sky-50 text-sky-700'
+  if (status === 'completed') return 'bg-emerald-50 text-emerald-700'
+  if (status === 'closed_incomplete') return 'bg-rose-50 text-rose-700'
+  if (status === 'closed') return 'bg-slate-100 text-slate-700'
+  return 'bg-amber-50 text-amber-700'
+}
+
 export default function SuperAdminRequirementsPage() {
   const [type, setType] = useState('all')
   const [status, setStatus] = useState('all')
@@ -254,11 +273,12 @@ export default function SuperAdminRequirementsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <StatCard label="All Requirements" value={total || rows.length} icon={ListFilter} helper="Across all institutes" />
         <StatCard label="Projects" value={rows.filter((r) => r.requirement_type === 'project').length} icon={BriefcaseBusiness} tone="blue" helper="Current page" />
         <StatCard label="Internships" value={rows.filter((r) => r.requirement_type === 'internship').length} icon={GraduationCap} tone="amber" helper="Current page" />
         <StatCard label="Freelance" value={rows.filter((r) => r.requirement_type === 'freelance').length} icon={Handshake} tone="violet" helper="Current page" />
+        <StatCard label="Completed" value={rows.filter((r) => r.derived_status === 'completed').length} icon={ListFilter} tone="green" helper="Current page" />
       </div>
       <SectionCard
         title="Requirements"
@@ -303,7 +323,9 @@ export default function SuperAdminRequirementsPage() {
                 <SelectItem value="all">All states</SelectItem>
                 <SelectItem value="running">Running / live</SelectItem>
                 <SelectItem value="pending">Pending start</SelectItem>
-                <SelectItem value="closed">Closed</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="closed_incomplete">Closed incomplete</SelectItem>
+                <SelectItem value="closed">Closed aggregate</SelectItem>
               </SelectContent>
             </Select>
             <Select value={assignedAdminId} onValueChange={setAssignedAdminId}>
@@ -370,8 +392,8 @@ export default function SuperAdminRequirementsPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold capitalize text-slate-700">{row.requirement_type}</span>
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${row.derived_status === 'running' ? 'bg-sky-50 text-sky-700' : row.derived_status === 'closed' ? 'bg-slate-100 text-slate-700' : 'bg-amber-50 text-amber-700'}`}>
-                      {row.derived_status || row.status || 'pending'}
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${derivedStatusClass(row.derived_status)}`}>
+                      {derivedStatusLabel(row.derived_status || row.status)}
                     </span>
                     <span className="text-xs text-slate-500">{row.status || row.call_status || 'open'}</span>
                   </div>

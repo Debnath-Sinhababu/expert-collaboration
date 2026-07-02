@@ -26,6 +26,7 @@ export type AttendanceSummary = {
 export type AttendancePayload = {
   days: AttendanceDayFull[]
   summary: AttendanceSummary
+  rangeSummary?: AttendanceSummary
   booking?: {
     status?: string
     start_date?: string | null
