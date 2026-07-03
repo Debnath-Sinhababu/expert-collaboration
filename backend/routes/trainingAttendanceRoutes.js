@@ -271,8 +271,15 @@ function registerTrainingAttendanceRoutes(app, upload) {
       if (from) query = query.gte('session_date', from);
       if (to) query = query.lte('session_date', to);
 
-      const { data: days, error } = await query;
+      const [{ data: days, error }, { data: allDays, error: allDaysError }] = await Promise.all([
+        query,
+        ctx.service
+          .from('training_attendance_days')
+          .select('*')
+          .eq('booking_id', req.params.bookingId),
+      ]);
       if (error) throw error;
+      if (allDaysError) throw allDaysError;
 
       let mergedDays = days || [];
       if (from || to) {
@@ -291,10 +298,11 @@ function registerTrainingAttendanceRoutes(app, upload) {
         );
       }
 
-      const summary = computeSummary(mergedDays, ctx.booking.hours_booked);
+      const summary = computeSummary(allDays || [], ctx.booking.hours_booked);
       res.json({
         days: mergedDays,
         summary,
+        rangeSummary: computeSummary(mergedDays, ctx.booking.hours_booked),
         booking: {
           id: ctx.booking.id,
           status: ctx.booking.status,

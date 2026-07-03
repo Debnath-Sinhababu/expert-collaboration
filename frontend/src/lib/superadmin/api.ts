@@ -91,7 +91,40 @@ export const superAdminApi = {
     request<any>('/api/superadmin/admins', { method: 'POST', body: JSON.stringify(body) }),
   updateAdmin: (id: string, body: Record<string, unknown>) =>
     request<any>(`/api/superadmin/admins/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
-  profiles: (params: { type: 'experts' | 'institutions' | 'students'; page?: number; limit?: number; search?: string; interested?: boolean }) =>
+  profiles: (params: {
+    type: 'experts' | 'institutions' | 'students'
+    page?: number
+    limit?: number
+    search?: string
+    domain_expertise?: string
+    skill?: string
+    expert_type?: string
+    expert_service?: string
+    designation?: string
+    experience_min?: string | number
+    experience_max?: string | number
+    hourly_rate_min?: string | number
+    hourly_rate_max?: string | number
+    city?: string
+    state?: string
+    is_verified?: string | boolean
+    kyc_status?: string
+    calxbook_verified?: string | boolean
+    interested?: string | boolean
+    institution_id?: string
+    degree?: string
+    specialization?: string
+    year?: string
+    availability?: string
+    preferred_engagement?: string
+    preferred_work_mode?: string
+    currently_studying?: string | boolean
+    student_count_min?: string | number
+    student_count_max?: string | number
+    established_year_min?: string | number
+    established_year_max?: string | number
+    institution_type?: string
+  }) =>
     request<PaginatedResponse<any>>(`/api/superadmin/profiles?${query({ ...params, _t: Date.now() })}`),
   bulkImportExperts: (body: Record<string, unknown>) =>
     request<any>('/api/superadmin/bulk-import/experts', { method: 'POST', body: JSON.stringify(body) }),
