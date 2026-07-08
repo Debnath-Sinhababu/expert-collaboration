@@ -14,6 +14,9 @@ import ProfileDropdown from '@/components/ProfileDropdown'
 import { Eye, Briefcase } from 'lucide-react'
 import { usePagination } from '@/hooks/usePagination'
 import Logo from '@/components/Logo'
+import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
+import { fetchInstitutionForWorkspace, profileSetupPath } from '@/lib/institutionWorkspace'
+import { ShareRequirementButton } from '@/components/requirements/ShareRequirementButton'
 
 export default function CorporateInternshipsDashboard() {
   const [loading, setLoading] = useState(true)
@@ -22,6 +25,7 @@ export default function CorporateInternshipsDashboard() {
   const [institution, setInstitution] = useState<any>(null)
   const [internships, setInternships] = useState<any[]>([])
   const router = useRouter()
+  const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
 
   useEffect(() => {
     const init = async () => {
@@ -32,14 +36,14 @@ export default function CorporateInternshipsDashboard() {
           return
         }
         setUser(user)
-        const inst = await api.institutions.getByUserId(user.id)
+        const inst = await fetchInstitutionForWorkspace(user.id, viewer, actingInstitutionId)
         if (!inst) {
-          router.push('/institution/profile-setup')
+          router.push(profileSetupPath(viewer))
           return
         }
         setInstitution(inst)
         if ((inst.type || '').toLowerCase() !== 'corporate') {
-          router.push('/institution/home')
+          router.push(`${basePath}/home`)
           return
         }
       } catch (e: any) {
@@ -49,7 +53,7 @@ export default function CorporateInternshipsDashboard() {
       }
     }
     init()
-  }, [router])
+  }, [router, viewer, actingInstitutionId, basePath])
 
   const { data, loading: listLoading, hasMore, loadMore, refresh } = usePagination(
     async (page: number) => {
@@ -79,14 +83,18 @@ export default function CorporateInternshipsDashboard() {
       <header className="bg-[#008260] backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
-            <Link href="/institution/home" className="flex items-center group">
+            <Link href={`${basePath}/home`} className="flex items-center group">
               <Logo size="header" />
             </Link>
             <div className="flex items-center space-x-6">
              
          
               <NotificationBell />
-              <ProfileDropdown user={user} institution={institution} userType="institution" />
+              <ProfileDropdown
+                user={user}
+                institution={institution}
+                userType={viewer === 'super_admin' ? 'super_admin' : 'institution'}
+              />
             </div>
           </div>
         </div>
@@ -123,7 +131,7 @@ export default function CorporateInternshipsDashboard() {
                 <p className="text-[#000000] font-medium">No internships posted yet</p>
                 <p className="text-sm text-[#6A6A6A] mt-1">Create your first internship to reach institutions</p>
                 <div className="mt-4">
-                  <Link href="/institution/post-requirement">
+                  <Link href={`${basePath}/post-requirement`}>
                     <Button className="bg-[#008260] hover:bg-[#006B4F] text-white">Post Internship</Button>
                   </Link>
                 </div>
@@ -171,10 +179,15 @@ export default function CorporateInternshipsDashboard() {
                       </div>
                     </div>
 
-                    <div className="flex justify-end">
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <ShareRequirementButton
+                        path={`/requirements/internship/${item.id}`}
+                        title={item.title}
+                        className="border-[#DCDCDC]"
+                      />
                       <Button 
                         size="sm" 
-                        onClick={() => router.push(`/institution/internships/${item.id}`)}
+                        onClick={() => router.push(`${basePath}/internships/${item.id}`)}
                         className="bg-[#008260] hover:bg-[#006B4F] text-white rounded-md px-6 w-full sm:w-auto"
                       >
                         View

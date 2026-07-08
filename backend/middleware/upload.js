@@ -4,27 +4,74 @@ const path = require('path');
 // Configure multer for memory storage (we'll upload directly to Cloudinary)
 const storage = multer.memoryStorage();
 
-// File filter to allow images and PDFs
+// PDFs (resume, qualifications) and profile video share the same 20MB cap per file.
+const MAX_FILE_BYTES = 20 * 1024 * 1024;
+
+const DOCUMENT_EXTS = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.csv'];
+const DOCUMENT_MIMES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/csv',
+  'application/csv',
+  'text/plain',
+];
+
+// File filter: images/documents for most fields; MP4/WebM/MOV for profile_video and course_video
 const fileFilter = (req, file, cb) => {
-  // Check file type
-  const allowedTypes = /jpeg|jpg|png|webp|pdf/;
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedTypes.test(file.mimetype) || file.mimetype === 'application/pdf';
+  // Accept video files for profile_video and course_video
+  if (file.fieldname === 'profile_video' || file.fieldname === 'course_video') {
+    const videoExts = ['.mp4', '.webm', '.mov'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    const okExt = videoExts.includes(ext);
+    const videoMimes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/ogg'];
+    const okMime = videoMimes.includes(file.mimetype);
+    if (okExt && okMime) {
+      return cb(null, true);
+    }
+    return cb(new Error('Video must be MP4, WebM, or MOV'), false);
+  }
+
+  const ext = path.extname(file.originalname).toLowerCase();
+  const documentField =
+    file.fieldname === 'requirement_pdf' ||
+    file.fieldname === 'attendance_attachment' ||
+    file.fieldname === 'entry_attachment' ||
+    file.fieldname === 'exit_attachment';
+
+  if (documentField) {
+    const okExt = DOCUMENT_EXTS.includes(ext);
+    const okMime = DOCUMENT_MIMES.includes(file.mimetype);
+    if (okExt && okMime) {
+      return cb(null, true);
+    }
+    return cb(new Error('Document must be PDF, DOC, DOCX, XLS, XLSX, or CSV'), false);
+  }
+
+  // Otherwise accept images and common documents.
+  const allowedTypes = /jpeg|jpg|png|webp|pdf|doc|docx|xls|xlsx|csv/;
+  const extname = allowedTypes.test(ext);
+  const mimetype = allowedTypes.test(file.mimetype) || DOCUMENT_MIMES.includes(file.mimetype);
 
   if (mimetype && extname) {
     return cb(null, true);
-  } else {
-    cb(new Error('Only image files (jpeg, jpg, png, webp) and PDF files are allowed!'), false);
   }
+  cb(new Error('Only image files (jpeg, jpg, png, webp) and documents (PDF, DOC, DOCX, XLS, XLSX, CSV) are allowed!'), false);
 };
 
-// Configure multer
+const limits = {
+  fileSize: MAX_FILE_BYTES,
+};
+
 const upload = multer({
   storage: storage,
-  limits: {
-    fileSize: 20 * 1024 * 1024, // 20MB limit for PDFs
-  },
+  limits,
   fileFilter: fileFilter,
 });
 
 module.exports = upload;
+module.exports.MAX_FILE_BYTES = MAX_FILE_BYTES;
+module.exports.VIDEO_MAX_BYTES = MAX_FILE_BYTES;
+module.exports.OTHER_MAX_BYTES = MAX_FILE_BYTES;

@@ -18,9 +18,36 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
+import { getInstitutionRate } from '@/lib/utils'
+import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
+import { fetchInstitutionForWorkspace } from '@/lib/institutionWorkspace'
+import { ScreeningQuestionsEditor } from '@/components/requirements/ScreeningQuestionsEditor'
+import { EMPLOYMENT_TYPE_OPTIONS, WORKPLACE_TYPE_OPTIONS } from '@/lib/requirementLabels'
+import { expertDisplayName } from '@/lib/privacyDisplay'
+import { ExpertAvailabilityTrigger } from '@/components/expert/ExpertAvailabilityTrigger'
+
+function formatInterviewPeriodDate(value: string) {
+  if (!value) return ''
+  const date = new Date(`${value}T00:00:00Z`)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
+}
+
+function formatInterviewPeriodInterval(startDate: string, endDate: string) {
+  const start = formatInterviewPeriodDate(startDate)
+  const end = formatInterviewPeriodDate(endDate)
+  if (!start || !end) return ''
+  return start === end ? start : `${start} to ${end}`
+}
 
 export default function ContractForm() {
   const router = useRouter()
+  const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
   const [user, setUser] = useState<any>(null)
   const [institution, setInstitution] = useState<any>(null)
   const [error, setError] = useState('')
@@ -45,10 +72,20 @@ export default function ContractForm() {
     start_date: '',
     end_date: '',
     duration_hours: '',
+    opening_count: '1',
     required_expertise: '',
     domain_expertise: '',
-    subskills: [] as string[]
+    subskills: [] as string[],
+    job_location: '',
+    workplace_type: '',
+    employment_type: '',
+    interview_period_start_date: '',
+    interview_period_end_date: '',
+    screening_questions: [] as string[],
   })
+
+  const [requirementPdf, setRequirementPdf] = useState<File | null>(null)
+  const [requirementPdfError, setRequirementPdfError] = useState<string | null>(null)
 
   useEffect(() => {
     const init = async () => {
@@ -56,12 +93,12 @@ export default function ContractForm() {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) { router.push('/auth/login'); return }
         setUser(user)
-        const inst = await api.institutions.getByUserId(user.id)
+        const inst = await fetchInstitutionForWorkspace(user.id, viewer, actingInstitutionId)
         setInstitution(inst)
       } catch (e: any) { setError(e.message || 'Failed to load context') }
     }
     init()
-  }, [router])
+  }, [router, viewer, actingInstitutionId])
 
   const handleDomainChange = (domain: string) => {
     setForm(prev => ({ ...prev, domain_expertise: domain, subskills: [] }))
@@ -84,8 +121,24 @@ export default function ContractForm() {
     if (!form.end_date) { toast.error('Select end date'); return false }
     if (new Date(form.end_date) <= new Date(form.start_date)) { toast.error('End date must be after start date'); return false }
     if (!form.duration_hours || parseInt(form.duration_hours) <= 0) { toast.error('Enter duration hours'); return false }
+    if (!form.opening_count || parseInt(form.opening_count) <= 0) { toast.error('Enter opening people count'); return false }
     if (!form.domain_expertise) { toast.error('Select domain expertise'); return false }
     if (!form.subskills || form.subskills.length === 0) { toast.error('Select required specializations'); return false }
+    if (!form.workplace_type) { toast.error('Select workplace type'); return false }
+    if (!form.employment_type) { toast.error('Select employment type'); return false }
+    if (!form.job_location.trim()) { toast.error('Enter job location'); return false }
+    if ((form.interview_period_start_date && !form.interview_period_end_date) || (!form.interview_period_start_date && form.interview_period_end_date)) {
+      toast.error('Select both interview period dates or leave both blank')
+      return false
+    }
+    if (
+      form.interview_period_start_date &&
+      form.interview_period_end_date &&
+      new Date(form.interview_period_end_date) < new Date(form.interview_period_start_date)
+    ) {
+      toast.error('Interview period end date must be on or after start date')
+      return false
+    }
     if (!form.description.trim()) { toast.error('Add description'); return false }
     return true
   }
@@ -202,7 +255,7 @@ export default function ContractForm() {
       toast.success(message)
       setShowExpertSelectionModal(false)
       setSelectedExperts([])
-      router.push('/institution/dashboard')
+      router.push(`${basePath}/dashboard`)
     } catch (error) {
       console.error('Error notifying experts:', error)
       toast.error('Failed to notify some experts')
@@ -213,24 +266,54 @@ export default function ContractForm() {
 
   const submit = async () => {
     if (!validate()) return
+    if (requirementPdfError) {
+      toast.error(requirementPdfError)
+      return
+    }
     setSubmitting(true)
     try {
+      const interviewPeriodInterval = formatInterviewPeriodInterval(
+        form.interview_period_start_date,
+        form.interview_period_end_date
+      )
       const payload = {
         ...form,
+        interview_period_interval: interviewPeriodInterval || undefined,
         institution_id: institution?.id,
         hourly_rate: parseFloat(form.hourly_rate),
         total_budget: parseFloat(form.total_budget),
         duration_hours: parseInt(form.duration_hours),
+        opening_count: parseInt(form.opening_count),
         required_expertise: form.required_expertise.split(',').map(s => s.trim()).filter(Boolean)
       }
-      const response = await api.projects.create(payload)
+      delete (payload as any).interview_period_start_date
+      delete (payload as any).interview_period_end_date
+      const formData = new FormData()
+      const screeningFiltered = form.screening_questions.map((q) => q.trim()).filter(Boolean)
+
+      Object.entries(payload).forEach(([key, value]) => {
+        if (value === undefined || value === null) return
+        if (key === 'screening_questions') return
+        if (Array.isArray(value)) {
+          formData.append(key, value.join(','))
+          return
+        }
+        formData.append(key, String(value))
+      })
+      formData.append('screening_questions', JSON.stringify(screeningFiltered))
+
+      if (requirementPdf) {
+        formData.append('requirement_pdf', requirementPdf)
+      }
+
+      const response = await api.projects.create(formData)
       toast.success('Requirement posted successfully!')
       
       // Load recommended experts for the new project
       if (response && response.id) {
         await loadRecommendedExperts(response.id)
       } else {
-        router.push('/institution/dashboard')
+        router.push(`${basePath}/dashboard`)
       }
     } catch (e: any) {
       toast.error(e.message || 'Failed to create project')
@@ -281,12 +364,75 @@ export default function ContractForm() {
               <Input type="date" value={form.start_date} onChange={(e) => setForm(prev => ({ ...prev, start_date: e.target.value }))} placeholder="DD/MM/YYYY" className="border-[#DCDCDC]" />
             </div>
             <div>
-              <Label className="text-[#000000] font-medium mb-2 block">End Date *</Label>
+              <Label className="text-[#000000] font-medium mb-2 block">Approx End Date *</Label>
               <Input type="date" value={form.end_date} onChange={(e) => setForm(prev => ({ ...prev, end_date: e.target.value }))} placeholder="DD/MM/YYYY" className="border-[#DCDCDC]" />
             </div>
             <div>
               <Label className="text-[#000000] font-medium mb-2 block">Duration (Hours) *</Label>
               <Input type="number" placeholder="40" value={form.duration_hours} onChange={(e) => setForm(prev => ({ ...prev, duration_hours: e.target.value }))} className="border-[#DCDCDC]" />
+            </div>
+            <div>
+              <Label className="text-[#000000] font-medium mb-2 block">Opening people count *</Label>
+              <Input type="number" min="1" placeholder="1" value={form.opening_count} onChange={(e) => setForm(prev => ({ ...prev, opening_count: e.target.value }))} className="border-[#DCDCDC]" />
+            </div>
+            <div>
+              <Label className="text-[#000000] font-medium mb-2 block">Job location *</Label>
+              <Input placeholder="e.g. Bengaluru, Karnataka or Remote — India" value={form.job_location} onChange={(e) => setForm(prev => ({ ...prev, job_location: e.target.value }))} className="border-[#DCDCDC]" />
+            </div>
+            <div>
+              <Label className="text-[#000000] font-medium mb-2 block">Workplace type *</Label>
+              <Select value={form.workplace_type} onValueChange={(v) => setForm(prev => ({ ...prev, workplace_type: v }))}>
+                <SelectTrigger className="border-[#DCDCDC]">
+                  <SelectValue placeholder="Remote / Hybrid / On-site" />
+                </SelectTrigger>
+                <SelectContent>
+                  {WORKPLACE_TYPE_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-[#000000] font-medium mb-2 block">Employment type *</Label>
+              <Select value={form.employment_type} onValueChange={(v) => setForm(prev => ({ ...prev, employment_type: v }))}>
+                <SelectTrigger className="border-[#DCDCDC]">
+                  <SelectValue placeholder="Full-time / Part-time / Contract" />
+                </SelectTrigger>
+                <SelectContent>
+                  {EMPLOYMENT_TYPE_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="md:col-span-2">
+              <Label className="text-[#000000] font-medium mb-2 block">Interview period (optional)</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-lg border border-[#DCDCDC] p-3">
+                <div>
+                  <Label className="text-xs text-[#6A6A6A] mb-1 block">Start date</Label>
+                  <Input
+                    type="date"
+                    value={form.interview_period_start_date}
+                    onChange={(e) => setForm(prev => ({ ...prev, interview_period_start_date: e.target.value }))}
+                    className="border-[#DCDCDC]"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-[#6A6A6A] mb-1 block">End date</Label>
+                  <Input
+                    type="date"
+                    value={form.interview_period_end_date}
+                    min={form.interview_period_start_date || undefined}
+                    onChange={(e) => setForm(prev => ({ ...prev, interview_period_end_date: e.target.value }))}
+                    className="border-[#DCDCDC]"
+                  />
+                </div>
+              </div>
+              {form.interview_period_start_date && form.interview_period_end_date && (
+                <p className="mt-2 text-xs text-[#6A6A6A]">
+                  Expert will see: <span className="font-medium text-[#000000]">{formatInterviewPeriodInterval(form.interview_period_start_date, form.interview_period_end_date)}</span>
+                </p>
+              )}
             </div>
             <div>
               <Label className="text-[#000000] font-medium mb-2 block">Domain Expertise *</Label>
@@ -311,8 +457,84 @@ export default function ContractForm() {
             <div className="mt-4 min-w-0 max-w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
               <Label className="text-[#000000] font-medium mb-2 block">Required Specializations *</Label>
               <MultiSelect options={availableSubskills} selected={selectedSubskills} onSelectionChange={handleSubskillChange} placeholder="Select required specializations..." className="w-full min-w-0" />
+              <div className="flex gap-2 mt-2">
+                <Input
+                  placeholder="Not found? Type specialization and press Add"
+                  onKeyDown={(e) => {
+                    if (e.key !== 'Enter') return
+                    e.preventDefault()
+                    const value = e.currentTarget.value.trim()
+                    if (!value) return
+                    const next = [...new Set([...selectedSubskills, value])]
+                    handleSubskillChange(next)
+                    e.currentTarget.value = ''
+                  }}
+                  className="border-[#DCDCDC]"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={(e) => {
+                    const input = e.currentTarget.previousElementSibling as HTMLInputElement | null
+                    if (!input) return
+                    const value = input?.value.trim()
+                    if (!value) return
+                    const next = [...new Set([...selectedSubskills, value])]
+                    handleSubskillChange(next)
+                    input.value = ''
+                  }}
+                >
+                  Add
+                </Button>
+              </div>
             </div>
           )}
+
+          <div className="mt-4">
+            <Label className="text-[#000000] font-medium mb-2 block">Requirement document (optional)</Label>
+            <Input
+              type="file"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.csv"
+              className="border-[#DCDCDC]"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                setRequirementPdfError(null)
+                if (!file) {
+                  setRequirementPdf(null)
+                  return
+                }
+                const allowedExt = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv']
+                const ext = file.name.split('.').pop()?.toLowerCase()
+                if (!ext || !allowedExt.includes(ext)) {
+                  setRequirementPdf(null)
+                  setRequirementPdfError('Only PDF, DOC, DOCX, XLS, XLSX, or CSV files are allowed.')
+                  return
+                }
+                const maxSizeBytes = 20 * 1024 * 1024
+                if (file.size > maxSizeBytes) {
+                  setRequirementPdf(null)
+                  setRequirementPdfError('File size must be 20MB or less.')
+                  return
+                }
+                setRequirementPdf(file)
+              }}
+            />
+            {requirementPdf && !requirementPdfError && (
+              <p className="mt-1 text-xs text-[#6A6A6A]">
+                Selected file: <span className="font-medium text-[#000000]">{requirementPdf.name}</span>
+              </p>
+            )}
+            {requirementPdfError && (
+              <p className="mt-1 text-xs text-red-600">{requirementPdfError}</p>
+            )}
+          </div>
+
+          <div className="mt-4">
+            <ScreeningQuestionsEditor
+              questions={form.screening_questions}
+              onChange={(screening_questions) => setForm((prev) => ({ ...prev, screening_questions }))}
+            />
+          </div>
 
           <div className="mt-4">
             <Label className="text-[#000000] font-medium mb-2 block">Description*</Label>
@@ -347,7 +569,7 @@ export default function ContractForm() {
                 <Button 
                   onClick={() => {
                     setShowExpertSelectionModal(false)
-                    router.push('/institution/dashboard')
+                    router.push(`${basePath}/dashboard`)
                   }}
                   className="mt-4 bg-[#008260] hover:bg-[#006B4F] text-white"
                 >
@@ -381,7 +603,7 @@ export default function ContractForm() {
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
-                              <h4 className="font-semibold text-[#000000] truncate">{expert.name}</h4>
+                              <h4 className="font-semibold text-[#000000] truncate">{expertDisplayName(expert)}</h4>
                               <p className="text-xs text-[#6A6A6A] truncate">{expert.email}</p>
                             </div>
                           </div>
@@ -394,8 +616,15 @@ export default function ContractForm() {
                             <p className="text-xs text-[#6A6A6A] line-clamp-2">{expert.bio}</p>
                           )}
                           {expert.hourly_rate && (
-                            <p className="text-xs text-[#000000] font-medium mt-2">₹{expert.hourly_rate}/hour</p>
+                            <p className="text-xs text-[#000000] font-medium mt-2">₹{getInstitutionRate(expert.hourly_rate)}/hour</p>
                           )}
+                          <ExpertAvailabilityTrigger
+                            expertId={expert.id}
+                            startDate={form.start_date}
+                            endDate={form.end_date}
+                            projectId={selectedProjectId}
+                            className="mt-3"
+                          />
                         </div>
                       </div>
                     </label>
@@ -414,7 +643,7 @@ export default function ContractForm() {
                 variant="outline" 
                 onClick={() => {
                   setShowExpertSelectionModal(false)
-                  router.push('/institution/dashboard')
+                  router.push(`${basePath}/dashboard`)
                 }}
                 className="border border-[#DCDCDC] hover:border-[#008260] hover:bg-[#E8F5F1] text-[#000000] hover:text-[#008260]"
               >

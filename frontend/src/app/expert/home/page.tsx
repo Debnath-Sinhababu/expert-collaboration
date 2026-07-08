@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel'
@@ -35,6 +36,12 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useExpertWorkspace } from '@/contexts/ExpertWorkspaceContext'
+import { fetchExpertForWorkspace, expertProfileSetupPath } from '@/lib/expertWorkspace'
+import { ShareRequirementButton } from '@/components/requirements/ShareRequirementButton'
+import { institutionDisplayName } from '@/lib/privacyDisplay'
+import { ExpertTrainingAttendanceSidebar } from '@/components/training/ExpertTrainingAttendanceSidebar'
+import { InterviewAvailabilitySelector, type InterviewSlot } from '@/components/requirements/InterviewAvailabilitySelector'
 
 type UserMeta = { role?: string; name?: string }
 type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }
@@ -64,6 +71,7 @@ export default function ExpertHome() {
     hourly_rate?: number
     duration_hours?: number
     type?: string
+    interview_period_interval?: string | null
     domain_expertise?: string
     required_expertise?: string[]
     subskills?: string[]
@@ -92,7 +100,9 @@ export default function ExpertHome() {
   const [maxRate, setMaxRate] = useState('')
   const [applicationForm, setApplicationForm] = useState({
     coverLetter: '',
-    proposedRate: ''
+    proposedRate: '',
+    agreeProjectPrice: true,
+    interviewAvailability: [] as InterviewSlot[]
   })
   const [showApplicationModal, setShowApplicationModal] = useState(false)
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
@@ -108,6 +118,7 @@ export default function ExpertHome() {
   const [loadingRecommendations, setLoadingRecommendations] = useState(false)
 
   const router = useRouter()
+  const { viewer, actingExpertId, basePath } = useExpertWorkspace()
 
   // Use pagination hook for projects (same pattern as dashboard)
   const {
@@ -157,17 +168,23 @@ export default function ExpertHome() {
       if (!currentUser) return
 
       const userRole = currentUser.user_metadata?.role
-      if (userRole !== 'expert') {
+      if (userRole !== 'expert' && userRole !== 'super_admin') {
+        router.push('/')
+        return
+      }
+      if (userRole === 'super_admin' && viewer !== 'super_admin') {
+        router.push('/superadmin/home')
+        return
+      }
+      if (viewer === 'super_admin' && userRole !== 'super_admin') {
         router.push('/')
         return
       }
 
-      // Get expert profile
-      const expertProfile = await api.experts.getByUserId(currentUser.id)
-     
-      
+      const expertProfile = await fetchExpertForWorkspace(currentUser.id, viewer, actingExpertId)
+
       if (!expertProfile) {
-        router.push('/expert/profile-setup')
+        router.push(expertProfileSetupPath(viewer))
         return
       }
       
@@ -188,8 +205,7 @@ export default function ExpertHome() {
     loadExpertData()
     loadUniversities()
     loadCorporates()
-    
-  }, [router])
+  }, [router, viewer, actingExpertId])
 
   useEffect(()=>{
     if(expert){
@@ -265,15 +281,23 @@ export default function ExpertHome() {
       setIsApplying(true)
       setError('')
        
+      const selectedProject = [
+        ...(projects as Project[]),
+        ...recommendedProjects,
+      ].find((p) => p.id === projectId)
+      const proposedRate = applicationForm.agreeProjectPrice
+        ? selectedProject?.hourly_rate
+        : parseFloat(applicationForm.proposedRate)
       const response = await api.applications.create({
         project_id: projectId,
         cover_letter: applicationForm.coverLetter,
-        proposed_rate: parseFloat(applicationForm.proposedRate) || expert?.hourly_rate || 0
+        proposed_rate: proposedRate || expert?.hourly_rate || 0,
+        interview_availability: applicationForm.interviewAvailability
       })
 
       if (response && response.id) {
         setSuccess('Application submitted successfully!')
-        setApplicationForm({ coverLetter: '', proposedRate: '' })
+        setApplicationForm({ coverLetter: '', proposedRate: '', agreeProjectPrice: true, interviewAvailability: [] })
         setShowApplicationModal(false)
         setSelectedProjectId(null)
         refreshProjects()
@@ -299,7 +323,7 @@ export default function ExpertHome() {
   const handleOpenApplicationModal = (projectId: string) => {
     setSelectedProjectId(projectId)
     setShowApplicationModal(true)
-    setApplicationForm({ coverLetter: '', proposedRate: '' })
+    setApplicationForm({ coverLetter: '', proposedRate: '', agreeProjectPrice: true, interviewAvailability: [] })
   }
 
   const getProjectTypeLabel = (type: string) => {
@@ -341,6 +365,12 @@ export default function ExpertHome() {
     )
   }
 
+  const selectedApplicationProject = [
+    ...(projects as Project[]),
+    ...recommendedProjects,
+  ].find((project) => project.id === selectedProjectId)
+  const needsCustomRate = !applicationForm.agreeProjectPrice && !applicationForm.proposedRate
+
   return (
     <div className="min-h-screen bg-[#ECF2FF]">
       {/* Header */}
@@ -348,17 +378,17 @@ export default function ExpertHome() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
-            <Link href="/expert/home" className="flex items-center group">
+            <Link href={`${basePath}/home`} className="flex items-center group">
               <Logo size="header" />
             </Link>
 
             {/* Navigation */}
             <nav className="hidden md:flex items-center space-x-8">
-              <Link href="/expert/home" className="text-white font-medium transition-colors duration-200 relative group">
+              <Link href={`${basePath}/home`} className="text-white font-medium transition-colors duration-200 relative group">
                 Home
                 <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
-              <Link href="/expert/dashboard" className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
+              <Link href={`${basePath}/dashboard`} className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
                 Dashboard
                 <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
@@ -372,7 +402,7 @@ export default function ExpertHome() {
               <ProfileDropdown 
                 user={user} 
                 expert={expert} 
-                userType="expert" 
+                userType={viewer === 'super_admin' ? 'super_admin' : 'expert'} 
               />
             </div>
           </div>
@@ -390,6 +420,8 @@ export default function ExpertHome() {
               Discover new opportunities and grow your expertise
             </p>
           </div>
+
+          <ExpertTrainingAttendanceSidebar expertId={expert?.id} basePath={basePath} />
 
         {/* Recommended for You Section */}
         {recommendedProjects.length > 0 && (
@@ -432,7 +464,7 @@ export default function ExpertHome() {
                             <div className="flex flex-col mb-4 gap-4">
                               <div className="flex-1 min-w-0">
                                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between">
-                                  <Link href={`/expert/project/${project.id}`}>
+                                  <Link href={`${basePath}/project/${project.id}`}>
                                     <h3 className="text-lg sm:text-xl font-bold text-slate-900 hover:text-blue-600 cursor-pointer truncate transition-colors duration-200">
                                       {project.title}
                                     </h3>
@@ -455,7 +487,7 @@ export default function ExpertHome() {
                               <div className='flex flex-col'>
                               <div className="flex items-center text-slate-600 text-sm mb-3">
                                   <Building2 className="h-4 w-4 mr-2 flex-shrink-0" />
-                                  <span className="font-medium truncate">{project.institutions?.name}</span>
+                                  <span className="font-medium truncate">{institutionDisplayName(project.institutions)}</span>
                                 </div>
                                 <p className="text-slate-600 text-sm truncate mb-4">
                                   {project.description}
@@ -491,11 +523,16 @@ export default function ExpertHome() {
                                   <span className="hidden sm:inline">Apply Now</span>
                                   <span className="sm:hidden">Apply</span>
                                 </Button>
-                                <Link href={`/expert/project/${project.id}`}>
+                                <Link href={`${basePath}/project/${project.id}`}>
                                   <Button variant="outline" size="icon" className="border-[#008260] hover:border-[#006d51] hover:bg-[#008260]/10 flex-shrink-0 transition-all duration-200">
                                     <Eye className="h-4 w-4 text-[#008260]" />
                                   </Button>
                                 </Link>
+                                <ShareRequirementButton
+                                  path={`/requirements/contract/${project.id}`}
+                                  title={project.title || 'Training requirement'}
+                                  className="border-[#008260] text-[#008260] shrink-0"
+                                />
                               </div>
                             </div>
                           </CardContent>
@@ -548,30 +585,24 @@ export default function ExpertHome() {
                      >
                        <CarouselContent className="-ml-2">
                          {universities.map((university, index) => {
-                           // Use real university images from public folder
                            const universityImages = [
                              '/images/universitylogo1.jpeg',
                              '/images/universitylogo2.jpeg', 
                              '/images/universitylogo3.jpeg',
-                             '/images/universitylogo1.jpeg', // Reuse for more than 3
+                             '/images/universitylogo1.jpeg',
                              '/images/universitylogo2.jpeg'
                            ]
+                           const bgImage = university.logo_url || universityImages[index % universityImages.length]
                            
                            return (
                              <CarouselItem key={university.id || index} className="pl-2 basis-full sm:basis-1/2 lg:basis-1/2">
                               <div className="relative h-64 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 group">
-                                {/* Background Image */}
                                 <div 
                                   className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-                                  style={{
-                                    backgroundImage: `url('${universityImages[index % universityImages.length]}')`
-                                  }}
+                                  style={{ backgroundImage: `url('${bgImage}')` }}
                                 >
-                                  {/* Overlay */}
                                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
                                 </div>
-                                
-                                {/* University Name */}
                                 <div className="absolute bottom-0 left-0 right-0 p-6">
                                   <h3 className="text-white font-bold text-xl mb-2 transition-colors duration-300">
                                     {university.name}
@@ -583,8 +614,6 @@ export default function ExpertHome() {
                                     {[university.city, university.state, university.country].filter(Boolean).join(', ') || 'India'}
                                   </p>
                                 </div>
-      
-                                {/* Hover Effect */}
                                 <div className="absolute inset-0 bg-[#008260]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                               </div>
                             </CarouselItem>
@@ -635,7 +664,6 @@ export default function ExpertHome() {
                     >
                       <CarouselContent className="-ml-2">
                         {corporates.map((corporate, index) => {
-                          // Use corporate images
                           const corporateImages = [
                             '/images/universityimage5.webp',
                             '/images/universityimage6.jpeg', 
@@ -643,22 +671,17 @@ export default function ExpertHome() {
                             '/images/universityimage9.webp',
                             '/images/universityimage5.webp'
                           ]
+                          const bgImage = corporate.logo_url || corporateImages[index % corporateImages.length]
                           
                           return (
                             <CarouselItem key={corporate.id || index} className="pl-2 basis-full sm:basis-1/2 lg:basis-1/2">
                              <div className="relative h-64 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 group">
-                               {/* Background Image */}
                                <div 
                                  className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-                                 style={{
-                                   backgroundImage: `url('${corporateImages[index % corporateImages.length]}')`
-                                 }}
+                                 style={{ backgroundImage: `url('${bgImage}')` }}
                                >
-                                 {/* Overlay */}
                                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
                                </div>
-                               
-                               {/* Corporate Name */}
                                <div className="absolute bottom-0 left-0 right-0 p-6">
                                  <h3 className="text-white font-bold text-xl mb-2 transition-colors duration-300">
                                    {corporate.name}
@@ -670,8 +693,6 @@ export default function ExpertHome() {
                                    {[corporate.city, corporate.state, corporate.country].filter(Boolean).join(', ') || 'India'}
                                  </p>
                                </div>
-     
-                               {/* Hover Effect */}
                                <div className="absolute inset-0 bg-[#008260]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                              </div>
                            </CarouselItem>
@@ -956,7 +977,7 @@ export default function ExpertHome() {
                     <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start mb-4 gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
-                          <Link href={`/expert/project/${project.id}`}>
+                          <Link href={`${basePath}/project/${project.id}`}>
                             <h3 className="text-lg sm:text-xl font-semibold text-[#000000] cursor-pointer truncate">
                               {project.title}
                             </h3>
@@ -1043,11 +1064,16 @@ export default function ExpertHome() {
                           <span className="hidden sm:inline">Apply Now</span>
                           <span className="sm:hidden">Apply</span>
                         </Button>
-                        <Link href={`/expert/project/${project.id}`}>
+                        <Link href={`${basePath}/project/${project.id}`}>
                           <Button variant="outline" size="icon" className="border-[#008260] hover:border-[#006d51] hover:bg-[#008260]/10 flex-shrink-0 transition-all duration-200">
                             <Eye className="h-4 w-4 text-[#008260]" />
                           </Button>
                         </Link>
+                        <ShareRequirementButton
+                          path={`/requirements/contract/${project.id}`}
+                          title={project.title || 'Project requirement'}
+                          className="border-[#008260] text-[#008260] shrink-0"
+                        />
                       </div>
                     </div>
                   </CardContent>
@@ -1096,7 +1122,7 @@ export default function ExpertHome() {
             <DialogHeader className="space-y-1">
               <DialogTitle className="text-xl font-bold text-[#000000]">Apply to Project</DialogTitle>
               <DialogDescription className="text-[#000000] text-sm font-normal font-sans">
-                Submit your application for {(projects as Project[]).find(p => p.id === selectedProjectId)?.title || 'this project'}
+                Submit your application for {selectedApplicationProject?.title || 'this project'}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-6 ">
@@ -1122,6 +1148,30 @@ export default function ExpertHome() {
                   className="border-2 border-slate-200 focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]"
                 />
               </div>
+              <label className="flex items-start gap-2 rounded-lg border border-[#DCDCDC] p-3 text-sm">
+                <Checkbox
+                  checked={applicationForm.agreeProjectPrice}
+                  onCheckedChange={(checked) => setApplicationForm({
+                    ...applicationForm,
+                    agreeProjectPrice: checked === true,
+                    proposedRate: checked === true ? '' : applicationForm.proposedRate,
+                  })}
+                />
+                <span>
+                  <span className="block font-medium text-[#000000]">Agree with project price</span>
+                  <span className="text-[#6A6A6A]">Proceed at Rs {selectedApplicationProject?.hourly_rate || expert?.hourly_rate || 0}/hr. Uncheck and enter a proposed rate above to negotiate.</span>
+                </span>
+              </label>
+              {selectedApplicationProject?.interview_period_interval && (
+                <div className="rounded-lg border border-[#DCDCDC] bg-[#F8FBFA] p-3 text-sm">
+                  <span className="block font-medium text-[#000000]">Interview period</span>
+                  <span className="text-[#6A6A6A]">{selectedApplicationProject.interview_period_interval}</span>
+                </div>
+              )}
+              <InterviewAvailabilitySelector
+                slots={applicationForm.interviewAvailability}
+                onChange={(interviewAvailability) => setApplicationForm({ ...applicationForm, interviewAvailability })}
+              />
               {error && (
                 <Alert variant="destructive" className="border-2 border-red-200 bg-red-50">
                   <AlertCircle className="h-4 w-4" />
@@ -1134,10 +1184,10 @@ export default function ExpertHome() {
                   <AlertDescription className="text-green-700">{success}</AlertDescription>
                 </Alert>
               )}
-              <Button 
+              <Button
                 onClick={() => selectedProjectId && handleApplicationSubmit(selectedProjectId)}
                 className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium shadow-sm hover:shadow-md transition-all duration-200 py-2.5 rounded-lg"
-                disabled={!applicationForm.coverLetter || !selectedProjectId || isApplying}
+                disabled={!applicationForm.coverLetter || !selectedProjectId || isApplying || needsCustomRate}
               >
                 {isApplying ? 'Submitting...' : 'Submit Application'}
               </Button>

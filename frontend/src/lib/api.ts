@@ -1,6 +1,17 @@
 import { supabase } from './supabase'
+import { SUPERADMIN_ACTING_INSTITUTION_KEY, SUPERADMIN_ACTING_EXPERT_KEY } from './superAdminActing'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
+/** Avoid URLSearchParams stringifying undefined as "undefined" (breaks backend ilike filters). */
+function serializeQueryParts(record: Record<string, string | number | boolean | undefined | null>): string {
+  const u = new URLSearchParams()
+  for (const [k, v] of Object.entries(record)) {
+    if (v === undefined || v === null) continue
+    u.set(k, String(v))
+  }
+  return u.toString()
+}
 
 const getAuthHeaders = async () => {
   const { data: { session } } = await supabase.auth.getSession()
@@ -9,23 +20,82 @@ const getAuthHeaders = async () => {
   if (session?.access_token) {
     headers['Authorization'] = `Bearer ${session.access_token}`
   }
+
+  const role = session?.user?.user_metadata?.role as string | undefined
+  if (role === 'super_admin' && typeof window !== 'undefined') {
+    const actingExpert = sessionStorage.getItem(SUPERADMIN_ACTING_EXPERT_KEY)
+    const actingInstitution = sessionStorage.getItem(SUPERADMIN_ACTING_INSTITUTION_KEY)
+    if (actingExpert) {
+      headers['X-Acting-Expert-Id'] = actingExpert
+    } else if (actingInstitution) {
+      headers['X-Acting-Institution-Id'] = actingInstitution
+    }
+  }
   
   return headers
 }
 
+/** Authorization + acting headers only (no Content-Type). Use for multipart FormData requests. */
+export async function getAuthHeadersForFormData() {
+  const headers = await getAuthHeaders()
+  const out: Record<string, string> = {
+    Authorization: headers.Authorization || ''
+  }
+  if (headers['X-Acting-Expert-Id']) out['X-Acting-Expert-Id'] = headers['X-Acting-Expert-Id']
+  if (headers['X-Acting-Institution-Id']) out['X-Acting-Institution-Id'] = headers['X-Acting-Institution-Id']
+  return out
+}
+
 export const api = {
   auth: {
+    register: async (payload: { email: string; password: string; role: 'student' | 'expert' | 'institution' }) => {
+      const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to create account')
+      return json as { success: boolean; needsEmailVerification: boolean; user: { id: string; email: string; role: string } }
+    },
+    confirmEmail: async (token: string) => {
+      const res = await fetch(`${API_BASE_URL}/api/auth/confirm-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to confirm email')
+      return json as { success: boolean; user: { userId: string; email: string | null; confirmed: boolean } }
+    },
     forgotPassword: async (email: string) => {
-      const headers = await getAuthHeaders()
       return fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ email })
       }).then(async (res) => {
         const json = await res.json().catch(() => ({}))
         if (!res.ok) throw new Error(json?.error || 'Failed to send reset email')
         return json
       })
+    },
+    confirmPasswordReset: async (payload: { token: string; password: string }) => {
+      const res = await fetch(`${API_BASE_URL}/api/auth/password-reset/confirm`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to update password')
+      return json as { success: boolean; userId: string }
     }
   },
   internshipApplications: {
@@ -58,19 +128,19 @@ export const api = {
       page?: number; 
       limit?: number; 
       search?: string; 
+      subskill_search?: string;
       domain_expertise?: string; 
       min_hourly_rate?: number; 
       max_hourly_rate?: number;
+      state?: string;
       is_verified?: boolean;
+      interested?: boolean;
       min_rating?: number;
       sort_by?: string;
       sort_order?: 'asc' | 'desc';
     }) => {
       const headers = await getAuthHeaders()
-      const query = new URLSearchParams({
-        ...params as any,
-        _t: Date.now().toString()
-      }).toString()
+      const query = serializeQueryParts({ ...(params || {}), _t: Date.now() })
       return fetch(`${API_BASE_URL}/api/experts${query ? `?${query}` : ''}`, { headers }).then(res => res.json())
     },
     getById: async (id: string) => {
@@ -126,6 +196,72 @@ export const api = {
         return { success: true }
       }
     }
+    ,
+    setCalxbookVisibility: async (id: string, visible: boolean) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/experts/${id}/calxbook-visibility`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ calxbook_verified: visible })
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to update calxbook visibility')
+      return json
+    },
+    getAvailability: async (
+      id: string,
+      range: { from: string; to: string; project_id?: string }
+    ) => {
+      const headers = await getAuthHeaders()
+      const params: Record<string, string> = { from: range.from, to: range.to }
+      if (range.project_id) params.project_id = range.project_id
+      const query = new URLSearchParams(params).toString()
+      const res = await fetch(`${API_BASE_URL}/api/experts/${id}/availability?${query}`, { headers })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to load availability')
+      return json
+    },
+    addAvailability: async (id: string, slot: { start_at: string; end_at: string }) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/experts/${id}/availability`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(slot),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to add availability')
+      return json
+    },
+    addAvailabilityBulk: async (
+      id: string,
+      body: {
+        days_of_week: number[]
+        start_time: string
+        end_time: string
+        from_date: string
+        to_date: string
+      }
+    ) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/experts/${id}/availability/bulk`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to add bulk availability')
+      return json
+    },
+    deleteAvailability: async (id: string, slotId: string) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/experts/${id}/availability/${slotId}`, {
+        method: 'DELETE',
+        headers,
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to delete availability')
+      return json
+    },
   },
 
   internships: {
@@ -289,10 +425,7 @@ export const api = {
   institutions: {
     getAll: async (params?: { page?: number; limit?: number; search?: string; type?: string; exclude_type?: string }) => {
       const headers = await getAuthHeaders()
-      const query = new URLSearchParams({
-        ...params as any,
-        _t: Date.now().toString() // Cache busting
-      }).toString()
+      const query = serializeQueryParts({ ...(params || {}), _t: Date.now() })
       return fetch(`${API_BASE_URL}/api/institutions${query ? `?${query}` : ''}`, { headers }).then(res => res.json())
     },
     getById: async (id: string) => {
@@ -314,21 +447,39 @@ export const api = {
       }
       return json
     },
-    create: async (data: any) => {
+    create: async (data: any, formData?: FormData) => {
       const headers = await getAuthHeaders()
-      return fetch(`${API_BASE_URL}/api/institutions`, {
+      const isFormData = formData && formData instanceof FormData
+      const fetchOpts: RequestInit = {
         method: 'POST',
-        headers,
-        body: JSON.stringify(data)
-      }).then(res => res.json())
+        headers: isFormData
+          ? {
+              Authorization: headers.Authorization || '',
+              ...(headers['X-Acting-Institution-Id']
+                ? { 'X-Acting-Institution-Id': headers['X-Acting-Institution-Id'] }
+                : {})
+            }
+          : headers,
+        body: isFormData ? formData : JSON.stringify(data)
+      }
+      return fetch(`${API_BASE_URL}/api/institutions`, fetchOpts).then(res => res.json())
     },
-    update: async (id: string, data: any) => {
+    update: async (id: string, data: any, formData?: FormData) => {
       const headers = await getAuthHeaders()
-      return fetch(`${API_BASE_URL}/api/institutions/${id}`, {
+      const isFormData = formData && formData instanceof FormData
+      const fetchOpts: RequestInit = {
         method: 'PUT',
-        headers,
-        body: JSON.stringify(data)
-      }).then(res => res.json())
+        headers: isFormData
+          ? {
+              Authorization: headers.Authorization || '',
+              ...(headers['X-Acting-Institution-Id']
+                ? { 'X-Acting-Institution-Id': headers['X-Acting-Institution-Id'] }
+                : {})
+            }
+          : headers,
+        body: isFormData ? formData : JSON.stringify(data)
+      }
+      return fetch(`${API_BASE_URL}/api/institutions/${id}`, fetchOpts).then(res => res.json())
     }
   },
 
@@ -363,13 +514,28 @@ export const api = {
       const query = new URLSearchParams({ _t: Date.now().toString() }).toString()
       return fetch(`${API_BASE_URL}/api/projects/${id}?${query}`, { headers }).then(res => res.json())
     },
-    create: async (data: any) => {
+    create: async (formData: FormData) => {
       const headers = await getAuthHeaders()
-      return fetch(`${API_BASE_URL}/api/projects`, {
+      const res = await fetch(`${API_BASE_URL}/api/projects`, {
         method: 'POST',
-        headers,
-        body: JSON.stringify(data)
-      }).then(res => res.json())
+        headers: {
+          Authorization: headers.Authorization || '',
+          ...(headers['X-Acting-Institution-Id']
+            ? { 'X-Acting-Institution-Id': headers['X-Acting-Institution-Id'] }
+            : {})
+        },
+        body: formData
+      })
+
+      const text = await res.text().catch(() => '')
+      let json: any = {}
+      try {
+        json = text ? JSON.parse(text) : {}
+      } catch {
+        json = {}
+      }
+      if (!res.ok) throw new Error(json?.error || text || 'Failed to create project')
+      return json
     },
     update: async (id: string, data: any) => {
       const headers = await getAuthHeaders()
@@ -478,6 +644,143 @@ export const api = {
       }).then(res => res.json())
     }
   },
+
+  expertFinance: {
+    summary: async (expertId: string) => {
+      const headers = await getAuthHeaders()
+      const query = serializeQueryParts({ expert_id: expertId, _t: Date.now() })
+      const res = await fetch(`${API_BASE_URL}/api/expert/finance/summary?${query}`, { headers })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to load finance summary')
+      return json
+    }
+  },
+
+  institutionFinance: {
+    summary: async (institutionId: string) => {
+      const headers = await getAuthHeaders()
+      const query = serializeQueryParts({ institution_id: institutionId, _t: Date.now() })
+      const res = await fetch(`${API_BASE_URL}/api/institution/finance/summary?${query}`, { headers })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to load finance summary')
+      return json
+    }
+  },
+
+  trainingAttendance: {
+    get: async (bookingId: string, params?: { from?: string; to?: string }) => {
+      const headers = await getAuthHeaders()
+      const query = new URLSearchParams(params as Record<string, string>).toString()
+      const res = await fetch(
+        `${API_BASE_URL}/api/bookings/${bookingId}/attendance${query ? `?${query}` : ''}`,
+        { headers }
+      )
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to load attendance')
+      return json
+    },
+    getSummary: async (bookingId: string) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/bookings/${bookingId}/attendance/summary`, { headers })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to load attendance summary')
+      return json
+    },
+    createDay: async (bookingId: string, sessionDate: string) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/bookings/${bookingId}/attendance/days`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ session_date: sessionDate })
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to create attendance day')
+      return json
+    },
+    markEntry: async (bookingId: string, dayId: string, attachment?: File | null) => {
+      const headers = attachment ? await getAuthHeadersForFormData() : await getAuthHeaders()
+      const body = attachment
+        ? (() => {
+            const fd = new FormData()
+            fd.append('attendance_attachment', attachment)
+            return fd
+          })()
+        : undefined
+      const res = await fetch(
+        `${API_BASE_URL}/api/bookings/${bookingId}/attendance/days/${dayId}/entry`,
+        { method: 'POST', headers, body }
+      )
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to mark entry')
+      return json
+    },
+    markExit: async (bookingId: string, dayId: string, attachment?: File | null) => {
+      const headers = attachment ? await getAuthHeadersForFormData() : await getAuthHeaders()
+      const body = attachment
+        ? (() => {
+            const fd = new FormData()
+            fd.append('attendance_attachment', attachment)
+            return fd
+          })()
+        : undefined
+      const res = await fetch(
+        `${API_BASE_URL}/api/bookings/${bookingId}/attendance/days/${dayId}/exit`,
+        { method: 'POST', headers, body }
+      )
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to mark exit')
+      return json
+    },
+    correct: async (
+      bookingId: string,
+      dayId: string,
+      body: { expert_entry_at?: string; expert_exit_at?: string }
+    ) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(
+        `${API_BASE_URL}/api/bookings/${bookingId}/attendance/days/${dayId}/correct`,
+        { method: 'PUT', headers, body: JSON.stringify(body) }
+      )
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to correct attendance')
+      return json
+    },
+    approve: async (bookingId: string, dayId: string) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(
+        `${API_BASE_URL}/api/bookings/${bookingId}/attendance/days/${dayId}/approve`,
+        { method: 'PUT', headers }
+      )
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to approve attendance')
+      return json
+    },
+    dispute: async (bookingId: string, dayId: string, disputeReason: string) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(
+        `${API_BASE_URL}/api/bookings/${bookingId}/attendance/days/${dayId}/dispute`,
+        { method: 'PUT', headers, body: JSON.stringify({ dispute_reason: disputeReason }) }
+      )
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to dispute attendance')
+      return json
+    },
+    editTimes: async (
+      bookingId: string,
+      dayId: string,
+      body: { effective_entry_at: string; effective_exit_at: string; approve?: boolean }
+    ) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(
+        `${API_BASE_URL}/api/bookings/${bookingId}/attendance/days/${dayId}/times`,
+        { method: 'PUT', headers, body: JSON.stringify(body) }
+      )
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to update times')
+      return json
+    }
+  },
+
   ratings: {
     getAll: async (params?: { expert_id?: string; institution_id?: string; booking_id?: string }) => {
       const headers = await getAuthHeaders()
@@ -511,6 +814,14 @@ export const api = {
       if (!res.ok) throw new Error(json?.error || 'Failed to fetch student profile')
       return json
     },
+    getAll: async (params?: { page?: number; limit?: number; search?: string }) => {
+      const headers = await getAuthHeaders()
+      const query = serializeQueryParts({ ...(params || {}), _t: Date.now() })
+      const res = await fetch(`${API_BASE_URL}/api/students${query ? `?${query}` : ''}`, { headers })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to fetch students')
+      return json
+    },
     create: async (data: any) => {
       // This method is not used for multipart (handled inline via fetch in the page)
       // Keep JSON variant for potential headless usage
@@ -528,4 +839,78 @@ export const api = {
       return json
     }
   }
+  ,
+  superadmin: {
+    deleteExpert: async (id: string) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/superadmin/profiles/experts/${id}`, {
+        method: 'DELETE',
+        headers,
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to delete expert')
+      return json
+    },
+    deleteInstitution: async (id: string) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/superadmin/profiles/institutions/${id}`, {
+        method: 'DELETE',
+        headers,
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to delete institution')
+      return json
+    },
+    deleteStudent: async (id: string) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/superadmin/profiles/students/${id}`, {
+        method: 'DELETE',
+        headers,
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to delete student')
+      return json
+    },
+    getCustomDomains: async () => {
+      const headers = await getAuthHeaders()
+      const q = new URLSearchParams({ _t: Date.now().toString() }).toString()
+      const res = await fetch(`${API_BASE_URL}/api/superadmin/custom-domains?${q}`, { headers })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to load custom domains')
+      return json as any[]
+    },
+    createExpertMultipart: async (formData: FormData) => {
+      const headers = await getAuthHeadersForFormData()
+      const res = await fetch(`${API_BASE_URL}/api/superadmin/experts`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to create expert')
+      return json
+    },
+    bulkImportExperts: async (body: Record<string, unknown>) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/superadmin/experts/bulk-import`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Bulk import failed')
+      return json
+    },
+    bulkImportStudents: async (body: Record<string, unknown>) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/superadmin/students/bulk-import`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Bulk import failed')
+      return json
+    },
+  },
 }

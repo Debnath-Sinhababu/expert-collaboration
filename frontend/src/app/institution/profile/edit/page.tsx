@@ -10,13 +10,15 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { ArrowLeft, Save, Building, MapPin, Users, Award } from 'lucide-react'
+import { ArrowLeft, Save, Building, MapPin, Users, Award, ImageIcon } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import Logo from '@/components/Logo'
 import NotificationBell from '@/components/NotificationBell'
 import ProfileDropdown from '@/components/ProfileDropdown'
+import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
+import { fetchInstitutionForWorkspace } from '@/lib/institutionWorkspace'
 
 const INSTITUTION_TYPES = [
   'University',
@@ -51,7 +53,11 @@ export default function InstitutionProfileEdit() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const router = useRouter()
+  const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
 
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoPreview, setLogoPreview] = useState<string>('')
+  const [logoError, setLogoError] = useState('')
   const [formData, setFormData] = useState({
     name: '',
     type: '',
@@ -88,19 +94,24 @@ export default function InstitutionProfileEdit() {
         return
       }
       setUser(user)
+      if (viewer === 'super_admin' && user.user_metadata?.role !== 'super_admin') {
+        router.push('/')
+        return
+      }
       await loadInstitutionData(user.id)
       setLoading(false)
     }
 
     getUser()
-  }, [router])
+  }, [router, viewer])
 
   const loadInstitutionData = async (userId: string) => {
     try {
-      const institutionProfile = await api.institutions.getByUserId(userId)
+      const institutionProfile = await fetchInstitutionForWorkspace(userId, viewer, actingInstitutionId)
       
       if (institutionProfile) {
         setInstitution(institutionProfile)
+        setLogoPreview(institutionProfile.logo_url || '')
         setFormData({
           name: institutionProfile.name || '',
           type: institutionProfile.type || '',
@@ -222,6 +233,12 @@ export default function InstitutionProfileEdit() {
         throw new Error('Institution profile not found')
       }
 
+      if (!logoFile && !formData.logo_url?.trim()) {
+        toast.error('Please upload your institution logo')
+        setSaving(false)
+        return
+      }
+
       const isCorporate = formData.type === 'Corporate'
       
       // Prepare update data - only include corporate fields if type is Corporate
@@ -270,11 +287,26 @@ export default function InstitutionProfileEdit() {
         updateData.work_mode_preference = null
       }
 
-      await api.institutions.update(institution.id, updateData)
+      if (logoFile) {
+        const formDataToSend = new FormData()
+        Object.entries(updateData).forEach(([key, value]) => {
+          if (value !== undefined && value !== null && typeof value !== 'object') {
+            formDataToSend.append(key, String(value))
+          } else if (Array.isArray(value)) {
+            formDataToSend.append(key, JSON.stringify(value))
+          } else if (typeof value === 'object' && value !== null) {
+            formDataToSend.append(key, JSON.stringify(value))
+          }
+        })
+        formDataToSend.append('logo', logoFile)
+        await api.institutions.update(institution.id, updateData, formDataToSend)
+      } else {
+        await api.institutions.update(institution.id, updateData)
+      }
       
       toast.success('Profile updated successfully!')
       setTimeout(() => {
-        router.push('/institution/profile')
+        router.push(`${basePath}/profile`)
       }, 1500)
     } catch (error: any) {
       setError(error.message)
@@ -300,16 +332,16 @@ export default function InstitutionProfileEdit() {
       <header className="bg-[#008260] border-b border-white/10 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <Link href="/institution/home" className="flex items-center group">
+            <Link href={`${basePath}/home`} className="flex items-center group">
               <Logo size="header" />
             </Link>
 
             <nav className="hidden md:flex items-center space-x-8">
-              <Link href="/institution/home" className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
+              <Link href={`${basePath}/home`} className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
                 Home
                 <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
-              <Link href="/institution/dashboard" className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
+              <Link href={`${basePath}/dashboard`} className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
                 Dashboard
                 <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
@@ -320,7 +352,7 @@ export default function InstitutionProfileEdit() {
               <ProfileDropdown 
                 user={user} 
                 institution={institution} 
-                userType="institution" 
+                userType={viewer === 'super_admin' ? 'super_admin' : 'institution'} 
               />
             </div>
           </div>
@@ -329,7 +361,7 @@ export default function InstitutionProfileEdit() {
 
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl py-6 sm:py-8">
         <div className="mb-6">
-          <Link href="/institution/profile" className="inline-flex items-center text-[#008260] hover:text-[#006b4f] transition-colors">
+          <Link href={`${basePath}/profile`} className="inline-flex items-center text-[#008260] hover:text-[#006b4f] transition-colors">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Profile
           </Link>
@@ -574,14 +606,44 @@ export default function InstitutionProfileEdit() {
                 )}
 
                 <div className="space-y-2">
-                  <Label htmlFor="logo_url" className="text-[#000000] font-medium">Logo URL</Label>
-                  <Input
-                    id="logo_url"
-                    placeholder="Link to your institution logo"
-                    value={formData.logo_url}
-                    onChange={(e) => handleInputChange('logo_url', e.target.value)}
-                    className="focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260] transition-all duration-300"
-                  />
+                  <Label className="text-[#000000] font-medium">Institution Logo *</Label>
+                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-[#008260] transition-colors">
+                    <input
+                      type="file"
+                      id="logo"
+                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          if (file.size > 5 * 1024 * 1024) {
+                            setLogoError('Logo must be under 5MB')
+                            return
+                          }
+                          setLogoError('')
+                          setLogoFile(file)
+                          setLogoPreview(URL.createObjectURL(file))
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    <label htmlFor="logo" className="cursor-pointer block">
+                      {logoPreview ? (
+                        <div className="space-y-2">
+                          <img src={logoPreview} alt="Logo preview" className="mx-auto h-24 w-auto max-w-[200px] object-contain rounded" />
+                          <p className="text-sm text-[#008260] font-medium">Click to change logo</p>
+                        </div>
+                      ) : (
+                        <>
+                          <ImageIcon className="mx-auto h-12 w-12 text-slate-400 mb-2" />
+                          <p className="text-sm text-slate-600 mb-1">
+                            <span className="font-medium text-[#008260]">Click to upload</span> or drag and drop
+                          </p>
+                          <p className="text-xs text-slate-500">PNG, JPG, WebP. Max 5MB</p>
+                        </>
+                      )}
+                    </label>
+                    {logoError && <p className="text-sm text-red-500 mt-2">{logoError}</p>}
+                  </div>
                 </div>
               </div>
 
@@ -702,7 +764,7 @@ export default function InstitutionProfileEdit() {
               )}
 
               <div className="flex justify-end gap-4 pt-6">
-                <Link href="/institution/profile">
+                <Link href={`${basePath}/profile`}>
                   <Button
                     type="button"
                     variant="outline"

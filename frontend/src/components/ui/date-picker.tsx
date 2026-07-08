@@ -34,6 +34,12 @@ export function DatePicker({
     setOpen(false)
   }
 
+  const dateOnlyTime = (date: Date) => {
+    const d = new Date(date)
+    d.setHours(0, 0, 0, 0)
+    return d.getTime()
+  }
+
   return (
     <Popover open={open} onOpenChange={setOpen} modal={true}>
       <PopoverTrigger asChild>
@@ -61,8 +67,9 @@ export function DatePicker({
             selected={value}
             onSelect={handleDateSelect}
             disabled={(date) => {
-              if (minDate && date < minDate) return true
-              if (maxDate && date > maxDate) return true
+              const current = dateOnlyTime(date)
+              if (minDate && current < dateOnlyTime(minDate)) return true
+              if (maxDate && current > dateOnlyTime(maxDate)) return true
               return false
             }}
             initialFocus

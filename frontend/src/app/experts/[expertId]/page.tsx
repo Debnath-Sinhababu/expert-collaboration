@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
+import { supabase } from '@/lib/supabase'
+import { ExpertAvailabilityTrigger } from '@/components/expert/ExpertAvailabilityTrigger'
+import { profileBrowseRange } from '@/lib/expertAvailabilityUtils'
 import { Card, CardContent, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -37,6 +40,21 @@ export default function PublicExpertProfile() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [studentFeedback, setStudentFeedback] = useState<{ student_name: string; pros: string; rating: 'VERY_GOOD' | 'GOOD' }[]>([])
+  const [canViewAvailability, setCanViewAvailability] = useState(false)
+  const profileRange = profileBrowseRange()
+
+  useEffect(() => {
+    const checkViewer = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        const role = user?.user_metadata?.role
+        setCanViewAvailability(role === 'institution' || role === 'super_admin')
+      } catch {
+        setCanViewAvailability(false)
+      }
+    }
+    checkViewer()
+  }, [])
 
   useEffect(() => {
     const load = async () => {
@@ -231,6 +249,16 @@ export default function PublicExpertProfile() {
             </div>
           </CardContent>
         </Card>
+
+        {canViewAvailability && (
+          <ExpertAvailabilityTrigger
+            expertId={expertId}
+            startDate={profileRange.start}
+            endDate={profileRange.end}
+            variant="card"
+            className="mb-8"
+          />
+        )}
 
         {/* Qualification Section */}
         {expert.qualifications && (

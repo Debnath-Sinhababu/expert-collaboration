@@ -219,13 +219,13 @@ export default function Home() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Load featured universities dynamically (limit 5), reuse existing logo assets
+  // Load featured universities dynamically (limit 5), use institution logo_url when available
   useEffect(() => {
     const loadInstitutions = async () => {
       try {
         const res = await api.institutions.getAll({ limit: 5 })
         const institutions = Array.isArray(res) ? res : (res?.data ?? [])
-        const logos = [
+        const fallbackLogos = [
           '/images/universitylogo3.jpeg',
           '/images/universityimage5.webp',
           '/images/universityimage6.jpeg',
@@ -236,7 +236,7 @@ export default function Home() {
         const mapped = institutions.slice(0, 5).map((inst: any, idx: number) => ({
           name: inst?.name || 'University',
           desc: inst?.description || 'Leading educational institution collaborating with experts',
-          logo: logos[idx % logos.length],
+          logo: inst?.logo_url || fallbackLogos[idx % fallbackLogos.length],
           color: colors[idx % colors.length],
           city: inst?.city || '',
           state: inst?.state || '',
@@ -467,9 +467,9 @@ export default function Home() {
                     Hire Expert
                   </Button>
                 </Link>
-                <Link href="/auth/signup?role=expert">
+                <Link href="/requirements">
                   <Button size="lg" variant="outline" className="border-[#008260] text-[#008260] font-semibold text-[16px] px-10 py-5 rounded-full hover:bg-[#F0FFF8] transition-all duration-300">
-                    Join as Expert
+                    View opportunities
                   </Button>
                 </Link>
               </motion.div>

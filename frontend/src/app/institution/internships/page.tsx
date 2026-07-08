@@ -20,10 +20,13 @@ import ProfileDropdown from '@/components/ProfileDropdown'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { usePagination } from '@/hooks/usePagination'
 import { Search, Building2, MapPin, Star, Filter } from 'lucide-react'
+import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
+import { fetchInstitutionForWorkspace } from '@/lib/institutionWorkspace'
 
 export default function CorporateInternshipsIndexPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [user, setUser] = useState<any>(null)
   const [institution, setInstitution] = useState<any>(null)
   const [institutions, setInstitutions] = useState<any[]>([])
   const [search, setSearch] = useState('')
@@ -35,6 +38,7 @@ export default function CorporateInternshipsIndexPage() {
   const [selectedInternshipId, setSelectedInternshipId] = useState<string | null>(null)
   const listEndRef = useState<HTMLDivElement | null>(null)[0]
   const router = useRouter()
+  const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
 
   useEffect(() => {
     const init = async () => {
@@ -44,14 +48,15 @@ export default function CorporateInternshipsIndexPage() {
           router.push('/auth/login')
           return
         }
-        const inst = await api.institutions.getByUserId(user.id)
+        setUser(user)
+        const inst = await fetchInstitutionForWorkspace(user.id, viewer, actingInstitutionId)
         if (!inst) {
           setError('Institution profile not found. Please complete your profile setup first.')
           setLoading(false)
           return
         }
         if ((inst.type || '').toLowerCase() !== 'corporate') {
-          router.push('/institution/home')
+          router.push(`${basePath}/home`)
           return
         }
         setInstitution(inst)
@@ -63,7 +68,7 @@ export default function CorporateInternshipsIndexPage() {
       }
     }
     init()
-  }, [router])
+  }, [router, viewer, actingInstitutionId, basePath])
 
   // Pagination for institutions (mirrors expert list behavior)
   const {
@@ -114,12 +119,16 @@ export default function CorporateInternshipsIndexPage() {
       <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 backdrop-blur-sm border-b border-blue-200/20 sticky top-0 z-50 shadow-lg">
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
-            <Link href="/institution/internships" className="flex items-center space-x-2 group">
+            <Link href={`${basePath}/internships`} className="flex items-center space-x-2 group">
               <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent group-hover:from-blue-300 group-hover:to-indigo-300 transition-all duration-300">Corporate Internships</span>
             </Link>
             <div className="flex items-center space-x-2">
               <NotificationBell />
-              <ProfileDropdown user={{}} institution={institution} userType="institution" />
+              <ProfileDropdown
+                user={user}
+                institution={institution}
+                userType={viewer === 'super_admin' ? 'super_admin' : 'institution'}
+              />
             </div>
           </div>
         </div>
@@ -128,11 +137,11 @@ export default function CorporateInternshipsIndexPage() {
       <div className="container mx-auto px-4 max-w-6xl py-8">
         <div className="flex items-center justify-between mb-6">
           <div className="flex gap-3">
-            <Link href="/institution/home">
+            <Link href={`${basePath}/home`}>
               <Button variant="outline">Expert Marketplace</Button>
             </Link>
             {institution?.type === 'Corporate' && (
-              <Link href="/institution/internships/create">
+              <Link href={`${basePath}/internships/create`}>
                 <Button className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">Post Internship</Button>
               </Link>
             )}

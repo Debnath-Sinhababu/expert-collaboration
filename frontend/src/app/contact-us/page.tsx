@@ -85,6 +85,7 @@ export default function ContactUs() {
   })
   const [submitting, setSubmitting] = useState(false)
   const [expandedFAQ, setExpandedFAQ] = useState<number | null>(null)
+  const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({})
   const router = useRouter()
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -94,8 +95,78 @@ export default function ContactUs() {
     }))
   }
 
+  // Validation functions
+  const validateName = (name: string, fieldName: string): string => {
+    if (!name.trim()) return `${fieldName} is required`
+
+    // Allow letters, numbers, and spaces, but require at least one letter
+    if (!/^[a-zA-Z0-9\s]+$/.test(name.trim())) {
+      return `${fieldName} can only contain letters, numbers, and spaces`
+    }
+    if (!/[a-zA-Z]/.test(name)) {
+      return `${fieldName} must include at least one letter`
+    }
+
+    return ''
+  }
+
+  const validatePhone = (phone: string): string => {
+    if (!phone.trim()) return 'Phone number is required'
+
+    // Check if exactly 10 digits
+    if (!/^\d{10}$/.test(phone.trim())) {
+      return 'Phone number must be exactly 10 digits'
+    }
+
+    return ''
+  }
+
+  const validateForm = (): boolean => {
+    const errors: { [key: string]: string } = {}
+
+    // Validate first name
+    const firstNameError = validateName(formData.firstName, 'First name')
+    if (firstNameError) errors.firstName = firstNameError
+
+    // Validate last name (optional)
+    if (formData.lastName.trim()) {
+      const lastNameError = validateName(formData.lastName, 'Last name')
+      if (lastNameError) errors.lastName = lastNameError
+    }
+
+    // Validate email (basic validation)
+    if (!formData.email.trim()) {
+      errors.email = 'Email is required'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errors.email = 'Please enter a valid email address'
+    }
+
+    // Validate phone
+    const phoneError = validatePhone(formData.phone)
+    if (phoneError) errors.phone = phoneError
+
+    // Validate message
+    if (!formData.message.trim()) {
+      errors.message = 'Message is required'
+    } else if (formData.message.trim().length < 10) {
+      errors.message = 'Message must be at least 10 characters long'
+    }
+
+    setValidationErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Clear previous errors
+    setValidationErrors({})
+
+    // Validate form
+    if (!validateForm()) {
+      return
+    }
+
     setSubmitting(true)
 
     try {
@@ -268,19 +339,24 @@ export default function ContactUs() {
                         placeholder="First Name"
                         value={formData.firstName}
                         onChange={handleChange}
-                        required
-                        className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]"
+                        
+                        className={`border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260] ${validationErrors.firstName ? 'border-red-500' : ''}`}
                       />
+                      {validationErrors.firstName && (
+                        <p className="text-red-500 text-xs mt-1">{validationErrors.firstName}</p>
+                      )}
                     </div>
                     <div>
                       <Input
                         name="lastName"
-                        placeholder="Last Name"
+                        placeholder="Last Name (Optional)"
                         value={formData.lastName}
                         onChange={handleChange}
-                        required
-                        className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]"
+                        className={`border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260] ${validationErrors.lastName ? 'border-red-500' : ''}`}
                       />
+                      {validationErrors.lastName && (
+                        <p className="text-red-500 text-xs mt-1">{validationErrors.lastName}</p>
+                      )}
                     </div>
                   </div>
 
@@ -291,42 +367,52 @@ export default function ContactUs() {
                       placeholder="Your Email"
                       value={formData.email}
                       onChange={handleChange}
-                      required
-                      className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]"
+                      
+                      className={`border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260] ${validationErrors.email ? 'border-red-500' : ''}`}
                     />
+                    {validationErrors.email && (
+                      <p className="text-red-500 text-xs mt-1">{validationErrors.email}</p>
+                    )}
+                  </div>
+                  <div className='flex flex-col gap-1'>
+                    <div className="flex gap-2">
+                      <Input
+                        value="+91"
+                        disabled
+                        className="w-16 border-[#DCDCDC]"
+                      />
+                      <Input
+                        name="phone"
+                        type="tel"
+                        placeholder="Phone Number"
+                        value={formData.phone}
+                        onChange={handleChange}
+                        
+                        className={`flex-1 border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260] ${validationErrors.phone ? 'border-red-500' : ''}`}
+                      />
+                    </div>
+                    {validationErrors.phone && (
+                      <p className="text-red-500 text-xs mt-1 ml-20">{validationErrors.phone}</p>
+                    )}
                   </div>
 
-                  <div className="flex gap-2">
-                    <Input
-                      value="+91"
-                      disabled
-                      className="w-16 border-[#DCDCDC]"
-                    />
-                    <Input
-                      name="phone"
-                      type="tel"
-                      placeholder="Phone Number"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      required
-                      className="flex-1 border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]"
-                    />
-                  </div>
-
-                  <div className="relative">
+                  <div className="relative flex flex-col gap-1">
                     <Textarea
                       name="message"
                       placeholder="How can we help?"
                       value={formData.message}
                       onChange={handleChange}
-                      required
+                      
                       maxLength={250}
                       rows={4}
-                      className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260] resize-none"
+                      className={`border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260] resize-none ${validationErrors.message ? 'border-red-500' : ''}`}
                     />
                     <div className="absolute bottom-2 right-2 text-xs text-[#6A6A6A]">
                       {currentMessageLength}/250
                     </div>
+                    {validationErrors.message && (
+                      <p className="text-red-500 text-xs mt-1">{validationErrors.message}</p>
+                    )}
                   </div>
 
                   <Button

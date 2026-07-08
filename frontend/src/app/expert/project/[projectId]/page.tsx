@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel'
 import Autoplay from "embla-carousel-autoplay"
@@ -35,6 +36,12 @@ import {
   IndianRupee
 } from 'lucide-react'
 import Link from 'next/link'
+import { useExpertWorkspace } from '@/contexts/ExpertWorkspaceContext'
+import { fetchExpertForWorkspace, expertProfileSetupPath } from '@/lib/expertWorkspace'
+import { ShareRequirementButton } from '@/components/requirements/ShareRequirementButton'
+import { ProjectRequirementMeta } from '@/components/requirements/ProjectRequirementMeta'
+import { projectLocationLine } from '@/lib/requirementLabels'
+import { InterviewAvailabilitySelector, type InterviewSlot } from '@/components/requirements/InterviewAvailabilitySelector'
 
 type UserMeta = { role?: string; name?: string }
 type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }
@@ -63,6 +70,13 @@ interface Project {
   required_expertise: string[]
   domain_expertise: string
   subskills: string[]
+  job_location?: string | null
+  workplace_type?: string | null
+  employment_type?: string | null
+  total_budget?: number | null
+  screening_questions?: string[] | null
+  interview_period_interval?: string | null
+  requirement_pdf_url?: string | null
 }
 
 interface Application {
@@ -92,6 +106,7 @@ export default function ExpertProjectPage() {
   const params = useParams()
   const router = useRouter()
   const projectId = params.projectId as string
+  const { viewer, actingExpertId, basePath } = useExpertWorkspace()
 
   const [user, setUser] = useState<any>(null)
   const [expert, setExpert] = useState<ExpertProfile | null>(null)
@@ -103,7 +118,9 @@ export default function ExpertProjectPage() {
   const [success, setSuccess] = useState('')
   const [applicationForm, setApplicationForm] = useState({
     coverLetter: '',
-    proposedRate: ''
+    proposedRate: '',
+    agreeProjectPrice: true,
+    interviewAvailability: [] as InterviewSlot[]
   })
   const [isApplying, setIsApplying] = useState(false)
   const [hasApplied, setHasApplied] = useState(false)
@@ -126,16 +143,23 @@ export default function ExpertProjectPage() {
       if (!currentUser) return
 
       const userRole = currentUser.user_metadata?.role
-      if (userRole !== 'expert') {
+      if (userRole !== 'expert' && userRole !== 'super_admin') {
+        router.push('/')
+        return
+      }
+      if (userRole === 'super_admin' && viewer !== 'super_admin') {
+        router.push('/superadmin/home')
+        return
+      }
+      if (viewer === 'super_admin' && userRole !== 'super_admin') {
         router.push('/')
         return
       }
 
-      // Get expert profile
-      const expertProfile = await api.experts.getByUserId(currentUser.id)
-      
+      const expertProfile = await fetchExpertForWorkspace(currentUser.id, viewer, actingExpertId)
+
       if (!expertProfile) {
-        router.push('/expert/profile-setup')
+        router.push(expertProfileSetupPath(viewer))
         return
       }
       
@@ -198,11 +222,14 @@ export default function ExpertProjectPage() {
       await api.applications.create({
         project_id: projectId,
         cover_letter: applicationForm.coverLetter,
-        proposed_rate: parseFloat(applicationForm.proposedRate) || project?.hourly_rate || 0
+        proposed_rate: applicationForm.agreeProjectPrice
+          ? project?.hourly_rate || 0
+          : parseFloat(applicationForm.proposedRate) || project?.hourly_rate || 0,
+        interview_availability: applicationForm.interviewAvailability
       })
       
       setSuccess('Application submitted successfully!')
-      setApplicationForm({ coverLetter: '', proposedRate: '' })
+      setApplicationForm({ coverLetter: '', proposedRate: '', agreeProjectPrice: true, interviewAvailability: [] })
       setHasApplied(true)
       
       // Refresh similar and recommended projects
@@ -219,7 +246,7 @@ export default function ExpertProjectPage() {
 
   useEffect(() => {
     loadExpertData()
-  }, [])
+  }, [viewer, actingExpertId])
 
   useEffect(() => {
     if (expert) {
@@ -281,7 +308,7 @@ export default function ExpertProjectPage() {
             <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Project Not Found</h2>
             <p className="text-gray-600 mb-4">{error}</p>
-            <Button onClick={() => router.push('/expert/home')} className="bg-[#008260] hover:bg-[#006d51]">
+            <Button onClick={() => router.push(`${basePath}/home`)} className="bg-[#008260] hover:bg-[#006d51]">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Home
             </Button>
@@ -300,17 +327,17 @@ export default function ExpertProjectPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
-            <Link href="/expert/home" className="flex items-center group">
+            <Link href={`${basePath}/home`} className="flex items-center group">
               <Logo size="header" />
             </Link>
 
             {/* Navigation */}
             <nav className="hidden md:flex items-center space-x-8">
-              <Link href="/expert/home" className="text-white font-medium transition-colors duration-200 relative group">
+              <Link href={`${basePath}/home`} className="text-white font-medium transition-colors duration-200 relative group">
                 Home
                 <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
-              <Link href="/expert/dashboard" className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
+              <Link href={`${basePath}/dashboard`} className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
                 Dashboard
                 <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
@@ -325,7 +352,7 @@ export default function ExpertProjectPage() {
               <ProfileDropdown 
                 user={user} 
                 expert={expert} 
-                userType="expert" 
+                userType={viewer === 'super_admin' ? 'super_admin' : 'expert'} 
               />
             </div>
           </div>
@@ -337,16 +364,21 @@ export default function ExpertProjectPage() {
       <div className="mb-8 flex flex-col sm:flex-row sm:justify-between w-full items-start sm:items-center border-b border-[#D6D6D6] pb-6 gap-4">
         <div className="min-w-0 flex-1">
               <h1 className="text-xl sm:text-2xl md:text-[32px] font-semibold text-black truncate">{project.title}</h1>
-              <div className="">
-          <p className="flex items-center text-[#6A6A6A] hover:text-[#008260] transition-colors">
-            <MapPin className="h-4 w-4 mr-2" />
-            <span className="text-sm font-medium">Gurgaon, Haryana</span>
-          </p>
-        </div>
+              {projectLocationLine(project) && (
+                <p className="flex items-center text-[#6A6A6A] mt-1">
+                  <MapPin className="h-4 w-4 mr-2 shrink-0" />
+                  <span className="text-sm font-medium">{projectLocationLine(project)}</span>
+                </p>
+              )}
             </div>
-            <div className="text-left sm:text-center flex-shrink-0">
+            <div className="flex flex-col sm:items-end gap-2 flex-shrink-0">
                   <div className="text-lg sm:text-xl md:text-[24px] font-bold text-[#008260]">₹{project.hourly_rate}/hour</div>
                   <div className="text-sm text-[#757575]">Hourly Rate</div>
+                  <ShareRequirementButton
+                    path={`/requirements/contract/${project.id}`}
+                    title={project.title}
+                    className="border-[#008260] text-[#008260]"
+                  />
                 </div>
             </div>
         {/* Two Column Layout */}
@@ -356,16 +388,34 @@ export default function ExpertProjectPage() {
             {/* Project Title */}
           
 
-            {/* Project Description */}
+            <ProjectRequirementMeta project={project} />
+
             <div>
               <h2 className="text-lg sm:text-xl font-semibold text-black mb-4">Project Description</h2>
               <p className="text-[#6A6A6A] text-sm sm:text-base leading-relaxed whitespace-pre-line">{project.description}</p>
             </div>
 
-            {/* Project Description (repeated as in image) */}
+            {project.requirement_pdf_url && (
+              <div>
+                <h3 className="text-base font-semibold text-black mb-3">Requirement PDF</h3>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="border-[#008260] text-[#008260] hover:bg-[#E8F5F1]"
+                >
+                  <a
+                    href={project.requirement_pdf_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    View requirement PDF
+                  </a>
+                </Button>
+              </div>
+            )}
+
             <div>
-              <h2 className="text-lg sm:text-xl font-semibold text-black mb-4">Project Description</h2>
-              
               {/* Expertise Domain */}
               <div className="mb-6">
                 <h3 className="text-base font-semibold text-black mb-3">Expertise Domain</h3>
@@ -458,14 +508,20 @@ export default function ExpertProjectPage() {
                           Apply Now
                         </Button>
                       </DialogTrigger>
-                    <DialogContent className="sm:max-w-md bg-white border-2 border-[#D6D6D6] shadow-xl">
-                      <DialogHeader className="space-y-1">
+                    <DialogContent className="max-h-[85vh] overflow-hidden bg-white p-0 shadow-xl sm:max-w-2xl">
+                      <DialogHeader className="space-y-1 px-6 pt-6">
                         <DialogTitle className="text-xl font-bold text-black">Apply to Project</DialogTitle>
                         <DialogDescription className="text-[#6A6A6A]">
                           Submit your application for {project.title}
                         </DialogDescription>
                       </DialogHeader>
-                      <div className="space-y-6 py-2">
+                      <div className="max-h-[calc(85vh-96px)] space-y-6 overflow-y-auto px-6 pb-6 pt-2">
+                        <div className="rounded-lg border border-[#DCDCDC] bg-[#F8FBFA] p-3 text-sm">
+                          <div className="font-semibold text-[#000000]">{project.title}</div>
+                          <div className="mt-1 text-[#6A6A6A]">
+                            Project price: <span className="font-semibold text-[#008260]">Rs {project.hourly_rate}/hr</span>
+                          </div>
+                        </div>
                         <div className="space-y-2">
                           <Label htmlFor="coverLetter" className="text-sm font-medium text-black">Cover Letter</Label>
                           <Textarea
@@ -488,6 +544,30 @@ export default function ExpertProjectPage() {
                             className="w-full px-3 py-2 border-2 border-[#D6D6D6] rounded-md focus:outline-none focus:border-[#008260] focus:ring-1 focus:ring-[#008260] transition-all duration-200"
                           />
                         </div>
+                        <label className="flex items-start gap-2 rounded-lg border border-[#DCDCDC] p-3 text-sm">
+                          <Checkbox
+                            checked={applicationForm.agreeProjectPrice}
+                            onCheckedChange={(checked) => setApplicationForm({
+                              ...applicationForm,
+                              agreeProjectPrice: checked === true,
+                              proposedRate: checked === true ? '' : applicationForm.proposedRate,
+                            })}
+                          />
+                          <span>
+                            <span className="block font-medium text-[#000000]">Agree with project price</span>
+                            <span className="text-[#6A6A6A]">Proceed at Rs {project.hourly_rate}/hr. Uncheck and enter a proposed rate above to negotiate.</span>
+                          </span>
+                        </label>
+                        {project.interview_period_interval && (
+                          <div className="rounded-lg border border-[#DCDCDC] bg-[#F8FBFA] p-3 text-sm">
+                            <span className="block font-medium text-[#000000]">Interview period</span>
+                            <span className="text-[#6A6A6A]">{project.interview_period_interval}</span>
+                          </div>
+                        )}
+                        <InterviewAvailabilitySelector
+                          slots={applicationForm.interviewAvailability}
+                          onChange={(interviewAvailability) => setApplicationForm({ ...applicationForm, interviewAvailability })}
+                        />
                         {error && (
                           <Alert variant="destructive" className="border-2 border-red-200 bg-red-50">
                             <AlertCircle className="h-4 w-4" />
@@ -500,13 +580,15 @@ export default function ExpertProjectPage() {
                             <AlertDescription className="text-green-700">{success}</AlertDescription>
                           </Alert>
                         )}
-                        <Button 
-                          onClick={handleApplicationSubmit}
-                          className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium rounded-lg h-11"
-                          disabled={!applicationForm.coverLetter || isApplying}
-                        >
-                          {isApplying ? 'Submitting...' : 'Submit Application'}
-                        </Button>
+                        <div className="sticky bottom-0 -mx-6 border-t border-[#ECECEC] bg-white px-6 py-4">
+                          <Button 
+                            onClick={handleApplicationSubmit}
+                            className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium rounded-lg h-11"
+                            disabled={!applicationForm.coverLetter || isApplying || (!applicationForm.agreeProjectPrice && !applicationForm.proposedRate)}
+                          >
+                            {isApplying ? 'Submitting...' : 'Submit Application'}
+                          </Button>
+                        </div>
                       </div>
                     </DialogContent>
                     </Dialog>
@@ -536,12 +618,12 @@ export default function ExpertProjectPage() {
                         
                         <div className="flex items-center text-sm text-[#6A6A6A] mb-4">
                           <MapPin className="h-4 w-4 mr-1" />
-                          <span>{proj?.institutions?.city}, {proj?.institutions?.state}</span>
+                          <span>{projectLocationLine(proj) || 'Location TBD'}</span>
                         </div>
                         
                         <div className="flex items-center justify-between">
                           <div className="text-2xl font-bold text-[#008260]">₹{proj.hourly_rate}/hr</div>
-                          <Link href={`/expert/project/${proj.id}`}>
+                          <Link href={`${basePath}/project/${proj.id}`}>
                             <Button className="bg-[#008260] hover:bg-[#006d51] text-white rounded-lg w-20">
                               View
                             </Button>
@@ -575,12 +657,12 @@ export default function ExpertProjectPage() {
                       
                       <div className="flex items-center text-sm text-[#6A6A6A] mb-4">
                         <MapPin className="h-4 w-4 mr-1" />
-                        <span>{proj?.institutions?.city}, {proj?.institutions?.state}</span>
+                        <span>{projectLocationLine(proj) || 'Location TBD'}</span>
                       </div>
                       
                       <div className="flex items-center justify-between">
                         <div className="text-2xl font-bold text-[#008260]">₹{proj.hourly_rate}/hr</div>
-                        <Link href={`/expert/project/${proj.id}`}>
+                        <Link href={`${basePath}/project/${proj.id}`}>
                           <Button className="bg-[#008260] hover:bg-[#006d51] text-white rounded-lg w-20">
                             View
                           </Button>

@@ -40,6 +40,16 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "https://www.calxmap.in", // ✅ use absolute URL (not "/")
   },
+  icons: {
+    icon: [
+      {
+        url: "/images/calxmaplogo.png",
+        type: "image/png",
+      },
+    ],
+    shortcut: "/images/calxmaplogo.png",
+    apple: "/images/calxmaplogo.png",
+  },
   openGraph: {
     type: "website",
     locale: "en_IN",

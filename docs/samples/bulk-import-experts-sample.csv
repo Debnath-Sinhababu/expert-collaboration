@@ -1,0 +1,4 @@
+name,email,phone,domain_expertise,subskills,hourly_rate,experience_years,bio,linkedin_url,last_working_company,current_designation,expert_types,available_on_demand
+Dr. Priya Sharma,priya.bulk.test1@example.com,9876543210,Engineering,"Python, Machine Learning",2500,12,Senior engineer and mentor.,https://linkedin.com/in/example,Infosys Ltd,Principal Consultant,"Industry Expert, Academic",yes
+Rajesh Kumar,rajesh.bulk.test2@example.com,9876543211,Computer Science & IT,"Cloud, DevOps",3000,8,Full-stack and cloud architecture.,https://linkedin.com/in/example2,TCS,Cloud Architect,"Industry Expert",no
+Anita Desai,anita.bulk.test3@example.com,9876543212,Data Science & Analytics,"SQL, Tableau, R",2200,6,Analytics consultant for education sector.,,Wipro,Data Analyst,"Industry Expert",yes

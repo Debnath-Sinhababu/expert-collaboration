@@ -1,10 +1,20 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
 import { EXPERTISE_DOMAINS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
+
+const STATES = [
+  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
+  'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram',
+  'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu',
+  'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+  'Andaman and Nicobar Islands', 'Chandigarh', 'Dadra and Nagar Haveli and Daman and Diu',
+  'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry'
+]
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -21,6 +31,7 @@ import { usePagination } from '@/hooks/usePagination'
 import NotificationBell from '@/components/NotificationBell'
 import ProfileDropdown from '@/components/ProfileDropdown'
 import Logo from '@/components/Logo'
+import { getInstitutionRate } from '@/lib/utils'
 import { 
   Search, 
   Filter, 
@@ -41,16 +52,23 @@ import {
   GraduationCap,
   CheckCircle,
   Award,
-  Briefcase
+  Briefcase,
+  Lock
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { toast } from 'sonner'
+import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
+import { fetchInstitutionForWorkspace } from '@/lib/institutionWorkspace'
+import { ExpertAvailabilityTrigger } from '@/components/expert/ExpertAvailabilityTrigger'
+import { profileBrowseRange } from '@/lib/expertAvailabilityUtils'
+import { InstitutionTrainingAttendanceSidebar } from '@/components/training/InstitutionTrainingAttendanceSidebar'
 
 type UserMeta = { role?: string; name?: string }
 type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }
 
-export default function InstitutionHome() {
+export default function InstitutionHomePage() {
+  const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
   type InstitutionProfile = {
     id?: string
     user_id?: string
@@ -73,6 +91,8 @@ export default function InstitutionHome() {
     rating?: number
     total_ratings?: number
     is_verified?: boolean
+    expert_services?: string[]
+    current_designation?: string
     domain_expertise?: string[]
     subskills?: string[]
     experience_years?: number
@@ -87,7 +107,9 @@ export default function InstitutionHome() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
   const [selectedDomain, setSelectedDomain] = useState('')
+  const [selectedState, setSelectedState] = useState('')
   const [minRate, setMinRate] = useState('')
   const [maxRate, setMaxRate] = useState('')
   const [showProjectForm, setShowProjectForm] = useState(false)
@@ -122,19 +144,21 @@ export default function InstitutionHome() {
     refresh: refreshExpertsList
   } = usePagination(
     async (page: number) => {
+      if (page > 1) return []
       const params: any = {
         page,
         limit: 10,
         is_verified: true
       }
-      if (searchTerm) params.search = searchTerm
+      if (debouncedSearchTerm) params.subskill_search = debouncedSearchTerm
       if (selectedDomain && selectedDomain !== 'all') params.domain_expertise = selectedDomain
+      if (selectedState && selectedState !== 'all') params.state = selectedState
       if (minRate) params.min_hourly_rate = parseFloat(minRate)
       if (maxRate) params.max_hourly_rate = parseFloat(maxRate)
       const data = await api.experts.getAll(params)
       return Array.isArray(data) ? data : (data?.data || [])
     },
-    [searchTerm, selectedDomain, minRate, maxRate]
+    [debouncedSearchTerm, selectedDomain, selectedState, minRate, maxRate]
   )
   
   // Expert selection modal state
@@ -151,13 +175,39 @@ export default function InstitutionHome() {
   const [sendingQuickMessage, setSendingQuickMessage] = useState(false)
   // Infinite list sentinel
   const expertsListEndRef = useRef<HTMLDivElement | null>(null)
+  const contactEmail = 'info@calxmap.in'
+  const contactSubject = `Request for more expert details - ${institution?.name || 'Institution'}`
+  const contactBody = [
+    'Hello Calxmap Team,',
+    '',
+    'I would like more details about the featured experts.',
+    '',
+    `Institution: ${institution?.name || 'N/A'}`,
+    `Institution Email: ${institution?.email || 'N/A'}`,
+    `Institution Type: ${institution?.type || 'N/A'}`,
+    '',
+    'Thanks,'
+  ].join('\n')
+  const contactMailtoHref = `mailto:${contactEmail}?subject=${encodeURIComponent(contactSubject)}&body=${encodeURIComponent(contactBody)}`
+  const maxExperts = 10
+
+  /** Rolling 30-day window for “View availability” on home expert cards (institution browse API). */
+  const browseAvailabilityRange = useMemo(() => {
+    const r = profileBrowseRange()
+    return { start: r.start, end: r.end }
+  }, [])
 
   useEffect(() => {
     const el = expertsListEndRef.current
     if (!el) return
     const observer = new IntersectionObserver((entries) => {
       const entry = entries[0]
-      if (entry.isIntersecting && hasMoreExperts && !expertsListLoading) {
+      if (
+        entry.isIntersecting &&
+        hasMoreExperts &&
+        !expertsListLoading &&
+        (allExperts?.length || 0) < maxExperts
+      ) {
         loadMoreExperts()
       }
     }, { root: null, rootMargin: '200px', threshold: 0.1 })
@@ -183,14 +233,17 @@ export default function InstitutionHome() {
   const loadInstitutionData = async (userId: string) => {
     try {
       setLoading(true)
-      const institutionProfile = await api.institutions.getByUserId(userId)
-     
-      
+      const institutionProfile = await fetchInstitutionForWorkspace(userId, viewer, actingInstitutionId)
+
       if (!institutionProfile) {
-        router.push('/institution/profile-setup')
+        if (viewer === 'super_admin') {
+          router.push('/superadmin/home')
+        } else {
+          router.push('/institution/profile-setup')
+        }
         return
       }
-      
+
       setInstitution(institutionProfile)
       
       // Load experts
@@ -211,8 +264,9 @@ export default function InstitutionHome() {
         is_verified: true
       }
       
-      if (searchTerm) params.search = searchTerm
+      if (debouncedSearchTerm) params.subskill_search = debouncedSearchTerm
       if (selectedDomain && selectedDomain !== 'all') params.domain_expertise = selectedDomain
+      if (selectedState && selectedState !== 'all') params.state = selectedState
       if (minRate) params.min_hourly_rate = parseFloat(minRate)
       if (maxRate) params.max_hourly_rate = parseFloat(maxRate)
 
@@ -259,6 +313,15 @@ export default function InstitutionHome() {
     }
   }
 
+  // Debounce search term with 500ms delay
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm)
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
   useEffect(() => {
     const initializeUser = async () => {
       try {
@@ -266,11 +329,16 @@ export default function InstitutionHome() {
         if (!currentUser) return
 
         const userRole = currentUser.user_metadata?.role
-        if (userRole !== 'institution') {
+        if (viewer === 'super_admin') {
+          if (userRole !== 'super_admin' || !actingInstitutionId) {
+            router.push('/')
+            return
+          }
+        } else if (userRole !== 'institution') {
           router.push('/')
           return
         }
-        
+
         await loadInstitutionData(currentUser.id)
       } catch (error: any) {
         setError('Failed to get user data')
@@ -278,7 +346,7 @@ export default function InstitutionHome() {
       }
     }
     initializeUser()
-  }, [router])
+  }, [router, viewer, actingInstitutionId])
 
   useEffect(() => {
     if (institution) {
@@ -307,7 +375,7 @@ export default function InstitutionHome() {
     if (institution) {
       refreshExpertsList()
     }
-  }, [searchTerm, selectedDomain, minRate, maxRate])
+  }, [debouncedSearchTerm, selectedDomain, selectedState, minRate, maxRate])
 
   // useEffect(()=>{
   //    loadRecommendedExperts('cb2b9213-077c-4115-845d-8699d489d2d6')
@@ -343,11 +411,11 @@ export default function InstitutionHome() {
   const loadPartneredInstitutions = async () => {
     try {
       setInstitutionsLoading(true)
-      const data = await api.institutions.getAll({ limit: 8 })
+      const data = await api.institutions.getAll({ limit: 20 })
       const institutions = Array.isArray(data) ? data : (data?.data || [])
       
-      // Filter out current institution if institution is loaded
-      const filteredInstitutions = institution?.id 
+      // Filter: exclude current institution only
+      let filteredInstitutions = institution?.id
         ? institutions.filter((inst: any) => inst.id !== institution.id)
         : institutions
       
@@ -586,7 +654,17 @@ export default function InstitutionHome() {
         subskills: projectForm.subskills
       }
 
-      const response = await api.projects.create(projectData)
+      const formData = new FormData()
+      Object.entries(projectData).forEach(([key, value]) => {
+        if (value === undefined || value === null) return
+        if (Array.isArray(value)) {
+          formData.append(key, value.join(','))
+          return
+        }
+        formData.append(key, String(value))
+      })
+
+      const response = await api.projects.create(formData)
       
       // Reset form
       setProjectForm({
@@ -613,7 +691,7 @@ export default function InstitutionHome() {
         description: 'Navigate to your dashboard to view the latest requirement and manage applications.',
         action: {
           label: 'Go to Dashboard',
-          onClick: () => router.push('/institution/dashboard')
+          onClick: () => router.push(`${basePath}/dashboard`)
         },
         duration: 5000
       })
@@ -670,6 +748,10 @@ export default function InstitutionHome() {
     )
   }
 
+  const visibleExperts = (allExperts || []).slice(0, 10)
+  const lockedPreviewExperts = (allExperts || []).slice(10, 14)
+  const showLockedExperts = (allExperts || []).length > 10 || hasMoreExperts
+
   return (
     <div className="bg-[#ECF2FF]">
       {/* Header */}
@@ -677,7 +759,7 @@ export default function InstitutionHome() {
         <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
-            <Link href="/institution/home" className="flex items-center group">
+            <Link href={`${basePath}/home`} className="flex items-center group">
               <Logo size="header" />
             </Link>
 
@@ -685,9 +767,9 @@ export default function InstitutionHome() {
             <nav className="hidden md:flex items-center space-x-6">
               {/* Dashboard Link */}
               <Link 
-                href="/institution/dashboard"
+                href={`${basePath}/dashboard`}
                 className={`text-sm font-medium transition-colors duration-200 relative group ${
-                  pathname?.startsWith('/institution/dashboard') && !pathname?.startsWith('/institution/internships') && !pathname?.startsWith('/institution/freelance')
+                  pathname?.startsWith(`${basePath}/dashboard`) && !pathname?.startsWith(`${basePath}/internships`) && !pathname?.startsWith(`${basePath}/freelance`)
                     ? 'text-white' 
                     : 'text-white/80 hover:text-white'
                 }`}
@@ -699,9 +781,9 @@ export default function InstitutionHome() {
               {/* Internship Dashboard - Only for corporate institutions */}
               {institution?.type && institution.type.toLowerCase() === 'corporate' && (
                 <Link 
-                  href="/institution/internships/dashboard"
+                  href={`${basePath}/internships/dashboard`}
                   className={`text-sm font-medium transition-colors duration-200 relative group ${
-                    pathname?.startsWith('/institution/internships')
+                    pathname?.startsWith(`${basePath}/internships`)
                       ? 'text-white' 
                       : 'text-white/80 hover:text-white'
                   }`}
@@ -714,9 +796,9 @@ export default function InstitutionHome() {
               {/* Freelance Dashboard - Only for corporate institutions */}
               {institution?.type && institution.type.toLowerCase() === 'corporate' && (
                 <Link 
-                  href="/institution/freelance/dashboard"
+                  href={`${basePath}/freelance/dashboard`}
                   className={`text-sm font-medium transition-colors duration-200 relative group ${
-                    pathname?.startsWith('/institution/freelance')
+                    pathname?.startsWith(`${basePath}/freelance`)
                       ? 'text-white' 
                       : 'text-white/80 hover:text-white'
                   }`}
@@ -729,7 +811,7 @@ export default function InstitutionHome() {
               {/* Browse Internships - Only for non-corporate institutions */}
               {institution?.type && institution.type !== 'Corporate' && (
                 <Link 
-                  href="/institution/internships/opportunities"
+                  href={`${basePath}/internships/opportunities`}
                   className="text-sm font-medium text-white/80 hover:text-white transition-colors duration-200 relative group"
                 >
                   Browse Internships
@@ -743,7 +825,7 @@ export default function InstitutionHome() {
               <ProfileDropdown 
                 user={user} 
                 institution={institution} 
-                userType="institution" 
+                userType={viewer === 'super_admin' ? 'super_admin' : 'institution'} 
               />
               <div className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors duration-200">
                 <NotificationBell />
@@ -764,7 +846,7 @@ export default function InstitutionHome() {
             {/* Inline CTA row */}
             <div className="flex flex-wrap items-center gap-3 sm:gap-4 md:gap-5 py-2 sm:py-3">
               {/* Hire Experts */}
-              <Link href="/institution/post-requirement?tab=contract">
+              <Link href={`${basePath}/post-requirement?tab=contract`}>
                 <Button className="bg-[#008260] hover:bg-[#006d51] text-white rounded-full px-5 sm:px-6 py-2.5 sm:py-3 h-auto text-sm sm:text-base">
                   <UserCheck className="h-4 w-4 mr-2" />
                 Hire Experts
@@ -773,7 +855,7 @@ export default function InstitutionHome() {
 
               {/* Internship (corporate only) */}
               {institution?.type && institution.type.toLowerCase() === 'corporate' && (
-                <Link href="/institution/post-requirement?tab=internship">
+                <Link href={`${basePath}/post-requirement?tab=internship`}>
                   <Button className="bg-[#008260] hover:bg-[#006d51] text-white rounded-full px-5 sm:px-6 py-2.5 sm:py-3 h-auto text-sm sm:text-base">
                     <GraduationCap className="h-4 w-4 mr-2" />
                     Create Internship
@@ -783,7 +865,7 @@ export default function InstitutionHome() {
 
               {/* Freelance (corporate only) */}
               {institution?.type && institution.type.toLowerCase() === 'corporate' && (
-                <Link href="/institution/post-requirement?tab=freelance">
+                <Link href={`${basePath}/post-requirement?tab=freelance`}>
                   <Button className="bg-[#008260] hover:bg-[#006d51] text-white rounded-full px-5 sm:px-6 py-2.5 sm:py-3 h-auto text-sm sm:text-base">
                     <Briefcase className="h-4 w-4 mr-2" />
                     Create Freelance
@@ -802,7 +884,7 @@ export default function InstitutionHome() {
       {/* Mobile Browse Internships Button */}
       {institution?.type && institution.type !== 'Corporate' && (
         <div className="md:hidden bg-[#ECF2FF] px-4 py-3">
-          <Link href="/institution/internships/opportunities">
+          <Link href={`${basePath}/internships/opportunities`}>
             <Button className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium rounded-lg py-3 flex items-center justify-center gap-2">
               <Briefcase className="h-5 w-5" />
               Browse Internships
@@ -842,45 +924,64 @@ export default function InstitutionHome() {
                 className="w-full max-w-7xl mx-auto"
               >
                 <CarouselContent className="-ml-2">
-                  {partneredInstitutions.map((institution, index) => {
-                    // Use real institution banner images from public folder
+                  {partneredInstitutions.map((inst: any, index: number) => {
                     const institutionImages = [
                       '/images/universitylogo1.jpeg',
-                      '/images/universitylogo2.jpeg', 
+                      '/images/universitylogo2.jpeg',
                       '/images/universitylogo3.jpeg',
-                      '/images/universitylogo1.jpeg', // Reuse for more than 3
+                      '/images/universitylogo1.jpeg',
                       '/images/universitylogo2.jpeg'
                     ]
-                    
-                    return (
-                      <CarouselItem key={institution.id} className="pl-2 basis-full sm:basis-1/2 lg:basis-1/2">
-                        <div className="relative h-64 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 group">
-                          {/* Background Image */}
-                          <div 
-                            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-                            style={{
-                              backgroundImage: `url('${institutionImages[index % institutionImages.length]}')`
-                            }}
-                          >
-                            {/* Overlay */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
-                          </div>
-                          
-                          {/* Institution Name */}
-                          <div className="absolute bottom-0 left-0 right-0 p-6">
-                            <h3 className="text-white font-bold text-xl mb-2 group-hover:text-blue-200 transition-colors duration-300">
-                              {institution.name}
-                            </h3>
-                            <p className="text-white/90 text-base mb-1">
-                              {institution.institution_type || 'Educational Institution'}
-                            </p>
-                            <p className="text-white/80 text-sm">
-                              {[institution.city, institution.state, institution.country].filter(Boolean).join(', ') || 'India'}
-                            </p>
-                          </div>
+                    const bgImage = inst.logo_url || institutionImages[index % institutionImages.length]
+                    const hasLogo = !!inst.logo_url
 
-                          {/* Hover Effect */}
-                          <div className="absolute inset-0 bg-[#008260]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    return (
+                      <CarouselItem key={inst.id} className="pl-2 basis-full sm:basis-1/2 lg:basis-1/2">
+                        <div className="relative h-64 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 group">
+                          {hasLogo ? (
+                            /* With logo: full-bleed background image (logo fills card), name overlay at bottom */
+                            <>
+                              <div
+                                className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+                                style={{ backgroundImage: `url('${inst.logo_url}')` }}
+                              >
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
+                              </div>
+                              <div className="absolute bottom-0 left-0 right-0 p-6">
+                                <h3 className="text-white font-bold text-xl mb-2 group-hover:text-blue-200 transition-colors duration-300">
+                                  {inst.name}
+                                </h3>
+                                <p className="text-white/90 text-base mb-1">
+                                  {inst.type || inst.institution_type || 'Educational Institution'}
+                                </p>
+                                <p className="text-white/80 text-sm">
+                                  {[inst.city, inst.state, inst.country].filter(Boolean).join(', ') || 'India'}
+                                </p>
+                              </div>
+                            </>
+                          ) : (
+                            /* Without logo: same layout as before, with hardcoded fallback images */
+                            <>
+                              <div
+                                className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+                                style={{ backgroundImage: `url('${bgImage}')` }}
+                              >
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
+                              </div>
+                              <div className="absolute bottom-0 left-0 right-0 p-6">
+                                <h3 className="text-white font-bold text-xl mb-2 group-hover:text-blue-200 transition-colors duration-300">
+                                  {inst.name}
+                                </h3>
+                                <p className="text-white/90 text-base mb-1">
+                                  {inst.type || inst.institution_type || 'Educational Institution'}
+                                </p>
+                                <p className="text-white/80 text-sm">
+                                  {[inst.city, inst.state, inst.country].filter(Boolean).join(', ') || 'India'}
+                                </p>
+                              </div>
+                            </>
+                          )}
+                          <div className="absolute inset-0 bg-[#008260]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
                         </div>
                       </CarouselItem>
                     )
@@ -913,49 +1014,64 @@ export default function InstitutionHome() {
               <CarouselContent className="-ml-2 md:-ml-4 pb-4">
                 {featuredExperts.map((expert) => (
                   <CarouselItem key={expert.id} className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3">
-                    <Card className="bg-[#ECF2FF]  shadow-[-4px_4px_4px_0px_#A0A0A040,_4px_4px_4px_0px_#A0A0A040] rounded-xl transition-all duration-300 group border-2 border-[#D6D6D6]">
-                      <CardHeader>
+                    <Card className="bg-white/90 backdrop-blur border border-[#E0E0E0] shadow-[0_8px_30px_rgba(0,0,0,0.08)] rounded-2xl transition-all duration-300 group hover:-translate-y-1 hover:shadow-[0_14px_40px_rgba(0,0,0,0.12)] h-full flex flex-col gap-2 justify-between">
+                      <CardHeader className="pb-3">
                         <div className="flex items-start space-x-3">
-                          <Avatar className="w-12 h-12">
+                          <Avatar className="w-12 h-12 ring-2 ring-[#E8F5F1]">
                             <AvatarImage src={expert.photo_url} alt={expert.name} />
                             <AvatarFallback className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white">
                               {expert.name?.charAt(0) || 'E'}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1 min-w-0">
-                            <CardTitle className="text-lg line-clamp-1">{expert.name}</CardTitle>
-                            <div className='flex gap-2 flex-wrap'>
+                            <CardTitle className="text-lg line-clamp-1 text-[#0F172A]">{expert.name}</CardTitle>
+                            {expert.current_designation && (
+                              <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#E8F5F1] text-[#008260] border border-[#BFE5DA]">
+                                {expert.current_designation}
+                              </span>
+                            )}
+                            <div className='flex gap-2 flex-wrap mt-1.5'>
                             <div className="flex items-center text-slate-600 text-sm">
                               <Star className="h-4 w-4 mr-1 fill-yellow-400 text-yellow-400" />
                               {expert.rating?.toFixed(1) || '0.0'} ({expert.total_ratings || 0})
                             </div>
-                            <div className="flex items-center text-slate-600 text-sm">₹{expert.hourly_rate}/hour</div>
+                            <div className="flex items-center text-slate-600 text-sm">₹{getInstitutionRate(expert.hourly_rate)}/hour</div>
                             </div>
                           </div>
                         </div>
                       </CardHeader>
-                      <CardContent>
-                        <CardDescription className="truncate mb-4">{expert.bio}</CardDescription>
+                      <CardContent className="pt-0">
+                        <CardDescription className="line-clamp-2 mb-4 text-[#475569]">{expert.bio}</CardDescription>
                         {expert.domain_expertise && expert.domain_expertise.length > 0 && (
                           <div className="mb-4">
                             <div className="flex flex-wrap gap-1">
                               {expert.domain_expertise.slice(0, 2).map((domain: string, index: number) => (
-                                <Badge key={index} className={`text-xs bg-[#EBDA98] hover:bg-[#EBDA98] rounded-sm text-black py-[6px]`}>{domain}</Badge>
+                                <Badge key={index} className="text-xs bg-[#F8E9B3] hover:bg-[#F8E9B3] rounded-full text-[#111827] py-1 px-2">
+                                  {domain}
+                                </Badge>
                               ))}
                               {expert.domain_expertise.length > 2 && (
                                 <Badge variant="secondary" className="text-xs">+{expert.domain_expertise.length - 2} more</Badge>
                               )}
                             </div>
+                            {expert.subskills && expert.subskills.length > 0 && (
+                              <p className="text-sm text-slate-700 font-medium mt-2 line-clamp-2">
+                                {expert.subskills.slice(0, 3).join(', ')}
+                                {expert.subskills.length > 3 && (
+                                  <span className="text-slate-500"> +{expert.subskills.length - 3} more</span>
+                                )}
+                              </p>
+                            )}
                           </div>
                         )}
-                        <div className="flex space-x-2">
-                          <Button className="flex-1 bg-[#008260] text-white rounded-md hover:bg-[#008260]" onClick={() => { setQuickSelectExpert(expert); setShowQuickSelectModal(true); }}>
+                        <div className="flex gap-2 items-stretch sm:items-center">
+                          <Button className="flex-1 min-w-[8rem] bg-[#008260] text-white rounded-md hover:bg-[#008260]" onClick={() => { setQuickSelectExpert(expert); setShowQuickSelectModal(true); }}>
                             <UserCheck className="h-4 w-4 mr-2" />
                             Select Expert
                           </Button>
                           <Dialog>
                             <DialogTrigger asChild>
-                              <Button variant="outline" size="icon" className="border-2 border-slate-300 bg-[#ECF2FF] transition-all duration-300">
+                              <Button variant="outline" size="icon" className="border-2 border-slate-200 bg-white/80 transition-all duration-300 hover:border-[#008260] shrink-0">
                                 <Eye className="h-4 w-4 text-[#008260]" />
                               </Button>
                             </DialogTrigger>
@@ -974,7 +1090,12 @@ export default function InstitutionHome() {
                                   </Avatar>
                                   <div className="min-w-0 flex-1">
                                     <h4 className="font-semibold text-lg truncate">{expert.name}</h4>
-                                    <p className="text-sm text-gray-600 truncate">{expert.domain_expertise?.join(', ')}</p>
+                                    {expert.current_designation && (
+                                      <span className="inline-block mt-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-[#008260] text-white shadow-sm">
+                                        {expert.current_designation}
+                                      </span>
+                                    )}
+                                    <p className="text-sm text-gray-600 truncate mt-1">{expert.domain_expertise?.join(', ')}</p>
                                   </div>
                                 </div>
                                 <div className="max-h-32 overflow-y-auto">
@@ -982,13 +1103,19 @@ export default function InstitutionHome() {
                                   <p className="text-sm text-gray-600 leading-relaxed">{expert.bio}</p>
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                  {expert.current_designation && (
+                                    <div>
+                                      <h4 className="font-medium mb-1">Current Designation</h4>
+                                      <p className="text-sm font-semibold text-[#008260]">{expert.current_designation}</p>
+                                    </div>
+                                  )}
                                   <div>
                                     <h4 className="font-medium mb-1">Domain Expertise</h4>
                                     <p className="text-sm">{expert.domain_expertise?.join(', ')}</p>
                                   </div>
                                   <div>
                                     <h4 className="font-medium mb-1">Hourly Rate</h4>
-                                    <p className="text-sm">₹{expert.hourly_rate}</p>
+                                    <p className="text-sm">₹{getInstitutionRate(expert.hourly_rate)}</p>
                                   </div>
                                   <div>
                                     <h4 className="font-medium mb-1">Experience</h4>
@@ -1010,6 +1137,20 @@ export default function InstitutionHome() {
                                     </div>
                                   </div>
                                 )}
+                                {expert.expert_services && expert.expert_services.length > 0 && (
+                                  <div>
+                                    <h4 className="font-medium mb-2">Expert Services</h4>
+                                    <div className="max-h-24 overflow-y-auto">
+                                      <div className="flex flex-wrap gap-2">
+                                        {expert.expert_services.map((service: string, index: number) => (
+                                          <Badge key={index} variant="secondary" className="text-xs">
+                                            {service}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
                                 {expert.qualifications && (
                                   <div>
                                     <h4 className="font-medium mb-1">Qualifications</h4>
@@ -1018,6 +1159,21 @@ export default function InstitutionHome() {
                                     </div>
                                   </div>
                                 )}
+                                <div className="rounded-lg border border-[#DCDCDC] bg-[#F8FBFF] p-4 space-y-3">
+                                  <div className="flex items-center gap-2 text-sm font-semibold text-[#000000]">
+                                    <Clock className="h-4 w-4 text-[#008260]" />
+                                    Calendar availability
+                                  </div>
+                                  <p className="text-xs text-[#6A6A6A]">
+                                    Published slots for the next 30 days. Use the button to see day-by-day times.
+                                  </p>
+                                  <ExpertAvailabilityTrigger
+                                    expertId={expert.id}
+                                    startDate={browseAvailabilityRange.start}
+                                    endDate={browseAvailabilityRange.end}
+                                    className="pt-1"
+                                  />
+                                </div>
                                 {/* {expert.resume_url && (
                                   <div>
                                     <h4 className="font-medium mb-1">Resume</h4>
@@ -1039,6 +1195,44 @@ export default function InstitutionHome() {
                     </Card>
                   </CarouselItem>
                 ))}
+                <CarouselItem key="featured-contact-card" className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3">
+                  <Card className="relative overflow-hidden bg-white/90 backdrop-blur border border-dashed border-[#BFE5DA] rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.08)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_14px_40px_rgba(0,0,0,0.12)] h-full flex flex-col gap-2 justify-between">
+                    <div className="p-6 blur-[2px]">
+                      <div className="flex items-center gap-3 mb-5">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#E8F5F1] to-[#CFEDE5]" />
+                        <div className="flex-1">
+                          <div className="h-3 w-32 bg-slate-200 rounded-full mb-2" />
+                          <div className="h-2 w-24 bg-slate-200 rounded-full" />
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        <div className="h-3 w-full bg-slate-200 rounded-full" />
+                        <div className="h-3 w-5/6 bg-slate-200 rounded-full" />
+                        <div className="h-3 w-4/6 bg-slate-200 rounded-full" />
+                      </div>
+                      <div className="mt-5 flex gap-2">
+                        <div className="h-8 w-24 bg-slate-200 rounded-md" />
+                        <div className="h-8 w-10 bg-slate-200 rounded-md" />
+                      </div>
+                    </div>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
+                      <div className="inline-flex items-center gap-2 bg-[#E8F5F1] text-[#008260] text-xs font-semibold px-3 py-1 rounded-full border border-[#BFE5DA]">
+                        More experts available
+                      </div>
+                      <h3 className="mt-3 text-lg font-semibold text-[#0F172A]">Need deeper expert details?</h3>
+                      <p className="mt-2 text-sm text-[#475569] max-w-xs">
+                        Contact our team for complete profiles and a tailored shortlist.
+                      </p>
+                      <a
+                        href={contactMailtoHref}
+                        className="mt-4 inline-flex items-center justify-center rounded-md bg-[#008260] text-white px-4 py-2 text-sm font-semibold hover:bg-[#006B4F] transition-colors"
+                      >
+                        Contact Here
+                      </a>
+                      <p className="mt-2 text-xs text-slate-500">{contactEmail}</p>
+                    </div>
+                  </Card>
+                </CarouselItem>
               </CarouselContent>
               <CarouselPrevious className='text-slate-600 hover:text-slate-900 hidden sm:block' />
               <CarouselNext className='text-slate-600 hover:text-slate-900 hidden sm:block' />
@@ -1133,6 +1327,10 @@ export default function InstitutionHome() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 md:pb-8">
+        {institution?.id && (
+          <InstitutionTrainingAttendanceSidebar institutionId={institution.id} basePath={basePath} />
+        )}
+
         {/* Welcome Section */}
         <div className="mb-8">
           <h1 className="text-3xl font-semibold text-black mb-2 leading-tight">
@@ -1154,7 +1352,7 @@ export default function InstitutionHome() {
             </div>
             <Dialog open={false}>
               <DialogTrigger asChild>
-                <Button className="bg-[#008260] hover:bg-[#008260] text-sm font-semibold" onClick={() => router.push('/institution/post-requirement')}>
+                <Button className="bg-[#008260] hover:bg-[#008260] text-sm font-semibold" onClick={() => router.push(`${basePath}/post-requirement`)}>
                   <Plus className="h-3 w-3 mr-1 border border-white rounded-full" />
                   Post Requirement
                 </Button>
@@ -1322,14 +1520,14 @@ export default function InstitutionHome() {
 
         {/* Search and Filters */}
         <div className="bg-white rounded-2xl border-2 border-[#D6D6D6] p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
               <Label htmlFor="search">Search Experts</Label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
                 <Input
                   id="search"
-                  placeholder="Search experts..."
+                  placeholder="Search by skills or designation (e.g., CSS, React, Teacher, CTO)..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -1348,6 +1546,23 @@ export default function InstitutionHome() {
                   {EXPERTISE_DOMAINS.map((domain) => (
                     <SelectItem key={domain.name} value={domain.name}>
                       {domain.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="state">State</Label>
+              <Select value={selectedState} onValueChange={setSelectedState}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All states" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All states</SelectItem>
+                  {STATES.map((state) => (
+                    <SelectItem key={state} value={state}>
+                      {state}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1382,7 +1597,7 @@ export default function InstitutionHome() {
         <div className="mb-12">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-[#000000]">All Experts</h2>
-            <span className="text-slate-600">{(allExperts || []).length} loaded</span>
+            <span className="text-slate-600">{visibleExperts.length} shown</span>
           </div>
           {(!allExperts || allExperts.length === 0) && !expertsListLoading ? (
             <div className="text-center py-12">
@@ -1392,7 +1607,7 @@ export default function InstitutionHome() {
             </div>
           ) : (
             <div className="space-y-4">
-              {allExperts?.map((expert: any) => (
+              {visibleExperts.map((expert: any) => (
                 <Card key={expert.id} className="transition-all duration-300 border-2 border-[#D6D6D6] bg-white rounded-[18px]">
                   <CardContent className="p-4">
                     {/* Mobile Layout */}
@@ -1411,7 +1626,7 @@ export default function InstitutionHome() {
                           {expert.rating?.toFixed(1) || '0.0'} ({expert.total_ratings || 0})
                         </div>
                       </div>
-                      
+
                       {/* Description and other info */}
                       <p className="text-slate-600 text-sm line-clamp-2 mt-1">{expert.bio}</p>
                       <div className="flex flex-wrap gap-1 mt-2">
@@ -1419,13 +1634,21 @@ export default function InstitutionHome() {
                           <Badge key={i} className={`text-xs bg-[#EBDA98] hover:bg-[#EBDA98] rounded-sm text-black py-[6px]`}>{d}</Badge>
                         ))}
                       </div>
+                      {expert.subskills && expert.subskills.length > 0 && (
+                        <p className="text-sm text-slate-700 font-medium mt-2 line-clamp-2">
+                          {expert.subskills.slice(0, 3).join(', ')}
+                          {expert.subskills.length > 3 && (
+                            <span className="text-slate-500"> +{expert.subskills.length - 3} more</span>
+                          )}
+                        </p>
+                      )}
                       <div className="flex items-center gap-4 text-sm text-slate-600 mt-2">
-                        <span>₹{expert.hourly_rate}/hour</span>
+                        <span>₹{getInstitutionRate(expert.hourly_rate)}/hour</span>
                         {expert.experience_years ? <span>{expert.experience_years}+ yrs</span> : null}
                       </div>
                       
                       {/* Buttons - Select stretched, Eye in corner */}
-                      <div className="flex gap-2 mt-4">
+                      <div className="flex gap-2 mt-4 items-center">
                         <Button 
                           className="flex-1 bg-[#008260] hover:bg-[#006d51] text-white" 
                           onClick={() => { setQuickSelectExpert(expert); setShowQuickSelectModal(true); }}
@@ -1454,7 +1677,12 @@ export default function InstitutionHome() {
                                 </Avatar>
                                 <div className="min-w-0 flex-1">
                                   <h4 className="font-semibold text-lg truncate">{expert.name}</h4>
-                                  <p className="text-sm text-gray-600 truncate">{expert.domain_expertise?.join(', ')}</p>
+                                  {expert.current_designation && (
+                                    <span className="inline-block mt-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-[#008260] text-white shadow-sm">
+                                      {expert.current_designation}
+                                    </span>
+                                  )}
+                                  <p className="text-sm text-gray-600 truncate mt-1">{expert.domain_expertise?.join(', ')}</p>
                                 </div>
                               </div>
                               <div className="flex items-center space-x-4 mb-4">
@@ -1464,7 +1692,7 @@ export default function InstitutionHome() {
                                   <span className="text-gray-500 ml-1">({expert.total_ratings || 0})</span>
                                 </div>
                                 <div className="text-lg font-bold text-green-600">
-                                  ₹{expert.hourly_rate}/hour
+                                  ₹{getInstitutionRate(expert.hourly_rate)}/hour
                                 </div>
                               </div>
                               <div className="mb-4">
@@ -1487,6 +1715,20 @@ export default function InstitutionHome() {
                                   <p className="text-sm text-gray-600">{expert.experience_years}+ years</p>
                                 </div>
                               )}
+                              {expert.expert_services && expert.expert_services.length > 0 && (
+                                <div>
+                                  <h4 className="font-medium mb-2">Expert Services</h4>
+                                  <div className="max-h-24 overflow-y-auto">
+                                    <div className="flex flex-wrap gap-2">
+                                      {expert.expert_services.map((service: string, index: number) => (
+                                        <Badge key={index} variant="secondary" className="text-xs">
+                                          {service}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
                               {expert.certifications && expert.certifications.length > 0 && (
                                 <div className="mb-4">
                                   <h5 className="font-medium mb-2">Certifications</h5>
@@ -1507,6 +1749,21 @@ export default function InstitutionHome() {
                                   </div>
                                 </div>
                               )}
+                              <div className="rounded-lg border border-[#DCDCDC] bg-[#F8FBFF] p-4 space-y-3">
+                                <div className="flex items-center gap-2 text-sm font-semibold text-[#000000]">
+                                  <Clock className="h-4 w-4 text-[#008260]" />
+                                  Calendar availability
+                                </div>
+                                <p className="text-xs text-[#6A6A6A]">
+                                  Published slots for the next 30 days. Use the button to see day-by-day times.
+                                </p>
+                                <ExpertAvailabilityTrigger
+                                  expertId={expert.id}
+                                  startDate={browseAvailabilityRange.start}
+                                  endDate={browseAvailabilityRange.end}
+                                  className="pt-1"
+                                />
+                              </div>
                             </div>
                           </DialogContent>
                         </Dialog>
@@ -1524,6 +1781,11 @@ export default function InstitutionHome() {
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-start gap-2">
                           <h3 className="text-lg font-semibold text-[#000000] truncate">{expert.name}</h3>
+                          {expert.current_designation && (
+                            <span className="inline-block px-2.5 py-0.5 rounded-md text-xs font-semibold bg-[#008260] text-white shadow-sm">
+                              {expert.current_designation}
+                            </span>
+                          )}
                           <div className="flex items-center text-[#000000] font-semibold text-sm">
                             <Star className="h-4 w-4 mr-1 fill-yellow-400 text-yellow-400" />
                             {expert.rating?.toFixed(1) || '0.0'} ({expert.total_ratings || 0})
@@ -1535,13 +1797,21 @@ export default function InstitutionHome() {
                             <Badge key={i} className={`text-xs bg-[#EBDA98] hover:bg-[#EBDA98] rounded-sm text-black py-[6px]`}>{d}</Badge>
                           ))}
                         </div>
+                        {expert.subskills && expert.subskills.length > 0 && (
+                          <p className="text-sm text-slate-700 font-medium mt-2 line-clamp-2">
+                            {expert.subskills.slice(0, 3).join(', ')}
+                            {expert.subskills.length > 3 && (
+                              <span className="text-slate-500"> +{expert.subskills.length - 3} more</span>
+                            )}
+                          </p>
+                        )}
                         <div className="flex items-center gap-4 text-sm text-[#6A6A6A] font-medium mt-3">
-                          <span>₹{expert.hourly_rate}/hour</span>
+                          <span>₹{getInstitutionRate(expert.hourly_rate)}/hour</span>
                           {expert.experience_years ? <span>{expert.experience_years}+ yrs</span> : null}
                         </div>
                       </div>
                       <div className="flex-shrink-0 ml-2 flex gap-2 items-end flex-1 justify-end h-full">
-                        <div className='flex gap-2'>
+                        <div className="flex gap-2 items-center justify-end">
                         <Button className="bg-[#008260] hover:bg-[#008260] text-white rounded-3xl text-sm" onClick={() => { setQuickSelectExpert(expert); setShowQuickSelectModal(true); }}>
                           <UserCheck className="h-4 w-4 mr-1" />
                           Select
@@ -1567,7 +1837,12 @@ export default function InstitutionHome() {
                                 </Avatar>
                                 <div className="min-w-0 flex-1">
                                   <h4 className="font-semibold text-lg truncate">{expert.name}</h4>
-                                  <p className="text-sm text-gray-600 truncate">{expert.domain_expertise?.join(', ')}</p>
+                                  {expert.current_designation && (
+                                    <span className="inline-block mt-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-[#008260] text-white shadow-sm">
+                                      {expert.current_designation}
+                                    </span>
+                                  )}
+                                  <p className="text-sm text-gray-600 truncate mt-1">{expert.domain_expertise?.join(', ')}</p>
                                 </div>
                               </div>
                               <div className="max-h-32 overflow-y-auto">
@@ -1575,13 +1850,19 @@ export default function InstitutionHome() {
                                 <p className="text-sm text-gray-600 leading-relaxed">{expert.bio}</p>
                               </div>
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {expert.current_designation && (
+                                  <div>
+                                    <h4 className="font-medium mb-1">Current Designation</h4>
+                                    <p className="text-sm font-semibold text-[#008260]">{expert.current_designation}</p>
+                                  </div>
+                                )}
                                 <div>
                                   <h4 className="font-medium mb-1">Domain Expertise</h4>
                                   <p className="text-sm">{expert.domain_expertise?.join(', ')}</p>
                                 </div>
                                 <div>
                                   <h4 className="font-medium mb-1">Hourly Rate</h4>
-                                  <p className="text-sm">₹{expert.hourly_rate}</p>
+                                  <p className="text-sm">₹{getInstitutionRate(expert.hourly_rate)}</p>
                                 </div>
                                 <div>
                                   <h4 className="font-medium mb-1">Experience</h4>
@@ -1603,6 +1884,20 @@ export default function InstitutionHome() {
                                   </div>
                                 </div>
                               )}
+                              {expert.expert_services && expert.expert_services.length > 0 && (
+                                <div>
+                                  <h4 className="font-medium mb-2">Expert Services</h4>
+                                  <div className="max-h-24 overflow-y-auto">
+                                    <div className="flex flex-wrap gap-2">
+                                      {expert.expert_services.map((service: string, index: number) => (
+                                        <Badge key={index} variant="secondary" className="text-xs">
+                                          {service}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
                               {expert.qualifications && (
                                 <div>
                                   <h4 className="font-medium mb-1">Qualifications</h4>
@@ -1611,6 +1906,21 @@ export default function InstitutionHome() {
                                   </div>
                                 </div>
                               )}
+                              <div className="rounded-lg border border-[#DCDCDC] bg-[#F8FBFF] p-4 space-y-3">
+                                <div className="flex items-center gap-2 text-sm font-semibold text-[#000000]">
+                                  <Clock className="h-4 w-4 text-[#008260]" />
+                                  Calendar availability
+                                </div>
+                                <p className="text-xs text-[#6A6A6A]">
+                                  Published slots for the next 30 days. Use the button to see day-by-day times.
+                                </p>
+                                <ExpertAvailabilityTrigger
+                                  expertId={expert.id}
+                                  startDate={browseAvailabilityRange.start}
+                                  endDate={browseAvailabilityRange.end}
+                                  className="pt-1"
+                                />
+                              </div>
                               {/* {expert.resume_url && (
                                 <div>
                                   <h4 className="font-medium mb-1">Resume</h4>
@@ -1633,6 +1943,42 @@ export default function InstitutionHome() {
                   </CardContent>
                 </Card>
               ))}
+               {showLockedExperts && (
+                <Card className="relative overflow-hidden border-2 border-dashed border-[#BFE5DA] bg-white/90 rounded-[18px] shadow-[0_8px_30px_rgba(0,0,0,0.08)]">
+                  <CardContent className="p-5">
+                    <div className="space-y-3 blur-[2px]">
+                      {(lockedPreviewExperts.length > 0 ? lockedPreviewExperts : new Array(3).fill(null)).map((item, index) => (
+                        <div key={item?.id || index} className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 bg-slate-50/60">
+                          <div className="w-10 h-10 rounded-full bg-slate-200" />
+                          <div className="flex-1">
+                            <div className="h-3 w-40 bg-slate-200 rounded-full mb-2" />
+                            <div className="h-2 w-28 bg-slate-200 rounded-full" />
+                          </div>
+                          <div className="h-7 w-20 bg-slate-200 rounded-md" />
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
+                      <div className="inline-flex items-center gap-2 bg-[#E8F5F1] text-[#008260] text-xs font-semibold px-3 py-1 rounded-full border border-[#BFE5DA]">
+                        <Lock className="h-3.5 w-3.5" />
+                        More experts hidden
+                      </div>
+                      <h3 className="mt-3 text-lg font-semibold text-[#0F172A]">Unlock full expert list</h3>
+                      <p className="mt-2 text-sm text-[#475569] max-w-md">
+                        Contact our team for complete profiles and tailored expert recommendations for your institution.
+                      </p>
+                      <a
+                        href={contactMailtoHref}
+                        className="mt-4 inline-flex items-center justify-center rounded-md bg-[#008260] text-white px-4 py-2 text-sm font-semibold hover:bg-[#006B4F] transition-colors"
+                      >
+                        Contact Here
+                      </a>
+                      <p className="mt-2 text-xs text-slate-500">{contactEmail}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
               {/* Infinite sentinel */}
               <div ref={expertsListEndRef} />
               {expertsListLoading && (
@@ -1732,7 +2078,7 @@ export default function InstitutionHome() {
                               </div>
                               
                               <div className="flex flex-col sm:flex-row items-center text-slate-600 text-sm mb-2 gap-1 sm:gap-0">
-                                <span className="font-medium">₹{expert.hourly_rate}/hour</span>
+                                <span className="font-medium">₹{getInstitutionRate(expert.hourly_rate)}/hour</span>
                                 <span className="hidden sm:inline mx-2">•</span>
                                 <span>{expert.experience_years || 0} years experience</span>
                                 <span className="hidden sm:inline mx-2">•</span>
@@ -1745,6 +2091,14 @@ export default function InstitutionHome() {
                               <p className="text-slate-600 text-sm line-clamp-2 mb-2">
                                 {expert.bio}
                               </p>
+
+                              <ExpertAvailabilityTrigger
+                                expertId={expert.id}
+                                startDate={projectForm.start_date}
+                                endDate={projectForm.end_date}
+                                projectId={selectedProjectId}
+                                className="mb-3"
+                              />
                               
                               {/* Skills */}
                               {expert.subskills && expert.subskills.length > 0 && (
@@ -1789,10 +2143,10 @@ export default function InstitutionHome() {
                           </div>
                         </div>
                       </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
+                </Card>
+              ))}
+            </div>
+          )}
             </div>
             
             {/* Modal Footer */}

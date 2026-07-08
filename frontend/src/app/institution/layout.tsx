@@ -1,4 +1,5 @@
 import { Metadata } from 'next'
+import { InstitutionWorkspaceShell } from '@/components/institution/InstitutionWorkspaceShell'
 
 export const metadata: Metadata = {
   title: 'Institution Dashboard',
@@ -31,5 +32,5 @@ export default function InstitutionLayout({
 }: {
   children: React.ReactNode
 }) {
-  return children
+  return <InstitutionWorkspaceShell>{children}</InstitutionWorkspaceShell>
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
@@ -13,6 +13,7 @@ import Logo from '@/components/Logo'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { superAdminApi } from '@/lib/superadmin/api'
 
 function LoginForm() {
   const [email, setEmail] = useState('')
@@ -22,6 +23,13 @@ function LoginForm() {
   const [error, setError] = useState('')
   const router = useRouter()
   const searchParams = useSearchParams()
+
+  useEffect(() => {
+    const message = searchParams?.get('message')
+    if (message) {
+      setError(decodeURIComponent(message))
+    }
+  }, [searchParams])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -37,14 +45,14 @@ function LoginForm() {
       if (error) throw error
 
       if (data.user) {
+        if (data.user.user_metadata?.account_removed === true) {
+          await supabase.auth.signOut()
+          setError('This account has been removed and can no longer sign in.')
+          return
+        }
+
         // Check for return URL first
         const returnUrl = searchParams?.get('returnUrl')
-        const message = searchParams?.get('message')
-        
-        if (message) {
-          setError(decodeURIComponent(message))
-        }
-        
         const userMetadata = data.user.user_metadata
         const role = userMetadata?.role
         
@@ -129,12 +137,26 @@ function LoginForm() {
           } catch (error) {
             router.push('/student/profile-setup')
           }
-        } else {
+        } else if (role === 'super_admin' || role === 'superadmin') {
+          try {
+            await superAdminApi.me()
+            router.push('/superadmin/home')
+          } catch (error) {
+            await supabase.auth.signOut()
+            setError(error instanceof Error ? error.message : 'Your admin account cannot sign in.')
+          }
+        }
+         else {
           router.push('/')
         }
       }
     } catch (error: any) {
-      setError(error.message)
+      const message = String(error?.message || 'Login failed')
+      if (/email not confirmed|confirm your email/i.test(message)) {
+        setError('Please verify your email address before signing in. Check your inbox for the confirmation link.')
+      } else {
+        setError(message)
+      }
     } finally {
       setLoading(false)
     }

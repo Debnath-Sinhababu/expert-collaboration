@@ -1,0 +1,4 @@
+name,email,phone,degree,year,specialization,city,state,skills,institution_name,linkedin_url,github_url
+Aarav Mehta,aarav.bulk.test1@example.com,9123456780,B.Tech,3,Computer Science,Mumbai,Maharashtra,"Python, React, SQL",,https://linkedin.com/in/example,https://github.com/example
+Sneha Reddy,sneha.bulk.test2@example.com,9123456781,B.E.,4,Information Technology,Hyderabad,Telangana,"Java, Spring, AWS",,,
+Vikram Singh,vikram.bulk.test3@example.com,9123456782,MCA,2,Data Science,Bengaluru,Karnataka,"Python, Pandas, ML",,,

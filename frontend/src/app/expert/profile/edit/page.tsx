@@ -11,15 +11,33 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { ArrowLeft, Save, User, Briefcase, Upload, Camera, X, FileText, IndianRupee, Info } from 'lucide-react'
+import { ArrowLeft, Save, User, Briefcase, Upload, Camera, X, FileText, IndianRupee, Info, Video, Landmark } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { ExpertAvailabilityCalendar } from '@/components/expert/ExpertAvailabilityCalendar'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useExpertWorkspace } from '@/contexts/ExpertWorkspaceContext'
+import { fetchExpertForWorkspace } from '@/lib/expertWorkspace'
+import { getAuthHeadersForFormData } from '@/lib/api'
 import { MultiSelect } from '@/components/ui/multi-select'
-import { EXPERTISE_DOMAINS } from '@/lib/constants'
+import { EXPERTISE_DOMAINS, EXPERT_TYPES, EXPERT_SERVICES } from '@/lib/constants'
 import Logo from '@/components/Logo'
 import NotificationBell from '@/components/NotificationBell'
+
+const STATES = [
+  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
+  'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram',
+  'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu',
+  'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+  'Andaman and Nicobar Islands', 'Chandigarh', 'Dadra and Nagar Haveli and Daman and Diu',
+  'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry'
+]
 import ProfileDropdown from '@/components/ProfileDropdown'
+
+const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]$/
+const PROFILE_VIDEO_MAX_BYTES = 20 * 1024 * 1024
+const ALLOWED_PROFILE_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'] as const
 
 export default function ExpertProfileEdit() {
   const [user, setUser] = useState<any>(null)
@@ -29,6 +47,7 @@ export default function ExpertProfileEdit() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const router = useRouter()
+  const { viewer, actingExpertId, basePath } = useExpertWorkspace()
 
   const [formData, setFormData] = useState({
     name: '',
@@ -43,8 +62,20 @@ export default function ExpertProfileEdit() {
     phone: '',
     linkedin_url: '',
     last_working_company: '',
+    current_designation: '',
     expert_types: [] as string[],
-    available_on_demand: false
+    expert_services: [] as string[],
+    available_on_demand: false,
+    open_to_work: false,
+    city: '',
+    state: '',
+    address: '',
+    pan_number: '',
+    bank_account_number: '',
+    bank_name: '',
+    ifsc_code: ''
+    ,interested_in_services: false,
+    service_price: ''
   })
 
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
@@ -56,9 +87,23 @@ export default function ExpertProfileEdit() {
   
   const [selectedQualifications, setSelectedQualifications] = useState<File | null>(null)
   const [qualificationsError, setQualificationsError] = useState('')
+  const [selectedCancelledCheque, setSelectedCancelledCheque] = useState<File | null>(null)
+  const [cancelledChequeError, setCancelledChequeError] = useState('')
+
+  const [selectedProfileVideo, setSelectedProfileVideo] = useState<File | null>(null)
+  const [profileVideoError, setProfileVideoError] = useState('')
+  const [profileVideoPreviewUrl, setProfileVideoPreviewUrl] = useState('')
+  const [selectedCourseVideo, setSelectedCourseVideo] = useState<File | null>(null)
+  const [courseVideoError, setCourseVideoError] = useState('')
+  const [courseVideoPreviewUrl, setCourseVideoPreviewUrl] = useState('')
+  const [removeCourseVideo, setRemoveCourseVideo] = useState(false)
   
   const [selectedSubskills, setSelectedSubskills] = useState<string[]>([])
   const [availableSubskills, setAvailableSubskills] = useState<string[]>([])
+  const [customDomains, setCustomDomains] = useState<any[]>([])
+  const [isCustomDomain, setIsCustomDomain] = useState(false)
+  const [customDomainInput, setCustomDomainInput] = useState('')
+  const [customSubskillInput, setCustomSubskillInput] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -68,25 +113,57 @@ export default function ExpertProfileEdit() {
         router.push('/auth/login')
         return
       }
+      if (viewer === 'super_admin' && user.user_metadata?.role !== 'super_admin') {
+        router.push('/')
+        return
+      }
       setUser(user)
       await loadExpertData(user.id)
       setLoading(false)
     }
 
     getUser()
-  }, [router])
+  }, [router, viewer, actingExpertId])
+
+  useEffect(() => {
+    return () => {
+      if (profileVideoPreviewUrl) {
+        URL.revokeObjectURL(profileVideoPreviewUrl)
+      }
+    }
+  }, [profileVideoPreviewUrl])
+
+  const loadCustomDomains = async () => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/admin/custom-domains`)
+      if (response.ok) {
+        const data = await response.json()
+        setCustomDomains(Array.isArray(data) ? data : [])
+        return Array.isArray(data) ? data : []
+      }
+      return []
+    } catch (error) {
+      console.error('Error loading custom domains:', error)
+      return []
+    }
+  }
 
   const loadExpertData = async (userId: string) => {
     try {
-      const expertProfile = await api.experts.getByUserId(userId)
+      // Load custom domains first
+      const loadedCustomDomains = await loadCustomDomains()
+      
+      const expertProfile = await fetchExpertForWorkspace(userId, viewer, actingExpertId)
       
       if (expertProfile) {
         setExpert(expertProfile)
+        const domainName = expertProfile.domain_expertise?.[0] || ''
+        
         setFormData({
           name: expertProfile.name || '',
           bio: expertProfile.bio || '',
           qualifications: expertProfile.qualifications || '',
-          domain_expertise: expertProfile.domain_expertise?.[0] || '',
+          domain_expertise: domainName,
           subskills: expertProfile.subskills || [],
           resume_url: expertProfile.resume_url || '',
           hourly_rate: expertProfile.hourly_rate?.toString() || '',
@@ -95,17 +172,49 @@ export default function ExpertProfileEdit() {
           phone: expertProfile.phone || '',
           linkedin_url: expertProfile.linkedin_url || '',
           last_working_company: expertProfile.last_working_company || '',
+          current_designation: expertProfile.current_designation || '',
           expert_types: expertProfile.expert_types || [],
-          available_on_demand: expertProfile.available_on_demand || false
+          expert_services: expertProfile.expert_services || [],
+          interested_in_services: !!expertProfile.interested_in_services,
+          service_price: expertProfile.service_price !== undefined && expertProfile.service_price !== null ? String(expertProfile.service_price) : (
+            // fallback: if old `service_prices` exists, try to extract first price
+            Array.isArray(expertProfile.service_prices) && expertProfile.service_prices.length > 0 ? String(expertProfile.service_prices[0].price || '') : ''
+          ),
+          available_on_demand: expertProfile.available_on_demand || false,
+          open_to_work: !!expertProfile.open_to_work,
+          city: expertProfile.city || '',
+          state: expertProfile.state || '',
+          pan_number: expertProfile.pan_number || '',
+          address: expertProfile.address || '',
+          bank_account_number: expertProfile.bank_account_number || '',
+          bank_name: expertProfile.bank_name || '',
+          ifsc_code: expertProfile.ifsc_code || ''
         })
         
         setSelectedSubskills(expertProfile.subskills || [])
         
-        if (expertProfile.domain_expertise && expertProfile.domain_expertise[0]) {
-          const selectedDomain = EXPERTISE_DOMAINS.find(d => d.name === expertProfile.domain_expertise[0])
+        if (domainName) {
+          const selectedDomain = EXPERTISE_DOMAINS.find(d => d.name === domainName)
           if (selectedDomain) {
             setAvailableSubskills([...selectedDomain.subskills])
+            setIsCustomDomain(false)
+          } else {
+            // Check if it's a custom domain
+            const customDomain = loadedCustomDomains.find((d: any) => d.name === domainName)
+            if (customDomain && customDomain.subskills) {
+              setAvailableSubskills([...customDomain.subskills])
+              setIsCustomDomain(false)
+            } else {
+              // It's a custom domain that doesn't exist in our lists yet
+              setIsCustomDomain(true)
+              setCustomDomainInput(domainName)
+              setAvailableSubskills([])
+            }
           }
+        }
+        // set course video preview if exists
+        if (expertProfile.course_video_url) {
+          setCourseVideoPreviewUrl(expertProfile.course_video_url)
         }
       }
     } catch (error) {
@@ -118,20 +227,71 @@ export default function ExpertProfileEdit() {
   }
 
   const handleDomainChange = (domain: string) => {
+    // Check if "Custom" option is selected
+    if (domain === '__custom__') {
+      setIsCustomDomain(true)
+      setFormData(prev => ({
+        ...prev,
+        domain_expertise: '',
+        subskills: []
+      }))
+      setAvailableSubskills([])
+      setSelectedSubskills([])
+      return
+    }
+    
+    setIsCustomDomain(false)
+    setCustomDomainInput('')
     setFormData(prev => ({
       ...prev,
       domain_expertise: domain,
       subskills: []
     }))
     
+    // Check predefined domains
     const selectedDomain = EXPERTISE_DOMAINS.find(d => d.name === domain)
     if (selectedDomain) {
       setAvailableSubskills([...selectedDomain.subskills])
     } else {
-      setAvailableSubskills([])
+      // Check custom domains
+      const customDomain = customDomains.find(d => d.name === domain)
+      if (customDomain && customDomain.subskills) {
+        setAvailableSubskills([...customDomain.subskills])
+      } else {
+        setAvailableSubskills([])
+      }
     }
     
     setSelectedSubskills([])
+  }
+
+  const handleCustomDomainInput = (value: string) => {
+    setCustomDomainInput(value)
+    setFormData(prev => ({
+      ...prev,
+      domain_expertise: value
+    }))
+  }
+
+  const handleAddCustomSubskill = () => {
+    if (customSubskillInput.trim()) {
+      const newSubskills = [...selectedSubskills, customSubskillInput.trim()]
+      setSelectedSubskills(newSubskills)
+      setFormData(prev => ({
+        ...prev,
+        subskills: newSubskills
+      }))
+      setCustomSubskillInput('')
+    }
+  }
+
+  const handleRemoveCustomSubskill = (subskill: string) => {
+    const newSubskills = selectedSubskills.filter(s => s !== subskill)
+    setSelectedSubskills(newSubskills)
+    setFormData(prev => ({
+      ...prev,
+      subskills: newSubskills
+    }))
   }
 
   const handleSubskillChange = (newSubskills: string[]) => {
@@ -222,6 +382,99 @@ export default function ExpertProfileEdit() {
     setQualificationsError('')
   }
 
+  const handleCancelledChequeSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      setCancelledChequeError('Please select a PDF or image file')
+      return
+    }
+
+    if (file.size > 20 * 1024 * 1024) {
+      setCancelledChequeError('File size must be less than 20MB')
+      return
+    }
+
+    setCancelledChequeError('')
+    setSelectedCancelledCheque(file)
+    e.target.value = ''
+  }
+
+  const removeCancelledCheque = () => {
+    setSelectedCancelledCheque(null)
+    setCancelledChequeError('')
+  }
+
+  const handlePanChange = (value: string) => {
+    const normalized = value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10)
+    setFormData(prev => ({ ...prev, pan_number: normalized }))
+  }
+
+  const handleProfileVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!ALLOWED_PROFILE_VIDEO_TYPES.includes(file.type as (typeof ALLOWED_PROFILE_VIDEO_TYPES)[number])) {
+      setProfileVideoError('Please use MP4, WebM, or MOV (QuickTime)')
+      return
+    }
+
+    if (file.size > PROFILE_VIDEO_MAX_BYTES) {
+      setProfileVideoError('Video must be 20MB or smaller')
+      return
+    }
+
+    setProfileVideoError('')
+    setSelectedProfileVideo(file)
+    setProfileVideoPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return URL.createObjectURL(file)
+    })
+    e.target.value = ''
+  }
+
+  const removeProfileVideo = () => {
+    setProfileVideoError('')
+    setSelectedProfileVideo(null)
+    setProfileVideoPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return ''
+    })
+  }
+
+  const handleCourseVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!ALLOWED_PROFILE_VIDEO_TYPES.includes(file.type as (typeof ALLOWED_PROFILE_VIDEO_TYPES)[number])) {
+      setCourseVideoError('Please use MP4, WebM, or MOV (QuickTime)')
+      return
+    }
+
+    if (file.size > PROFILE_VIDEO_MAX_BYTES) {
+      setCourseVideoError('Video must be 20MB or smaller')
+      return
+    }
+
+    setCourseVideoError('')
+    setSelectedCourseVideo(file)
+    setCourseVideoPreviewUrl((prev) => {
+      if (prev && prev.startsWith('blob:')) URL.revokeObjectURL(prev)
+      return URL.createObjectURL(file)
+    })
+    setRemoveCourseVideo(false)
+    e.target.value = ''
+  }
+
+  const removeCourseVideoHandler = () => {
+    setSelectedCourseVideo(null)
+    if (courseVideoPreviewUrl && courseVideoPreviewUrl.startsWith('blob:')) URL.revokeObjectURL(courseVideoPreviewUrl)
+    setCourseVideoPreviewUrl('')
+    setRemoveCourseVideo(true)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
@@ -233,72 +486,115 @@ export default function ExpertProfileEdit() {
         throw new Error('Please fill in all required fields')
       }
 
+      if ((isCustomDomain && !customDomainInput.trim()) || (!isCustomDomain && !formData.domain_expertise)) {
+        throw new Error('Please select or enter domain expertise')
+      }
+
+      if (formData.subskills.length === 0) {
+        throw new Error('Please add at least one specialization/skill')
+      }
+
+      if (!formData.experience_years || parseFloat(formData.experience_years) <= 0) {
+        throw new Error('Please enter your years of experience')
+      }
+
       if (!formData.last_working_company?.trim()) {
         throw new Error('Please enter your last working company')
+      }
+
+      if (!formData.current_designation?.trim()) {
+        throw new Error('Please enter your current designation')
       }
 
       if (formData.expert_types.length === 0) {
         throw new Error('Please select at least one expert type')
       }
-
       if (!expert?.id) {
         throw new Error('Expert profile not found')
       }
 
-      if (selectedPhoto || selectedResume || selectedQualifications) {
-        const formDataToSend = new FormData()
-        formDataToSend.append('name', formData.name)
-        formDataToSend.append('bio', formData.bio)
-        formDataToSend.append('phone', formData.phone)
-        formDataToSend.append('qualifications', formData.qualifications)
-        formDataToSend.append('hourly_rate', formData.hourly_rate.toString())
-        formDataToSend.append('experience_years', formData.experience_years)
-        formDataToSend.append('linkedin_url', formData.linkedin_url)
-        formDataToSend.append('domain_expertise', formData.domain_expertise)
-        formDataToSend.append('subskills', JSON.stringify(formData.subskills))
-        formDataToSend.append('last_working_company', formData.last_working_company)
-        formDataToSend.append('expert_types', JSON.stringify(formData.expert_types))
-        formDataToSend.append('available_on_demand', String(formData.available_on_demand))
+      const panNormalized = formData.pan_number
+        .trim()
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .slice(0, 10)
+      if (panNormalized && !PAN_REGEX.test(panNormalized)) {
+        throw new Error('Enter a valid 10-character PAN (e.g. ABCDE1234F)')
+      }
 
-        if (selectedPhoto) {
-          formDataToSend.append('profile_photo', selectedPhoto)
-        }
-        
-        if (selectedResume) {
-          formDataToSend.append('resume', selectedResume)
-        }
-        
-        if (selectedQualifications) {
-          formDataToSend.append('qualifications', selectedQualifications)
-        }
+      const formDataToSend = new FormData()
+      formDataToSend.append('name', formData.name)
+      formDataToSend.append('bio', formData.bio)
+      formDataToSend.append('phone', formData.phone)
+      formDataToSend.append('qualifications', formData.qualifications)
+      formDataToSend.append('hourly_rate', formData.hourly_rate.toString())
+      formDataToSend.append('experience_years', formData.experience_years)
+      formDataToSend.append('linkedin_url', formData.linkedin_url)
+      formDataToSend.append('domain_expertise', formData.domain_expertise)
+      formDataToSend.append('subskills', JSON.stringify(formData.subskills))
+      formDataToSend.append('last_working_company', formData.last_working_company)
+      formDataToSend.append('current_designation', formData.current_designation)
+      formDataToSend.append('expert_types', JSON.stringify(formData.expert_types))
+      formDataToSend.append('expert_services', JSON.stringify(formData.expert_services))
+      formDataToSend.append('open_to_work', String(formData.open_to_work))
+      formDataToSend.append('interested_in_services', String(formData.interested_in_services))
+      formDataToSend.append('service_price', String(formData.service_price || ''))
+      formDataToSend.append('city', formData.city || '')
+      formDataToSend.append('state', formData.state || '')
+      formDataToSend.append('address', formData.address || '')
+      formDataToSend.append('bank_account_number', formData.bank_account_number || '')
+      formDataToSend.append('bank_name', formData.bank_name || '')
+      formDataToSend.append('ifsc_code', formData.ifsc_code || '')
+      if (panNormalized) {
+        formDataToSend.append('pan_number', panNormalized)
+      }
+      formDataToSend.append('resume_url', formData.resume_url || '')
+      formDataToSend.append('photo_url', formData.photo_url || '')
+      formDataToSend.append('qualifications_url', expert?.qualifications_url || '')
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/experts/${expert.id}`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-          },
-          body: formDataToSend
-        })
+      if (selectedPhoto) {
+        formDataToSend.append('profile_photo', selectedPhoto)
+      }
 
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Failed to update profile')
-        }
-      } else {
-        const expertData = {
-          ...formData,
-          domain_expertise: formData.domain_expertise,
-          subskills: formData.subskills,
-          hourly_rate: parseFloat(formData.hourly_rate),
-          experience_years: parseInt(formData.experience_years) || 0,
-          updated_at: new Date().toISOString(),
-        }
-        await api.experts.update(expert.id, expertData)
+      if (selectedResume) {
+        formDataToSend.append('resume', selectedResume)
+      }
+
+      if (selectedQualifications) {
+        formDataToSend.append('qualifications', selectedQualifications)
+      }
+
+      if (selectedCancelledCheque) {
+        formDataToSend.append('cancelled_cheque', selectedCancelledCheque)
+      }
+
+      if (selectedProfileVideo) {
+        formDataToSend.append('profile_video', selectedProfileVideo)
+      }
+
+      if (selectedCourseVideo) {
+        formDataToSend.append('course_video', selectedCourseVideo)
+      }
+
+      if (removeCourseVideo) {
+        formDataToSend.append('remove_course_video', 'true')
+      }
+
+      const authHeaders = await getAuthHeadersForFormData()
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/experts/${expert.id}`, {
+        method: 'PUT',
+        headers: authHeaders,
+        body: formDataToSend
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to update profile')
       }
       
       setSuccess('Profile updated successfully!')
       setTimeout(() => {
-        router.push('/expert/profile')
+        router.push(`${basePath}/profile`)
       }, 1500)
     } catch (error: any) {
       setError(error.message)
@@ -323,16 +619,16 @@ export default function ExpertProfileEdit() {
       <header className="bg-[#008260] border-b border-slate-200/20 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <Link href="/expert/home" className="flex items-center group">
+            <Link href={`${basePath}/home`} className="flex items-center group">
               <Logo size="header" />
             </Link>
 
             <nav className="hidden md:flex items-center space-x-8">
-              <Link href="/expert/home" className="text-white font-medium transition-colors duration-200 relative group">
+              <Link href={`${basePath}/home`} className="text-white font-medium transition-colors duration-200 relative group">
                 Home
                 <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
-              <Link href="/expert/dashboard" className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
+              <Link href={`${basePath}/dashboard`} className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
                 Dashboard
                 <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
@@ -345,7 +641,7 @@ export default function ExpertProfileEdit() {
               <ProfileDropdown 
                 user={user} 
                 expert={expert} 
-                userType="expert" 
+                userType={viewer === 'super_admin' ? 'super_admin' : 'expert'} 
               />
             </div>
           </div>
@@ -354,7 +650,7 @@ export default function ExpertProfileEdit() {
 
       <div className="container mx-auto px-4 max-w-6xl py-8">
         <div className="mb-6">
-          <Link href="/expert/profile" className="inline-flex items-center text-[#008260] hover:text-[#006b4f] transition-colors">
+          <Link href={`${basePath}/profile`} className="inline-flex items-center text-[#008260] hover:text-[#006b4f] transition-colors">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Profile
           </Link>
@@ -412,6 +708,65 @@ export default function ExpertProfileEdit() {
                       required
                     />
                   </div>
+                </div>
+
+                <div className="space-y-2 max-w-md">
+                  <Label htmlFor="pan_number" className="text-slate-700">
+                    PAN (Permanent Account Number) <span className="text-slate-500 font-normal">(optional)</span>
+                  </Label>
+                  <Input
+                    id="pan_number"
+                    placeholder="e.g. ABCDE1234F"
+                    value={formData.pan_number}
+                    onChange={(e) => handlePanChange(e.target.value)}
+                    autoComplete="off"
+                    maxLength={10}
+                    className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300 uppercase font-mono tracking-wide"
+                  />
+                  <p className="text-xs text-slate-500">
+                    10 characters: five letters, four digits, one letter (as on your PAN card).
+                  </p>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="city" className="text-slate-700">City</Label>
+                    <Input
+                      id="city"
+                      placeholder="Enter your city"
+                      value={formData.city}
+                      onChange={(e) => handleInputChange('city', e.target.value)}
+                      className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="state" className="text-slate-700">State</Label>
+                    <Select value={formData.state} onValueChange={(value) => handleInputChange('state', value)}>
+                      <SelectTrigger className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300">
+                        <SelectValue placeholder="Select state" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STATES.map((state) => (
+                          <SelectItem key={state} value={state}>
+                            {state}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="address" className="text-slate-700">Address</Label>
+                  <Textarea
+                    id="address"
+                    placeholder="Street, area, postal code"
+                    value={formData.address}
+                    onChange={(e) => handleInputChange('address', e.target.value)}
+                    rows={2}
+                    className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -604,6 +959,63 @@ export default function ExpertProfileEdit() {
                     )}
                   </div>
                 </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="profile_video_edit" className="text-slate-700 flex items-center space-x-2">
+                      <Video className="h-5 w-5 text-[#008260]" />
+                      <span>Profile intro video</span>
+                    </Label>
+                    <p className="text-sm text-slate-500">Replace with MP4, WebM, or MOV (max 20MB, same as PDFs). Optional if you already have a video on file.</p>
+                  </div>
+                  {expert?.profile_video_url && !selectedProfileVideo && (
+                    <div className="rounded-lg border border-slate-200 overflow-hidden bg-black">
+                      <video
+                        src={expert.profile_video_url}
+                        controls
+                        className="w-full max-h-64"
+                      />
+                      <p className="text-xs text-slate-500 p-2 bg-slate-50">Current intro video</p>
+                    </div>
+                  )}
+                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center transition-all duration-300 hover:border-[#008260]">
+                    <input
+                      type="file"
+                      id="profile_video_edit"
+                      accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
+                      onChange={handleProfileVideoSelect}
+                      className="hidden"
+                    />
+                    <label htmlFor="profile_video_edit" className="cursor-pointer">
+                      <FileText className="mx-auto h-10 w-10 text-[#008260] mb-2" />
+                      <p className="text-sm text-slate-600 mb-1">
+                        <span className="font-medium text-[#008260]">Click to upload</span> a new intro video
+                      </p>
+                      <p className="text-xs text-slate-500">MP4, WebM, or MOV — max 20MB</p>
+                    </label>
+                  </div>
+                  {profileVideoPreviewUrl && selectedProfileVideo && (
+                    <div className="p-3 bg-[#ECF2FF] border border-[#008260]/30 rounded-lg space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium text-slate-900 break-all">{selectedProfileVideo.name}</span>
+                        <button
+                          type="button"
+                          onClick={removeProfileVideo}
+                          className="text-red-500 hover:text-red-700 shrink-0"
+                          aria-label="Remove new video selection"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <video src={profileVideoPreviewUrl} controls className="w-full max-h-64 rounded-md bg-black" />
+                    </div>
+                  )}
+                  {profileVideoError && (
+                    <Alert variant="destructive">
+                      <AlertDescription>{profileVideoError}</AlertDescription>
+                    </Alert>
+                  )}
+                </div>
               </div>
 
               {/* Professional Details */}
@@ -614,9 +1026,23 @@ export default function ExpertProfileEdit() {
                 </h3>
                 
                 <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="current_designation" className="text-slate-700">Current Designation *</Label>
+                    <Input
+                      id="current_designation"
+                      placeholder="e.g. Teacher, Developer, CTO, Professor, Senior Engineer — your current job title or role"
+                      value={formData.current_designation}
+                      onChange={(e) => handleInputChange('current_designation', e.target.value)}
+                      className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300"
+                      required
+                    />
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="domain_expertise" className="text-slate-700">Domain Expertise *</Label>
-                    <Select value={formData.domain_expertise} onValueChange={handleDomainChange}>
+                    <Select 
+                      value={isCustomDomain ? '__custom__' : formData.domain_expertise} 
+                      onValueChange={handleDomainChange}
+                    >
                       <SelectTrigger className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300">
                         <SelectValue placeholder="Select your primary domain" />
                       </SelectTrigger>
@@ -626,11 +1052,32 @@ export default function ExpertProfileEdit() {
                             {domain.name}
                           </SelectItem>
                         ))}
+                        {customDomains.map((domain) => (
+                          <SelectItem key={domain.id} value={domain.name}>
+                            {domain.name} (Custom)
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="__custom__">+ Add Custom Domain</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
-                  {formData.domain_expertise && availableSubskills.length > 0 && (
+                  {/* Custom Domain Input */}
+                  {isCustomDomain && (
+                    <div className="space-y-2">
+                      <Label htmlFor="custom_domain" className="text-slate-700">Custom Domain Name *</Label>
+                      <Input
+                        id="custom_domain"
+                        placeholder="Enter custom domain name"
+                        value={customDomainInput}
+                        onChange={(e) => handleCustomDomainInput(e.target.value)}
+                        className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300"
+                      />
+                    </div>
+                  )}
+
+                  {/* Predefined or Custom Domain Subskills */}
+                  {formData.domain_expertise && !isCustomDomain && availableSubskills.length > 0 && (
                     <div className="space-y-2 min-w-0 max-w-full overflow-hidden">
                       <Label className="text-slate-700">Specializations & Skills *</Label>
                       <MultiSelect
@@ -643,8 +1090,57 @@ export default function ExpertProfileEdit() {
                     </div>
                   )}
 
+                  {/* Custom Subskills Input */}
+                  {isCustomDomain && formData.domain_expertise && (
+                    <div className="space-y-2 min-w-0 max-w-full overflow-hidden">
+                      <Label className="text-slate-700">Custom Specializations & Skills *</Label>
+                      <div className="space-y-2">
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Enter specialization/skill"
+                            value={customSubskillInput}
+                            onChange={(e) => setCustomSubskillInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                handleAddCustomSubskill()
+                              }
+                            }}
+                            className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] focus:shadow-lg focus:shadow-[#008260]/20 transition-all duration-300"
+                          />
+                          <Button
+                            type="button"
+                            onClick={handleAddCustomSubskill}
+                            className="bg-[#008260] hover:bg-[#006d51] text-white"
+                          >
+                            Add
+                          </Button>
+                        </div>
+                        {selectedSubskills.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {selectedSubskills.map((subskill, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-center gap-1 px-3 py-1 bg-[#008260]/10 border border-[#008260]/30 rounded-md text-sm"
+                              >
+                                <span>{subskill}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveCustomSubskill(subskill)}
+                                  className="ml-1 text-red-500 hover:text-red-700"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="space-y-2">
-                    <Label htmlFor="experience_years" className="text-slate-700">Years of Experience</Label>
+                    <Label htmlFor="experience_years" className="text-slate-700">Years of Experience *</Label>
                     <Input
                       id="experience_years"
                       type="number"
@@ -652,6 +1148,8 @@ export default function ExpertProfileEdit() {
                       value={formData.experience_years}
                       onChange={(e) => handleInputChange('experience_years', e.target.value)}
                       className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
+                      required
+                      min="0"
                     />
                   </div>
                 </div>
@@ -685,7 +1183,7 @@ export default function ExpertProfileEdit() {
                   </div>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-4">
+                <div className="grid md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="last_working_company" className="text-slate-700">Last Working Company *</Label>
                     <Input
@@ -701,41 +1199,246 @@ export default function ExpertProfileEdit() {
                   <div className="space-y-2 min-w-0 max-w-full overflow-hidden">
                     <Label className="text-slate-700">Expert Type *</Label>
                     <MultiSelect
-                      options={['Guest Faculty', 'Visiting Faculty', 'Industry Experts']}
+                      options={EXPERT_TYPES}
                       selected={formData.expert_types}
                       onSelectionChange={(types) => setFormData(prev => ({ ...prev, expert_types: types }))}
                       placeholder="Select expert types..."
                       className="w-full min-w-0"
                     />
                   </div>
-                </div>
 
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="available_on_demand"
-                      checked={formData.available_on_demand}
-                      onChange={(e) => setFormData(prev => ({ ...prev, available_on_demand: e.target.checked }))}
-                      className="w-4 h-4 border-slate-300 rounded text-[#008260] focus:ring-[#008260] focus:ring-offset-0"
-                    />
-                    <Label htmlFor="available_on_demand" className="text-slate-700 cursor-pointer flex items-center gap-2">
-                      Are you available on demand?
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="h-4 w-4 text-slate-400 hover:text-[#008260] cursor-help" />
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-xs">
-                            <p className="text-sm">
-                              By checking this, you agree to be available immediately when a requirement is posted and will be connected with institutions right away.
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </Label>
+                  <div className="space-y-2 min-w-0 max-w-full overflow-hidden">
+                    <Label className="text-slate-700">Expert Services</Label>
+                    <div className="space-y-2">
+                      <MultiSelect
+                        options={EXPERT_SERVICES}
+                        selected={formData.expert_services}
+                        onSelectionChange={(services) => setFormData(prev => ({ ...prev, expert_services: services }))}
+                        placeholder="Select expert services..."
+                        className="w-full min-w-0"
+                      />
+                      <div className="mt-2">
+                        <Label className="text-slate-700">Service price (single value)</Label>
+                        <Input type="number" min={0} step={1} value={formData.service_price} onChange={(e)=>setFormData(prev=>({...prev, service_price: e.target.value }))} placeholder="Enter price in INR" className="w-40" />
+                        <p className="text-xs text-slate-500">A single numeric price for your services/courses.</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="open_to_work"
+                          checked={formData.open_to_work}
+                          onChange={(e) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              open_to_work: e.target.checked,
+                            }))
+                          }
+                          className="w-4 h-4 border-slate-300 rounded text-[#008260] focus:ring-[#008260] focus:ring-offset-0"
+                        />
+
+                        <Label
+                          htmlFor="open_to_work"
+                          className="text-slate-700 cursor-pointer"
+                        >
+                          Open to work currently
+                        </Label>
+                      </div>
+
+                    <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="interested_in_services"
+                          checked={formData.interested_in_services}
+                          onChange={(e) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              interested_in_services: e.target.checked,
+                            }))
+                          }
+                          className="w-4 h-4 border-slate-300 rounded text-[#008260] focus:ring-[#008260] focus:ring-offset-0"
+                        />
+
+                        <Label
+                          htmlFor="interested_in_services"
+                          className="text-slate-700 cursor-pointer"
+                        >
+                          Interested in providing services and courses?
+                        </Label>
+
+                        <div className="group relative">
+                          <Info className="h-4 w-4 text-slate-500 cursor-help" />
+
+                          <div className="absolute left-0 top-6 z-50 hidden w-80 rounded-lg bg-slate-900 p-3 text-xs text-white shadow-lg group-hover:block">
+                            We operate a separate platform calxbook where professionals, trainers, and
+                            educators can offer their services and courses. If you would like to
+                            partner with us and make your services or courses available to our
+                            audience, please select this option.
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {formData.interested_in_services && (
+                      <div className="space-y-3">
+                        <div>
+                          <Label className="text-slate-700">Course sample video (optional)</Label>
+                          <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 text-center hover:border-[#008260] transition-colors">
+                            <input type="file" id="course_video_edit" accept="video/*" onChange={handleCourseVideoSelect} className="hidden" />
+                            <label htmlFor="course_video_edit" className="cursor-pointer">
+                              <Video className="mx-auto h-12 w-12 text-slate-400 mb-2" />
+                              <p className="text-sm text-slate-600">Upload a short course preview (max 20MB)</p>
+                            </label>
+                          </div>
+
+                          {(selectedCourseVideo || courseVideoPreviewUrl) && (
+                            <div className="mt-3 p-3 bg-[#008260]/10 border border-[#008260]/30 rounded-lg">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-2">
+                                  <Video className="h-5 w-5 text-[#008260]" />
+                                  <span className="text-sm font-medium text-slate-900 break-all">{selectedCourseVideo ? selectedCourseVideo.name : (courseVideoPreviewUrl ? 'Existing course video' : '')}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <button type="button" onClick={() => { document.getElementById('course_video_edit')?.dispatchEvent(new MouseEvent('click')) }} className="text-[#008260] hover:underline text-sm">Change</button>
+                                  <button type="button" onClick={removeCourseVideoHandler} className="text-red-500 hover:text-red-700 text-sm">Remove</button>
+                                </div>
+                              </div>
+                              {courseVideoPreviewUrl && (
+                                <div className="mt-3">
+                                  <video controls src={courseVideoPreviewUrl} className="w-full rounded-md" />
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {courseVideoError && (
+                            <Alert variant="destructive" className="mt-2"><AlertDescription>{courseVideoError}</AlertDescription></Alert>
+                          )}
+                        </div>
+
+                        <div>
+                          <Label className="text-slate-700">Service price (optional)</Label>
+                          <p className="text-xs text-slate-500">You can update the price above if needed.</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
+
+                <div className="space-y-4 pt-4 border-t border-slate-200">
+                  <h3 className="text-lg font-semibold text-slate-800 flex items-center space-x-2">
+                    <Landmark className="h-5 w-5 text-[#008260]" />
+                    <span>Bank Details</span>
+                  </h3>
+                  <p className="text-sm text-slate-600">
+                    Optional payout information. You can leave these blank and update them later.
+                  </p>
+
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="bank_account_number" className="text-slate-700">Bank Account Number</Label>
+                      <Input
+                        id="bank_account_number"
+                        placeholder="Enter account number"
+                        value={formData.bank_account_number}
+                        onChange={(e) => handleInputChange('bank_account_number', e.target.value.replace(/[^0-9]/g, ''))}
+                        autoComplete="off"
+                        className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="bank_name" className="text-slate-700">Bank Name</Label>
+                      <Input
+                        id="bank_name"
+                        placeholder="Enter bank name"
+                        value={formData.bank_name}
+                        onChange={(e) => handleInputChange('bank_name', e.target.value)}
+                        className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="ifsc_code" className="text-slate-700">IFSC Code</Label>
+                      <Input
+                        id="ifsc_code"
+                        placeholder="e.g. HDFC0001234"
+                        value={formData.ifsc_code}
+                        onChange={(e) => handleInputChange('ifsc_code', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11))}
+                        autoComplete="off"
+                        maxLength={11}
+                        className="border-slate-200 focus:border-[#008260] focus:ring-[#008260] transition-all duration-300 uppercase font-mono tracking-wide"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="cancelled_cheque" className="text-slate-700">Cancelled Cheque</Label>
+                    <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-6 text-center transition-all duration-300 hover:border-[#008260]">
+                      <input
+                        type="file"
+                        id="cancelled_cheque"
+                        accept=".pdf,image/jpeg,image/jpg,image/png,image/webp"
+                        onChange={handleCancelledChequeSelect}
+                        className="hidden"
+                      />
+                      <label htmlFor="cancelled_cheque" className="cursor-pointer">
+                        <FileText className="mx-auto h-12 w-12 text-[#008260] mb-4" />
+                        <p className="text-sm text-slate-600 mb-2">
+                          <span className="font-medium text-[#008260]">Click to upload</span>{' '}
+                          cancelled cheque
+                        </p>
+                        <p className="text-xs text-slate-500">PDF or image files, max 20MB (optional)</p>
+                      </label>
+                    </div>
+
+                    {selectedCancelledCheque && (
+                      <div className="mt-3 p-3 bg-[#ECF2FF] border border-[#008260] rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <FileText className="h-5 w-5 text-[#008260]" />
+                            <span className="text-sm font-medium text-[#008260] break-all">
+                              {selectedCancelledCheque.name}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={removeCancelledCheque}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {cancelledChequeError && (
+                      <Alert variant="destructive" className="mt-2">
+                        <AlertDescription>{cancelledChequeError}</AlertDescription>
+                      </Alert>
+                    )}
+
+                    {expert?.cancelled_cheque_url && !selectedCancelledCheque && (
+                      <div className="mt-2 flex items-center space-x-2 text-sm text-slate-600">
+                        <FileText className="h-4 w-4 text-[#008260]" />
+                        <span>Current cancelled cheque uploaded</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {expert?.id && (
+                  <div className="space-y-3 pt-4 border-t border-slate-200">
+                    <h3 className="text-lg font-semibold text-slate-800">Availability calendar</h3>
+                    <p className="text-sm text-slate-600">
+                      Set when you are available so institutions can see your schedule for requirement dates.
+                    </p>
+                    <ExpertAvailabilityCalendar expertId={expert.id} />
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="resume" className="text-slate-700">Resume/CV (PDF)</Label>
@@ -795,7 +1498,7 @@ export default function ExpertProfileEdit() {
               </div>
 
               <div className="flex justify-end gap-4 pt-6">
-                <Link href="/expert/profile">
+                <Link href={`${basePath}/profile`}>
                   <Button
                     type="button"
                     variant="outline"

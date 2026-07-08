@@ -18,6 +18,14 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import ProfileDropdown from '@/components/ProfileDropdown'
 import Logo from '@/components/Logo'
 import NotificationBell from '@/components/NotificationBell'
+import { getInstitutionRate } from '@/lib/utils'
+import { expertDisplayName } from '@/lib/privacyDisplay'
+import { ExpertAvailabilityTrigger } from '@/components/expert/ExpertAvailabilityTrigger'
+import { isTrainingProjectType } from '@/lib/trainingTypes'
+import { TrainingAttendancePanel } from '@/components/training/TrainingAttendancePanel'
+import { InterviewAvailabilitySelector } from '@/components/requirements/InterviewAvailabilitySelector'
+import type { InterviewSlot } from '@/components/requirements/InterviewAvailabilitySelector'
+import { resolveHourlyRate } from '@/lib/projectPricing'
 import { 
   ArrowLeft,
   Building, 
@@ -40,8 +48,11 @@ import {
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { RatingModal } from '@/components/RatingModal'
+import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
+import { fetchInstitutionForWorkspace } from '@/lib/institutionWorkspace'
 
-export default function ProjectDetailsPage() {
+export default function InstitutionProjectDetailsPage() {
+  const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
   const params = useParams()
   const router = useRouter()
   const projectId = params.projectId as string
@@ -71,6 +82,12 @@ export default function ProjectDetailsPage() {
   const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null)
   const [interviewDate, setInterviewDate] = useState<Date | undefined>(undefined)
   const [interviewTime, setInterviewTime] = useState<string>('')
+  const [selectedInterviewApplication, setSelectedInterviewApplication] = useState<any>(null)
+  const [selectedInterviewSlot, setSelectedInterviewSlot] = useState<InterviewSlot | null>(null)
+  const [showFinalRateModal, setShowFinalRateModal] = useState(false)
+  const [selectedBookingApplication, setSelectedBookingApplication] = useState<any>(null)
+  const [finalHourlyRate, setFinalHourlyRate] = useState('')
+  const [bookingDateEdits, setBookingDateEdits] = useState<Record<string, { actual_start_date?: string; actual_end_date?: string }>>({})
   const [processingApplications, setProcessingApplications] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
@@ -87,7 +104,12 @@ export default function ProjectDetailsPage() {
         setUser(user)
         
         const userRole = user.user_metadata?.role
-        if (userRole !== 'institution') {
+        if (viewer === 'super_admin') {
+          if (userRole !== 'super_admin' || !actingInstitutionId) {
+            router.push('/')
+            return
+          }
+        } else if (userRole !== 'institution') {
           console.log('Non-institution user accessing project page, redirecting...')
           if (userRole === 'expert') {
             router.push('/expert/dashboard')
@@ -105,7 +127,7 @@ export default function ProjectDetailsPage() {
       }
     }
     getUser()
-  }, [router])
+  }, [router, viewer, actingInstitutionId, projectId])
 
   // Load ratings when institution is available
   useEffect(() => {
@@ -117,14 +139,17 @@ export default function ProjectDetailsPage() {
 
   const loadInstitutionData = async (userId: string) => {
     try {
-      const institutionProfile = await api.institutions.getByUserId(userId)
-    
-      
+      const institutionProfile = await fetchInstitutionForWorkspace(userId, viewer, actingInstitutionId)
+
       if (!institutionProfile) {
-        router.push('/institution/profile-setup')
+        if (viewer === 'super_admin') {
+          router.push('/superadmin/home')
+        } else {
+          router.push('/institution/profile-setup')
+        }
         return
       }
-      
+
       setInstitution(institutionProfile)
     } catch (error: any) {
       setError('Failed to load institution data')
@@ -137,6 +162,11 @@ export default function ProjectDetailsPage() {
       const projectData = await api.projects.getById(projectId)
       if (!projectData) {
         setError('Project not found')
+        return
+      }
+      if (viewer === 'super_admin' && actingInstitutionId && projectData.institution_id !== actingInstitutionId) {
+        setError('This project does not belong to the selected institution.')
+        router.push(`${basePath}/dashboard`)
         return
       }
       setProject(projectData)
@@ -161,9 +191,20 @@ export default function ProjectDetailsPage() {
     }
   }
 
+  const normalizePaginatedResponse = (response: any, type: 'applications' | 'bookings') => {
+    if (Array.isArray(response)) return response
+    if (!response || typeof response !== 'object') return []
+
+    extractCounts(response, type)
+
+    if (Array.isArray(response.data)) return response.data
+    if (response.data && Array.isArray(response.data.data)) return response.data.data
+    return []
+  }
+
   // Paginated applications for pending status
   const {
-    data: pendingApplications,
+    data: rawPendingApplications,
     loading: pendingLoading,
     hasMore: hasMorePending,
     loadMore: loadMorePending,
@@ -178,22 +219,14 @@ export default function ProjectDetailsPage() {
         limit: 10
       })
       
-      // Handle new data structure with counts
-      if (response && typeof response === 'object' && 'data' in response) {
-        // Extract counts on first page load
-      
-          extractCounts(response, 'applications')
-        
-        return response.data
-      }
-      return response
+      return normalizePaginatedResponse(response, 'applications')
     },
     [projectId]
   )
 
   // Paginated applications for interview status
   const {
-    data: interviewApplications,
+    data: rawInterviewApplications,
     loading: interviewLoading,
     hasMore: hasMoreInterview,
     loadMore: loadMoreInterview,
@@ -208,19 +241,14 @@ export default function ProjectDetailsPage() {
         limit: 10
       })
       
-      // Handle new data structure with counts
-      if (response && typeof response === 'object' && 'data' in response) {
-        extractCounts(response, 'applications')
-        return response.data
-      }
-      return response
+      return normalizePaginatedResponse(response, 'applications')
     },
     [projectId]
   )
 
   // Paginated applications for rejected status (read-only)
   const {
-    data: rejectedApplications,
+    data: rawRejectedApplications,
     loading: rejectedLoading,
     hasMore: hasMoreRejected,
     loadMore: loadMoreRejected,
@@ -235,18 +263,14 @@ export default function ProjectDetailsPage() {
         limit: 10
       })
       
-      if (response && typeof response === 'object' && 'data' in response) {
-        extractCounts(response, 'applications')
-        return response.data
-      }
-      return response
+      return normalizePaginatedResponse(response, 'applications')
     },
     [projectId]
   )
 
   // Paginated bookings for selected status
   const {
-    data: selectedBookings,
+    data: rawSelectedBookings,
     loading: selectedLoading,
     hasMore: hasMoreSelected,
     loadMore: loadMoreSelected,
@@ -260,18 +284,15 @@ export default function ProjectDetailsPage() {
         limit: 10
       })
       
-      // Handle new data structure with counts
-      if (response && typeof response === 'object' && 'data' in response) {
-        // Extract counts on first page load
-        if (page === 1) {
-          extractCounts(response, 'bookings')
-        }
-        return response.data
-      }
-      return response
+      return normalizePaginatedResponse(response, 'bookings')
     },
     [projectId]
   )
+
+  const pendingApplications = Array.isArray(rawPendingApplications) ? rawPendingApplications : []
+  const interviewApplications = Array.isArray(rawInterviewApplications) ? rawInterviewApplications : []
+  const rejectedApplications = Array.isArray(rawRejectedApplications) ? rawRejectedApplications : []
+  const selectedBookings = Array.isArray(rawSelectedBookings) ? rawSelectedBookings : []
 
   // Infinite scroll logic using Intersection Observer
   useEffect(() => {
@@ -351,10 +372,13 @@ export default function ProjectDetailsPage() {
   
 
   const handleProceedToInterview = (applicationId: string) => {
+    const application = [...(pendingApplications || []), ...(interviewApplications || [])].find((app: any) => app.id === applicationId)
     setSelectedApplicationId(applicationId)
+    setSelectedInterviewApplication(application || null)
     setShowInterviewModal(true)
     setInterviewDate(undefined)
     setInterviewTime('')
+    setSelectedInterviewSlot(null)
   }
 
   const handleInterviewSubmit = async () => {
@@ -365,6 +389,15 @@ export default function ProjectDetailsPage() {
       
       let interviewDateValue = null
       if (interviewDate && interviewTime) {
+        const todayStart = new Date()
+        todayStart.setHours(0, 0, 0, 0)
+        const selectedStart = new Date(interviewDate)
+        selectedStart.setHours(0, 0, 0, 0)
+        if (selectedStart < todayStart) {
+          toast.error('Interview date cannot be in the past')
+          setProcessingApplications(prev => ({ ...prev, [selectedApplicationId]: false }))
+          return
+        }
         const [hours, minutes] = interviewTime.split(':').map(Number)
         const combinedDateTime = new Date(interviewDate)
         combinedDateTime.setHours(hours, minutes, 0, 0)
@@ -380,6 +413,8 @@ export default function ProjectDetailsPage() {
       toast.success('Application moved to interview stage!')
       setShowInterviewModal(false)
       setSelectedApplicationId(null)
+      setSelectedInterviewApplication(null)
+      setSelectedInterviewSlot(null)
       setInterviewDate(undefined)
       setInterviewTime('')
       refreshPending()
@@ -393,19 +428,35 @@ export default function ProjectDetailsPage() {
   }
 
   const handleProceedToBooking = async (applicationId: string) => {
+    const application = [...(pendingApplications || []), ...(interviewApplications || [])].find((app: any) => app.id === applicationId)
+    if (!application) {
+      toast.error('Application not found')
+      return
+    }
+    setSelectedBookingApplication(application)
+    setFinalHourlyRate('')
+    setShowFinalRateModal(true)
+  }
+
+  const confirmProceedToBooking = async () => {
+    const application = selectedBookingApplication
+    if (!application) return
+    const applicationId = application.id
+
     try {
       setProcessingApplications(prev => ({ ...prev, [applicationId]: true }))
-      
-      // Get application details
-      const application = [...(pendingApplications || []), ...(interviewApplications || [])].find((app: any) => app.id === applicationId)
-      if (!application) {
-        toast.error('Application not found')
-        return
-      }
+
+      const resolvedAmount = resolveHourlyRate({
+        finalHourlyRate,
+        proposedRate: (application as any).proposed_rate,
+        projectHourlyRate: project?.hourly_rate,
+        fallback: 1000,
+      })
 
       // Update application status to accepted
       await api.applications.update(applicationId, {
         status: 'accepted',
+        final_hourly_rate: finalHourlyRate ? Number(finalHourlyRate) : null,
         reviewed_at: new Date().toISOString()
       })
 
@@ -415,9 +466,13 @@ export default function ProjectDetailsPage() {
         institution_id: institution.id,
         project_id: (application as any).project_id,
         application_id: applicationId,
-        amount: (application as any).proposed_rate || 1000,
-        start_date: new Date().toISOString().split('T')[0],
-        end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        amount: resolvedAmount,
+        start_date: project.start_date
+          ? String(project.start_date).slice(0, 10)
+          : new Date().toISOString().split('T')[0],
+        end_date: project.end_date
+          ? String(project.end_date).slice(0, 10)
+          : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         hours_booked: project.duration_hours,
         status: 'in_progress',
         payment_status: 'pending'
@@ -426,6 +481,9 @@ export default function ProjectDetailsPage() {
       await api.bookings.create(bookingData)
 
       toast.success('Booking created successfully!')
+      setShowFinalRateModal(false)
+      setSelectedBookingApplication(null)
+      setFinalHourlyRate('')
       refreshInterview()
       refreshSelected()
     } catch (error) {
@@ -521,6 +579,21 @@ export default function ProjectDetailsPage() {
     }
   }
 
+  const handleBookingDateUpdate = async (booking: any) => {
+    const edits = bookingDateEdits[booking.id] || {}
+    try {
+      await api.bookings.update(booking.id, {
+        actual_start_date: edits.actual_start_date || booking.actual_start_date || null,
+        actual_end_date: edits.actual_end_date || booking.actual_end_date || null,
+      })
+      toast.success('Project dates updated')
+      refreshSelected()
+    } catch (error) {
+      console.error('Error updating project dates:', error)
+      toast.error('Failed to update project dates')
+    }
+  }
+
   // Handle booking deletion
   const handleBookingDelete = async (bookingId: string, applicationId: string) => {
     if (confirm('Are you sure you want to delete this booking? This action cannot be undone.')) {
@@ -590,7 +663,7 @@ export default function ProjectDetailsPage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-red-600 mb-4">Error</h1>
           <p className="text-slate-600 mb-4">{error || 'Project not found'}</p>
-          <Button onClick={() => router.push('/institution/dashboard')} className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300">
+          <Button onClick={() => router.push(`${basePath}/dashboard`)} className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 hover:from-slate-800 hover:via-blue-800 hover:to-indigo-800 text-white shadow-sm hover:shadow-md transition-all duration-300">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Dashboard
           </Button>
@@ -615,14 +688,18 @@ export default function ProjectDetailsPage() {
                 <ArrowLeft className="h-4 w-4" />
                 Back 
               </Button>
-              <Link href="/institution/home" className="flex items-center group">
+              <Link href={`${basePath}/home`} className="flex items-center group">
                 <Logo size="header" />
               </Link>
             </div>
             
             <div className="flex items-center space-x-2">
               <NotificationBell />
-              <ProfileDropdown user={user} institution={institution} userType="institution" />
+              <ProfileDropdown
+                user={user}
+                institution={institution}
+                userType={viewer === 'super_admin' ? 'super_admin' : 'institution'}
+              />
             </div>
           </div>
         </div>
@@ -753,12 +830,12 @@ export default function ProjectDetailsPage() {
                               <Avatar className="w-10 h-10 sm:w-12 sm:h-12 border-2 border-[#008260]/40">
                                 <AvatarImage src={application.experts?.photo_url} />
                                 <AvatarFallback className="text-lg font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
-                                  {application.experts?.name?.charAt(0) || 'E'}
+                                  {expertDisplayName(application.experts)?.charAt(0) || 'E'}
                                 </AvatarFallback>
                               </Avatar>
                               <div className="min-w-0">
-                                <h3 className="font-semibold text-black text-sm sm:text-base truncate">{application.experts?.name || 'Unknown Expert'}</h3>
-                                <p className="text-xs sm:text-sm text-black">₹{application.experts?.hourly_rate || 0}/hr</p>
+                                <h3 className="font-semibold text-black text-sm sm:text-base truncate">{expertDisplayName(application.experts)}</h3>
+                                <p className="text-xs sm:text-sm text-black">₹{getInstitutionRate(application.experts?.hourly_rate)}/hr</p>
                               </div>
                             </div>
                             <Badge className='bg-[#FFF6D3] text-xs font-semibold text-[#967800] flex-shrink-0'>
@@ -770,6 +847,15 @@ export default function ProjectDetailsPage() {
                           </div>
                           
                           <p className="text-xs sm:text-sm text-[#000000] mb-4">{application.experts?.bio || 'No bio available'}</p>
+                {application.expert_id && (
+                  <ExpertAvailabilityTrigger
+                    expertId={application.expert_id}
+                    startDate={project?.start_date}
+                    endDate={project?.end_date}
+                    projectId={projectId}
+                    className="mb-4"
+                  />
+                )}
                           
                           {/* Expert Details */}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-4">
@@ -794,6 +880,14 @@ export default function ProjectDetailsPage() {
                                   : 'Not specified'}
                               </p>
                             </div>
+                            <div>
+                              <span className="text-[#666666] font-medium text-sm">Completed trainings:</span>
+                              <p className="font-medium text-[#000000] text-sm">{application.experts?.completed_trainings_count || application.experts?.training_count || 0}</p>
+                            </div>
+                            <div>
+                              <span className="text-[#666666] font-medium text-sm">Proposed rate:</span>
+                              <p className="font-medium text-[#000000] text-sm">Rs {application.proposed_rate || project?.hourly_rate || 0}/hr</p>
+                            </div>
                         
                           </div>
 
@@ -814,6 +908,20 @@ export default function ProjectDetailsPage() {
                             <div className="mb-4">
                               <span className="text-[#666666] font-medium text-sm">Qualifications:</span>
                               <p className="font-medium text-[#000000] text-sm mt-1">{application.experts.qualifications}</p>
+                            </div>
+                          )}
+                          {(application.experts?.qualifications_url || application.experts?.resume_url) && (
+                            <div className="mb-4 flex flex-wrap gap-2">
+                              {application.experts?.qualifications_url && (
+                                <Button asChild size="sm" variant="outline">
+                                  <a href={application.experts.qualifications_url} target="_blank" rel="noopener noreferrer">View certificate</a>
+                                </Button>
+                              )}
+                              {application.experts?.resume_url && (
+                                <Button asChild size="sm" variant="outline">
+                                  <a href={application.experts.resume_url} target="_blank" rel="noopener noreferrer">View resume</a>
+                                </Button>
+                              )}
                             </div>
                           )}
                           
@@ -890,12 +998,12 @@ export default function ProjectDetailsPage() {
                     <Avatar className="w-10 h-10 sm:w-12 sm:h-12 border-2 border-[#008260]/40">
                       <AvatarImage src={application.experts?.photo_url} />
                       <AvatarFallback className="text-lg font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
-                        {application.experts?.name?.charAt(0) || 'E'}
+                        {expertDisplayName(application.experts)?.charAt(0) || 'E'}
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
-                      <h3 className="font-semibold text-black text-sm sm:text-base truncate">{application.experts?.name || 'Unknown Expert'}</h3>
-                      <p className="text-xs sm:text-sm text-black">₹{application.experts?.hourly_rate || 0}/hr</p>
+                      <h3 className="font-semibold text-black text-sm sm:text-base truncate">{expertDisplayName(application.experts)}</h3>
+                      <p className="text-xs sm:text-sm text-black">₹{getInstitutionRate(application.experts?.hourly_rate)}/hr</p>
                     </div>
                   </div>
                   <Badge className='bg-[#FFF6D3] text-xs font-semibold text-[#967800] flex-shrink-0'>
@@ -907,6 +1015,15 @@ export default function ProjectDetailsPage() {
                 </div>
                 
                 <p className="text-xs sm:text-sm text-[#000000] mb-4">{application.experts?.bio || 'No bio available'}</p>
+                {application.expert_id && (
+                  <ExpertAvailabilityTrigger
+                    expertId={application.expert_id}
+                    startDate={project?.start_date}
+                    endDate={project?.end_date}
+                    projectId={projectId}
+                    className="mb-4"
+                  />
+                )}
                 
                 {/* Expert Details */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-4">
@@ -1028,12 +1145,12 @@ export default function ProjectDetailsPage() {
                     <Avatar className="w-10 h-10 sm:w-12 sm:h-12 border-2 border-[#008260]/40">
                       <AvatarImage src={application.experts?.photo_url} />
                       <AvatarFallback className="text-lg font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
-                        {application.experts?.name?.charAt(0) || 'E'}
+                        {expertDisplayName(application.experts)?.charAt(0) || 'E'}
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
-                      <h3 className="font-semibold text-black text-sm sm:text-base truncate">{application.experts?.name || 'Unknown Expert'}</h3>
-                      <p className="text-xs sm:text-sm text-black">₹{application.experts?.hourly_rate || 0}/hr</p>
+                      <h3 className="font-semibold text-black text-sm sm:text-base truncate">{expertDisplayName(application.experts)}</h3>
+                      <p className="text-xs sm:text-sm text-black">₹{getInstitutionRate(application.experts?.hourly_rate)}/hr</p>
                     </div>
                   </div>
                   <Badge className={`${getStatusColor(application.status)} flex-shrink-0`}>
@@ -1045,6 +1162,15 @@ export default function ProjectDetailsPage() {
                 </div>
                 
                 <p className="text-xs sm:text-sm text-[#000000] mb-4">{application.experts?.bio || 'No bio available'}</p>
+                {application.expert_id && (
+                  <ExpertAvailabilityTrigger
+                    expertId={application.expert_id}
+                    startDate={project?.start_date}
+                    endDate={project?.end_date}
+                    projectId={projectId}
+                    className="mb-4"
+                  />
+                )}
                 
                 {/* Expert Details */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-4">
@@ -1144,7 +1270,7 @@ export default function ProjectDetailsPage() {
             {/* Left Column */}
             <div>
               <span className="text-[#666666] font-medium text-sm">Expert: </span>
-              <span className="text-[#000000] font-medium text-sm">{booking.experts?.name}</span>
+              <span className="text-[#000000] font-medium text-sm">{expertDisplayName(booking.experts)}</span>
             </div>
             
             {/* Right Column */}
@@ -1179,6 +1305,40 @@ export default function ProjectDetailsPage() {
               </span>
             </div>
           </div>
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 rounded-lg border border-[#DCDCDC] bg-[#F8FBFA] p-3">
+            <div>
+              <Label className="text-xs text-[#666666]">Actual start date</Label>
+              <Input
+                type="date"
+                value={bookingDateEdits[booking.id]?.actual_start_date ?? (booking.actual_start_date || '').slice(0, 10)}
+                onChange={(event) => setBookingDateEdits((prev) => ({
+                  ...prev,
+                  [booking.id]: { ...prev[booking.id], actual_start_date: event.target.value },
+                }))}
+              />
+            </div>
+            <div>
+              <Label className="text-xs text-[#666666]">Actual end date</Label>
+              <Input
+                type="date"
+                value={bookingDateEdits[booking.id]?.actual_end_date ?? (booking.actual_end_date || '').slice(0, 10)}
+                onChange={(event) => setBookingDateEdits((prev) => ({
+                  ...prev,
+                  [booking.id]: { ...prev[booking.id], actual_end_date: event.target.value },
+                }))}
+              />
+            </div>
+            <div className="flex items-end">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full border-[#008260] text-[#008260]"
+                onClick={() => handleBookingDateUpdate(booking)}
+              >
+                Update dates
+              </Button>
+            </div>
+          </div>
           
           <div className="flex flex-col gap-2 ml-4">
             {/* View Profile Button - Always visible */}
@@ -1190,7 +1350,7 @@ export default function ProjectDetailsPage() {
               </DialogTrigger>
               <DialogContent className="max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
                 <DialogHeader className="flex-shrink-0">
-                  <DialogTitle className="text-lg font-semibold text-[#000000]">{booking.experts?.name || 'Expert Profile'}</DialogTitle>
+                  <DialogTitle className="text-lg font-semibold text-[#000000]">{expertDisplayName(booking.experts) || 'Expert Profile'}</DialogTitle>
                   <DialogDescription className="text-[#666666] text-sm">Complete Expert Profile</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 overflow-y-auto flex-1 pr-2">
@@ -1198,11 +1358,11 @@ export default function ProjectDetailsPage() {
                     <Avatar className="w-16 h-16 border-2 border-[#008260]/40 flex-shrink-0">
                       <AvatarImage src={booking.experts?.photo_url} />
                       <AvatarFallback className="text-xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
-                        {booking.experts?.name?.charAt(0) || 'E'}
+                        {expertDisplayName(booking.experts)?.charAt(0) || 'E'}
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0 flex-1">
-                      <h4 className="font-semibold text-base text-[#000000] truncate">{booking.experts?.name || 'Unknown Expert'}</h4>
+                      <h4 className="font-semibold text-base text-[#000000] truncate">{expertDisplayName(booking.experts) || 'Unknown Expert'}</h4>
                       <p className="text-sm text-[#666666] truncate">
                         {booking.experts?.domain_expertise && booking.experts.domain_expertise.length > 0 
                           ? booking.experts.domain_expertise.join(', ') 
@@ -1227,7 +1387,7 @@ export default function ProjectDetailsPage() {
                     </div>
                     <div>
                       <h4 className="font-medium text-sm text-[#666666] mb-1">Hourly Rate</h4>
-                      <p className="text-sm text-[#000000]">₹{booking.experts?.hourly_rate || 0}</p>
+                      <p className="text-sm text-[#000000]">₹{getInstitutionRate(booking.experts?.hourly_rate)}</p>
                     </div>
                     <div>
                       <h4 className="font-medium text-sm text-[#666666] mb-1">Experience</h4>
@@ -1328,6 +1488,17 @@ export default function ProjectDetailsPage() {
             )}
           </div>
         </div>
+        {isTrainingProjectType(project?.type) && (
+          <TrainingAttendancePanel
+            bookingId={booking.id}
+            startDate={booking.start_date}
+            endDate={booking.end_date}
+            hoursBooked={booking.hours_booked}
+            bookingStatus={booking.status}
+            expectedViewerRole="institution"
+            defaultExpanded={booking.status === 'in_progress'}
+          />
+        )}
       </div>
     )
   })}
@@ -1362,6 +1533,27 @@ export default function ProjectDetailsPage() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
+              {selectedInterviewApplication?.expert_id && (
+                <ExpertAvailabilityTrigger
+                  expertId={selectedInterviewApplication.expert_id}
+                  startDate={project?.start_date}
+                  endDate={project?.end_date}
+                  projectId={projectId}
+                />
+              )}
+              {Array.isArray(selectedInterviewApplication?.interview_availability) && selectedInterviewApplication.interview_availability.length > 0 && (
+                <InterviewAvailabilitySelector
+                  selectable
+                  slots={selectedInterviewApplication.interview_availability}
+                  selectedSlot={selectedInterviewSlot}
+                  onSelectSlot={(slot: InterviewSlot) => {
+                    setSelectedInterviewSlot(slot)
+                    const slotDate = new Date(slot.start_at)
+                    setInterviewDate(slotDate)
+                    setInterviewTime(slotDate.toTimeString().slice(0, 5))
+                  }}
+                />
+              )}
               <div>
                 <Label>Interview Date (Optional)</Label>
                 <DatePicker
@@ -1369,7 +1561,6 @@ export default function ProjectDetailsPage() {
                   onChange={setInterviewDate}
                   placeholder="Select interview date"
                   className="w-full"
-                  minDate={new Date()} // Disable past dates
                 />
               </div>
               <div>
@@ -1398,6 +1589,50 @@ export default function ProjectDetailsPage() {
                 className="bg-[#008260] hover:bg-[#008260]"
               >
                 {processingApplications[selectedApplicationId || ''] ? 'Processing...' : 'Proceed to Interview'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showFinalRateModal} onOpenChange={setShowFinalRateModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm final hourly rate</DialogTitle>
+            <DialogDescription>
+              Leave this blank to use the expert proposed rate or the project rate.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-lg border border-[#DCDCDC] bg-[#F8FBFA] p-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-[#6A6A6A]">Project rate</span>
+                <span className="font-semibold">Rs {project?.hourly_rate || 0}/hr</span>
+              </div>
+              <div className="mt-1 flex justify-between">
+                <span className="text-[#6A6A6A]">Expert proposed</span>
+                <span className="font-semibold">Rs {selectedBookingApplication?.proposed_rate || project?.hourly_rate || 0}/hr</span>
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="finalHourlyRate">Final hourly rate (optional)</Label>
+              <Input
+                id="finalHourlyRate"
+                type="number"
+                min="1"
+                value={finalHourlyRate}
+                onChange={(event) => setFinalHourlyRate(event.target.value)}
+                placeholder="Use previous pricing"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowFinalRateModal(false)}>Cancel</Button>
+              <Button
+                onClick={confirmProceedToBooking}
+                disabled={processingApplications[selectedBookingApplication?.id || '']}
+                className="bg-[#008260] hover:bg-[#008260]"
+              >
+                {processingApplications[selectedBookingApplication?.id || ''] ? 'Processing...' : 'Create Booking'}
               </Button>
             </div>
           </div>

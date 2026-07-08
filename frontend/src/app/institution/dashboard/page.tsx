@@ -21,6 +21,7 @@ import { MultiSelect } from '@/components/ui/multi-select'
 import { Drawer } from '@/components/ui/drawer'
 import ProfileDropdown from '@/components/ProfileDropdown'
 import Logo from '@/components/Logo'
+import { getInstitutionRate } from '@/lib/utils'
 import { 
   Building, 
   Plus, 
@@ -47,18 +48,24 @@ import {
   FileText
 } from 'lucide-react'
 import Link from 'next/link'
+import { ExpertAvailabilityTrigger } from '@/components/expert/ExpertAvailabilityTrigger'
 import { useRouter } from 'next/navigation'
 import { RatingModal } from '@/components/RatingModal'
 import NotificationBell from '@/components/NotificationBell'
 import { toast } from 'sonner'
+import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
+import { fetchInstitutionForWorkspace } from '@/lib/institutionWorkspace'
+import { ShareRequirementButton } from '@/components/requirements/ShareRequirementButton'
 
-export default function InstitutionDashboard() {
+export default function InstitutionDashboardPage() {
+  const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
   const [user, setUser] = useState<any>(null)
   const [institution, setInstitution] = useState<any>(null)
   const [projects, setProjects] = useState<any[]>([])
   const [applications, setApplications] = useState<any[]>([])
   const [bookings, setBookings] = useState<any[]>([])
   const [bookingCounts, setBookingCounts] = useState<any>({ total: 0, in_progress: 0, completed: 0, cancelled: 0, pending: 0 })
+  const [financeSummary, setFinanceSummary] = useState<any>(null)
   const [ratings, setRatings] = useState<any[]>([])
   const [allRatings, setAllRatings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -92,7 +99,7 @@ export default function InstitutionDashboard() {
   const [showCloseConfirm, setShowCloseConfirm] = useState(false)
   const [projectToClose, setProjectToClose] = useState<string | null>(null)
   const router = useRouter()
-  
+
   const handleDomainChange = (domain: string) => {
     setProjectForm(prev => ({
       ...prev,
@@ -134,7 +141,12 @@ export default function InstitutionDashboard() {
         setUser(user)
         
         const userRole = user.user_metadata?.role
-        if (userRole !== 'institution') {
+        if (viewer === 'super_admin') {
+          if (userRole !== 'super_admin' || !actingInstitutionId) {
+            router.push('/')
+            return
+          }
+        } else if (userRole !== 'institution') {
           console.log('Non-institution user accessing institution dashboard, redirecting...')
           if (userRole === 'expert') {
             router.push('/expert/dashboard')
@@ -151,7 +163,7 @@ export default function InstitutionDashboard() {
       }
     }
     getUser()
-  }, [router])
+  }, [router, viewer, actingInstitutionId])
 
   const handleExpertSelection = (expertId: string) => {
     setSelectedExperts(prev => 
@@ -279,14 +291,21 @@ export default function InstitutionDashboard() {
 
   const loadInstitutionData = async (userId: string) => {
     try {
-      const institutionsResponse = await api.institutions.getByUserId(userId)
-      
+      const institutionsResponse = await fetchInstitutionForWorkspace(userId, viewer, actingInstitutionId)
+
       if (!institutionsResponse) {
-        router.push('/institution/profile-setup')
+        if (viewer === 'super_admin') {
+          router.push('/superadmin/home')
+        } else {
+          router.push('/institution/profile-setup')
+        }
         return
       }
-      
+
       setInstitution(institutionsResponse)
+      api.institutionFinance.summary(institutionsResponse.id)
+        .then(setFinanceSummary)
+        .catch(() => setFinanceSummary(null))
       
       // Initial light calls (experts list is paginated below). Lists are fed by paginated hooks
       const [bookingCountsResponse] = await Promise.all([
@@ -396,7 +415,7 @@ export default function InstitutionDashboard() {
     
     
     // Navigate to the project details page
-    router.push(`/institution/dashboard/project/${project.id}`)
+    router.push(`${basePath}/dashboard/project/${project.id}`)
   }
 
   const handleUpdateProject = async (e: React.FormEvent) => {
@@ -593,7 +612,17 @@ export default function InstitutionDashboard() {
       console.log('Project data:', projectData)
    
 
-      const response = await api.projects.create(projectData)
+      const formData = new FormData()
+      Object.entries(projectData).forEach(([key, value]) => {
+        if (value === undefined || value === null) return
+        if (Array.isArray(value)) {
+          formData.append(key, value.join(','))
+          return
+        }
+        formData.append(key, String(value))
+      })
+
+      const response = await api.projects.create(formData)
       
       // Reset form
       setProjectForm({
@@ -620,7 +649,7 @@ export default function InstitutionDashboard() {
         description: 'Navigate to your dashboard to view the latest requirement and manage applications.',
         action: {
           label: 'Go to Dashboard',
-          onClick: () => router.push('/institution/dashboard')
+          onClick: () => router.push(`${basePath}/dashboard`)
         },
         duration: 5000
       })
@@ -667,6 +696,12 @@ export default function InstitutionDashboard() {
   // Load ratings when institution is available
 // Only depend on institution ID
 
+  const runningProjects = projects.filter((project: any) => !['completed', 'closed', 'cancelled'].includes(project.status))
+  const closedProjects = projects.filter((project: any) => ['completed', 'closed', 'cancelled'].includes(project.status))
+  const orderedProjects = [...runningProjects, ...closedProjects]
+  const totalApplications = projects.reduce((total, project) => total + (project.applicationCounts?.total || 0), 0)
+  const pendingApplications = projects.reduce((total, project) => total + (project.applicationCounts?.pending || 0), 0)
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#ECF2FF] flex items-center justify-center">
@@ -684,7 +719,7 @@ export default function InstitutionDashboard() {
       <header className="bg-[#008260]">
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
-            <Link href="/institution/home" className="flex items-center group">
+            <Link href={`${basePath}/home`} className="flex items-center group">
               <Logo size="header" />
             </Link>
             
@@ -692,7 +727,11 @@ export default function InstitutionDashboard() {
             
               <div className="flex items-center space-x-2 order-2 sm:order-none">
                 <NotificationBell />
-                <ProfileDropdown user={user} institution={institution} userType="institution"  />
+                <ProfileDropdown
+                  user={user}
+                  institution={institution}
+                  userType={viewer === 'super_admin' ? 'super_admin' : 'institution'}
+                />
               </div>
             </div>
           </div>
@@ -707,18 +746,20 @@ export default function InstitutionDashboard() {
         )}
 
         {/* Welcome Section */}
-        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="min-w-0 text-center sm:text-left">
-             <h1 className="text-3xl font-semibold text-[#000000] mb-1">
-               Welcome back, <span className='text-[#008260]'>{institution?.name}!</span>
+        <div className="mb-8 rounded-2xl border border-[#DCDCDC] bg-white p-5 shadow-sm sm:p-7">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+             <p className="text-sm font-semibold uppercase tracking-wide text-[#008260]">Institution dashboard</p>
+             <h1 className="mt-2 text-3xl font-bold tracking-tight text-[#000000]">
+               Welcome back, <span className='text-[#008260]'>{institution?.name}</span>
              </h1>
-             <p className="text-lg text-[#000000CC] font-medium">
-               Manage your projects, review applications, and connect with qualified experts.
+             <p className="mt-2 text-sm text-[#6A6A6A] sm:text-base">
+               Manage requirements, review applications, and keep running projects on track.
              </p>
           </div>
           <Dialog open={false}>
               <DialogTrigger asChild>
-              <Button className="bg-[#008260] hover:bg-[#008260] text-sm font-semibold" onClick={() => router.push('/institution/post-requirement')}>
+              <Button className="bg-[#008260] hover:bg-[#008260] text-sm font-semibold" onClick={() => router.push(`${basePath}/post-requirement`)}>
                   <Plus className="h-3 w-3 mr-1 border border-white rounded-full" />
                   Post Requirement
                 </Button>
@@ -970,7 +1011,7 @@ export default function InstitutionDashboard() {
                               </div>
                               
                               <div className="flex flex-col sm:flex-row items-center text-slate-600 text-sm mb-2 gap-1 sm:gap-0">
-                                <span className="font-medium">₹{expert.hourly_rate}/hour</span>
+                                <span className="font-medium">₹{getInstitutionRate(expert.hourly_rate)}/hour</span>
                                 <span className="hidden sm:inline mx-2">•</span>
                                 <span>{expert.experience_years || 0} years experience</span>
                                 <span className="hidden sm:inline mx-2">•</span>
@@ -983,6 +1024,14 @@ export default function InstitutionDashboard() {
                               <p className="text-slate-600 text-sm line-clamp-2 mb-2">
                                 {expert.bio}
                               </p>
+
+                              <ExpertAvailabilityTrigger
+                                expertId={expert.id}
+                                startDate={projectForm.start_date}
+                                endDate={projectForm.end_date}
+                                projectId={selectedProjectId}
+                                className="mb-3"
+                              />
                               
                               {/* Skills */}
                               {expert.subskills && expert.subskills.length > 0 && (
@@ -1224,8 +1273,9 @@ export default function InstitutionDashboard() {
                     {submittingProject ? 'Updating...' : 'Update Project'}
                   </Button>
                 </div>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -1253,10 +1303,10 @@ export default function InstitutionDashboard() {
                 <div>
                   <p className="text-sm font-medium text-[#000000]">Applications</p>
                   <p className="text-3xl font-bold text-[#000000] my-2">
-                    {projects.reduce((total, project) => total + (project.applicationCounts?.total || 0), 0)}
+                    {totalApplications}
                   </p>
                   <p className="text-xs text-[#656565]">
-                    {projects.reduce((total, project) => total + (project.applicationCounts?.pending || 0), 0)} pending
+                    {pendingApplications} pending
                   </p>
                 </div>
                 <div className="p-3 bg-[#ECF2FF] rounded-full">
@@ -1270,7 +1320,7 @@ export default function InstitutionDashboard() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#000000]">Active Bookings</p>
+                  <p className="text-sm font-medium text-[#000000]">Running projects</p>
                   <p className="text-3xl font-bold text-[#000000] my-2">
                     {bookingCounts.in_progress}
                   </p>
@@ -1321,13 +1371,39 @@ export default function InstitutionDashboard() {
           </Card> */}
         </div>
 
+        {financeSummary?.summary ? (
+          <div className="grid md:grid-cols-3 gap-6 mb-8">
+            <Card className="bg-white border-2 border-[#D6D6D6]">
+              <CardContent className="p-4">
+                <p className="text-sm font-medium text-[#000000]">Pending Payable</p>
+                <p className="text-3xl font-bold text-[#000000] my-2">Rs. {Number(financeSummary.summary.pending || 0).toFixed(2)}</p>
+                <p className="text-xs text-[#656565]">Not invoiced yet</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-white border-2 border-[#D6D6D6]">
+              <CardContent className="p-4">
+                <p className="text-sm font-medium text-[#000000]">Invoiced Amount</p>
+                <p className="text-3xl font-bold text-[#000000] my-2">Rs. {Number(financeSummary.summary.invoiced || 0).toFixed(2)}</p>
+                <p className="text-xs text-[#656565]">Awaiting payment confirmation</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-white border-2 border-[#D6D6D6]">
+              <CardContent className="p-4">
+                <p className="text-sm font-medium text-[#000000]">Paid Amount</p>
+                <p className="text-3xl font-bold text-[#000000] my-2">Rs. {Number(financeSummary.summary.paid || 0).toFixed(2)}</p>
+                <p className="text-xs text-[#656565]">{financeSummary.payments?.length || 0} recent finance records</p>
+              </CardContent>
+            </Card>
+          </div>
+        ) : null}
+
         {/* Main Content */}
         <div className="space-y-6">
           <Card className="bg-white border-2 border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
             <CardHeader>
               <CardTitle className="text-lg font-semibold text-[#000000]">My Projects</CardTitle>
               <CardDescription className="text-[#000000] font-normal text-base !-mt-[2px]">
-                Manage your posted projects and track their progress
+                Running projects are shown first, followed by closed and completed projects.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -1340,11 +1416,32 @@ export default function InstitutionDashboard() {
                 </div>
                 ) : (
                   <div className="space-y-4">
-                    {projects.map((project: any) => (
-                      <div 
-                        key={project.id} 
-                        className="bg-white border border-[#DCDCDC] rounded-lg p-4 sm:p-6 transition-all duration-300 group"
-                      >
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="rounded-lg border border-[#DCDCDC] p-3">
+                        <p className="text-xs text-[#656565]">Running projects</p>
+                        <p className="text-xl font-bold text-[#000000]">{runningProjects.length}</p>
+                      </div>
+                      <div className="rounded-lg border border-[#DCDCDC] p-3">
+                        <p className="text-xs text-[#656565]">Closed projects</p>
+                        <p className="text-xl font-bold text-[#000000]">{closedProjects.length}</p>
+                      </div>
+                      <div className="rounded-lg border border-[#DCDCDC] p-3">
+                        <p className="text-xs text-[#656565]">Pending applications</p>
+                        <p className="text-xl font-bold text-[#000000]">{pendingApplications}</p>
+                      </div>
+                    </div>
+                    {orderedProjects.map((project: any, index: number) => (
+                      <div key={`${project.id}-section`}>
+                        {index === 0 && runningProjects.length > 0 && (
+                          <h3 className="text-sm font-semibold text-[#008260]">Running projects</h3>
+                        )}
+                        {index === runningProjects.length && closedProjects.length > 0 && (
+                          <h3 className="text-sm font-semibold text-[#6A6A6A]">Closed projects</h3>
+                        )}
+                        <div 
+                          key={project.id} 
+                          className="bg-white border border-[#DCDCDC] rounded-lg p-4 sm:p-6 transition-all duration-300 group mt-3"
+                        >
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                           <h3 className="font-bold text-base sm:text-lg text-[#000000]">{project.title}</h3>
                           <div className="flex items-center gap-2 flex-wrap">
@@ -1420,6 +1517,11 @@ export default function InstitutionDashboard() {
                               <Eye className="h-4 w-4" />
                               View Applications ({project.applicationCounts?.pending || 0})
                             </Button>
+                            <ShareRequirementButton
+                              path={`/requirements/contract/${project.id}`}
+                              title={project.title}
+                              className="flex-1 sm:flex-none bg-[#ECF2FF] rounded-[25px] text-[#1D1D1D] font-semibold text-[13px] border-[#DCDCDC]"
+                            />
                             <Button size="sm" variant="outline" onClick={() => handleEditProject(project)} className="flex-1 sm:flex-none bg-[#ECF2FF] rounded-[25px] text-[#1D1D1D] font-semibold text-[13px]">
                               <Edit className="h-4 w-4" />
                               Edit
@@ -1432,6 +1534,7 @@ export default function InstitutionDashboard() {
                             )}
                           </div>
                         </div>
+                      </div>
                       </div>
                     ))}
                     {/* Infinite loader sentinel for projects */}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Logo from '@/components/Logo'
@@ -9,7 +9,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel'
 import Autoplay from 'embla-carousel-autoplay'
-import { MapPin, IndianRupee, Calendar, Briefcase, Building2, Clock, Menu } from 'lucide-react'
+import { MapPin, IndianRupee, Calendar, Clock, Menu } from 'lucide-react'
+import { ShareRequirementButton } from '@/components/requirements/ShareRequirementButton'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 export default function RequirementsPage() {
@@ -290,13 +291,22 @@ export default function RequirementsPage() {
                               </div>
                             </div>
                           )}
-                           <Button size="lg" className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium rounded-lg"
-                           onClick={() => {
-                           router.push(`/requirements/contract/${project.id}`)
-                          }}
-                           >
-                          Apply Now
-                        </Button>
+                          <div className="flex flex-col gap-2">
+                            <Button
+                              size="lg"
+                              className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium rounded-lg"
+                              onClick={() => {
+                                router.push(`/requirements/contract/${project.id}`)
+                              }}
+                            >
+                              Apply Now
+                            </Button>
+                            <ShareRequirementButton
+                              path={`/requirements/contract/${project.id}`}
+                              title={project.title || 'Contract requirement'}
+                              className="w-full border-slate-200 text-slate-700 hover:bg-slate-50"
+                            />
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -408,13 +418,22 @@ export default function RequirementsPage() {
                               </div>
                             </div>
                           )}
-                           <Button size="lg" className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium rounded-lg"
-                           onClick={() => {
-                            router.push(`/requirements/internship/${internship.id}`)
-                          }}
-                           >
-                          Apply Now
-                        </Button>
+                          <div className="flex flex-col gap-2">
+                            <Button
+                              size="lg"
+                              className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium rounded-lg"
+                              onClick={() => {
+                                router.push(`/requirements/internship/${internship.id}`)
+                              }}
+                            >
+                              Apply Now
+                            </Button>
+                            <ShareRequirementButton
+                              path={`/requirements/internship/${internship.id}`}
+                              title={internship.title || 'Internship'}
+                              className="w-full border-slate-200 text-slate-700 hover:bg-slate-50"
+                            />
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -502,13 +521,22 @@ export default function RequirementsPage() {
                               </div>
                             </div>
                           )}
-                             <Button size="lg" className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium rounded-lg"
-                           onClick={() => {
-                            router.push(`/requirements/freelance/${project.id}`)
-                          }}
-                           >
-                          Apply Now
-                        </Button>
+                          <div className="flex flex-col gap-2">
+                            <Button
+                              size="lg"
+                              className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium rounded-lg"
+                              onClick={() => {
+                                router.push(`/requirements/freelance/${project.id}`)
+                              }}
+                            >
+                              Apply Now
+                            </Button>
+                            <ShareRequirementButton
+                              path={`/requirements/freelance/${project.id}`}
+                              title={project.title || 'Freelance project'}
+                              className="w-full border-slate-200 text-slate-700 hover:bg-slate-50"
+                            />
+                          </div>
                         </div>
                       </CardContent>
                     </Card>

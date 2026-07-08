@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS experts (
     experience_years INTEGER, 
     qualifications TEXT,
     domain_expertise TEXT[],
+    expert_types TEXT[] DEFAULT '{}',
+    expert_services TEXT[] DEFAULT '{}',
     hourly_rate DECIMAL(10,2),
     resume_url TEXT,
     availability JSONB, -- Store weekly availability as JSON
@@ -63,6 +65,7 @@ CREATE TABLE IF NOT EXISTS projects (
     total_budget DECIMAL(10,2),
     start_date DATE,
     end_date DATE,
+    interview_period_interval TEXT,
     duration_hours INTEGER,
     required_expertise TEXT[],
     status VARCHAR(50) DEFAULT 'open', -- open, in_progress, completed, cancelled

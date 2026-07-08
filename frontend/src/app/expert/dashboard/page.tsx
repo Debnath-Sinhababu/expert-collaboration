@@ -42,6 +42,10 @@ import {
 import { BookOpen } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useExpertWorkspace } from '@/contexts/ExpertWorkspaceContext'
+import { fetchExpertForWorkspace, expertProfileSetupPath } from '@/lib/expertWorkspace'
+import { isTrainingBooking } from '@/lib/trainingTypes'
+import { TrainingAttendancePanel } from '@/components/training/TrainingAttendancePanel'
 
 type UserMeta = { role?: string; name?: string }
 type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }
@@ -116,6 +120,7 @@ export default function ExpertDashboard() {
     institution?: { name?: string }
   }
   const [bookings, setBookings] = useState<Booking[]>([])
+  const [financeSummary, setFinanceSummary] = useState<any>(null)
   type RatingItem = { rating: number }
   const [expertRatings, setExpertRatings] = useState<RatingItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -137,6 +142,7 @@ export default function ExpertDashboard() {
   const bookingsScrollRef = useRef<HTMLDivElement>(null)
 
   const router = useRouter()
+  const { viewer, actingExpertId, basePath } = useExpertWorkspace()
 
   const getUser = async (): Promise<SessionUser | null> => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -155,7 +161,7 @@ export default function ExpertDashboard() {
       if (!currentUser) return
 
       const userRole = currentUser.user_metadata?.role
-      if (userRole !== 'expert') {
+      if (userRole !== 'expert' && userRole !== 'super_admin') {
         console.log('Non-expert user accessing expert dashboard, redirecting...')
         if (userRole === 'institution') {
           router.push('/institution/dashboard')
@@ -164,11 +170,24 @@ export default function ExpertDashboard() {
         }
         return
       }
+      if (userRole === 'super_admin' && viewer !== 'super_admin') {
+        router.push('/superadmin/home')
+        return
+      }
+      if (viewer === 'super_admin' && userRole !== 'super_admin') {
+        router.push('/')
+        return
+      }
 
       const [, expertProfile] = await Promise.all([
         api.projects.getAll(),
-        api.experts.getByUserId(currentUser.id)
+        fetchExpertForWorkspace(currentUser.id, viewer, actingExpertId)
       ])
+
+      if (!expertProfile) {
+        router.push(expertProfileSetupPath(viewer))
+        return
+      }
 
    
       let applicationsResponse: Application[] | unknown = []
@@ -185,43 +204,31 @@ export default function ExpertDashboard() {
         }
       }
 
-      if (expertProfile) {
-        const expertData: ExpertProfile = {
-          id: expertProfile.id,
-          user_id: expertProfile.user_id,
-          name: expertProfile.name || 'Expert User',
-          email: expertProfile.email || currentUser.email,
-          hourly_rate: expertProfile.hourly_rate || 0,
-          rating: expertProfile.rating || 0,
-          total_ratings: expertProfile.total_ratings || 0,
-          is_verified: expertProfile.is_verified || false,
-          kyc_status: expertProfile.kyc_status || 'pending',
-          bio: expertProfile.bio || '',
-          qualifications: expertProfile.qualifications || [],
-          domain_expertise: expertProfile.domain_expertise || [],
-          resume_url: expertProfile.resume_url || '',
-          availability: expertProfile.availability || [],
-          photo_url: expertProfile.photo_url || '',
-          profile_photo_thumbnail_url: expertProfile.profile_photo_thumbnail_url || '',
-          phone: expertProfile.phone || '',
-          profile_photo_small_url: expertProfile.profile_photo_small_url || '',
-        }
-        setExpert(expertData)
-        
-
-      } else {
-        const defaultData: ExpertProfile = {
-          name: currentUser.user_metadata?.name || 'Expert User',
-          email: currentUser.email,
-          hourly_rate: 0,
-          rating: 0,
-          total_ratings: 0,
-          is_verified: false,
-          kyc_status: 'pending'
-        }
-        setExpert(defaultData)
-        
-
+      const expertData: ExpertProfile = {
+        id: expertProfile.id,
+        user_id: expertProfile.user_id,
+        name: expertProfile.name || 'Expert User',
+        email: expertProfile.email || currentUser.email,
+        hourly_rate: expertProfile.hourly_rate || 0,
+        rating: expertProfile.rating || 0,
+        total_ratings: expertProfile.total_ratings || 0,
+        is_verified: expertProfile.is_verified || false,
+        kyc_status: expertProfile.kyc_status || 'pending',
+        bio: expertProfile.bio || '',
+        qualifications: expertProfile.qualifications || [],
+        domain_expertise: expertProfile.domain_expertise || [],
+        resume_url: expertProfile.resume_url || '',
+        availability: expertProfile.availability || [],
+        photo_url: expertProfile.photo_url || '',
+        profile_photo_thumbnail_url: expertProfile.profile_photo_thumbnail_url || '',
+        phone: expertProfile.phone || '',
+        profile_photo_small_url: expertProfile.profile_photo_small_url || '',
+      }
+      setExpert(expertData)
+      if (expertData.id) {
+        api.expertFinance.summary(expertData.id)
+          .then(setFinanceSummary)
+          .catch(() => setFinanceSummary(null))
       }
     } catch (error) {
       console.error('Error loading expert data:', error)
@@ -358,7 +365,7 @@ export default function ExpertDashboard() {
   useEffect(() => {
     loadExpertData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [viewer, actingExpertId])
 
   // Ensure the tabs list starts scrolled to show the active (pending) tab fully on mobile
   useEffect(() => {
@@ -481,6 +488,13 @@ export default function ExpertDashboard() {
   }, [calculateAnalytics])
 
   const expertAggregate = computeExpertRating()
+  const runningStatuses = new Set(['in_progress', 'pending', 'confirmed'])
+  const sortedPagedBookings = [...(pagedBookings || [])].sort((a: any, b: any) => {
+    const aRunning = runningStatuses.has(a.status) ? 0 : 1
+    const bRunning = runningStatuses.has(b.status) ? 0 : 1
+    if (aRunning !== bRunning) return aRunning - bRunning
+    return new Date(b.created_at || b.start_date || 0).getTime() - new Date(a.created_at || a.start_date || 0).getTime()
+  })
 
   // Projects are now filtered by the backend API based on expert_id
 
@@ -500,7 +514,7 @@ export default function ExpertDashboard() {
       <header className="bg-[#008260] sticky top-0 z-50 border-b border-slate-200/20">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <Link href="/expert/home" className="flex items-center group">
+            <Link href={`${basePath}/home`} className="flex items-center group">
               <Logo size="header" />
             </Link>
             
@@ -509,7 +523,7 @@ export default function ExpertDashboard() {
               <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white hover:bg-slate-800/50 border border-transparent hover:border-slate-600 transition-all duration-300">
                 <MessageSquare className="h-4 w-4" />
               </Button>
-              <ProfileDropdown user={user} expert={expert} userType="expert" />
+              <ProfileDropdown user={user} expert={expert} userType={viewer === 'super_admin' ? 'super_admin' : 'expert'} />
             </div>
           </div>
         </div>
@@ -528,13 +542,22 @@ export default function ExpertDashboard() {
           </Alert>
         )}
 
-        <div className="mb-8 text-center">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-3 tracking-tight">Expert Dashboard</h1>
-          <p className="text-base sm:text-lg md:text-xl text-slate-600 font-medium">Welcome back, {expert?.name}</p>
+        <div className="mb-8 rounded-2xl border border-[#DCDCDC] bg-white p-5 shadow-sm sm:p-7">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-[#008260]">Expert dashboard</p>
+              <h1 className="mt-2 text-3xl font-bold tracking-tight text-[#000000]">Welcome back, {expert?.name || 'Expert'}</h1>
+              <p className="mt-2 text-sm text-[#6A6A6A] sm:text-base">Track applications, running projects, attendance, and earnings.</p>
+            </div>
+            <div className="rounded-xl bg-[#E8F5F1] px-4 py-3 text-left sm:text-right">
+              <p className="text-xs font-medium text-[#6A6A6A]">Running project</p>
+              <p className="text-2xl font-bold text-[#008260]">{bookingCounts.in_progress || 0}</p>
+            </div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          <Card className="border-2 border-[#D6D6D6] bg-white">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+          <Card className="border border-[#DCDCDC] bg-white shadow-sm rounded-2xl">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -660,7 +683,7 @@ export default function ExpertDashboard() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#000000]">Active Bookings</p>
+                  <p className="text-sm font-medium text-[#000000]">Running project</p>
                   <p className="text-2xl font-bold text-[#000000] my-1">{bookingCounts.in_progress || 0}</p>
                   <p className="text-xs text-slate-500">
                     {bookingCounts.completed || 0} completed 
@@ -673,6 +696,32 @@ export default function ExpertDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {financeSummary?.summary ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <Card className="border-2 border-[#D6D6D6] bg-white">
+              <CardContent className="p-4">
+                <p className="text-sm font-medium text-[#000000]">Pending Payouts</p>
+                <p className="text-3xl font-bold text-[#000000] my-1">Rs. {Number(financeSummary.summary.pending || 0).toFixed(2)}</p>
+                <p className="text-xs text-[#656565] font-medium">Not invoiced yet</p>
+              </CardContent>
+            </Card>
+            <Card className="border-2 border-[#D6D6D6] bg-white">
+              <CardContent className="p-4">
+                <p className="text-sm font-medium text-[#000000]">Invoiced Payouts</p>
+                <p className="text-3xl font-bold text-[#000000] my-1">Rs. {Number(financeSummary.summary.invoiced || 0).toFixed(2)}</p>
+                <p className="text-xs text-[#656565] font-medium">Awaiting payment</p>
+              </CardContent>
+            </Card>
+            <Card className="border-2 border-[#D6D6D6] bg-white">
+              <CardContent className="p-4">
+                <p className="text-sm font-medium text-[#000000]">Paid Payouts</p>
+                <p className="text-3xl font-bold text-[#000000] my-1">Rs. {Number(financeSummary.summary.paid || 0).toFixed(2)}</p>
+                <p className="text-xs text-[#656565] font-medium">{financeSummary.payments?.length || 0} recent finance records</p>
+              </CardContent>
+            </Card>
+          </div>
+        ) : null}
 
         {/* Applications Section */}
         <div className="space-y-6">
@@ -735,7 +784,7 @@ export default function ExpertDashboard() {
                       <div key={application.id} className="bg-white border border-[#DCDCDC] rounded-lg p-4 sm:p-6 hover:border-[#008260] hover:shadow-md transition-all duration-300 group">
                         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
                           <h3 className="font-bold text-base sm:text-lg text-[#000000] group-hover:text-[#008260] hover:cursor-pointer transition-colors duration-300 min-w-0 break-words"
-                          onClick={()=>router.push(`/expert/project/${application.project_id}`)}
+                          onClick={()=>router.push(`${basePath}/project/${application.project_id}`)}
                           >{application.projects?.title || 'Project Title'}</h3>
                           <Badge className="capitalize bg-[#FFF1E7] hover:bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 sm:py-2 px-3 sm:px-4 flex-shrink-0 self-start">
                             {new Date(application.applied_at || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -767,7 +816,7 @@ export default function ExpertDashboard() {
                             size="sm" 
                             variant="outline" 
                             className="flex-1 sm:flex-none bg-[#ECF2FF] rounded-[25px] text-[#1D1D1D] font-medium text-[13px] hover:bg-[#008260] hover:text-white transition-colors"
-                            onClick={() => router.push(`/expert/project/${application.project_id}`)}
+                            onClick={() => router.push(`${basePath}/project/${application.project_id}`)}
                           >
                             View Application
                           </Button>
@@ -817,7 +866,7 @@ export default function ExpertDashboard() {
                         
                         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
                           <h3 className="font-bold text-base sm:text-lg text-[#000000] group-hover:text-[#008260] hover:cursor-pointer transition-colors duration-300 min-w-0 break-words"
-                          onClick={()=>router.push(`/expert/project/${application.project_id}`)}
+                          onClick={()=>router.push(`${basePath}/project/${application.project_id}`)}
                           >{application.projects?.title || 'Project Title'}</h3>
                           <Badge className="capitalize bg-[#FFF1E7] hover:bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 sm:py-2 px-3 sm:px-4 flex-shrink-0 self-start">
                             {new Date(application.applied_at || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -874,7 +923,7 @@ export default function ExpertDashboard() {
                             variant="outline"
                             size="sm"
                             className="border-[#008260] text-[#008260] hover:bg-[#008260] hover:text-white text-xs font-semibold px-4 w-full sm:w-auto"
-                            onClick={() => router.push(`/expert/project/${application.project_id}`)}
+                            onClick={() => router.push(`${basePath}/project/${application.project_id}`)}
                           >
                             View Application
                           </Button>
@@ -959,9 +1008,9 @@ export default function ExpertDashboard() {
             <TabsContent value="bookings" className="space-y-6">
             <Card className="border-2 border-[#D6D6D6]">
                 <CardHeader>
-                  <CardTitle className="text-[#000000] font-semibold text-[18px]">My Bookings</CardTitle>
+                  <CardTitle className="text-[#000000] font-semibold text-[18px]">Running projects</CardTitle>
                 <CardDescription className="text-[#000000] font-base font-normal">
-                    View and manage your current bookings
+                    Running projects appear first. Closed and cancelled projects appear after them.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -976,11 +1025,11 @@ export default function ExpertDashboard() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {pagedBookings?.map((booking: any) => (
+                      {sortedPagedBookings?.map((booking: any) => (
                       <div key={booking.id} className="bg-white border border-[#DCDCDC] rounded-lg p-4 sm:p-6 hover:border-[#008260] hover:shadow-md transition-all duration-300 group">
                         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
                           <h3 className="font-bold text-base sm:text-lg text-[#000000] group-hover:text-[#008260] hover:cursor-pointer transition-colors duration-300 break-words"
-                          onClick={()=>router.push(`/expert/project/${booking.project_id}`)}
+                          onClick={()=>router.push(`${basePath}/project/${booking.project_id}`)}
                           >{booking.projects?.title || 'Project'}</h3>
                           <Badge className="capitalize bg-[#E8F4F8] hover:bg-[#E8F4F8] text-[#008260] border border-[#008260] rounded-full text-xs font-semibold py-1.5 px-3 self-start flex-shrink-0">
                             {booking.status?.replace('_', ' ')}
@@ -1025,8 +1074,36 @@ export default function ExpertDashboard() {
                             </div>
                           </div>
                         </div>
+                        {isTrainingBooking(booking) && (
+                          <TrainingAttendancePanel
+                            bookingId={booking.id}
+                            startDate={booking.start_date}
+                            endDate={booking.end_date}
+                            hoursBooked={booking.hours_booked}
+                            bookingStatus={booking.status}
+                            expectedViewerRole="expert"
+                            defaultExpanded={booking.status === 'in_progress'}
+                          />
+                        )}
                         <div className="flex justify-end pt-3 border-t border-[#ECECEC]">
                           {booking.status === 'in_progress' && (
+                            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                              <Button
+                                size="sm"
+                                className="bg-[#008260] hover:bg-[#006D51] rounded-3xl text-white font-medium w-full sm:w-auto"
+                                onClick={async () => {
+                                  try {
+                                    await api.bookings.update(booking.id, { status: 'completed' })
+                                    await refreshBookings()
+                                  } catch (e) {
+                                    console.error('Failed to mark booking complete', e)
+                                    setError('Failed to mark project complete')
+                                  }
+                                }}
+                              >
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Mark Complete
+                              </Button>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button
@@ -1064,6 +1141,7 @@ export default function ExpertDashboard() {
                                 </AlertDialogFooter>
                               </AlertDialogContent>
                             </AlertDialog>
+                            </div>
                           )}
                         </div>
                       </div>

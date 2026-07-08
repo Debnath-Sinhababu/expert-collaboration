@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { api } from '@/lib/api'
 import Logo from '@/components/Logo'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -14,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
+import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
+import { fetchInstitutionForWorkspace } from '@/lib/institutionWorkspace'
 
 const WORK_MODES = ['In office', 'Hybrid', 'Remote'] as const
 const ENGAGEMENT = ['Part-time', 'Full-time'] as const
@@ -25,6 +26,7 @@ export default function CreateInternshipPage() {
   const [error, setError] = useState('')
   const [institution, setInstitution] = useState<any>(null)
   const router = useRouter()
+  const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
 
   const [form, setForm] = useState({
     title: '',
@@ -67,7 +69,7 @@ export default function CreateInternshipPage() {
           router.push('/auth/login')
           return
         }
-        const inst = await api.institutions.getByUserId(user.id)
+        const inst = await fetchInstitutionForWorkspace(user.id, viewer, actingInstitutionId)
         if (!inst) {
           setError('Institution profile not found. Please complete your profile setup first.')
           setLoading(false)
@@ -118,7 +120,7 @@ export default function CreateInternshipPage() {
       }
     }
     init()
-  }, [router])
+  }, [router, viewer, actingInstitutionId])
 
   const handleChange = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }))
 
@@ -177,7 +179,7 @@ export default function CreateInternshipPage() {
 
       // Save draft payload to localStorage and go to selection screen
       localStorage.setItem('internship_create_payload', JSON.stringify(payload))
-      router.push('/institution/internships/select-institutions')
+      router.push(`${basePath}/internships/select-institutions`)
     } catch (err: any) {
       toast.error(err.message || 'Failed to create internship')
     } finally {
