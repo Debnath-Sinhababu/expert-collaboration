@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -40,6 +40,26 @@ export default function CourseFeedbackPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [courseSession, setCourseSession] = useState<any | null>(null)
+
+  // Load the single course session up front so we can show the trainer name.
+  useEffect(() => {
+    const loadCourseSession = async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/student/sessions`)
+        const result = await res.json()
+        if (result.success) {
+          const session = (result.sessions || []).find(
+            (s: any) => s.session_type === PROGRAM_SESSION_TYPE
+          )
+          if (session) setCourseSession(session)
+        }
+      } catch (err) {
+        console.error('Failed to load course session:', err)
+      }
+    }
+    loadCourseSession()
+  }, [])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -99,21 +119,25 @@ export default function CourseFeedbackPage() {
         return
       }
 
-      // 2) Resolve the single course session for this program.
-      const sessionsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/student/sessions`)
-      const sessionsResult = await sessionsResponse.json()
+      // 2) Resolve the single course session for this program (use the one
+      //    preloaded on mount; fall back to fetching if it isn't ready yet).
+      let session = courseSession
+      if (!session) {
+        const sessionsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/student/sessions`)
+        const sessionsResult = await sessionsResponse.json()
 
-      if (!sessionsResult.success) {
-        setError('Unable to load the feedback form right now. Please try again later.')
-        setLoading(false)
-        return
+        if (!sessionsResult.success) {
+          setError('Unable to load the feedback form right now. Please try again later.')
+          setLoading(false)
+          return
+        }
+
+        session = (sessionsResult.sessions || []).find(
+          (s: any) => s.session_type === PROGRAM_SESSION_TYPE
+        )
       }
 
-      const courseSession = (sessionsResult.sessions || []).find(
-        (s: any) => s.session_type === PROGRAM_SESSION_TYPE
-      )
-
-      if (!courseSession) {
+      if (!session) {
         setError('This feedback form is not available yet. Please contact your administrator.')
         setLoading(false)
         return
@@ -125,7 +149,7 @@ export default function CourseFeedbackPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           studentId: loginResult.student.id,
-          sessionId: courseSession.id,
+          sessionId: session.id,
           rating: formData.rating,
           pros: formData.pros.trim(),
           cons: formData.cons.trim(),
@@ -225,6 +249,12 @@ export default function CourseFeedbackPage() {
               Now that the course is complete, share your experience with us. Your feedback helps us
               improve future training programs.
             </p>
+            {courseSession?.expert_name && (
+              <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#008260]/10 px-4 py-2 text-sm sm:text-base font-medium text-[#008260]">
+                <User className="h-4 w-4" />
+                <span>Trainer: {courseSession.expert_name}</span>
+              </div>
+            )}
           </div>
 
           <Card className="bg-white border-2 border-[#D6D6D6] rounded-lg shadow-sm">
