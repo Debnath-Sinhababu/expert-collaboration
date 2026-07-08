@@ -167,7 +167,9 @@ app.use(cors({
    'https://calxmap.in',
    'https://www.calxmap.in',
    'expert-collaboration.vercel.app',
-   'https://expert-collaboration-g75b.onrender.com'
+   'https://expert-collaboration-g75b.onrender.com',
+   'https://qa.calxmap.in',
+   'https://qa.calxmap.com'
   ].filter(Boolean),
   credentials: true
 }));
