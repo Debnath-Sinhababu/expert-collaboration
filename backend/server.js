@@ -178,6 +178,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use('/api/admin', async (req, res, next) => {
+  // The student feedback analytics endpoint is a standalone tool with its own
+  // email-based gate (see route below); it is intentionally not part of the
+  // super_admin portal, so skip the super_admin JWT check for it only.
+  if (req.path.startsWith('/feedback-analytics')) return next();
+
   const auth = await superAdminAuth.requireSuperAdmin(req, res);
   if (!auth) return;
   req.legacyAdmin = auth;
@@ -5574,19 +5579,21 @@ app.post('/api/student/login', async (req, res) => {
   try {
     console.log('Student login request received:', req.body);
     
-    const { universityName, rollNumber, studentName, email, batch, mobile } = req.body;
+    const { universityName, rollNumber, studentName, email, batch, mobile, course, branch } = req.body;
  
     // Strict 10-digit numeric mobile validation
     const mobileValid = typeof mobile === 'string' && /^\d{10}$/.test(mobile);
 
-    if (!universityName || !rollNumber || !studentName || !batch || !mobileValid) {
+    // batch is optional: batch-based programs (e.g. Fostima) send it, while
+    // one-time course programs (e.g. Salesforce) do not.
+    if (!universityName || !rollNumber || !studentName || !mobileValid) {
       return res.status(400).json({ 
         success: false, 
-        error: 'Invalid input. University, roll number, student name, batch, and a valid 10-digit mobile are required.' 
+        error: 'Invalid input. University, roll number, student name, and a valid 10-digit mobile are required.' 
       });
     }
 
-    const result = await studentFeedbackService.studentLogin(universityName, rollNumber, studentName, email, batch, mobile);
+    const result = await studentFeedbackService.studentLogin(universityName, rollNumber, studentName, email, batch || null, mobile, course || null, branch || null);
     console.log('Student login result:', result);
     
     if (result.success) {
@@ -5718,11 +5725,12 @@ app.get('/api/admin/feedback-analytics', async (req, res) => {
       return res.status(401).json({ success: false, error: 'Authorization required' });
     }
 
-    // Legacy hard-coded email validation, disabled in favor of /api/admin middleware:
-    // const token = authHeader.substring(7);
-    // if (!token.includes('debnathsinhababu2017@gmail.com')) {
-    //   return res.status(403).json({ success: false, error: 'Access denied' });
-    // }
+    // This endpoint is exempt from the /api/admin super_admin JWT middleware, so
+    // enforce its own authorized-email gate here (matches the analytics UI login).
+    const token = authHeader.substring(7);
+    if (!token.includes('debnathsinhababu2017@gmail.com')) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
 
     // Get pagination parameters
     const page = parseInt(req.query.page) || 1;

@@ -39,6 +39,24 @@ interface AnalyticsData {
   pagination: PaginationInfo
 }
 
+// Human-friendly label for a program/session type. Handles the original
+// Fostima batches plus newer one-time course programs (e.g. Salesforce), and
+// falls back to a prettified version of any other type.
+const getSessionTypeLabel = (sessionType?: string): string => {
+  switch (sessionType) {
+    case 'ET':
+      return 'Emerging Technologies'
+    case 'PROMPT_ENGINEERING':
+      return 'Prompt Engineering'
+    case 'SALESFORCE':
+      return 'Salesforce Training'
+    default:
+      return sessionType
+        ? sessionType.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+        : 'Feedback'
+  }
+}
+
 export default function FeedbackAnalyticsPage() {
   const [email, setEmail] = useState('')
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -397,7 +415,7 @@ export default function FeedbackAnalyticsPage() {
                       <div key={sessionType} className="space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="font-medium text-slate-900">
-                            {sessionType === 'ET' ? 'Emerging Technologies' : 'Prompt Engineering'}
+                            {getSessionTypeLabel(sessionType)}
                           </span>
                           <Badge variant="secondary" className="bg-[#008260]/10 text-[#008260] border-[#008260]/20">{stats.total} responses</Badge>
                         </div>
@@ -468,7 +486,7 @@ export default function FeedbackAnalyticsPage() {
                       <div className="mb-2">
                         <span className="text-sm font-medium text-slate-900">Session: </span>
                         <span className="text-sm text-slate-600 break-words">
-                          {feedback.feedback_sessions?.session_type === 'ET' ? 'Emerging Technologies' : 'Prompt Engineering'} - {feedback.feedback_sessions?.topic}
+                          {getSessionTypeLabel(feedback.feedback_sessions?.session_type)} - {feedback.feedback_sessions?.topic}
                         </span>
                       </div>
 
