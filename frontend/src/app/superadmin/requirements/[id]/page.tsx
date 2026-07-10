@@ -345,7 +345,8 @@ export default function SuperAdminRequirementDetailPage() {
   const tabActionVisibility = {
     hideInterview: activeStage === 'interview',
     hideSelect: activeStage === 'selected',
-    hidePending: activeStage === 'pending',
+    // Once an application leaves pending, it cannot be moved back.
+    hidePending: true,
     hideReject: activeStage === 'rejected',
   }
 
