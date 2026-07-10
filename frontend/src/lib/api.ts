@@ -541,27 +541,31 @@ export const api = {
     },
     update: async (id: string, data: any) => {
       const headers = await getAuthHeaders()
+      const isFormData = typeof FormData !== 'undefined' && data instanceof FormData
       const response = await fetch(`${API_BASE_URL}/api/projects/${id}`, {
         method: 'PUT',
-        headers,
-        body: JSON.stringify(data)
+        headers: isFormData
+          ? {
+              Authorization: headers.Authorization || '',
+              ...(headers['X-Acting-Institution-Id']
+                ? { 'X-Acting-Institution-Id': headers['X-Acting-Institution-Id'] }
+                : {})
+            }
+          : headers,
+        body: isFormData ? data : JSON.stringify(data)
       })
-      
-      if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`)
-      }
-      
-      const responseText = await response.text()
-      if (!responseText) {
-        return { success: true }
-      }
-      
+
+      const text = await response.text().catch(() => '')
+      let json: any = {}
       try {
-        return JSON.parse(responseText)
-      } catch (parseError) {
-        return { success: true }
+        json = text ? JSON.parse(text) : {}
+      } catch {
+        json = {}
       }
+      if (!response.ok) {
+        throw new Error(json?.error || text || `HTTP error! status: ${response.status}`)
+      }
+      return Object.keys(json).length ? json : { success: true }
     }
   },
 

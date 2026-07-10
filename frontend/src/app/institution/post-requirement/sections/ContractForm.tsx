@@ -45,15 +45,66 @@ function formatInterviewPeriodInterval(startDate: string, endDate: string) {
   return start === end ? start : `${start} to ${end}`
 }
 
-export default function ContractForm() {
+const INTERVIEW_MONTHS: Record<string, string> = {
+  Jan: '01', Feb: '02', Mar: '03', Apr: '04', May: '05', Jun: '06',
+  Jul: '07', Aug: '08', Sep: '09', Oct: '10', Nov: '11', Dec: '12',
+}
+
+function toDateInputValue(value?: string | null) {
+  if (!value) return ''
+  return String(value).slice(0, 10)
+}
+
+function parseInterviewPeriodDateLabel(label: string): string {
+  const trimmed = label.trim()
+  if (!trimmed) return ''
+  if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) return trimmed.slice(0, 10)
+  const match = trimmed.match(/^(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})$/)
+  if (!match) return ''
+  const monthKey = `${match[2].slice(0, 1).toUpperCase()}${match[2].slice(1, 3).toLowerCase()}`
+  const month = INTERVIEW_MONTHS[monthKey]
+  if (!month) return ''
+  return `${match[3]}-${month}-${String(match[1]).padStart(2, '0')}`
+}
+
+function parseInterviewPeriodInterval(interval?: string | null) {
+  if (!interval?.trim()) return { start: '', end: '' }
+  const parts = interval.split(/\s+to\s+/i).map((part) => part.trim()).filter(Boolean)
+  if (parts.length === 1) {
+    const date = parseInterviewPeriodDateLabel(parts[0])
+    return { start: date, end: date }
+  }
+  return {
+    start: parseInterviewPeriodDateLabel(parts[0]),
+    end: parseInterviewPeriodDateLabel(parts[1]),
+  }
+}
+
+function normalizeExpertiseList(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean)
+  if (typeof value === 'string' && value.trim()) {
+    return value.split(',').map((item) => item.trim()).filter(Boolean)
+  }
+  return []
+}
+
+type ContractFormProps = {
+  mode?: 'create' | 'edit'
+  projectId?: string
+}
+
+export default function ContractForm({ mode = 'create', projectId }: ContractFormProps) {
+  const isEdit = mode === 'edit' && Boolean(projectId)
   const router = useRouter()
   const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
   const [user, setUser] = useState<any>(null)
   const [institution, setInstitution] = useState<any>(null)
   const [error, setError] = useState('')
+  const [loadingProject, setLoadingProject] = useState(isEdit)
   const [availableSubskills, setAvailableSubskills] = useState<string[]>([])
   const [selectedSubskills, setSelectedSubskills] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
+  const [existingRequirementPdfUrl, setExistingRequirementPdfUrl] = useState<string | null>(null)
   
   // Expert selection modal state
   const [showExpertSelectionModal, setShowExpertSelectionModal] = useState(false)
@@ -99,6 +150,74 @@ export default function ContractForm() {
     }
     init()
   }, [router, viewer, actingInstitutionId])
+
+  useEffect(() => {
+    if (!isEdit || !projectId || !institution?.id) return
+
+    let cancelled = false
+    const loadProject = async () => {
+      setLoadingProject(true)
+      setError('')
+      try {
+        const project = await api.projects.getById(projectId)
+        if (cancelled) return
+        if (!project?.id) {
+          setError('Project not found')
+          return
+        }
+        if (project.institution_id && project.institution_id !== institution.id) {
+          setError('You do not have access to edit this project')
+          return
+        }
+
+        const domain = typeof project.domain_expertise === 'string'
+          ? project.domain_expertise
+          : Array.isArray(project.domain_expertise)
+            ? (project.domain_expertise[0] || '')
+            : ''
+        const subskills = normalizeExpertiseList(project.subskills)
+        const requiredExpertise = normalizeExpertiseList(project.required_expertise)
+        const interviewDates = parseInterviewPeriodInterval(project.interview_period_interval)
+        const domainConfig = EXPERTISE_DOMAINS.find((item) => item.name === domain)
+        const mergedSubskills = [...new Set([...(domainConfig?.subskills || []), ...subskills])]
+
+        setForm({
+          title: project.title || '',
+          description: project.description || '',
+          type: project.type || '',
+          hourly_rate: project.hourly_rate != null ? String(project.hourly_rate) : '',
+          total_budget: project.total_budget != null ? String(project.total_budget) : '',
+          start_date: toDateInputValue(project.start_date),
+          end_date: toDateInputValue(project.end_date),
+          duration_hours: project.duration_hours != null ? String(project.duration_hours) : '',
+          opening_count: project.opening_count != null ? String(project.opening_count) : '1',
+          required_expertise: requiredExpertise.join(', '),
+          domain_expertise: domain,
+          subskills,
+          job_location: project.job_location || '',
+          workplace_type: project.workplace_type || '',
+          employment_type: project.employment_type || '',
+          interview_period_start_date: interviewDates.start,
+          interview_period_end_date: interviewDates.end,
+          screening_questions: Array.isArray(project.screening_questions)
+            ? project.screening_questions.map((q: string) => String(q))
+            : [],
+        })
+        setSelectedSubskills(subskills)
+        setAvailableSubskills(mergedSubskills)
+        setExistingRequirementPdfUrl(project.requirement_pdf_url || null)
+        setRequirementPdf(null)
+        setRequirementPdfError(null)
+      } catch (e: any) {
+        if (!cancelled) setError(e.message || 'Failed to load project')
+      } finally {
+        if (!cancelled) setLoadingProject(false)
+      }
+    }
+
+    loadProject()
+    return () => { cancelled = true }
+  }, [isEdit, projectId, institution?.id])
 
   const handleDomainChange = (domain: string) => {
     setForm(prev => ({ ...prev, domain_expertise: domain, subskills: [] }))
@@ -270,6 +389,10 @@ export default function ContractForm() {
       toast.error(requirementPdfError)
       return
     }
+    if (isEdit && !projectId) {
+      toast.error('Missing project id')
+      return
+    }
     setSubmitting(true)
     try {
       const interviewPeriodInterval = formatInterviewPeriodInterval(
@@ -278,7 +401,7 @@ export default function ContractForm() {
       )
       const payload = {
         ...form,
-        interview_period_interval: interviewPeriodInterval || undefined,
+        interview_period_interval: interviewPeriodInterval || null,
         institution_id: institution?.id,
         hourly_rate: parseFloat(form.hourly_rate),
         total_budget: parseFloat(form.total_budget),
@@ -292,7 +415,12 @@ export default function ContractForm() {
       const screeningFiltered = form.screening_questions.map((q) => q.trim()).filter(Boolean)
 
       Object.entries(payload).forEach(([key, value]) => {
-        if (value === undefined || value === null) return
+        if (value === undefined || value === null) {
+          if (key === 'interview_period_interval' && isEdit) {
+            formData.append(key, '')
+          }
+          return
+        }
         if (key === 'screening_questions') return
         if (Array.isArray(value)) {
           formData.append(key, value.join(','))
@@ -306,6 +434,13 @@ export default function ContractForm() {
         formData.append('requirement_pdf', requirementPdf)
       }
 
+      if (isEdit && projectId) {
+        await api.projects.update(projectId, formData)
+        toast.success('Requirement updated successfully!')
+        router.push(`${basePath}/dashboard`)
+        return
+      }
+
       const response = await api.projects.create(formData)
       toast.success('Requirement posted successfully!')
       
@@ -316,15 +451,29 @@ export default function ContractForm() {
         router.push(`${basePath}/dashboard`)
       }
     } catch (e: any) {
-      toast.error(e.message || 'Failed to create project')
+      toast.error(e.message || (isEdit ? 'Failed to update project' : 'Failed to create project'))
     } finally { setSubmitting(false) }
+  }
+
+  if (loadingProject) {
+    return (
+      <div className="flex justify-center py-16">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#008260]" />
+      </div>
+    )
   }
 
   return (
     <div>
       {error && <Alert variant="destructive" className="mb-4"><AlertDescription>{error}</AlertDescription></Alert>}
-      <h2 className="text-2xl font-bold text-[#000000] mb-1">Create a Contract Requirement</h2>
-      <p className="text-[#6A6A6A] mb-6">Fill in the details to post a new requirement for experts</p>
+      <h2 className="text-2xl font-bold text-[#000000] mb-1">
+        {isEdit ? 'Edit Contract Requirement' : 'Create a Contract Requirement'}
+      </h2>
+      <p className="text-[#6A6A6A] mb-6">
+        {isEdit
+          ? 'Update the requirement details. Experts already notified will keep their existing applications.'
+          : 'Fill in the details to post a new requirement for experts'}
+      </p>
 
       <Card className="bg-white border border-[#DCDCDC] rounded-2xl mb-6">
         <CardContent className="p-6">
@@ -519,6 +668,20 @@ export default function ContractForm() {
                 setRequirementPdf(file)
               }}
             />
+            {existingRequirementPdfUrl && !requirementPdf && (
+              <p className="mt-1 text-xs text-[#6A6A6A]">
+                Current document:{' '}
+                <a
+                  href={existingRequirementPdfUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-[#008260] hover:underline"
+                >
+                  View uploaded file
+                </a>
+                . Upload a new file only if you want to replace it.
+              </p>
+            )}
             {requirementPdf && !requirementPdfError && (
               <p className="mt-1 text-xs text-[#6A6A6A]">
                 Selected file: <span className="font-medium text-[#000000]">{requirementPdf.name}</span>
@@ -544,8 +707,12 @@ export default function ContractForm() {
       </Card>
 
       <div className="flex justify-end items-center gap-3">
-        <Button variant="outline" onClick={() => router.back()} className="border-[#DCDCDC] text-[#000000] hover:bg-slate-50 px-8">Back</Button>
-        <Button onClick={submit} disabled={submitting} className="bg-[#008260] hover:bg-[#006B4F] text-white rounded-md px-8">{submitting ? 'Creating...' : 'Create Contract'}</Button>
+        <Button variant="outline" onClick={() => router.push(`${basePath}/dashboard`)} className="border-[#DCDCDC] text-[#000000] hover:bg-slate-50 px-8">
+          {isEdit ? 'Cancel' : 'Back'}
+        </Button>
+        <Button onClick={submit} disabled={submitting || Boolean(error && isEdit)} className="bg-[#008260] hover:bg-[#006B4F] text-white rounded-md px-8">
+          {submitting ? (isEdit ? 'Updating...' : 'Creating...') : (isEdit ? 'Update Contract' : 'Create Contract')}
+        </Button>
       </div>
 
       {/* Expert Selection Modal */}

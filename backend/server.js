@@ -2051,12 +2051,18 @@ app.get('/api/projects/:id', async (req, res) => {
   }
 });
 
-app.put('/api/projects/:id', async (req, res) => {
+app.put('/api/projects/:id', (req, res, next) => {
+  const contentType = String(req.headers['content-type'] || '');
+  if (contentType.includes('multipart/form-data')) {
+    return upload.fields([{ name: 'requirement_pdf', maxCount: 1 }])(req, res, next);
+  }
+  return next();
+}, async (req, res) => {
   try {
     const service = institutionAccess.getServiceClient();
     const { data: projectRow, error: projErr } = await service
       .from('projects')
-      .select('id, institution_id')
+      .select('id, institution_id, requirement_pdf_url, requirement_pdf_public_id')
       .eq('id', req.params.id)
       .maybeSingle();
 
@@ -2072,17 +2078,40 @@ app.put('/api/projects/:id', async (req, res) => {
 
     const supabaseClient = institutionAccess.getWriteClientForInstitution(access);
 
+    const normalizeArrayField = (value) => {
+      if (Array.isArray(value)) return value;
+      if (typeof value === 'string' && value.trim().length > 0) {
+        return value
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+      return [];
+    };
+
     const updateBody = { ...req.body };
+    if (updateBody.required_expertise !== undefined) {
+      updateBody.required_expertise = normalizeArrayField(updateBody.required_expertise);
+    }
+    if (updateBody.subskills !== undefined) {
+      updateBody.subskills = normalizeArrayField(updateBody.subskills);
+    }
     if (updateBody.screening_questions !== undefined) {
       updateBody.screening_questions = normalizeScreeningQuestionsBody(updateBody.screening_questions);
     }
-    if (updateBody.workplace_type !== undefined && updateBody.workplace_type !== null) {
+    if (updateBody.workplace_type !== undefined && updateBody.workplace_type !== null && updateBody.workplace_type !== '') {
       const w = String(updateBody.workplace_type);
       updateBody.workplace_type = ['remote', 'hybrid', 'on_site'].includes(w) ? w : null;
     }
-    if (updateBody.employment_type !== undefined && updateBody.employment_type !== null) {
+    if (updateBody.employment_type !== undefined && updateBody.employment_type !== null && updateBody.employment_type !== '') {
       const e = String(updateBody.employment_type);
       updateBody.employment_type = ['full_time', 'part_time', 'contract'].includes(e) ? e : null;
+    }
+    if (updateBody.job_location !== undefined) {
+      updateBody.job_location =
+        updateBody.job_location != null && String(updateBody.job_location).trim() !== ''
+          ? String(updateBody.job_location).trim()
+          : null;
     }
     if (updateBody.opening_count !== undefined || updateBody.openings !== undefined) {
       updateBody.opening_count = normalizePositiveInt(updateBody.opening_count || updateBody.openings, 1);
@@ -2094,8 +2123,41 @@ app.put('/api/projects/:id', async (req, res) => {
           ? String(updateBody.interview_period_interval).trim()
           : null;
     }
+    if (updateBody.hourly_rate !== undefined && updateBody.hourly_rate !== '') {
+      updateBody.hourly_rate = Number(updateBody.hourly_rate);
+    }
+    if (updateBody.total_budget !== undefined && updateBody.total_budget !== '') {
+      updateBody.total_budget = Number(updateBody.total_budget);
+    }
+    if (updateBody.duration_hours !== undefined && updateBody.duration_hours !== '') {
+      updateBody.duration_hours = Number(updateBody.duration_hours);
+    }
     delete updateBody.interview_period_start_date;
     delete updateBody.interview_period_end_date;
+    delete updateBody.institution_id;
+
+    const requirementPdfFile = req.files?.requirement_pdf?.[0];
+    if (requirementPdfFile) {
+      try {
+        const requirementPdfData = await ImageUploadService.uploadDocument(
+          requirementPdfFile.buffer,
+          'institution-contract-requirements',
+          null,
+          requirementPdfFile.mimetype,
+          requirementPdfFile.originalname
+        );
+        if (!requirementPdfData?.success) {
+          return res.status(500).json({
+            error: `Requirement PDF upload failed: ${requirementPdfData?.error || 'Unknown error'}`
+          });
+        }
+        updateBody.requirement_pdf_url = requirementPdfData.url || null;
+        updateBody.requirement_pdf_public_id = requirementPdfData.publicId || null;
+      } catch (e) {
+        console.error('Requirement PDF upload exception on update:', e);
+        return res.status(500).json({ error: 'Requirement PDF upload failed' });
+      }
+    }
 
     const { data, error } = await supabaseClient
       .from('projects')
