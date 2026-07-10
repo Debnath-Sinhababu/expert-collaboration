@@ -1,0 +1,76 @@
+name: supabase-migrate
+
+on:
+  # Auto-run migrations when migration files change on release branches.
+  push:
+    branches:
+      - STAGING-REL-1   # QA
+      - main              # Production
+    paths:
+      - "supabase/migrations/**"
+
+  # Manual override (e.g. re-run a failed migration).
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - qa
+          - production
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_QA_DB_URL: ${{ secrets.SUPABASE_QA_DB_URL }}
+      SUPABASE_PROD_DB_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Resolve environment from branch or manual input
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TARGET="${{ github.event.inputs.environment }}"
+            echo "Manual run selected: ${TARGET}"
+          elif [ "${{ github.ref_name }}" = "STAGING-REL-1" ]; then
+            TARGET="qa"
+            echo "Branch STAGING-REL-1 → QA migrations"
+          elif [ "${{ github.ref_name }}" = "main" ]; then
+            TARGET="production"
+            echo "Branch main → Production migrations"
+          else
+            echo "Unsupported branch: ${{ github.ref_name }}"
+            exit 1
+          fi
+
+          if [ "${TARGET}" = "qa" ]; then
+            echo "DB_URL=${SUPABASE_QA_DB_URL}" >> "$GITHUB_ENV"
+            echo "TARGET_ENV=qa" >> "$GITHUB_ENV"
+          else
+            echo "DB_URL=${SUPABASE_PROD_DB_URL}" >> "$GITHUB_ENV"
+            echo "TARGET_ENV=production" >> "$GITHUB_ENV"
+          fi
+
+      - name: Validate required secret exists
+        run: |
+          if [ -z "${DB_URL}" ]; then
+            echo "DB_URL is empty for ${TARGET_ENV}. Check SUPABASE_QA_DB_URL or SUPABASE_PROD_DB_URL."
+            exit 1
+          fi
+
+      - name: List migration status
+        run: supabase migration list --db-url "${DB_URL}"
+
+      - name: Apply pending migrations
+        run: |
+          echo "Applying migrations to ${TARGET_ENV} (branch: ${{ github.ref_name }})..."
+          supabase db push --db-url "${DB_URL}"

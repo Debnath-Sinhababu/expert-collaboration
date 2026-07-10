@@ -10,7 +10,7 @@ class StudentFeedbackService {
   }
 
   // Student login/registration
-  async studentLogin(universityName, rollNumber, studentName, email = null, batch = null, mobile = null) {
+  async studentLogin(universityName, rollNumber, studentName, email = null, batch = null, mobile = null, course = null, branch = null) {
     try {
       // First, get or create university
       let { data: university, error: uniError } = await this.supabase
@@ -51,7 +51,9 @@ class StudentFeedbackService {
             student_name: studentName,
             email: email,
             batch: batch,
-            mobile: mobile
+            mobile: mobile,
+            course: course,
+            branch: branch
           }])
           .select()
           .single();
@@ -65,6 +67,9 @@ class StudentFeedbackService {
         const updates = {};
         if (batch && student.batch !== batch) updates.batch = batch;
         if (mobile && student.mobile !== mobile) updates.mobile = mobile;
+        if (email && student.email !== email) updates.email = email;
+        if (course && student.course !== course) updates.course = course;
+        if (branch && student.branch !== branch) updates.branch = branch;
         if (Object.keys(updates).length > 0) {
           const { error: updateErr } = await this.supabase
             .from('students')
@@ -188,15 +193,23 @@ class StudentFeedbackService {
 
       if (sessionError) throw sessionError;
 
+      // Seed the original Fostima batches so they always show, then add any
+      // other program types (e.g. SALESFORCE) dynamically as data appears.
       const sessionTypeStats = {
         ET: { total: 0, ratings: { VERY_GOOD: 0, GOOD: 0, AVERAGE: 0, BAD: 0 } },
         PROMPT_ENGINEERING: { total: 0, ratings: { VERY_GOOD: 0,GOOD: 0, AVERAGE: 0, BAD: 0 } }
       };
 
       sessionStats.forEach(feedback => {
-        const sessionType = feedback.feedback_sessions.session_type;
+        const sessionType = feedback.feedback_sessions?.session_type;
+        if (!sessionType) return;
+        if (!sessionTypeStats[sessionType]) {
+          sessionTypeStats[sessionType] = { total: 0, ratings: { VERY_GOOD: 0, GOOD: 0, AVERAGE: 0, BAD: 0 } };
+        }
         sessionTypeStats[sessionType].total++;
-        sessionTypeStats[sessionType].ratings[feedback.rating]++;
+        if (sessionTypeStats[sessionType].ratings[feedback.rating] !== undefined) {
+          sessionTypeStats[sessionType].ratings[feedback.rating]++;
+        }
       });
 
       // Get paginated feedback with student details
