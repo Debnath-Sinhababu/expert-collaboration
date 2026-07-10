@@ -1225,6 +1225,15 @@ class SuperAdminRepository {
       throw err;
     }
 
+    if (status === 'interview' && cfg.dateField) {
+      const interviewAt = payload.interview_scheduled_at;
+      if (!interviewAt) {
+        const err = new Error('Interview date and time are required');
+        err.statusCode = 400;
+        throw err;
+      }
+    }
+
     const update = { status };
     if (cfg.dateField && payload.interview_scheduled_at !== undefined) {
       update[cfg.dateField] = payload.interview_scheduled_at || null;

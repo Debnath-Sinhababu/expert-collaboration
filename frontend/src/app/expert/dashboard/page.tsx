@@ -19,6 +19,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import NotificationBell from '@/components/NotificationBell'
 import ProfileDropdown from '@/components/ProfileDropdown'
 import Logo from '@/components/Logo'
+import { formatInterviewDateTime } from '@/lib/datetime'
 import { 
   User, 
   Briefcase, 
@@ -883,13 +884,7 @@ export default function ExpertDashboard() {
                                 <span className="text-xs font-semibold text-[#008260]">Interview Scheduled:</span>
                               </div>
                               <span className="text-xs sm:text-sm font-bold text-[#000000] break-words">
-                                {new Date(application.interview_date).toLocaleDateString('en-US', { 
-                                  month: 'short', 
-                                  day: 'numeric', 
-                                  year: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
+                                {formatInterviewDateTime(application.interview_date)}
                               </span>
                             </div>
                           </div>

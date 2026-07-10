@@ -18,11 +18,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { SectionCard } from '@/components/superadmin/common/SectionCard'
 import { StatCard } from '@/components/superadmin/common/StatCard'
 import { TrainingAttendancePanel } from '@/components/training/TrainingAttendancePanel'
 import { useSuperAdminAccess } from '@/components/superadmin/layout/SuperAdminAccessContext'
 import { superAdminApi } from '@/lib/superadmin/api'
+import { formatInterviewDateTime, datetimeLocalToIso } from '@/lib/datetime'
 import { canAccessAny } from '@/lib/superadmin/permissions'
 import type { SuperAdminPermission } from '@/lib/superadmin/types'
 
@@ -43,6 +54,15 @@ function stageLabel(value: string) {
   if (value === 'interview_scheduled') return 'Interview'
   if (value === 'completed') return 'Completed'
   return STAGES.find((stage) => stage.value === value)?.label || value
+}
+
+function isRejectedApplicationStatus(status?: string | null) {
+  const value = String(status || '').toLowerCase()
+  return value === 'rejected' || value === 'rejected_corporate'
+}
+
+function isRejectedPipelineStage(stage?: string | null) {
+  return String(stage || '').toLowerCase() === 'rejected'
 }
 
 function operationsStateLabel(value?: string | null) {
@@ -112,6 +132,13 @@ export default function SuperAdminRequirementDetailPage() {
     row: any
     value: string
   }>(null)
+  const [confirmActionDialog, setConfirmActionDialog] = useState<null | {
+    title: string
+    description: string
+    confirmLabel: string
+    destructive?: boolean
+    onConfirm: () => Promise<void>
+  }>(null)
 
   const decoded = decodeURIComponent(params.id)
   const { requirementType, requirementId } = useMemo(() => {
@@ -156,13 +183,17 @@ export default function SuperAdminRequirementDetailPage() {
       toast.error('Select an expert')
       return
     }
+    if (stage === 'interview_scheduled' && !interviewAt?.trim()) {
+      toast.error('Interview date and time are required')
+      return
+    }
     setSaving(true)
     try {
       const created = await superAdminApi.addRequirementExpert(requirementId, {
         expert_id: expertId,
         requirement_type: requirementType,
         stage,
-        interview_scheduled_at: interviewAt || null,
+        interview_scheduled_at: stage === 'interview_scheduled' ? datetimeLocalToIso(interviewAt) : null,
         notes,
       })
       if (!created?.id) {
@@ -230,42 +261,149 @@ export default function SuperAdminRequirementDetailPage() {
 
   async function confirmInterview() {
     if (!interviewDialog) return
+    if (!interviewDialog.value?.trim()) {
+      toast.error('Interview date and time are required')
+      return
+    }
+    const interviewValue = datetimeLocalToIso(interviewDialog.value)
+    if (!interviewValue) {
+      toast.error('Enter a valid interview date and time')
+      return
+    }
     const current = interviewDialog
     setInterviewDialog(null)
     if (current.kind === 'pipeline') {
-      await runCandidateAction(current.row, 'schedule_interview', current.value || null)
+      await runCandidateAction(current.row, 'schedule_interview', interviewValue)
       return
     }
-    await updateNativeApplication(current.row, 'interview', current.value || null)
+    await updateNativeApplication(current.row, 'interview', interviewValue)
   }
 
-  function nativeActions(row: any) {
+  function getRowPersonName(row: any) {
+    return row.experts?.name || row.site_students?.name || 'this candidate'
+  }
+
+  function openConfirmAction(options: {
+    title: string
+    description: string
+    confirmLabel: string
+    destructive?: boolean
+    onConfirm: () => Promise<void>
+  }) {
+    setConfirmActionDialog(options)
+  }
+
+  async function handleConfirmAction() {
+    if (!confirmActionDialog) return
+    const action = confirmActionDialog.onConfirm
+    setConfirmActionDialog(null)
+    await action()
+  }
+
+  function confirmSelectNative(row: any, status: string, label = 'Select') {
+    const name = getRowPersonName(row)
+    openConfirmAction({
+      title: `${label} candidate?`,
+      description: `Are you sure you want to ${label.toLowerCase()} ${name}?`,
+      confirmLabel: label,
+      onConfirm: () => updateNativeApplication(row, status),
+    })
+  }
+
+  function confirmRejectNative(row: any, status: string) {
+    const name = getRowPersonName(row)
+    openConfirmAction({
+      title: 'Reject candidate?',
+      description: `Are you sure you want to reject ${name}? This action can be reversed by moving them back to pending.`,
+      confirmLabel: 'Reject',
+      destructive: true,
+      onConfirm: () => updateNativeApplication(row, status),
+    })
+  }
+
+  function confirmSelectPipeline(row: any) {
+    const name = getRowPersonName(row)
+    openConfirmAction({
+      title: 'Select candidate?',
+      description: `Are you sure you want to select ${name}?`,
+      confirmLabel: 'Select',
+      onConfirm: () => runCandidateAction(row, 'select'),
+    })
+  }
+
+  function confirmRejectPipeline(row: any) {
+    const name = getRowPersonName(row)
+    openConfirmAction({
+      title: 'Reject candidate?',
+      description: `Are you sure you want to reject ${name}?`,
+      confirmLabel: 'Reject',
+      destructive: true,
+      onConfirm: () => runCandidateAction(row, 'reject'),
+    })
+  }
+
+  const tabActionVisibility = {
+    hideInterview: activeStage === 'interview',
+    hideSelect: activeStage === 'selected',
+    hidePending: activeStage === 'pending',
+    hideReject: activeStage === 'rejected',
+  }
+
+  function nativeActions(row: any, options?: {
+    hideInterview?: boolean
+    hideSelect?: boolean
+    hidePending?: boolean
+    hideReject?: boolean
+  }) {
     if (!canManagePipeline) return null
+    const visibility = { ...tabActionVisibility, ...options }
     if (requirementType === 'project') {
       return (
         <div className="flex flex-wrap gap-2">
-          <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => setInterviewDialog({ kind: 'native', row, value: toDatetimeLocal(row.interview_date) })}>Interview</Button>
-          <Button type="button" size="sm" className="bg-[#008260] hover:bg-[#006d51]" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'accepted')}>Select</Button>
-          <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'pending')}>Pending</Button>
-          <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'rejected')}>Reject</Button>
+          {!visibility.hideInterview ? (
+            <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => setInterviewDialog({ kind: 'native', row, value: toDatetimeLocal(row.interview_date) })}>Interview</Button>
+          ) : null}
+          {!visibility.hideSelect ? (
+            <Button type="button" size="sm" className="bg-[#008260] hover:bg-[#006d51]" disabled={workflowSaving} onClick={() => confirmSelectNative(row, 'accepted')}>Select</Button>
+          ) : null}
+          {!visibility.hidePending ? (
+            <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'pending')}>Pending</Button>
+          ) : null}
+          {!visibility.hideReject ? (
+            <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" disabled={workflowSaving} onClick={() => confirmRejectNative(row, 'rejected')}>Reject</Button>
+          ) : null}
         </div>
       )
     }
     if (requirementType === 'internship') {
       return (
         <div className="flex flex-wrap gap-2">
-          <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => setInterviewDialog({ kind: 'native', row, value: toDatetimeLocal(row.interview_scheduled_at) })}>Interview</Button>
-          <Button type="button" size="sm" className="bg-[#008260] hover:bg-[#006d51]" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'shortlisted_corporate')}>Shortlist</Button>
-          <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'pending')}>Pending</Button>
-          <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'rejected_corporate')}>Reject</Button>
+          {!visibility.hideInterview ? (
+            <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => setInterviewDialog({ kind: 'native', row, value: toDatetimeLocal(row.interview_scheduled_at) })}>Interview</Button>
+          ) : null}
+          {!visibility.hideSelect ? (
+            <Button type="button" size="sm" className="bg-[#008260] hover:bg-[#006d51]" disabled={workflowSaving} onClick={() => confirmSelectNative(row, 'shortlisted_corporate', 'Shortlist')}>Shortlist</Button>
+          ) : null}
+          {!visibility.hidePending ? (
+            <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'pending')}>Pending</Button>
+          ) : null}
+          {!visibility.hideReject ? (
+            <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" disabled={workflowSaving} onClick={() => confirmRejectNative(row, 'rejected_corporate')}>Reject</Button>
+          ) : null}
         </div>
       )
     }
     return (
       <div className="flex flex-wrap gap-2">
-        <Button type="button" size="sm" className="bg-[#008260] hover:bg-[#006d51]" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'shortlisted')}>Shortlist</Button>
-        <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'pending')}>Pending</Button>
-        <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'rejected')}>Reject</Button>
+        {!visibility.hideSelect ? (
+          <Button type="button" size="sm" className="bg-[#008260] hover:bg-[#006d51]" disabled={workflowSaving} onClick={() => confirmSelectNative(row, 'shortlisted', 'Shortlist')}>Shortlist</Button>
+        ) : null}
+        {!visibility.hidePending ? (
+          <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'pending')}>Pending</Button>
+        ) : null}
+        {!visibility.hideReject ? (
+          <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" disabled={workflowSaving} onClick={() => confirmRejectNative(row, 'rejected')}>Reject</Button>
+        ) : null}
       </div>
     )
   }
@@ -356,16 +494,21 @@ export default function SuperAdminRequirementDetailPage() {
       )
     }
     if (item.kind === 'pipeline') {
+      const hideInterview = tabActionVisibility.hideInterview || item.row.stage === 'interview_scheduled'
       return (
         <div className="flex flex-wrap gap-2">
           {item.row.stage === 'added' ? (
             <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => runCandidateAction(item.row, 'notify')}>Notify</Button>
           ) : null}
-          {item.row.stage !== 'interview_scheduled' ? (
+          {!hideInterview ? (
             <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => setInterviewDialog({ kind: 'pipeline', row: item.row, value: toDatetimeLocal(item.row.interview_scheduled_at) })}>Interview</Button>
           ) : null}
-          <Button type="button" size="sm" className="bg-[#008260] hover:bg-[#006d51]" disabled={workflowSaving} onClick={() => runCandidateAction(item.row, 'select')}>Select</Button>
-          <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" disabled={workflowSaving} onClick={() => runCandidateAction(item.row, 'reject')}>Reject</Button>
+          {!tabActionVisibility.hideSelect ? (
+            <Button type="button" size="sm" className="bg-[#008260] hover:bg-[#006d51]" disabled={workflowSaving} onClick={() => confirmSelectPipeline(item.row)}>Select</Button>
+          ) : null}
+          {!tabActionVisibility.hideReject ? (
+            <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" disabled={workflowSaving} onClick={() => confirmRejectPipeline(item.row)}>Reject</Button>
+          ) : null}
         </div>
       )
     }
@@ -391,7 +534,7 @@ export default function SuperAdminRequirementDetailPage() {
               <div><span className="text-slate-500">Rate</span><p className="font-medium text-slate-950">{person?.hourly_rate ? `Rs. ${person.hourly_rate}/hr` : '-'}</p></div>
               <div><span className="text-slate-500">Experience</span><p className="font-medium text-slate-950">{person?.experience_years != null ? `${person.experience_years} years` : '-'}</p></div>
               <div><span className="text-slate-500">Domain</span><p className="font-medium text-slate-950">{Array.isArray(person?.domain_expertise) ? person.domain_expertise.join(', ') : person?.domain_expertise || '-'}</p></div>
-              <div><span className="text-slate-500">Interview</span><p className="font-medium text-slate-950">{formatDate(item.row.interview_date || item.row.interview_scheduled_at)}</p></div>
+              <div><span className="text-slate-500">Interview</span><p className="font-medium text-slate-950">{formatInterviewDateTime(item.row.interview_date || item.row.interview_scheduled_at)}</p></div>
               {booking ? <div><span className="text-slate-500">Booked Hours</span><p className="font-medium text-slate-950">{booking.hours_booked || 0}</p></div> : null}
               {booking ? <div><span className="text-slate-500">Approved Hours</span><p className="font-medium text-slate-950">{booking.approved_hours || 0}</p></div> : null}
               {booking ? <div><span className="text-slate-500">Payment</span><p className="font-medium text-slate-950">{booking.payment_status || '-'}</p></div> : null}
@@ -564,8 +707,8 @@ export default function SuperAdminRequirementDetailPage() {
                 </div>
                 {stage === 'interview_scheduled' ? (
                   <div className="space-y-2">
-                    <Label htmlFor="interviewAt">Interview time</Label>
-                    <Input id="interviewAt" type="datetime-local" value={interviewAt} onChange={(e) => setInterviewAt(e.target.value)} />
+                    <Label htmlFor="interviewAt">Interview date and time <span className="text-red-600">*</span></Label>
+                    <Input id="interviewAt" type="datetime-local" value={interviewAt} onChange={(e) => setInterviewAt(e.target.value)} required />
                   </div>
                 ) : null}
                 <div className="space-y-2 lg:col-span-2">
@@ -573,7 +716,11 @@ export default function SuperAdminRequirementDetailPage() {
                   <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
                 </div>
                 <div className="lg:col-span-2">
-                  <Button type="submit" className="bg-[#008260] hover:bg-[#006d51]" disabled={saving}>
+                  <Button
+                    type="submit"
+                    className="bg-[#008260] hover:bg-[#006d51]"
+                    disabled={saving || (stage === 'interview_scheduled' && !interviewAt?.trim())}
+                  >
                     {saving ? 'Saving...' : stage === 'interview_scheduled' ? 'Schedule interview' : 'Add and notify'}
                   </Button>
                 </div>
@@ -615,22 +762,47 @@ export default function SuperAdminRequirementDetailPage() {
             <DialogTitle>Schedule Interview</DialogTitle>
           </DialogHeader>
           <div className="space-y-2">
-            <Label htmlFor="workflowInterviewAt">Interview date and time</Label>
+            <Label htmlFor="workflowInterviewAt">Interview date and time <span className="text-red-600">*</span></Label>
             <Input
               id="workflowInterviewAt"
               type="datetime-local"
               value={interviewDialog?.value || ''}
               onChange={(e) => setInterviewDialog((current) => current ? { ...current, value: e.target.value } : current)}
+              required
             />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setInterviewDialog(null)} disabled={workflowSaving}>Cancel</Button>
-            <Button type="button" className="bg-[#008260] hover:bg-[#006d51]" onClick={confirmInterview} disabled={workflowSaving}>
+            <Button
+              type="button"
+              className="bg-[#008260] hover:bg-[#006d51]"
+              onClick={confirmInterview}
+              disabled={workflowSaving || !interviewDialog?.value?.trim()}
+            >
               {workflowSaving ? 'Saving...' : 'Save interview'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={Boolean(confirmActionDialog)} onOpenChange={(open) => !open && setConfirmActionDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmActionDialog?.title}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmActionDialog?.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={workflowSaving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmAction}
+              disabled={workflowSaving}
+              className={confirmActionDialog?.destructive ? 'bg-red-600 hover:bg-red-700' : 'bg-[#008260] hover:bg-[#006d51]'}
+            >
+              {workflowSaving ? 'Processing...' : confirmActionDialog?.confirmLabel}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -3232,7 +3232,10 @@ app.put('/api/internship-applications/:id/status', async (req, res) => {
     }
 
     const updatePayload = { status, updated_at: new Date().toISOString() };
-    if (status === 'interview' && interview_scheduled_at) {
+    if (status === 'interview') {
+      if (!interview_scheduled_at) {
+        return res.status(400).json({ error: 'Interview date and time are required' });
+      }
       updatePayload.interview_scheduled_at = interview_scheduled_at;
     }
 
@@ -4779,6 +4782,9 @@ app.put('/api/applications/:id', async (req, res) => {
 
     // Handle interview_date field if provided
     const updateData = { ...req.body };
+    if (req.body.status === 'interview' && !req.body.interview_date) {
+      return res.status(400).json({ error: 'Interview date and time are required' });
+    }
     if (updateData.interview_date) {
       // Convert to proper timestamp format
       updateData.interview_date = new Date(updateData.interview_date).toISOString();

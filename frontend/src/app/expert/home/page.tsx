@@ -1118,14 +1118,22 @@ export default function ExpertHome() {
 
         {/* Application Modal */}
         <Dialog open={showApplicationModal} onOpenChange={setShowApplicationModal}>
-          <DialogContent className="sm:max-w-md bg-white">
-            <DialogHeader className="space-y-1">
+          <DialogContent className="max-h-[85vh] overflow-hidden bg-white p-0 shadow-xl sm:max-w-2xl">
+            <DialogHeader className="space-y-1 px-6 pt-6">
               <DialogTitle className="text-xl font-bold text-[#000000]">Apply to Project</DialogTitle>
               <DialogDescription className="text-[#000000] text-sm font-normal font-sans">
                 Submit your application for {selectedApplicationProject?.title || 'this project'}
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-6 ">
+            <div className="max-h-[calc(85vh-96px)] space-y-6 overflow-y-auto px-6 pb-6 pt-2">
+              {selectedApplicationProject ? (
+                <div className="rounded-lg border border-[#DCDCDC] bg-[#F8FBFA] p-3 text-sm">
+                  <div className="font-semibold text-[#000000]">{selectedApplicationProject.title}</div>
+                  <div className="mt-1 text-[#6A6A6A]">
+                    Project price: <span className="font-semibold text-[#008260]">Rs {selectedApplicationProject.hourly_rate || expert?.hourly_rate || 0}/hr</span>
+                  </div>
+                </div>
+              ) : null}
               <div className="space-y-2">
                 <Label htmlFor="coverLetter" className="text-sm font-medium text-slate-700">Cover Letter</Label>
                 <Textarea
@@ -1184,13 +1192,15 @@ export default function ExpertHome() {
                   <AlertDescription className="text-green-700">{success}</AlertDescription>
                 </Alert>
               )}
-              <Button
-                onClick={() => selectedProjectId && handleApplicationSubmit(selectedProjectId)}
-                className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium shadow-sm hover:shadow-md transition-all duration-200 py-2.5 rounded-lg"
-                disabled={!applicationForm.coverLetter || !selectedProjectId || isApplying || needsCustomRate}
-              >
-                {isApplying ? 'Submitting...' : 'Submit Application'}
-              </Button>
+              <div className="sticky bottom-0 -mx-6 border-t border-[#ECECEC] bg-white px-6 py-4">
+                <Button
+                  onClick={() => selectedProjectId && handleApplicationSubmit(selectedProjectId)}
+                  className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium shadow-sm hover:shadow-md transition-all duration-200 py-2.5 rounded-lg"
+                  disabled={!applicationForm.coverLetter || !selectedProjectId || isApplying || needsCustomRate}
+                >
+                  {isApplying ? 'Submitting...' : 'Submit Application'}
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>

@@ -10,6 +10,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { DatePicker } from '@/components/ui/date-picker'
@@ -26,6 +36,7 @@ import { TrainingAttendancePanel } from '@/components/training/TrainingAttendanc
 import { InterviewAvailabilitySelector } from '@/components/requirements/InterviewAvailabilitySelector'
 import type { InterviewSlot } from '@/components/requirements/InterviewAvailabilitySelector'
 import { resolveHourlyRate } from '@/lib/projectPricing'
+import { formatInterviewDateTime } from '@/lib/datetime'
 import { 
   ArrowLeft,
   Building, 
@@ -87,6 +98,13 @@ export default function InstitutionProjectDetailsPage() {
   const [showFinalRateModal, setShowFinalRateModal] = useState(false)
   const [selectedBookingApplication, setSelectedBookingApplication] = useState<any>(null)
   const [finalHourlyRate, setFinalHourlyRate] = useState('')
+  const [confirmAction, setConfirmAction] = useState<null | {
+    title: string
+    description: string
+    confirmLabel: string
+    destructive?: boolean
+    onConfirm: () => void | Promise<void>
+  }>(null)
   const [bookingDateEdits, setBookingDateEdits] = useState<Record<string, { actual_start_date?: string; actual_end_date?: string }>>({})
   const [processingApplications, setProcessingApplications] = useState<Record<string, boolean>>({})
 
@@ -384,25 +402,31 @@ export default function InstitutionProjectDetailsPage() {
   const handleInterviewSubmit = async () => {
     if (!selectedApplicationId) return
 
+    if (!interviewDate) {
+      toast.error('Interview date is required')
+      return
+    }
+    if (!interviewTime) {
+      toast.error('Interview time is required')
+      return
+    }
+
     try {
       setProcessingApplications(prev => ({ ...prev, [selectedApplicationId]: true }))
-      
-      let interviewDateValue = null
-      if (interviewDate && interviewTime) {
-        const todayStart = new Date()
-        todayStart.setHours(0, 0, 0, 0)
-        const selectedStart = new Date(interviewDate)
-        selectedStart.setHours(0, 0, 0, 0)
-        if (selectedStart < todayStart) {
-          toast.error('Interview date cannot be in the past')
-          setProcessingApplications(prev => ({ ...prev, [selectedApplicationId]: false }))
-          return
-        }
-        const [hours, minutes] = interviewTime.split(':').map(Number)
-        const combinedDateTime = new Date(interviewDate)
-        combinedDateTime.setHours(hours, minutes, 0, 0)
-        interviewDateValue = combinedDateTime.toISOString()
+
+      const todayStart = new Date()
+      todayStart.setHours(0, 0, 0, 0)
+      const selectedStart = new Date(interviewDate)
+      selectedStart.setHours(0, 0, 0, 0)
+      if (selectedStart < todayStart) {
+        toast.error('Interview date cannot be in the past')
+        setProcessingApplications(prev => ({ ...prev, [selectedApplicationId]: false }))
+        return
       }
+      const [hours, minutes] = interviewTime.split(':').map(Number)
+      const combinedDateTime = new Date(interviewDate)
+      combinedDateTime.setHours(hours, minutes, 0, 0)
+      const interviewDateValue = combinedDateTime.toISOString()
 
       await api.applications.update(selectedApplicationId, {
         status: 'interview',
@@ -513,6 +537,35 @@ export default function InstitutionProjectDetailsPage() {
     } finally {
       setProcessingApplications(prev => ({ ...prev, [applicationId]: false }))
     }
+  }
+
+  function openRejectConfirm(application: any) {
+    const name = application.experts?.name || 'this expert'
+    setConfirmAction({
+      title: 'Reject application?',
+      description: `Are you sure you want to reject ${name}?`,
+      confirmLabel: 'Reject',
+      destructive: true,
+      onConfirm: () => handleRejectApplication(application.id),
+    })
+  }
+
+  function openProceedToBookingConfirm(applicationId: string) {
+    const application = [...(pendingApplications || []), ...(interviewApplications || [])].find((app: any) => app.id === applicationId)
+    const name = application?.experts?.name || 'this expert'
+    setConfirmAction({
+      title: 'Proceed for booking?',
+      description: `Are you sure you want to select ${name} and proceed for booking?`,
+      confirmLabel: 'Proceed',
+      onConfirm: () => handleProceedToBooking(applicationId),
+    })
+  }
+
+  async function handleConfirmAction() {
+    if (!confirmAction) return
+    const action = confirmAction.onConfirm
+    setConfirmAction(null)
+    await action()
   }
 
   const getStatusColor = (status: string) => {
@@ -933,7 +986,7 @@ export default function InstitutionProjectDetailsPage() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleRejectApplication(application.id)}
+                                onClick={() => openRejectConfirm(application)}
                                 disabled={processingApplications[application.id]}
                                 className="border border-[#FF0000] text-[13px] font-medium text-[#FF0000] rounded-[25px] bg-white hover:bg-white hover:text-[#FF0000] w-full sm:w-auto"
                               >
@@ -1067,7 +1120,7 @@ export default function InstitutionProjectDetailsPage() {
                   <div className="mb-4">
                     <span className="text-[#666666] font-medium text-sm">
                       <Calendar className="h-4 w-4 inline mr-1" />
-                      Interview scheduled: <span className='text-black'> {new Date(application.interview_date).toLocaleString()}</span>
+                      Interview scheduled: <span className='text-black'> {formatInterviewDateTime(application.interview_date)}</span>
                     </span>
                   </div>
                 )}
@@ -1080,7 +1133,7 @@ export default function InstitutionProjectDetailsPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleRejectApplication(application.id)}
+                      onClick={() => openRejectConfirm(application)}
                       disabled={processingApplications[application.id]}
                       className="border border-[#FF0000] text-[13px] font-medium text-[#FF0000] rounded-[25px] bg-white hover:bg-white hover:text-[#FF0000] w-full sm:w-auto"
                     >
@@ -1089,7 +1142,7 @@ export default function InstitutionProjectDetailsPage() {
                     </Button>
                     <Button
                       size="sm"
-                      onClick={() => handleProceedToBooking(application.id)}
+                      onClick={() => openProceedToBookingConfirm(application.id)}
                       disabled={processingApplications[application.id]}
                       className="bg-[#008260] hover:bg-[#008260] text-white hover:text-white rounded-[25px] text-[13px] w-full sm:w-auto"
                     >
@@ -1528,7 +1581,7 @@ export default function InstitutionProjectDetailsPage() {
           <DialogHeader>
             <DialogTitle>Schedule Interview</DialogTitle>
             <DialogDescription>
-              Set an interview date and time for this application (optional)
+              Set the interview date and time before moving this application to interview stage.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -1555,7 +1608,7 @@ export default function InstitutionProjectDetailsPage() {
                 />
               )}
               <div>
-                <Label>Interview Date (Optional)</Label>
+                <Label>Interview Date <span className="text-red-600">*</span></Label>
                 <DatePicker
                   value={interviewDate}
                   onChange={setInterviewDate}
@@ -1564,7 +1617,7 @@ export default function InstitutionProjectDetailsPage() {
                 />
               </div>
               <div>
-                <Label>Interview Time (Optional)</Label>
+                <Label>Interview Time <span className="text-red-600">*</span></Label>
                 <TimePicker
                   value={interviewTime}
                   onChange={setInterviewTime}
@@ -1573,7 +1626,7 @@ export default function InstitutionProjectDetailsPage() {
                 />
               </div>
               <p className="text-sm text-muted-foreground">
-                You can schedule an interview or proceed without setting a specific date and time
+                Interview date and time are required to move this application to the interview stage.
               </p>
             </div>
             <div className="flex justify-end space-x-2">
@@ -1585,7 +1638,7 @@ export default function InstitutionProjectDetailsPage() {
               </Button>
               <Button
                 onClick={handleInterviewSubmit}
-                disabled={processingApplications[selectedApplicationId || '']}
+                disabled={processingApplications[selectedApplicationId || ''] || !interviewDate || !interviewTime}
                 className="bg-[#008260] hover:bg-[#008260]"
               >
                 {processingApplications[selectedApplicationId || ''] ? 'Processing...' : 'Proceed to Interview'}
@@ -1646,6 +1699,24 @@ export default function InstitutionProjectDetailsPage() {
         booking={selectedBooking}
         onRatingSubmitted={handleRatingSubmitted}
       />
+
+      <AlertDialog open={Boolean(confirmAction)} onOpenChange={(open) => !open && setConfirmAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmAction?.title}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmAction?.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmAction}
+              className={confirmAction?.destructive ? 'bg-red-600 hover:bg-red-700' : 'bg-[#008260] hover:bg-[#006d51]'}
+            >
+              {confirmAction?.confirmLabel}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

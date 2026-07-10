@@ -756,6 +756,11 @@ class SuperAdminService {
     }
     const requestedStage = body.stage === 'interview_scheduled' ? 'interview_scheduled' : 'added';
     const interviewAt = body.interview_scheduled_at || null;
+    if (requestedStage === 'interview_scheduled' && !interviewAt) {
+      const err = new Error('Interview date and time are required');
+      err.statusCode = 400;
+      throw err;
+    }
 
     const application = await this.repository.upsertProjectApplication(requirementId, body.expert_id, {
       status: requestedStage === 'interview_scheduled' ? 'interview' : 'pending',

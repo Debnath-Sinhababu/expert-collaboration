@@ -20,8 +20,28 @@ import { Label } from '@/components/ui/label'
 import { DatePicker } from '@/components/ui/date-picker'
 import { TimePicker } from '@/components/ui/time-picker'
 import Logo from '@/components/Logo'
+import { toast } from 'sonner'
 import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
 import { fetchInstitutionForWorkspace, profileSetupPath } from '@/lib/institutionWorkspace'
+
+function buildInterviewDateTime(date?: Date, time?: string) {
+  if (!date || !time) return null
+  const [hh, mm] = time.split(':')
+  const d = new Date(date)
+  d.setHours(parseInt(hh || '0', 10), parseInt(mm || '0', 10), 0, 0)
+  return d.toISOString()
+}
+
+function validateInterviewSchedule(date?: Date, time?: string) {
+  if (!date) return 'Interview date is required'
+  if (!time) return 'Interview time is required'
+  const todayStart = new Date()
+  todayStart.setHours(0, 0, 0, 0)
+  const selectedStart = new Date(date)
+  selectedStart.setHours(0, 0, 0, 0)
+  if (selectedStart < todayStart) return 'Interview date cannot be in the past'
+  return null
+}
 
 export default function CorporateInternshipDetail() {
   const params = useParams()
@@ -432,30 +452,34 @@ export default function CorporateInternshipDetail() {
                                         <DialogContent className="max-w-md">
                                           <DialogHeader>
                                             <DialogTitle>Schedule Interview</DialogTitle>
-                                            <DialogDescription>Set an optional interview date and time</DialogDescription>
+                                            <DialogDescription>Set the interview date and time before moving this application to interview stage.</DialogDescription>
                                           </DialogHeader>
                                           <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
                                             <div>
-                                              <Label>Interview Date (Optional)</Label>
+                                              <Label>Interview Date <span className="text-red-600">*</span></Label>
                                               <DatePicker value={interviewDate} onChange={setInterviewDate} />
                                             </div>
                                             <div>
-                                              <Label>Interview Time (Optional)</Label>
+                                              <Label>Interview Time <span className="text-red-600">*</span></Label>
                                               <TimePicker value={interviewTime} onChange={setInterviewTime} />
                                             </div>
                                             <div className="flex justify-end gap-2 pt-2">
                                               <Button variant="outline" onClick={() => { setInterviewDate(undefined); setInterviewTime('') }}>Cancel</Button>
                                               <Button
+                                                disabled={!interviewDate || !interviewTime}
                                                 onClick={async () => {
+                                                  const validationError = validateInterviewSchedule(interviewDate, interviewTime)
+                                                  if (validationError) {
+                                                    toast.error(validationError)
+                                                    return
+                                                  }
+                                                  const iso = buildInterviewDateTime(interviewDate, interviewTime)
+                                                  if (!iso) {
+                                                    toast.error('Interview date and time are required')
+                                                    return
+                                                  }
                                                   try {
-                                                    let iso: string | undefined
-                                                    if (interviewDate && interviewTime) {
-                                                      const [hh, mm] = interviewTime.split(':')
-                                                      const d = new Date(interviewDate)
-                                                      d.setHours(parseInt(hh || '0', 10), parseInt(mm || '0', 10), 0, 0)
-                                                      iso = d.toISOString()
-                                                    }
-                                                    await api.internships.updateApplicationStatus(app.id, 'interview', iso ? { interview_scheduled_at: iso } : undefined)
+                                                    await api.internships.updateApplicationStatus(app.id, 'interview', { interview_scheduled_at: iso })
                                                     // Refetch interview stage, update counts, switch tab
                                                     setActiveStage('interview')
                                                     const res = await api.internships.getApplications(id, { page: 1, limit: 10, stage: 'interview' })
