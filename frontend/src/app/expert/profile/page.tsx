@@ -6,7 +6,7 @@ import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Star, Shield, Phone, Linkedin, User, GraduationCap, IndianRupee, Calendar, Building2, FileText, Edit, CheckCircle2, MapPin, Video } from 'lucide-react'
+import { Star, Shield, Phone, Linkedin, Mail, User, GraduationCap, IndianRupee, Calendar, Building2, FileText, Edit, CheckCircle2, MapPin, Video } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useExpertWorkspace } from '@/contexts/ExpertWorkspaceContext'
@@ -235,7 +235,7 @@ export default function ExpertProfile() {
                     </span>
                   )}
 
-                  {/* Domain Expertise, Subskills, and Expert Types */}
+                  {/* Domain Expertise, Subskills, Expert Types, and Services */}
                   <div className="space-y-3 mb-4">
                     {/* Domain Expertise */}
                     {expert?.domain_expertise?.[0] && (
@@ -271,10 +271,54 @@ export default function ExpertProfile() {
                         )}
                       </div>
                     )}
+
+                    {Array.isArray(expert?.expert_types) && expert.expert_types.length > 0 && (
+                      <div>
+                        <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">Expert Type</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {expert.expert_types.map((type: string, index: number) => (
+                            <Badge
+                              key={`type-${index}`}
+                              className="bg-[#E8F5F1] text-[#008260] border border-[#BFE3D8] hover:bg-[#E8F5F1] px-2.5 py-0.5 text-xs font-medium"
+                            >
+                              {type}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {Array.isArray(expert?.expert_services) && expert.expert_services.length > 0 && (
+                      <div>
+                        <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">Expert Services</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {expert.expert_services.map((service: string, index: number) => (
+                            <Badge
+                              key={`service-${index}`}
+                              variant="outline"
+                              className="bg-[#FFF7ED] text-[#C2410C] border-[#FED7AA] hover:bg-[#FFF7ED] px-2.5 py-0.5 text-xs font-medium"
+                            >
+                              {service}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Contact Information */}
                   <div className="space-y-2 mt-4">
+                    {(expert?.email || user?.email) && (
+                      <div className="flex items-center gap-2 text-slate-700">
+                        <Mail className="h-5 w-5 text-[#008260]" />
+                        <a
+                          href={`mailto:${expert?.email || user?.email}`}
+                          className="text-base text-[#008260] hover:text-[#006b4f] hover:underline break-all"
+                        >
+                          {expert?.email || user?.email}
+                        </a>
+                      </div>
+                    )}
                     {expert?.phone && (
                       <div className="flex items-center gap-2 text-slate-700">
                         <Phone className="h-5 w-5 text-[#008260]" />
@@ -473,27 +517,43 @@ export default function ExpertProfile() {
                     </div>
                   )}
 
-                  {expert?.expert_types && expert.expert_types.length > 0 && (
-                    <div className="flex items-center justify-between py-2 border-b border-slate-100">
-                      <span className="text-slate-600">Expert Type</span>
-                      <span className="text-slate-900 font-semibold">
+                  {Array.isArray(expert?.expert_types) && expert.expert_types.length > 0 && (
+                    <div className="flex items-start justify-between gap-3 py-2 border-b border-slate-100">
+                      <span className="text-slate-600 shrink-0">Expert Type</span>
+                      <span className="text-slate-900 font-semibold text-right">
                         {expert.expert_types.join(', ')}
                       </span>
                     </div>
                   )}
 
-                  {expert?.expert_services && expert.expert_services.length > 0 && (
+                  {Array.isArray(expert?.expert_services) && expert.expert_services.length > 0 && (
+                    <div className="flex items-start justify-between gap-3 py-2 border-b border-slate-100">
+                      <span className="text-slate-600 shrink-0">Expert Services</span>
+                      <span className="text-slate-900 font-semibold text-right max-w-[60%]">
+                        {expert.expert_services.join(', ')}
+                      </span>
+                    </div>
+                  )}
+
+                  {expert?.service_price !== undefined && expert?.service_price !== null && expert.service_price !== '' && (
                     <div className="flex items-center justify-between py-2 border-b border-slate-100">
-                      <span className="text-slate-600">Expert Services</span>
-                      <div className="text-slate-900 font-semibold text-right max-w-[60%]">
-                        {expert.service_price !== undefined && expert.service_price !== null ? (
-                          <div className="space-y-1 text-right">
-                            <div className="text-sm">₹{expert.service_price}</div>
-                          </div>
-                        ) : (
-                          <span>{expert.expert_services.join(', ')}</span>
-                        )}
-                      </div>
+                      <span className="text-slate-600">Service Price</span>
+                      <span className="text-slate-900 font-semibold flex items-center gap-1">
+                        <IndianRupee className="h-4 w-4" />
+                        {expert.service_price}
+                      </span>
+                    </div>
+                  )}
+
+                  {(expert?.email || user?.email) && (
+                    <div className="flex items-start justify-between gap-3 py-2 border-b border-slate-100">
+                      <span className="text-slate-600 shrink-0">Email</span>
+                      <a
+                        href={`mailto:${expert?.email || user?.email}`}
+                        className="text-slate-900 font-semibold text-right break-all hover:text-[#008260]"
+                      >
+                        {expert?.email || user?.email}
+                      </a>
                     </div>
                   )}
 

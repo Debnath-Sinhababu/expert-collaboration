@@ -320,7 +320,9 @@ app.get('/api/experts', async (req, res) => {
       is_verified = '',
       min_rating = '',
       sort_by = '',
-      sort_order = 'desc'
+      sort_order = 'desc',
+      expert_type = '',
+      expert_service = ''
     } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
     
@@ -369,6 +371,24 @@ app.get('/api/experts', async (req, res) => {
       } else if (values.length > 1) {
         // Use overlap operator for Postgrest: domain_expertise overlaps any of values
         query = query.overlaps('domain_expertise', values)
+      }
+    }
+
+    if (expert_type) {
+      const types = String(expert_type).split(',').map((s) => s.trim()).filter(Boolean);
+      if (types.length === 1) {
+        query = query.contains('expert_types', [types[0]]);
+      } else if (types.length > 1) {
+        query = query.overlaps('expert_types', types);
+      }
+    }
+
+    if (expert_service) {
+      const services = String(expert_service).split(',').map((s) => s.trim()).filter(Boolean);
+      if (services.length === 1) {
+        query = query.contains('expert_services', [services[0]]);
+      } else if (services.length > 1) {
+        query = query.overlaps('expert_services', services);
       }
     }
     

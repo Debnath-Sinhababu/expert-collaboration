@@ -41,7 +41,7 @@ import { fetchExpertForWorkspace, expertProfileSetupPath } from '@/lib/expertWor
 import { ShareRequirementButton } from '@/components/requirements/ShareRequirementButton'
 import { ProjectRequirementMeta } from '@/components/requirements/ProjectRequirementMeta'
 import { projectLocationLine } from '@/lib/requirementLabels'
-import { InterviewAvailabilitySelector, type InterviewSlot } from '@/components/requirements/InterviewAvailabilitySelector'
+import type { InterviewSlot } from '@/components/requirements/InterviewAvailabilitySelector'
 
 type UserMeta = { role?: string; name?: string }
 type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }
@@ -492,6 +492,19 @@ export default function ExpertProjectPage() {
                       <p className="text-base font-medium text-black mt-1">{project.duration_hours} Hours</p>
                     </div>
                   </div>
+
+                  {project.interview_period_interval ? (
+                    <div className="flex items-start gap-3 rounded-lg border border-[#BFE3D8] bg-[#E8F5F1] p-4">
+                      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-[#008260]">
+                        <Calendar className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-[#008260]">Probable interview dates</p>
+                        <p className="mt-1 text-base font-semibold text-black">{project.interview_period_interval}</p>
+                        <p className="mt-1 text-xs text-[#4B5563]">Preferred interview window shared by the institution</p>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
 
                 {/* Apply Button */}
@@ -564,10 +577,6 @@ export default function ExpertProjectPage() {
                             <span className="text-[#6A6A6A]">{project.interview_period_interval}</span>
                           </div>
                         )}
-                        <InterviewAvailabilitySelector
-                          slots={applicationForm.interviewAvailability}
-                          onChange={(interviewAvailability) => setApplicationForm({ ...applicationForm, interviewAvailability })}
-                        />
                         {error && (
                           <Alert variant="destructive" className="border-2 border-red-200 bg-red-50">
                             <AlertCircle className="h-4 w-4" />

@@ -41,7 +41,7 @@ import { fetchExpertForWorkspace, expertProfileSetupPath } from '@/lib/expertWor
 import { ShareRequirementButton } from '@/components/requirements/ShareRequirementButton'
 import { institutionDisplayName } from '@/lib/privacyDisplay'
 import { ExpertTrainingAttendanceSidebar } from '@/components/training/ExpertTrainingAttendanceSidebar'
-import { InterviewAvailabilitySelector, type InterviewSlot } from '@/components/requirements/InterviewAvailabilitySelector'
+import type { InterviewSlot } from '@/components/requirements/InterviewAvailabilitySelector'
 
 type UserMeta = { role?: string; name?: string }
 type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }
@@ -1176,10 +1176,6 @@ export default function ExpertHome() {
                   <span className="text-[#6A6A6A]">{selectedApplicationProject.interview_period_interval}</span>
                 </div>
               )}
-              <InterviewAvailabilitySelector
-                slots={applicationForm.interviewAvailability}
-                onChange={(interviewAvailability) => setApplicationForm({ ...applicationForm, interviewAvailability })}
-              />
               {error && (
                 <Alert variant="destructive" className="border-2 border-red-200 bg-red-50">
                   <AlertCircle className="h-4 w-4" />
