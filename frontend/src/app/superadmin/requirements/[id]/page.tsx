@@ -603,6 +603,18 @@ export default function SuperAdminRequirementDetailPage() {
                 <RateIntentBadge rateIntent={application.rate_intent} rateStatus={application.rate_status} />
               </div>
             ) : null}
+            {application?.cover_letter ? (
+              <div className="mt-3 rounded-lg border border-slate-100 bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Cover letter</p>
+                <p className="mt-1 whitespace-pre-wrap text-sm text-slate-800">{application.cover_letter}</p>
+              </div>
+            ) : null}
+            {application?.screening_answers ? (
+              <div className="mt-3 rounded-lg border border-slate-100 bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Screening answers</p>
+                <p className="mt-1 whitespace-pre-wrap text-sm text-slate-800">{application.screening_answers}</p>
+              </div>
+            ) : null}
             <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
               {booking && settlement ? (
                 <>

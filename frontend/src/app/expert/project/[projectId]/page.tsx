@@ -7,9 +7,6 @@ import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel'
 import Autoplay from "embla-carousel-autoplay"
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -39,6 +36,7 @@ import { useExpertWorkspace } from '@/contexts/ExpertWorkspaceContext'
 import { fetchExpertForWorkspace, expertProfileSetupPath } from '@/lib/expertWorkspace'
 import { ShareRequirementButton } from '@/components/requirements/ShareRequirementButton'
 import { ProjectRequirementMeta } from '@/components/requirements/ProjectRequirementMeta'
+import { ExpertApplicationDrawer } from '@/components/requirements/ExpertApplicationDrawer'
 import { projectLocationLine } from '@/lib/requirementLabels'
 import type { InterviewSlot } from '@/components/requirements/InterviewAvailabilitySelector'
 import {
@@ -131,8 +129,11 @@ export default function ExpertProjectPage() {
     rateNote: '',
     interviewAvailability: [] as InterviewSlot[]
   })
+  const [showApplicationDrawer, setShowApplicationDrawer] = useState(false)
   const [isApplying, setIsApplying] = useState(false)
   const [hasApplied, setHasApplied] = useState(false)
+  const [applyError, setApplyError] = useState('')
+  const [applySuccess, setApplySuccess] = useState('')
 
 
   // Load user and expert data
@@ -218,34 +219,44 @@ export default function ExpertProjectPage() {
   }
 
   // Handle application submission
-  const handleApplicationSubmit = async () => {
-    if (!applicationForm.coverLetter.trim()) {
-      setError('Please write a cover letter')
+  const handleApplicationSubmit = async (payload: {
+    cover_letter: string
+    rate_intent: 'agreed_posted' | 'open_to_negotiate'
+    rate_note: string | null
+    interview_availability: any[]
+    screening_answers: string | null
+  }) => {
+    if (!payload.cover_letter.trim()) {
+      setApplyError('Please write a cover letter')
       return
     }
 
     try {
       setIsApplying(true)
-      setError('')
-      
-      await api.applications.create({
+      setApplyError('')
+
+      const response = await api.applications.create({
         project_id: projectId,
-        cover_letter: applicationForm.coverLetter,
-        rate_intent: applicationForm.rateIntent,
-        rate_note: applicationForm.rateNote.trim() || null,
-        interview_availability: applicationForm.interviewAvailability
+        cover_letter: payload.cover_letter,
+        rate_intent: payload.rate_intent,
+        rate_note: payload.rate_note,
+        interview_availability: payload.interview_availability,
+        screening_answers: payload.screening_answers,
       })
-      
-      setSuccess('Application submitted successfully!')
+
+      if (response?.error) {
+        setApplyError(response.error)
+        return
+      }
+
+      setApplySuccess('Application submitted successfully!')
       setApplicationForm({ coverLetter: '', rateIntent: 'agreed_posted', rateNote: '', interviewAvailability: [] })
       setHasApplied(true)
-      
-      // Refresh similar and recommended projects
+      setShowApplicationDrawer(false)
       loadSimilarProjects()
       loadRecommendedProjects()
-      
     } catch (err: any) {
-      setError(err.message || 'Failed to submit application')
+      setApplyError(err.message || 'Failed to submit application')
     } finally {
       setIsApplying(false)
     }
@@ -517,7 +528,6 @@ export default function ExpertProjectPage() {
                   ) : null}
                 </div>
 
-                {/* Apply Button */}
                 <div className="p-4 sm:p-6 pt-0">
                   {hasApplied ? (
                     <Button size="lg" className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium rounded-lg h-12">
@@ -525,124 +535,36 @@ export default function ExpertProjectPage() {
                       Applied
                     </Button>
                   ) : (
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button size="lg" className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium rounded-lg h-12">
-                          Apply Now
-                        </Button>
-                      </DialogTrigger>
-                    <DialogContent className="max-h-[85vh] overflow-hidden bg-white p-0 shadow-xl sm:max-w-2xl">
-                      <DialogHeader className="space-y-1 px-6 pt-6">
-                        <DialogTitle className="text-xl font-bold text-black">Apply to Project</DialogTitle>
-                        <DialogDescription className="text-[#6A6A6A]">
-                          Submit your application for {project.title}
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="max-h-[calc(85vh-96px)] space-y-6 overflow-y-auto px-6 pb-6 pt-2">
-                        <div className="rounded-lg border border-[#DCDCDC] bg-[#F8FBFA] p-3 text-sm space-y-1">
-                          <div className="font-semibold text-[#000000]">{project.title}</div>
-                          <div className="text-[#6A6A6A]">Posted compensation</div>
-                          <div className="font-semibold text-[#008260]">
-                            You earn ~{moneyInr(projectCompensationDisplay(project).netPerUnitDisplay)} / {projectCompensationDisplay(project).unitShort}
-                          </div>
-                          <div className="text-[#6A6A6A]">
-                            ~{moneyInr(projectCompensationDisplay(project).expertNetTotal)} total
-                            {projectCompensationDisplay(project).expectedTotalHours > 0
-                              ? ` · ${projectCompensationDisplay(project).expectedTotalHours} hours`
-                              : ''}
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="coverLetter" className="text-sm font-medium text-black">Cover Letter</Label>
-                          <Textarea
-                            id="coverLetter"
-                            placeholder="Explain why you're the perfect fit for this project..."
-                            value={applicationForm.coverLetter}
-                            onChange={(e) => setApplicationForm({...applicationForm, coverLetter: e.target.value})}
-                            rows={4}
-                            className="border-2 border-slate-200 focus-visible:ring-[#008260] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:border-[#008260]"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium text-black">Rate preference *</Label>
-                          <div className="space-y-2">
-                            <label className="flex items-start gap-2 rounded-lg border border-[#DCDCDC] p-3 text-sm cursor-pointer">
-                              <input
-                                type="radio"
-                                name="rateIntentDetail"
-                                className="mt-1"
-                                checked={applicationForm.rateIntent === 'agreed_posted'}
-                                onChange={() => setApplicationForm({ ...applicationForm, rateIntent: 'agreed_posted' })}
-                              />
-                              <span>
-                                <span className="block font-medium text-[#000000]">I agree to the posted rate</span>
-                                <span className="text-[#6A6A6A]">
-                                  Proceed at ~{moneyInr(projectCompensationDisplay(project).netPerUnitDisplay)} / {projectCompensationDisplay(project).unitShort} earn
-                                </span>
-                              </span>
-                            </label>
-                            <label className="flex items-start gap-2 rounded-lg border border-[#DCDCDC] p-3 text-sm cursor-pointer">
-                              <input
-                                type="radio"
-                                name="rateIntentDetail"
-                                className="mt-1"
-                                checked={applicationForm.rateIntent === 'open_to_negotiate'}
-                                onChange={() => setApplicationForm({ ...applicationForm, rateIntent: 'open_to_negotiate' })}
-                              />
-                              <span>
-                                <span className="block font-medium text-[#000000]">I&apos;m open to negotiate if shortlisted</span>
-                                <span className="text-[#6A6A6A]">No amount now — discuss after interview</span>
-                              </span>
-                            </label>
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="rateNote" className="text-sm font-medium text-black">Optional note (no amounts)</Label>
-                          <input
-                            id="rateNote"
-                            type="text"
-                            placeholder="e.g. Travel from another city"
-                            value={applicationForm.rateNote}
-                            onChange={(e) => setApplicationForm({ ...applicationForm, rateNote: e.target.value })}
-                            className="w-full px-3 py-2 border-2 border-[#D6D6D6] rounded-md focus:outline-none focus:border-[#008260] focus:ring-1 focus:ring-[#008260] transition-all duration-200"
-                          />
-                        </div>
-                        {project.interview_period_interval && (
-                          <div className="rounded-lg border border-[#DCDCDC] bg-[#F8FBFA] p-3 text-sm">
-                            <span className="block font-medium text-[#000000]">Interview period</span>
-                            <span className="text-[#6A6A6A]">{project.interview_period_interval}</span>
-                          </div>
-                        )}
-                        {error && (
-                          <Alert variant="destructive" className="border-2 border-red-200 bg-red-50">
-                            <AlertCircle className="h-4 w-4" />
-                            <AlertDescription className="text-red-700">{error}</AlertDescription>
-                          </Alert>
-                        )}
-                        {success && (
-                          <Alert className="border-2 border-green-200 bg-green-50">
-                            <CheckCircle className="h-4 w-4" />
-                            <AlertDescription className="text-green-700">{success}</AlertDescription>
-                          </Alert>
-                        )}
-                        <div className="sticky bottom-0 -mx-6 border-t border-[#ECECEC] bg-white px-6 py-4">
-                          <Button 
-                            onClick={handleApplicationSubmit}
-                            className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium rounded-lg h-11"
-                            disabled={!applicationForm.coverLetter || isApplying}
-                          >
-                            {isApplying ? 'Submitting...' : 'Submit Application'}
-                          </Button>
-                        </div>
-                      </div>
-                    </DialogContent>
-                    </Dialog>
+                    <Button
+                      size="lg"
+                      className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium rounded-lg h-12"
+                      onClick={() => {
+                        setApplyError('')
+                        setApplySuccess('')
+                        setApplicationForm({ coverLetter: '', rateIntent: 'agreed_posted', rateNote: '', interviewAvailability: [] })
+                        setShowApplicationDrawer(true)
+                      }}
+                    >
+                      Apply Now
+                    </Button>
                   )}
                 </div>
               </CardContent>
             </Card>
           </div>
         </div>
+
+        <ExpertApplicationDrawer
+          open={showApplicationDrawer}
+          onOpenChange={setShowApplicationDrawer}
+          project={project}
+          form={applicationForm}
+          onFormChange={setApplicationForm}
+          isApplying={isApplying}
+          error={applyError}
+          success={applySuccess}
+          onSubmit={handleApplicationSubmit}
+        />
 
         {/* Similar Projects Section */}
         {similarProjects.length > 0 && (

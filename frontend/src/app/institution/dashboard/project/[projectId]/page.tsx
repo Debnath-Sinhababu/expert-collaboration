@@ -1096,6 +1096,19 @@ export default function InstitutionProjectDetailsPage() {
                         
                           </div>
 
+                          {application.cover_letter ? (
+                            <div className="mb-3 rounded-lg border border-[#ECECEC] bg-[#FAFAFA] p-3">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-[#6A6A6A] mb-1">Cover letter</p>
+                              <p className="text-sm text-[#000000] whitespace-pre-wrap">{application.cover_letter}</p>
+                            </div>
+                          ) : null}
+                          {application.screening_answers ? (
+                            <div className="mb-4 rounded-lg border border-[#ECECEC] bg-[#FAFAFA] p-3">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-[#6A6A6A] mb-1">Screening answers</p>
+                              <p className="text-sm text-[#000000] whitespace-pre-wrap">{application.screening_answers}</p>
+                            </div>
+                          ) : null}
+
                           {/* Subskills */}
                           {application.experts?.subskills && application.experts.subskills.length > 0 && (
                             <div className="mb-4">
@@ -1279,12 +1292,24 @@ export default function InstitutionProjectDetailsPage() {
                   </div>
                 )}
 
-                <div className="mb-4">
-                  <RateIntentBadge
-                    rateIntent={application.rate_intent}
-                    rateStatus={application.rate_status}
-                  />
-                </div>
+                                <div className="mb-4">
+                                  <RateIntentBadge
+                                    rateIntent={application.rate_intent}
+                                    rateStatus={application.rate_status}
+                                  />
+                                </div>
+                                {application.cover_letter ? (
+                                  <div className="mb-3 rounded-lg border border-[#ECECEC] bg-[#FAFAFA] p-3">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-[#6A6A6A] mb-1">Cover letter</p>
+                                    <p className="text-sm text-[#000000] whitespace-pre-wrap">{application.cover_letter}</p>
+                                  </div>
+                                ) : null}
+                                {application.screening_answers ? (
+                                  <div className="mb-4 rounded-lg border border-[#ECECEC] bg-[#FAFAFA] p-3">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-[#6A6A6A] mb-1">Screening answers</p>
+                                    <p className="text-sm text-[#000000] whitespace-pre-wrap">{application.screening_answers}</p>
+                                  </div>
+                                ) : null}
 
                 {project && (
                   <div className="mb-4">

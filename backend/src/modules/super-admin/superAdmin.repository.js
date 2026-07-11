@@ -1091,7 +1091,7 @@ class SuperAdminRepository {
         table: 'applications',
         key: 'project_id',
         select:
-          'id,status,applied_at,interview_date,expert_id,rate_intent,rate_status,proposed_net_per_unit,institution_counter_gross_per_unit,final_gross_per_unit,final_net_per_unit,final_hourly_rate,compensation_unit,unit_quantity,rate_note,negotiation_history,proposed_rate,experts:expert_id(id,name,email,phone,photo_url,bio,city,state,domain_expertise,subskills,qualifications,hourly_rate,experience_years,rating,total_ratings,is_verified,kyc_status)',
+          'id,status,applied_at,interview_date,expert_id,cover_letter,screening_answers,rate_intent,rate_status,proposed_net_per_unit,institution_counter_gross_per_unit,final_gross_per_unit,final_net_per_unit,final_hourly_rate,compensation_unit,unit_quantity,rate_note,negotiation_history,proposed_rate,experts:expert_id(id,name,email,phone,photo_url,bio,city,state,domain_expertise,subskills,qualifications,hourly_rate,experience_years,rating,total_ratings,is_verified,kyc_status)',
         order: 'applied_at',
       },
       internship: {

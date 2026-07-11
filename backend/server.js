@@ -4842,6 +4842,13 @@ app.post('/api/applications', async (req, res) => {
       req.body.proposed_rate = Number.isFinite(proposedRate) && proposedRate > 0 ? proposedRate : null;
     }
 
+    if (req.body.screening_answers != null) {
+      const answers = String(req.body.screening_answers).trim();
+      req.body.screening_answers = answers || null;
+    } else {
+      req.body.screening_answers = null;
+    }
+
     // Rate intent / compensation snapshot (MVC service — keep create path thin)
     try {
       const serviceClient = institutionAccess.getServiceClient();
