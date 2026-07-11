@@ -9,6 +9,8 @@ const { generateInvoicePdf } = require('../../../services/invoicePdfService');
 const { sendInvoiceEmail } = require('../../../services/financeEmailService');
 const { addSheet, workbookBuffer } = require('./superAdmin.excel');
 const { checkExportRateLimit } = require('./superAdmin.exportLimiter');
+const ApplicationRateService = require('../applications/applicationRate.service');
+const institutionAccess = require('../../../auth/institutionAccess');
 
 const DEFAULT_ADMIN_PASSWORD = process.env.SUPERADMIN_DEFAULT_USER_PASSWORD || 'ExpertCollaboration@123';
 const REPORT_MIME_TYPES = new Set([
@@ -824,27 +826,46 @@ class SuperAdminService {
 
   async updateNativeRequirementApplication(type, requirementId, applicationId, body, actorUserId = null, auth = null) {
     const requirementType = parseRequirementType(type);
+
+    if (requirementType === 'project' && body?.status === 'accepted') {
+      const detail = await this.repository.getRequirementDetail('project', requirementId);
+      const institutionId = detail?.requirement?.institution_id;
+      if (!institutionId) {
+        const err = new Error('Project institution not found');
+        err.statusCode = 404;
+        throw err;
+      }
+      const writeClient = institutionAccess.getServiceClient();
+      const rateService = new ApplicationRateService(writeClient);
+      try {
+        const result = await rateService.confirmAndCreateBooking({
+          applicationId,
+          institutionId,
+          actor: { role: 'institution', institutionId },
+          writeClient,
+          approveOverBudget: Boolean(body?.approve_over_budget),
+        });
+        const updated = result.application || result;
+        await this.notifyProjectApplicationStatus(requirementId, updated, 'accepted');
+        await this.logActivity(auth, 'requirement.application_updated', {
+          entity_type: 'application',
+          entity_id: applicationId,
+          requirement_type: requirementType,
+          requirement_id: requirementId,
+          metadata: { status: 'accepted', booking_id: result.booking?.id || null },
+        });
+        return { ...updated, booking: result.booking || null };
+      } catch (err) {
+        if (err.status) err.statusCode = err.status;
+        throw err;
+      }
+    }
+
     const updated = await this.repository.updateNativeRequirementApplication(requirementType, requirementId, applicationId, body || {});
     if (!updated) {
       const err = new Error('Application not found');
       err.statusCode = 404;
       throw err;
-    }
-    if (requirementType === 'project' && body?.status === 'accepted' && updated.expert_id) {
-      const detail = await this.repository.getRequirementDetail('project', requirementId);
-      const booking = detail?.requirement
-        ? await this.repository.createProjectBooking(detail.requirement, updated.expert_id)
-        : null;
-      await this.notifyProjectApplicationStatus(requirementId, updated, 'accepted');
-      const response = { ...updated, booking };
-      await this.logActivity(auth, 'requirement.application_updated', {
-        entity_type: 'application',
-        entity_id: applicationId,
-        requirement_type: requirementType,
-        requirement_id: requirementId,
-        metadata: { status: body?.status, booking_id: booking?.id || null },
-      });
-      return response;
     }
     if (requirementType === 'project' && ['interview', 'rejected', 'pending'].includes(body?.status) && updated.expert_id) {
       await this.notifyProjectApplicationStatus(requirementId, updated, body.status);

@@ -31,11 +31,25 @@ import {
 import { SectionCard } from '@/components/superadmin/common/SectionCard'
 import { StatCard } from '@/components/superadmin/common/StatCard'
 import { TrainingAttendancePanel } from '@/components/training/TrainingAttendancePanel'
+import { RateIntentBadge } from '@/components/requirements/RateIntentBadge'
+import { RateAgreementPanel } from '@/components/requirements/RateAgreementPanel'
+import { PostedCompensationRate } from '@/components/requirements/PostedCompensationRate'
+import { BookingCompletionActions } from '@/components/bookings/BookingCompletionActions'
 import { useSuperAdminAccess } from '@/components/superadmin/layout/SuperAdminAccessContext'
 import { superAdminApi } from '@/lib/superadmin/api'
 import { formatInterviewDateTime, datetimeLocalToIso } from '@/lib/datetime'
 import { canAccessAny } from '@/lib/superadmin/permissions'
 import type { SuperAdminPermission } from '@/lib/superadmin/types'
+import { getInstitutionRate } from '@/lib/utils'
+import { setSuperAdminActingInstitutionId } from '@/lib/superAdminActing'
+import {
+  isPostedRateDeclined,
+  isPostedRateOfferPending,
+  isRateAgreed,
+  moneyInr,
+  projectCompensationDisplay,
+  resolveBookingSettlementRates,
+} from '@/lib/projectCompensation'
 
 const STAGES = [
   { value: 'pending', label: 'Pending' },
@@ -151,6 +165,8 @@ export default function SuperAdminRequirementDetailPage() {
     setError('')
     try {
       const res = await superAdminApi.requirementDetail(requirementType, requirementId)
+      const institutionId = res?.requirement?.institution_id || res?.institution?.id || null
+      if (institutionId) setSuperAdminActingInstitutionId(String(institutionId))
       setDetail(res)
     } catch (err) {
       setDetail(null)
@@ -237,23 +253,10 @@ export default function SuperAdminRequirementDetailPage() {
         status,
         interview_scheduled_at: interviewValue || null,
       })
-      toast.success('Application updated')
+      toast.success(status === 'accepted' ? 'Booking confirmed and locked' : 'Application updated')
       await loadDetail()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update application')
-    } finally {
-      setWorkflowSaving(false)
-    }
-  }
-
-  async function updateBooking(row: any, status: string) {
-    setWorkflowSaving(true)
-    try {
-      await superAdminApi.updateRequirementBooking(requirementType, requirementId, row.id, { status })
-      toast.success('Booking updated')
-      await loadDetail()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to update booking')
     } finally {
       setWorkflowSaving(false)
     }
@@ -302,6 +305,37 @@ export default function SuperAdminRequirementDetailPage() {
 
   function confirmSelectNative(row: any, status: string, label = 'Select') {
     const name = getRowPersonName(row)
+    if (requirementType === 'project' && status === 'accepted') {
+      const rateStatus = row.rate_status || row.rate_intent
+      if (isPostedRateDeclined(rateStatus)) {
+        toast.error('Expert declined the posted rate. Booking cannot proceed for this application.')
+        return
+      }
+      if (isPostedRateOfferPending(rateStatus)) {
+        toast.error('Waiting for the expert to respond to the posted-rate request')
+        return
+      }
+      if (!isRateAgreed(rateStatus) && row.rate_intent === 'open_to_negotiate') {
+        toast.error('Complete rate negotiation before confirming booking')
+        return
+      }
+      const pricing = projectCompensationDisplay(requirement || {})
+      const gross =
+        Number(row.final_gross_per_unit) > 0
+          ? Number(row.final_gross_per_unit)
+          : pricing.grossPerUnitDisplay
+      const net =
+        Number(row.final_net_per_unit) > 0
+          ? Number(row.final_net_per_unit)
+          : pricing.netPerUnitDisplay
+      openConfirmAction({
+        title: 'Confirm & lock booking?',
+        description: `Lock booking for ${name} at institute pays ${moneyInr(gross)} / ${pricing.unitShort} and expert earns ${moneyInr(net)} / ${pricing.unitShort}.`,
+        confirmLabel: 'Confirm & lock',
+        onConfirm: () => updateNativeApplication(row, 'accepted'),
+      })
+      return
+    }
     openConfirmAction({
       title: `${label} candidate?`,
       description: `Are you sure you want to ${label.toLowerCase()} ${name}?`,
@@ -359,19 +393,40 @@ export default function SuperAdminRequirementDetailPage() {
     if (!canManagePipeline) return null
     const visibility = { ...tabActionVisibility, ...options }
     if (requirementType === 'project') {
+      const rateStatus = row.rate_status || row.rate_intent
+      const lockDisabled =
+        (row.rate_intent === 'open_to_negotiate' && !isRateAgreed(rateStatus)) ||
+        isPostedRateOfferPending(rateStatus) ||
+        isPostedRateDeclined(rateStatus)
       return (
-        <div className="flex flex-wrap gap-2">
-          {!visibility.hideInterview ? (
-            <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => setInterviewDialog({ kind: 'native', row, value: toDatetimeLocal(row.interview_date) })}>Interview</Button>
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap gap-2">
+            {!visibility.hideInterview ? (
+              <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => setInterviewDialog({ kind: 'native', row, value: toDatetimeLocal(row.interview_date) })}>Interview</Button>
+            ) : null}
+            {!visibility.hideSelect ? (
+              <Button
+                type="button"
+                size="sm"
+                className="bg-[#008260] hover:bg-[#006d51]"
+                disabled={workflowSaving || lockDisabled}
+                onClick={() => confirmSelectNative(row, 'accepted')}
+              >
+                Confirm & lock
+              </Button>
+            ) : null}
+            {!visibility.hidePending ? (
+              <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'pending')}>Pending</Button>
+            ) : null}
+            {!visibility.hideReject ? (
+              <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" disabled={workflowSaving} onClick={() => confirmRejectNative(row, 'rejected')}>Reject</Button>
+            ) : null}
+          </div>
+          {isPostedRateOfferPending(rateStatus) ? (
+            <p className="text-xs text-sky-800">Confirm &amp; lock is paused until the expert responds to the posted-rate request.</p>
           ) : null}
-          {!visibility.hideSelect ? (
-            <Button type="button" size="sm" className="bg-[#008260] hover:bg-[#006d51]" disabled={workflowSaving} onClick={() => confirmSelectNative(row, 'accepted')}>Select</Button>
-          ) : null}
-          {!visibility.hidePending ? (
-            <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'pending')}>Pending</Button>
-          ) : null}
-          {!visibility.hideReject ? (
-            <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" disabled={workflowSaving} onClick={() => confirmRejectNative(row, 'rejected')}>Reject</Button>
+          {isPostedRateDeclined(rateStatus) ? (
+            <p className="text-xs text-rose-700">Confirm &amp; lock is disabled — the expert declined proceeding at the posted rate only.</p>
           ) : null}
         </div>
       )
@@ -483,15 +538,15 @@ export default function SuperAdminRequirementDetailPage() {
   function renderStatusActions(item: any) {
     if (!canManagePipeline) return null
     if (item.kind === 'booking') {
+      if (requirementType !== 'project') return null
       return (
-        <div className="flex flex-wrap gap-2">
-          {item.row.status !== 'completed' ? (
-            <Button type="button" size="sm" className="bg-[#008260] hover:bg-[#006d51]" disabled={workflowSaving} onClick={() => updateBooking(item.row, 'completed')}>Mark completed</Button>
-          ) : null}
-          {item.row.status !== 'cancelled' ? (
-            <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" disabled={workflowSaving} onClick={() => updateBooking(item.row, 'cancelled')}>Cancel</Button>
-          ) : null}
-        </div>
+        <BookingCompletionActions
+          booking={item.row}
+          role="institution"
+          onUpdated={async () => {
+            await loadDetail()
+          }}
+        />
       )
     }
     if (item.kind === 'pipeline') {
@@ -519,7 +574,16 @@ export default function SuperAdminRequirementDetailPage() {
   function renderStatusCard(item: any) {
     const person = getItemPerson(item)
     const booking = item.kind === 'booking' ? item.row : null
+    const application = item.kind === 'application' ? item.row : null
     const title = person?.name || item.row.expert_id || item.row.student_id || 'Unknown'
+    const settlement = booking
+      ? resolveBookingSettlementRates({
+          ...booking,
+          projects: booking.projects || requirement,
+        })
+      : null
+    const showProjectRateUi = requirementType === 'project' && Boolean(application?.experts || booking?.experts)
+
     return (
       <div key={`${item.kind}-${item.row.id}`} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -531,8 +595,38 @@ export default function SuperAdminRequirementDetailPage() {
             </div>
             <p className="mt-1 text-sm text-slate-600">{person?.email || person?.phone || '-'}</p>
             {person?.bio ? <p className="mt-3 line-clamp-2 text-sm text-slate-700">{person.bio}</p> : null}
+            {showProjectRateUi && application ? (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <p className="text-sm text-slate-700">
+                  Original rate ₹{getInstitutionRate(person?.hourly_rate)}/hr
+                </p>
+                <RateIntentBadge rateIntent={application.rate_intent} rateStatus={application.rate_status} />
+              </div>
+            ) : null}
             <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-              <div><span className="text-slate-500">Rate</span><p className="font-medium text-slate-950">{person?.hourly_rate ? `Rs. ${person.hourly_rate}/hr` : '-'}</p></div>
+              {booking && settlement ? (
+                <>
+                  <div>
+                    <span className="text-slate-500">Institute pays</span>
+                    <p className="font-medium text-slate-950">
+                      {moneyInr(settlement.grossPerUnit)} / {settlement.unitShort}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Expert earns</span>
+                    <p className="font-medium text-slate-950">
+                      {moneyInr(settlement.netPerUnit)} / {settlement.unitShort}
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <div>
+                  <span className="text-slate-500">Original rate</span>
+                  <p className="font-medium text-slate-950">
+                    {person?.hourly_rate != null ? `₹${getInstitutionRate(person.hourly_rate)}/hr` : '-'}
+                  </p>
+                </div>
+              )}
               <div><span className="text-slate-500">Experience</span><p className="font-medium text-slate-950">{person?.experience_years != null ? `${person.experience_years} years` : '-'}</p></div>
               <div><span className="text-slate-500">Domain</span><p className="font-medium text-slate-950">{Array.isArray(person?.domain_expertise) ? person.domain_expertise.join(', ') : person?.domain_expertise || '-'}</p></div>
               <div><span className="text-slate-500">Interview</span><p className="font-medium text-slate-950">{formatInterviewDateTime(item.row.interview_date || item.row.interview_scheduled_at)}</p></div>
@@ -542,6 +636,16 @@ export default function SuperAdminRequirementDetailPage() {
               {booking ? <div><span className="text-slate-500">Dates</span><p className="font-medium text-slate-950">{booking.start_date || '-'} to {booking.end_date || '-'}</p></div> : null}
             </div>
             {person?.subskills?.length ? <p className="mt-3 text-sm text-slate-600"><span className="font-medium text-slate-800">Skills:</span> {person.subskills.join(', ')}</p> : null}
+            {requirementType === 'project' && application && requirement && activeStage === 'interview' ? (
+              <div className="mt-4">
+                <RateAgreementPanel
+                  application={application}
+                  project={requirement}
+                  role="institution"
+                  onUpdated={() => loadDetail()}
+                />
+              </div>
+            ) : null}
             {booking ? (
               <div className="mt-4 grid gap-3 lg:grid-cols-2">
                 {paymentSummaryCard('Expert payable', booking.finance_summary?.expert)}
@@ -562,7 +666,11 @@ export default function SuperAdminRequirementDetailPage() {
               hoursBooked={booking.hours_booked}
               bookingStatus={booking.status}
               expectedViewerRole="institution"
-              defaultExpanded={booking.status === 'in_progress'}
+              defaultExpanded={
+                booking.status === 'in_progress' ||
+                booking.status === 'completion_requested' ||
+                booking.status === 'cancellation_requested'
+              }
             />
           </div>
         ) : null}
@@ -614,8 +722,31 @@ export default function SuperAdminRequirementDetailPage() {
               {detailValue('Required Expertise', Array.isArray(requirement.required_expertise) ? requirement.required_expertise.join(', ') : requirement.required_expertise)}
               {detailValue('Skills', Array.isArray(requirement.skills_required || requirement.required_skills) ? (requirement.skills_required || requirement.required_skills).join(', ') : requirement.skills_required || requirement.required_skills)}
               {detailValue('Subskills', Array.isArray(requirement.subskills) ? requirement.subskills.join(', ') : requirement.subskills)}
-              {requirement.hourly_rate ? detailValue('Hourly', `Rs. ${requirement.hourly_rate}`) : null}
-              {requirement.total_budget ? detailValue('Budget', `Rs. ${requirement.total_budget}`) : null}
+              {requirementType === 'project' ? (
+                <>
+                  <div>
+                    <span className="font-medium text-slate-950">Institute pays:</span>{' '}
+                    <PostedCompensationRate project={requirement} audience="institution" showLabel={false} />
+                  </div>
+                  {(() => {
+                    const pricing = projectCompensationDisplay(requirement)
+                    return (
+                      <>
+                        {detailValue('Pay unit', pricing.unitLabel)}
+                        {pricing.quantity > 0 ? detailValue(pricing.unit === 'per_day' ? 'Number of days' : pricing.unit === 'per_session' ? 'Number of sessions' : 'Quantity', pricing.quantity) : null}
+                        {pricing.durationPerUnit > 0 ? detailValue(pricing.unit === 'per_day' ? 'Hours per day' : 'Hours per session', `${pricing.durationPerUnit} hrs`) : null}
+                        {detailValue('Expert earns (approx)', pricing.netPerUnitDisplay > 0 ? `${moneyInr(pricing.netPerUnitDisplay)} / ${pricing.unitShort}` : null)}
+                        {detailValue('Total budget', pricing.totalBudgetGross > 0 ? moneyInr(pricing.totalBudgetGross) : requirement.total_budget ? `Rs. ${requirement.total_budget}` : null)}
+                      </>
+                    )
+                  })()}
+                </>
+              ) : (
+                <>
+                  {requirement.hourly_rate ? detailValue('Hourly', `Rs. ${requirement.hourly_rate}`) : null}
+                  {requirement.total_budget ? detailValue('Budget', `Rs. ${requirement.total_budget}`) : null}
+                </>
+              )}
               {requirement.budget_min || requirement.budget_max ? detailValue('Budget', [requirement.budget_min, requirement.budget_max].filter(Boolean).join(' - ')) : null}
               {requirement.stipend_min || requirement.stipend_max ? detailValue('Stipend', [requirement.stipend_min, requirement.stipend_max].filter(Boolean).join(' - ')) : null}
               {requirement.start_date ? detailValue('Start Date', new Date(requirement.start_date).toLocaleDateString()) : null}

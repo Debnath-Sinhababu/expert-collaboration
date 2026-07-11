@@ -1045,7 +1045,7 @@ class SuperAdminRepository {
     if (type !== 'project') return [];
     const { data, error } = await this.client
       .from('bookings')
-      .select('*, experts(id,name,email,phone,photo_url,bio,city,state,domain_expertise,subskills,qualifications,hourly_rate,experience_years,rating,total_ratings,is_verified,kyc_status), institutions(id,name,email)')
+      .select('*, experts(id,name,email,phone,photo_url,bio,city,state,domain_expertise,subskills,qualifications,hourly_rate,experience_years,rating,total_ratings,is_verified,kyc_status), institutions(id,name,email), projects(id,title,compensation_unit,institution_gross_per_unit,institution_gross_total,unit_quantity,duration_per_unit,hourly_rate,total_budget,duration_hours)')
       .eq('project_id', id)
       .order('created_at', { ascending: false });
     if (error) {
@@ -1090,7 +1090,8 @@ class SuperAdminRepository {
       project: {
         table: 'applications',
         key: 'project_id',
-        select: 'id,status,applied_at,interview_date,expert_id,experts:expert_id(id,name,email,phone,photo_url,bio,city,state,domain_expertise,subskills,qualifications,hourly_rate,experience_years,rating,total_ratings,is_verified,kyc_status)',
+        select:
+          'id,status,applied_at,interview_date,expert_id,rate_intent,rate_status,proposed_net_per_unit,institution_counter_gross_per_unit,final_gross_per_unit,final_net_per_unit,final_hourly_rate,compensation_unit,unit_quantity,rate_note,negotiation_history,proposed_rate,experts:expert_id(id,name,email,phone,photo_url,bio,city,state,domain_expertise,subskills,qualifications,hourly_rate,experience_years,rating,total_ratings,is_verified,kyc_status)',
         order: 'applied_at',
       },
       internship: {
@@ -1258,7 +1259,7 @@ class SuperAdminRepository {
     return data || null;
   }
 
-  async createProjectBooking(project, expertId) {
+  async createProjectBooking(project, expertId, application = null) {
     const existing = await this.client
       .from('bookings')
       .select('*')
@@ -1268,18 +1269,41 @@ class SuperAdminRepository {
     if (existing.error && !tableMissing(existing.error)) throw existing.error;
     if (existing.data?.[0]) return existing.data[0];
 
+    const {
+      projectPostedRates,
+      toExpertNet,
+      resolveBookingAmount,
+    } = require('../../shared/compensation');
+
+    const posted = projectPostedRates(project || {});
+    let finalGross = Number(application?.final_gross_per_unit);
+    let finalNet = Number(application?.final_net_per_unit);
+    if (!(Number.isFinite(finalGross) && finalGross > 0)) {
+      finalGross = resolveBookingAmount(application, project) || posted.grossPerUnit || Number(project.hourly_rate) || 0;
+    }
+    if (!(Number.isFinite(finalNet) && finalNet > 0)) {
+      finalNet = toExpertNet(finalGross) || 0;
+    }
+    const unit = application?.compensation_unit || posted.unit || 'hourly';
+    const quantity = application?.unit_quantity ?? posted.quantity ?? null;
+
     const { data, error } = await this.client
       .from('bookings')
       .insert([{
         expert_id: expertId,
         project_id: project.id,
         institution_id: project.institution_id,
-        amount: project.hourly_rate || 0,
+        application_id: application?.id || null,
+        amount: finalGross || 0,
         start_date: project.start_date || new Date().toISOString().split('T')[0],
         end_date: project.end_date || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        hours_booked: project.duration_hours || 0,
+        hours_booked: posted.durationHours || project.duration_hours || 0,
         status: 'in_progress',
         payment_status: 'pending',
+        final_gross_per_unit: finalGross || null,
+        final_net_per_unit: finalNet || null,
+        compensation_unit: unit,
+        unit_quantity: quantity,
       }])
       .select()
       .single();
