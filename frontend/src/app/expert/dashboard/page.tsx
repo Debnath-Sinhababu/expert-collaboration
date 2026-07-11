@@ -20,6 +20,9 @@ import NotificationBell from '@/components/NotificationBell'
 import ProfileDropdown from '@/components/ProfileDropdown'
 import Logo from '@/components/Logo'
 import { formatInterviewDateTime } from '@/lib/datetime'
+import { RateIntentBadge } from '@/components/requirements/RateIntentBadge'
+import { RateAgreementPanel } from '@/components/requirements/RateAgreementPanel'
+import { moneyInr, projectCompensationDisplay } from '@/lib/projectCompensation'
 import { 
   User, 
   Briefcase, 
@@ -798,8 +801,13 @@ export default function ExpertDashboard() {
                               <Clock className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
                             </div>
                             <div className="min-w-0">
-                              <span className="text-[#717171] text-xs">Rate:</span>
-                              <p className="font-semibold text-[#008260] text-sm sm:text-base truncate">₹{application.proposed_rate || application.projects?.hourly_rate}/hrs</p>
+                              <span className="text-[#717171] text-xs">Rate preference:</span>
+                              <div className="mt-1">
+                                <RateIntentBadge
+                                  rateIntent={application.rate_intent}
+                                  rateStatus={application.rate_status}
+                                />
+                              </div>
                             </div>
                           </div>
                           <div className="flex items-start gap-2 sm:gap-3 min-w-0">
@@ -807,8 +815,11 @@ export default function ExpertDashboard() {
                               <IndianRupee className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
                             </div>
                             <div className="min-w-0">
-                              <span className="text-[#717171] text-xs">Budget:</span>
-                              <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">₹{application.projects?.total_budget || 'N/A'}</p>
+                              <span className="text-[#717171] text-xs">You earn (posted):</span>
+                              <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">
+                                {moneyInr(projectCompensationDisplay(application.projects).netPerUnitDisplay)}
+                                /{projectCompensationDisplay(application.projects).unitShort}
+                              </p>
                             </div>
                           </div>
                         </div>
@@ -896,8 +907,13 @@ export default function ExpertDashboard() {
                               <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-[#008260]" />
                             </div>
                             <div className="min-w-0">
-                              <div className="text-[#717171] text-xs">Rate</div>
-                              <div className="font-semibold text-[#008260] text-sm sm:text-base truncate">₹{application.proposed_rate}/hrs</div>
+                              <div className="text-[#717171] text-xs">Rate preference</div>
+                              <div className="mt-1">
+                                <RateIntentBadge
+                                  rateIntent={application.rate_intent}
+                                  rateStatus={application.rate_status}
+                                />
+                              </div>
                             </div>
                           </div>
                           <div className="flex items-start gap-2 sm:gap-3 min-w-0">
@@ -905,11 +921,24 @@ export default function ExpertDashboard() {
                               <IndianRupee className="w-4 h-4 sm:w-5 sm:h-5 text-[#008260]" />
                             </div>
                             <div className="min-w-0">
-                              <div className="text-[#717171] text-xs">Budget</div>
-                              <div className="font-semibold text-[#000000] text-sm sm:text-base truncate">₹{application.projects?.total_budget || 'N/A'}</div>
+                              <div className="text-[#717171] text-xs">You earn (posted)</div>
+                              <div className="font-semibold text-[#000000] text-sm sm:text-base truncate">
+                                {moneyInr(projectCompensationDisplay(application.projects).netPerUnitDisplay)}
+                                /{projectCompensationDisplay(application.projects).unitShort}
+                              </div>
                             </div>
                           </div>
                         </div>
+                        {application.projects && (
+                          <div className="mb-4">
+                            <RateAgreementPanel
+                              application={application}
+                              project={application.projects}
+                              role="expert"
+                              onUpdated={() => refreshInterviewApplications()}
+                            />
+                          </div>
+                        )}
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3">
                           <Badge className="capitalize bg-[#E8F4F8] hover:bg-[#E8F4F8] text-[#008260] border border-[#008260] rounded-full text-xs font-semibold py-1.5 px-3 self-start">
                             Interview

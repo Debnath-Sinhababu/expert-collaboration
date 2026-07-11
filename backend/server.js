@@ -80,6 +80,70 @@ function normalizePositiveInt(value, fallback = 1) {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
+const PROJECT_COMPENSATION_UNITS = new Set(['per_session', 'per_day', 'fixed_package', 'hourly']);
+
+function normalizeOptionalPositiveNumber(value) {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function normalizeOptionalPositiveInt(value) {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
+  const n = parseInt(String(value), 10);
+  return Number.isFinite(n) && n >= 1 ? n : null;
+}
+
+/** Normalize compensation fields on project create/update payloads. Mutates and returns body. */
+function normalizeProjectCompensationFields(body) {
+  if (!body || typeof body !== 'object') return body;
+
+  if (body.compensation_unit !== undefined) {
+    const unit = body.compensation_unit == null || body.compensation_unit === ''
+      ? null
+      : String(body.compensation_unit);
+    body.compensation_unit = unit && PROJECT_COMPENSATION_UNITS.has(unit) ? unit : null;
+  }
+
+  if (body.unit_quantity !== undefined) {
+    body.unit_quantity = normalizeOptionalPositiveInt(body.unit_quantity);
+  }
+  if (body.duration_per_unit !== undefined) {
+    body.duration_per_unit = normalizeOptionalPositiveNumber(body.duration_per_unit);
+  }
+  if (body.institution_gross_per_unit !== undefined) {
+    body.institution_gross_per_unit = normalizeOptionalPositiveNumber(body.institution_gross_per_unit);
+  }
+  if (body.institution_gross_total !== undefined) {
+    body.institution_gross_total = normalizeOptionalPositiveNumber(body.institution_gross_total);
+  }
+  if (body.schedule_notes !== undefined) {
+    body.schedule_notes =
+      body.schedule_notes != null && String(body.schedule_notes).trim() !== ''
+        ? String(body.schedule_notes).trim()
+        : null;
+  }
+  if (body.other_description !== undefined) {
+    body.other_description =
+      body.other_description != null && String(body.other_description).trim() !== ''
+        ? String(body.other_description).trim()
+        : null;
+  }
+  if (body.hourly_rate !== undefined && body.hourly_rate !== '') {
+    body.hourly_rate = Number(body.hourly_rate);
+  }
+  if (body.total_budget !== undefined && body.total_budget !== '') {
+    body.total_budget = Number(body.total_budget);
+  }
+  if (body.duration_hours !== undefined && body.duration_hours !== '') {
+    body.duration_hours = Number(body.duration_hours);
+  }
+
+  return body;
+}
+
 function normalizeInterviewAvailability(value) {
   if (value == null || value === '') return [];
   let parsed = value;
@@ -1939,6 +2003,7 @@ app.post('/api/projects', upload.fields([
     };
     delete projectPayload.interview_period_start_date;
     delete projectPayload.interview_period_end_date;
+    normalizeProjectCompensationFields(projectPayload);
 
     // Handle optional requirement PDF upload
     let requirementPdfData = null;
@@ -2123,15 +2188,7 @@ app.put('/api/projects/:id', (req, res, next) => {
           ? String(updateBody.interview_period_interval).trim()
           : null;
     }
-    if (updateBody.hourly_rate !== undefined && updateBody.hourly_rate !== '') {
-      updateBody.hourly_rate = Number(updateBody.hourly_rate);
-    }
-    if (updateBody.total_budget !== undefined && updateBody.total_budget !== '') {
-      updateBody.total_budget = Number(updateBody.total_budget);
-    }
-    if (updateBody.duration_hours !== undefined && updateBody.duration_hours !== '') {
-      updateBody.duration_hours = Number(updateBody.duration_hours);
-    }
+    normalizeProjectCompensationFields(updateBody);
     delete updateBody.interview_period_start_date;
     delete updateBody.interview_period_end_date;
     delete updateBody.institution_id;
@@ -4761,6 +4818,22 @@ app.post('/api/applications', async (req, res) => {
       req.body.proposed_rate = Number.isFinite(proposedRate) && proposedRate > 0 ? proposedRate : null;
     }
 
+    // Rate intent / compensation snapshot (MVC service — keep create path thin)
+    try {
+      const serviceClient = institutionAccess.getServiceClient();
+      const ApplicationRateService = require('./src/modules/applications/applicationRate.service');
+      const rateService = new ApplicationRateService(serviceClient);
+      const { data: projectForRate } = await serviceClient
+        .from('projects')
+        .select('compensation_unit, unit_quantity, duration_per_unit, institution_gross_per_unit, institution_gross_total, hourly_rate, total_budget, duration_hours')
+        .eq('id', req.body.project_id)
+        .maybeSingle();
+      Object.assign(req.body, rateService.prepareCreatePayload(req.body, projectForRate || {}));
+    } catch (ratePrepError) {
+      const status = ratePrepError.status || 400;
+      return res.status(status).json({ error: ratePrepError.message || 'Invalid rate preference' });
+    }
+
     console.log('Final request body:', req.body);
     
     const { data, error } = await supabaseClient
@@ -5005,16 +5078,16 @@ app.post('/api/bookings', async (req, res) => {
           process.env.SUPABASE_URL,
           process.env.SUPABASE_SERVICE_ROLE_KEY
         );
+        const { resolveBookingAmount } = require('./src/shared/compensation');
         const { data: applicationForPrice } = await serviceClient
           .from('applications')
-          .select('final_hourly_rate, proposed_rate, projects(hourly_rate)')
+          .select('final_gross_per_unit, final_hourly_rate, proposed_rate, projects(hourly_rate, institution_gross_per_unit, institution_gross_total, compensation_unit, unit_quantity, total_budget, duration_hours)')
           .eq('id', req.body.application_id)
           .maybeSingle();
-        const resolvedAmount =
-          Number(applicationForPrice?.final_hourly_rate) ||
-          Number(applicationForPrice?.proposed_rate) ||
-          Number(applicationForPrice?.projects?.hourly_rate) ||
-          Number(req.body.amount);
+        const resolvedAmount = resolveBookingAmount(
+          applicationForPrice,
+          applicationForPrice?.projects
+        );
         if (Number.isFinite(resolvedAmount) && resolvedAmount > 0) {
           req.body.amount = resolvedAmount;
         }
@@ -6671,6 +6744,9 @@ app.use((err, req, res, next) => {
 
 const { createSuperAdminRouter } = require('./src/modules/super-admin/superAdmin.routes');
 app.use('/api/superadmin', createSuperAdminRouter());
+
+const { createApplicationRateRouter } = require('./src/modules/applications/applicationRate.routes');
+app.use('/api/applications', createApplicationRateRouter());
 
 const { registerSuperAdminExpertMutations } = require('./routes/superadminExpertMutations');
 registerSuperAdminExpertMutations(app, {

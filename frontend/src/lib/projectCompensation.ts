@@ -1,0 +1,374 @@
+/** Compensation / pricing helpers for contract requirements (70% expert net / 30% platform). */
+
+export const COMPENSATION_UNITS = [
+  'per_session',
+  'per_day',
+  'fixed_package',
+  'hourly',
+] as const
+
+export type CompensationUnit = (typeof COMPENSATION_UNITS)[number]
+
+export const EXPERT_NET_SHARE = 0.7
+export const PLATFORM_FEE_SHARE = 0.3
+
+export const COMPENSATION_UNIT_OPTIONS: Array<{ value: CompensationUnit; label: string; shortLabel: string }> = [
+  { value: 'per_session', label: 'Per session', shortLabel: 'session' },
+  { value: 'per_day', label: 'Per day', shortLabel: 'day' },
+  { value: 'fixed_package', label: 'Fixed package', shortLabel: 'package' },
+  { value: 'hourly', label: 'Per hour', shortLabel: 'hour' },
+]
+
+/** Default pay unit by project type. `other` requires explicit choice. */
+export const DEFAULT_COMPENSATION_UNIT_BY_TYPE: Record<string, CompensationUnit | null> = {
+  guest_lecture: 'per_session',
+  consultation: 'per_session',
+  fdp: 'per_day',
+  workshop: 'per_day',
+  training_program: 'per_day',
+  curriculum_dev: 'fixed_package',
+  research_collaboration: 'fixed_package',
+  other: null,
+}
+
+export function getDefaultCompensationUnit(projectType?: string | null): CompensationUnit | '' {
+  if (!projectType) return ''
+  return DEFAULT_COMPENSATION_UNIT_BY_TYPE[projectType] || ''
+}
+
+export function compensationUnitLabel(unit?: string | null): string {
+  return COMPENSATION_UNIT_OPTIONS.find((item) => item.value === unit)?.label || 'Per unit'
+}
+
+export function compensationUnitShortLabel(unit?: string | null): string {
+  return COMPENSATION_UNIT_OPTIONS.find((item) => item.value === unit)?.shortLabel || 'unit'
+}
+
+export function toExpertNet(gross: number): number {
+  if (!Number.isFinite(gross) || gross <= 0) return 0
+  return Math.round(gross * EXPERT_NET_SHARE)
+}
+
+export function toInstitutionGrossFromNet(net: number): number {
+  if (!Number.isFinite(net) || net <= 0) return 0
+  return Math.round(net / EXPERT_NET_SHARE)
+}
+
+export function toPlatformFee(gross: number): number {
+  if (!Number.isFinite(gross) || gross <= 0) return 0
+  return Math.round(gross * PLATFORM_FEE_SHARE)
+}
+
+export type CompensationInput = {
+  compensation_unit: CompensationUnit | ''
+  unit_quantity: string
+  duration_per_unit: string
+  institution_gross_per_unit: string
+  institution_gross_total: string
+}
+
+export type CompensationDerived = {
+  expectedTotalHours: number
+  totalBudgetGross: number
+  expertNetPerUnit: number
+  expertNetTotal: number
+  platformFeeTotal: number
+  quantity: number
+  durationPerUnit: number
+  grossPerUnit: number
+}
+
+export function deriveCompensation(input: CompensationInput): CompensationDerived {
+  const unit = input.compensation_unit
+  const quantity = Math.max(0, Number(input.unit_quantity) || 0)
+  const durationPerUnit = Math.max(0, Number(input.duration_per_unit) || 0)
+  const grossPerUnit = Math.max(0, Number(input.institution_gross_per_unit) || 0)
+  const packageTotal = Math.max(0, Number(input.institution_gross_total) || 0)
+
+  let expectedTotalHours = 0
+  let totalBudgetGross = 0
+
+  if (unit === 'per_session' || unit === 'per_day') {
+    expectedTotalHours = quantity * durationPerUnit
+    totalBudgetGross = quantity * grossPerUnit
+  } else if (unit === 'hourly') {
+    expectedTotalHours = quantity
+    totalBudgetGross = quantity * grossPerUnit
+  } else if (unit === 'fixed_package') {
+    expectedTotalHours = durationPerUnit
+    totalBudgetGross = packageTotal
+  }
+
+  const expertNetPerUnit =
+    unit === 'fixed_package'
+      ? toExpertNet(totalBudgetGross)
+      : toExpertNet(grossPerUnit)
+
+  const expertNetTotal =
+    unit === 'fixed_package'
+      ? expertNetPerUnit
+      : toExpertNet(totalBudgetGross)
+
+  return {
+    expectedTotalHours: Number.isFinite(expectedTotalHours) ? expectedTotalHours : 0,
+    totalBudgetGross: Number.isFinite(totalBudgetGross) ? totalBudgetGross : 0,
+    expertNetPerUnit,
+    expertNetTotal,
+    platformFeeTotal: toPlatformFee(totalBudgetGross),
+    quantity,
+    durationPerUnit,
+    grossPerUnit: unit === 'fixed_package' ? totalBudgetGross : grossPerUnit,
+  }
+}
+
+/** Legacy hourly_rate for older flows: equivalent institution gross per hour when possible. */
+export function legacyHourlyRateFromCompensation(
+  unit: CompensationUnit | '',
+  derived: CompensationDerived
+): number {
+  if (unit === 'hourly') return derived.grossPerUnit
+  if (derived.expectedTotalHours > 0 && derived.totalBudgetGross > 0) {
+    return Math.round((derived.totalBudgetGross / derived.expectedTotalHours) * 100) / 100
+  }
+  return derived.grossPerUnit || 0
+}
+
+export function moneyInr(value: number): string {
+  return `₹${Number(value || 0).toLocaleString('en-IN')}`
+}
+
+export type ProjectCompensationLike = {
+  compensation_unit?: string | null
+  unit_quantity?: number | string | null
+  duration_per_unit?: number | string | null
+  institution_gross_per_unit?: number | string | null
+  institution_gross_total?: number | string | null
+  hourly_rate?: number | string | null
+  total_budget?: number | string | null
+  duration_hours?: number | string | null
+}
+
+/** Resolve project compensation for display; falls back to legacy hourly fields. */
+export function projectCompensationDisplay(project?: ProjectCompensationLike | null) {
+  const unit = (project?.compensation_unit as CompensationUnit) || 'hourly'
+  const quantity = Number(project?.unit_quantity)
+  const durationPerUnit = Number(project?.duration_per_unit)
+  const grossPerUnit = Number(project?.institution_gross_per_unit)
+  const packageTotal = Number(project?.institution_gross_total)
+  const legacyHourly = Number(project?.hourly_rate)
+  const legacyBudget = Number(project?.total_budget)
+  const legacyHours = Number(project?.duration_hours)
+
+  const derived = deriveCompensation({
+    compensation_unit: unit,
+    unit_quantity: String(
+      Number.isFinite(quantity) && quantity > 0
+        ? quantity
+        : unit === 'hourly' && Number.isFinite(legacyHours) && legacyHours > 0
+          ? legacyHours
+          : 1
+    ),
+    duration_per_unit: String(
+      Number.isFinite(durationPerUnit) && durationPerUnit > 0
+        ? durationPerUnit
+        : unit === 'hourly'
+          ? 1
+          : Number.isFinite(legacyHours) && legacyHours > 0 && unit === 'fixed_package'
+            ? legacyHours
+            : 1
+    ),
+    institution_gross_per_unit: String(
+      Number.isFinite(grossPerUnit) && grossPerUnit > 0
+        ? grossPerUnit
+        : Number.isFinite(legacyHourly) && legacyHourly > 0
+          ? legacyHourly
+          : 0
+    ),
+    institution_gross_total: String(
+      Number.isFinite(packageTotal) && packageTotal > 0
+        ? packageTotal
+        : Number.isFinite(legacyBudget) && legacyBudget > 0
+          ? legacyBudget
+          : 0
+    ),
+  })
+
+  // Prefer stored totals when present
+  if (Number.isFinite(legacyBudget) && legacyBudget > 0 && derived.totalBudgetGross <= 0) {
+    derived.totalBudgetGross = legacyBudget
+    derived.expertNetTotal = toExpertNet(legacyBudget)
+    derived.platformFeeTotal = toPlatformFee(legacyBudget)
+  }
+  if (Number.isFinite(legacyHours) && legacyHours > 0 && derived.expectedTotalHours <= 0) {
+    derived.expectedTotalHours = legacyHours
+  }
+
+  return {
+    unit,
+    unitLabel: compensationUnitLabel(unit),
+    unitShort: compensationUnitShortLabel(unit),
+    ...derived,
+    grossPerUnitDisplay: unit === 'fixed_package' ? derived.totalBudgetGross : derived.grossPerUnit,
+    netPerUnitDisplay: unit === 'fixed_package' ? derived.expertNetTotal : derived.expertNetPerUnit,
+  }
+}
+
+export const RATE_INTENTS = ['agreed_posted', 'open_to_negotiate'] as const
+export type RateIntent = (typeof RATE_INTENTS)[number]
+
+export const RATE_STATUSES = [
+  'agreed_posted',
+  'open_to_negotiate',
+  'expert_proposed',
+  'institution_countered',
+  'expert_countered',
+  'agreed',
+] as const
+export type RateStatus = (typeof RATE_STATUSES)[number]
+
+export function isRateAgreed(status?: string | null): boolean {
+  return status === 'agreed_posted' || status === 'agreed'
+}
+
+export function rateIntentLabel(intent?: string | null): string {
+  if (intent === 'agreed_posted') return 'Accepted posted rate'
+  if (intent === 'open_to_negotiate') return 'Open to negotiate'
+  return 'Rate preference not set'
+}
+
+export function rateStatusLabel(status?: string | null): string {
+  switch (status) {
+    case 'agreed_posted':
+      return 'Accepted posted rate'
+    case 'open_to_negotiate':
+      return 'Open to negotiate'
+    case 'expert_proposed':
+      return 'Expert proposed'
+    case 'institution_countered':
+      return 'Institution countered'
+    case 'expert_countered':
+      return 'Expert countered'
+    case 'agreed':
+      return 'Rate agreed'
+    default:
+      return 'Pending rate discussion'
+  }
+}
+
+export type NegotiationHistoryEntry = {
+  at: string
+  actor: 'expert' | 'institution' | 'system'
+  action: string
+  net_per_unit?: number | null
+  gross_per_unit?: number | null
+  note?: string | null
+}
+
+/** Resolve locked or in-progress rates for an application against its project. */
+export function resolveApplicationRates(
+  application: {
+    rate_status?: string | null
+    rate_intent?: string | null
+    proposed_net_per_unit?: number | string | null
+    institution_counter_gross_per_unit?: number | string | null
+    final_gross_per_unit?: number | string | null
+    final_net_per_unit?: number | string | null
+    proposed_rate?: number | string | null
+    final_hourly_rate?: number | string | null
+    compensation_unit?: string | null
+  } | null | undefined,
+  project?: ProjectCompensationLike | null
+) {
+  const display = projectCompensationDisplay(project)
+  const unit = (application?.compensation_unit as CompensationUnit) || display.unit
+
+  const finalGross = Number(application?.final_gross_per_unit)
+  const finalNet = Number(application?.final_net_per_unit)
+  if (Number.isFinite(finalGross) && finalGross > 0 && Number.isFinite(finalNet) && finalNet > 0) {
+    return {
+      unit,
+      unitShort: compensationUnitShortLabel(unit),
+      grossPerUnit: finalGross,
+      netPerUnit: finalNet,
+      quantity: display.quantity || 1,
+      totalGross: unit === 'fixed_package' ? finalGross : finalGross * (display.quantity || 1),
+      totalNet: unit === 'fixed_package' ? finalNet : finalNet * (display.quantity || 1),
+      locked: true,
+      source: 'final' as const,
+    }
+  }
+
+  const counterGross = Number(application?.institution_counter_gross_per_unit)
+  if (Number.isFinite(counterGross) && counterGross > 0) {
+    const net = toExpertNet(counterGross)
+    return {
+      unit,
+      unitShort: compensationUnitShortLabel(unit),
+      grossPerUnit: counterGross,
+      netPerUnit: net,
+      quantity: display.quantity || 1,
+      totalGross: unit === 'fixed_package' ? counterGross : counterGross * (display.quantity || 1),
+      totalNet: unit === 'fixed_package' ? net : net * (display.quantity || 1),
+      locked: false,
+      source: 'counter' as const,
+    }
+  }
+
+  const proposedNet = Number(application?.proposed_net_per_unit)
+  if (Number.isFinite(proposedNet) && proposedNet > 0) {
+    const gross = toInstitutionGrossFromNet(proposedNet)
+    return {
+      unit,
+      unitShort: compensationUnitShortLabel(unit),
+      grossPerUnit: gross,
+      netPerUnit: proposedNet,
+      quantity: display.quantity || 1,
+      totalGross: unit === 'fixed_package' ? gross : gross * (display.quantity || 1),
+      totalNet: unit === 'fixed_package' ? proposedNet : proposedNet * (display.quantity || 1),
+      locked: false,
+      source: 'proposal' as const,
+    }
+  }
+
+  // Legacy hourly fallback
+  const legacyFinal = Number(application?.final_hourly_rate)
+  const legacyProposed = Number(application?.proposed_rate)
+  if (Number.isFinite(legacyFinal) && legacyFinal > 0) {
+    return {
+      unit: 'hourly' as CompensationUnit,
+      unitShort: 'hour',
+      grossPerUnit: legacyFinal,
+      netPerUnit: toExpertNet(legacyFinal),
+      quantity: display.expectedTotalHours || display.quantity || 1,
+      totalGross: legacyFinal * (display.expectedTotalHours || 1),
+      totalNet: toExpertNet(legacyFinal) * (display.expectedTotalHours || 1),
+      locked: true,
+      source: 'legacy_final' as const,
+    }
+  }
+  if (Number.isFinite(legacyProposed) && legacyProposed > 0) {
+    return {
+      unit: 'hourly' as CompensationUnit,
+      unitShort: 'hour',
+      grossPerUnit: legacyProposed,
+      netPerUnit: toExpertNet(legacyProposed),
+      quantity: display.expectedTotalHours || display.quantity || 1,
+      totalGross: legacyProposed * (display.expectedTotalHours || 1),
+      totalNet: toExpertNet(legacyProposed) * (display.expectedTotalHours || 1),
+      locked: false,
+      source: 'legacy_proposed' as const,
+    }
+  }
+
+  return {
+    unit: display.unit,
+    unitShort: display.unitShort,
+    grossPerUnit: display.grossPerUnitDisplay,
+    netPerUnit: display.netPerUnitDisplay,
+    quantity: display.quantity || 1,
+    totalGross: display.totalBudgetGross,
+    totalNet: display.expertNetTotal,
+    locked: application?.rate_intent === 'agreed_posted' || application?.rate_status === 'agreed_posted',
+    source: 'posted' as const,
+  }
+}

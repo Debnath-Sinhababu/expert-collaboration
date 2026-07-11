@@ -602,6 +602,22 @@ export const api = {
         body: JSON.stringify(data)
       }).then(res => res.json())
     },
+    updateRate: async (id: string, data: any) => {
+      const headers = await getAuthHeaders()
+      return fetch(`${API_BASE_URL}/api/applications/${id}/rate`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(data)
+      }).then(res => res.json())
+    },
+    confirmLock: async (id: string, data: any = {}) => {
+      const headers = await getAuthHeaders()
+      return fetch(`${API_BASE_URL}/api/applications/${id}/confirm-lock`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data)
+      }).then(res => res.json())
+    },
     checkStatus: async (projectId: string, expertIds: string[]) => {
       const headers = await getAuthHeaders()
       return fetch(`${API_BASE_URL}/api/applications/check-status`, {

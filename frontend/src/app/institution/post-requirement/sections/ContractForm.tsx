@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
@@ -18,13 +18,21 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
-import { getInstitutionRate } from '@/lib/utils'
 import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
 import { fetchInstitutionForWorkspace } from '@/lib/institutionWorkspace'
 import { ScreeningQuestionsEditor } from '@/components/requirements/ScreeningQuestionsEditor'
 import { EMPLOYMENT_TYPE_OPTIONS, WORKPLACE_TYPE_OPTIONS } from '@/lib/requirementLabels'
 import { expertDisplayName } from '@/lib/privacyDisplay'
 import { ExpertAvailabilityTrigger } from '@/components/expert/ExpertAvailabilityTrigger'
+import {
+  COMPENSATION_UNIT_OPTIONS,
+  type CompensationUnit,
+  compensationUnitShortLabel,
+  deriveCompensation,
+  getDefaultCompensationUnit,
+  legacyHourlyRateFromCompensation,
+  moneyInr,
+} from '@/lib/projectCompensation'
 
 function formatInterviewPeriodDate(value: string) {
   if (!value) return ''
@@ -118,11 +126,15 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
     title: '',
     description: '',
     type: '',
-    hourly_rate: '',
-    total_budget: '',
+    compensation_unit: '' as CompensationUnit | '',
+    unit_quantity: '1',
+    duration_per_unit: '',
+    institution_gross_per_unit: '',
+    institution_gross_total: '',
+    schedule_notes: '',
+    other_description: '',
     start_date: '',
     end_date: '',
-    duration_hours: '',
     opening_count: '1',
     required_expertise: '',
     domain_expertise: '',
@@ -137,6 +149,36 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
 
   const [requirementPdf, setRequirementPdf] = useState<File | null>(null)
   const [requirementPdfError, setRequirementPdfError] = useState<string | null>(null)
+
+  const compensationDerived = useMemo(
+    () =>
+      deriveCompensation({
+        compensation_unit: form.compensation_unit,
+        unit_quantity: form.unit_quantity,
+        duration_per_unit: form.duration_per_unit,
+        institution_gross_per_unit: form.institution_gross_per_unit,
+        institution_gross_total: form.institution_gross_total,
+      }),
+    [
+      form.compensation_unit,
+      form.unit_quantity,
+      form.duration_per_unit,
+      form.institution_gross_per_unit,
+      form.institution_gross_total,
+    ]
+  )
+
+  const unitShort = compensationUnitShortLabel(form.compensation_unit)
+  const showUnitQuantity = form.compensation_unit === 'per_session' || form.compensation_unit === 'per_day' || form.compensation_unit === 'hourly'
+  const showDurationPerUnit =
+    form.compensation_unit === 'per_session' ||
+    form.compensation_unit === 'per_day' ||
+    form.compensation_unit === 'fixed_package'
+  const showGrossPerUnit = form.compensation_unit === 'per_session' || form.compensation_unit === 'per_day' || form.compensation_unit === 'hourly'
+  const showPackageTotal = form.compensation_unit === 'fixed_package'
+  const showScheduleNotes = ['fdp', 'workshop', 'training_program'].includes(form.type)
+  const requireOtherDescription = form.type === 'other'
+  const requireExplicitUnit = form.type === 'other' || !getDefaultCompensationUnit(form.type)
 
   useEffect(() => {
     const init = async () => {
@@ -185,11 +227,31 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
           title: project.title || '',
           description: project.description || '',
           type: project.type || '',
-          hourly_rate: project.hourly_rate != null ? String(project.hourly_rate) : '',
-          total_budget: project.total_budget != null ? String(project.total_budget) : '',
+          compensation_unit: (project.compensation_unit as CompensationUnit) || getDefaultCompensationUnit(project.type) || 'hourly',
+          unit_quantity: project.unit_quantity != null
+            ? String(project.unit_quantity)
+            : project.duration_hours != null
+              ? String(project.duration_hours)
+              : '1',
+          duration_per_unit: project.duration_per_unit != null
+            ? String(project.duration_per_unit)
+            : project.compensation_unit === 'hourly' || !project.compensation_unit
+              ? '1'
+              : '',
+          institution_gross_per_unit: project.institution_gross_per_unit != null
+            ? String(project.institution_gross_per_unit)
+            : project.hourly_rate != null
+              ? String(project.hourly_rate)
+              : '',
+          institution_gross_total: project.institution_gross_total != null
+            ? String(project.institution_gross_total)
+            : project.total_budget != null
+              ? String(project.total_budget)
+              : '',
+          schedule_notes: project.schedule_notes || '',
+          other_description: project.other_description || '',
           start_date: toDateInputValue(project.start_date),
           end_date: toDateInputValue(project.end_date),
-          duration_hours: project.duration_hours != null ? String(project.duration_hours) : '',
           opening_count: project.opening_count != null ? String(project.opening_count) : '1',
           required_expertise: requiredExpertise.join(', '),
           domain_expertise: domain,
@@ -226,6 +288,32 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
     setSelectedSubskills([])
   }
 
+  const applyCompensationUnit = (unit: CompensationUnit | '', prev: typeof form) => {
+    if (unit === 'hourly') {
+      return { ...prev, compensation_unit: unit, duration_per_unit: '1', unit_quantity: prev.unit_quantity || '1' }
+    }
+    if (unit === 'fixed_package') {
+      return { ...prev, compensation_unit: unit, unit_quantity: '1' }
+    }
+    return { ...prev, compensation_unit: unit }
+  }
+
+  const handleTypeChange = (type: string) => {
+    const defaultUnit = getDefaultCompensationUnit(type)
+    setForm((prev) => {
+      const nextUnit = (defaultUnit || (type === 'other' ? '' : prev.compensation_unit)) as CompensationUnit | ''
+      return {
+        ...applyCompensationUnit(nextUnit, prev),
+        type,
+        other_description: type === 'other' ? prev.other_description : '',
+      }
+    })
+  }
+
+  const handleCompensationUnitChange = (unit: CompensationUnit) => {
+    setForm((prev) => applyCompensationUnit(unit, prev))
+  }
+
   const handleSubskillChange = (vals: string[]) => {
     setSelectedSubskills(vals)
     setForm(prev => ({ ...prev, subskills: vals }))
@@ -234,12 +322,53 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
   const validate = (): boolean => {
     if (!form.title.trim()) { toast.error('Please enter project title'); return false }
     if (!form.type) { toast.error('Please select project type'); return false }
-    if (!form.hourly_rate || parseFloat(form.hourly_rate) <= 0) { toast.error('Enter valid hourly rate'); return false }
-    if (!form.total_budget || parseFloat(form.total_budget) <= 0) { toast.error('Enter valid total budget'); return false }
+    if (requireOtherDescription && form.other_description.trim().length < 20) {
+      toast.error('Describe the engagement in at least 20 characters for type Other')
+      return false
+    }
+    if (!form.compensation_unit) {
+      toast.error(requireExplicitUnit ? 'Select how you will pay' : 'Select compensation unit')
+      return false
+    }
+    if (showUnitQuantity && (!form.unit_quantity || Number(form.unit_quantity) <= 0)) {
+      toast.error(
+        form.compensation_unit === 'hourly'
+          ? 'Enter expected total hours'
+          : form.compensation_unit === 'per_day'
+            ? 'Enter number of days'
+            : 'Enter number of sessions'
+      )
+      return false
+    }
+    if (showDurationPerUnit && (!form.duration_per_unit || Number(form.duration_per_unit) <= 0)) {
+      toast.error(
+        form.compensation_unit === 'fixed_package'
+          ? 'Enter estimated total hours for the package'
+          : form.compensation_unit === 'per_day'
+            ? 'Enter hours per day'
+            : 'Enter hours per session'
+      )
+      return false
+    }
+    if (showGrossPerUnit && (!form.institution_gross_per_unit || Number(form.institution_gross_per_unit) <= 0)) {
+      toast.error(`Enter what you pay per ${unitShort}`)
+      return false
+    }
+    if (showPackageTotal && (!form.institution_gross_total || Number(form.institution_gross_total) <= 0)) {
+      toast.error('Enter total package fee you will pay')
+      return false
+    }
+    if (compensationDerived.expectedTotalHours <= 0) {
+      toast.error('Expected total hours must be greater than 0')
+      return false
+    }
+    if (compensationDerived.totalBudgetGross <= 0) {
+      toast.error('Total budget must be greater than 0')
+      return false
+    }
     if (!form.start_date) { toast.error('Select start date'); return false }
     if (!form.end_date) { toast.error('Select end date'); return false }
     if (new Date(form.end_date) <= new Date(form.start_date)) { toast.error('End date must be after start date'); return false }
-    if (!form.duration_hours || parseInt(form.duration_hours) <= 0) { toast.error('Enter duration hours'); return false }
     if (!form.opening_count || parseInt(form.opening_count) <= 0) { toast.error('Enter opening people count'); return false }
     if (!form.domain_expertise) { toast.error('Select domain expertise'); return false }
     if (!form.subskills || form.subskills.length === 0) { toast.error('Select required specializations'); return false }
@@ -399,15 +528,24 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
         form.interview_period_start_date,
         form.interview_period_end_date
       )
+      const unit = form.compensation_unit as CompensationUnit
+      const derived = compensationDerived
       const payload = {
         ...form,
         interview_period_interval: interviewPeriodInterval || null,
         institution_id: institution?.id,
-        hourly_rate: parseFloat(form.hourly_rate),
-        total_budget: parseFloat(form.total_budget),
-        duration_hours: parseInt(form.duration_hours),
+        compensation_unit: unit,
+        unit_quantity: unit === 'fixed_package' ? 1 : derived.quantity,
+        duration_per_unit: unit === 'hourly' ? 1 : derived.durationPerUnit,
+        institution_gross_per_unit: unit === 'fixed_package' ? null : derived.grossPerUnit,
+        institution_gross_total: derived.totalBudgetGross,
+        total_budget: derived.totalBudgetGross,
+        duration_hours: Math.round(derived.expectedTotalHours),
+        hourly_rate: legacyHourlyRateFromCompensation(unit, derived),
         opening_count: parseInt(form.opening_count),
-        required_expertise: form.required_expertise.split(',').map(s => s.trim()).filter(Boolean)
+        required_expertise: form.required_expertise.split(',').map(s => s.trim()).filter(Boolean),
+        schedule_notes: form.schedule_notes.trim() || null,
+        other_description: form.type === 'other' ? form.other_description.trim() : null,
       }
       delete (payload as any).interview_period_start_date
       delete (payload as any).interview_period_end_date
@@ -416,7 +554,7 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
 
       Object.entries(payload).forEach(([key, value]) => {
         if (value === undefined || value === null) {
-          if (key === 'interview_period_interval' && isEdit) {
+          if ((key === 'interview_period_interval' || key === 'schedule_notes' || key === 'other_description' || key === 'institution_gross_per_unit') && isEdit) {
             formData.append(key, '')
           }
           return
@@ -484,7 +622,7 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
             </div>
             <div>
               <Label className="text-[#000000] font-medium mb-2 block">Project Type *</Label>
-              <Select value={form.type} onValueChange={(v) => setForm(prev => ({ ...prev, type: v }))}>
+              <Select value={form.type} onValueChange={handleTypeChange}>
                 <SelectTrigger className="border-[#DCDCDC]">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
@@ -500,14 +638,149 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
                 </SelectContent>
               </Select>
             </div>
+            {requireOtherDescription && (
+              <div className="md:col-span-2">
+                <Label className="text-[#000000] font-medium mb-2 block">Engagement description *</Label>
+                <Textarea
+                  placeholder="Describe the engagement (what the expert will deliver, format, audience, etc.)"
+                  value={form.other_description}
+                  onChange={(e) => setForm((prev) => ({ ...prev, other_description: e.target.value }))}
+                  className="border-[#DCDCDC] min-h-[80px]"
+                />
+                <p className="text-xs text-[#6A6A6A] mt-1">Required for type Other (min 20 characters).</p>
+              </div>
+            )}
             <div>
-              <Label className="text-[#000000] font-medium mb-2 block">Hourly Rate (₹) *</Label>
-              <Input type="number" placeholder="1000" value={form.hourly_rate} onChange={(e) => setForm(prev => ({ ...prev, hourly_rate: e.target.value }))} className="border-[#DCDCDC]" />
+              <Label className="text-[#000000] font-medium mb-2 block">How will you pay? *</Label>
+              <Select
+                value={form.compensation_unit || undefined}
+                onValueChange={(v) => handleCompensationUnitChange(v as CompensationUnit)}
+              >
+                <SelectTrigger className="border-[#DCDCDC]">
+                  <SelectValue placeholder={requireExplicitUnit ? 'Select pay unit' : 'Select pay unit'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {COMPENSATION_UNIT_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!requireExplicitUnit && form.compensation_unit && (
+                <p className="text-xs text-[#6A6A6A] mt-1">Default for this type — you can change it.</p>
+              )}
             </div>
-            <div>
-              <Label className="text-[#000000] font-medium mb-2 block">Total Budget (₹) *</Label>
-              <Input type="number" placeholder="50000" value={form.total_budget} onChange={(e) => setForm(prev => ({ ...prev, total_budget: e.target.value }))} className="border-[#DCDCDC]" />
-            </div>
+            {showUnitQuantity && (
+              <div>
+                <Label className="text-[#000000] font-medium mb-2 block">
+                  {form.compensation_unit === 'hourly'
+                    ? 'Expected total hours *'
+                    : form.compensation_unit === 'per_day'
+                      ? 'Number of days *'
+                      : 'Number of sessions *'}
+                </Label>
+                <Input
+                  type="number"
+                  min="1"
+                  step="1"
+                  placeholder={form.compensation_unit === 'hourly' ? '40' : '8'}
+                  value={form.unit_quantity}
+                  onChange={(e) => setForm((prev) => ({ ...prev, unit_quantity: e.target.value }))}
+                  className="border-[#DCDCDC]"
+                />
+              </div>
+            )}
+            {showDurationPerUnit && (
+              <div>
+                <Label className="text-[#000000] font-medium mb-2 block">
+                  {form.compensation_unit === 'fixed_package'
+                    ? 'Estimated total hours *'
+                    : form.compensation_unit === 'per_day'
+                      ? 'Hours per day *'
+                      : 'Hours per session *'}
+                </Label>
+                <Input
+                  type="number"
+                  min="0.5"
+                  step="0.5"
+                  placeholder={form.compensation_unit === 'fixed_package' ? '40' : '2'}
+                  value={form.duration_per_unit}
+                  onChange={(e) => setForm((prev) => ({ ...prev, duration_per_unit: e.target.value }))}
+                  className="border-[#DCDCDC]"
+                />
+              </div>
+            )}
+            {showGrossPerUnit && (
+              <div>
+                <Label className="text-[#000000] font-medium mb-2 block">
+                  What you pay per {unitShort} (₹) *
+                </Label>
+                <Input
+                  type="number"
+                  min="1"
+                  step="1"
+                  placeholder="15000"
+                  value={form.institution_gross_per_unit}
+                  onChange={(e) => setForm((prev) => ({ ...prev, institution_gross_per_unit: e.target.value }))}
+                  className="border-[#DCDCDC]"
+                />
+                <p className="text-xs text-[#6A6A6A] mt-1">Gross amount you pay (100%). Expert sees ~70% of this.</p>
+              </div>
+            )}
+            {showPackageTotal && (
+              <div>
+                <Label className="text-[#000000] font-medium mb-2 block">Total package fee you pay (₹) *</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  step="1"
+                  placeholder="100000"
+                  value={form.institution_gross_total}
+                  onChange={(e) => setForm((prev) => ({ ...prev, institution_gross_total: e.target.value }))}
+                  className="border-[#DCDCDC]"
+                />
+                <p className="text-xs text-[#6A6A6A] mt-1">Gross package total (100%). Expert earns ~70%.</p>
+              </div>
+            )}
+            {form.compensation_unit && (
+              <div className="md:col-span-2 rounded-xl border border-[#DCDCDC] bg-[#FAFAFA] p-4">
+                <p className="text-sm font-semibold text-[#000000] mb-3">Budget summary (auto-calculated)</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+                  <div>
+                    <p className="text-[#6A6A6A]">Expected total hours</p>
+                    <p className="font-medium text-[#000000]">{compensationDerived.expectedTotalHours || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[#6A6A6A]">Total you pay (gross)</p>
+                    <p className="font-medium text-[#000000]">
+                      {compensationDerived.totalBudgetGross > 0 ? moneyInr(compensationDerived.totalBudgetGross) : '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[#6A6A6A]">Expert earns (approx)</p>
+                    <p className="font-medium text-[#000000]">
+                      {compensationDerived.expertNetTotal > 0 ? moneyInr(compensationDerived.expertNetTotal) : '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[#6A6A6A]">Platform fee (approx)</p>
+                    <p className="font-medium text-[#000000]">
+                      {compensationDerived.platformFeeTotal > 0 ? moneyInr(compensationDerived.platformFeeTotal) : '—'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            {showScheduleNotes && (
+              <div className="md:col-span-2">
+                <Label className="text-[#000000] font-medium mb-2 block">Schedule notes (optional)</Label>
+                <Input
+                  placeholder='e.g. Saturdays only, 10am–1pm'
+                  value={form.schedule_notes}
+                  onChange={(e) => setForm((prev) => ({ ...prev, schedule_notes: e.target.value }))}
+                  className="border-[#DCDCDC]"
+                />
+              </div>
+            )}
             <div>
               <Label className="text-[#000000] font-medium mb-2 block">Start Date *</Label>
               <Input type="date" value={form.start_date} onChange={(e) => setForm(prev => ({ ...prev, start_date: e.target.value }))} placeholder="DD/MM/YYYY" className="border-[#DCDCDC]" />
@@ -515,10 +788,6 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
             <div>
               <Label className="text-[#000000] font-medium mb-2 block">Approx End Date *</Label>
               <Input type="date" value={form.end_date} onChange={(e) => setForm(prev => ({ ...prev, end_date: e.target.value }))} placeholder="DD/MM/YYYY" className="border-[#DCDCDC]" />
-            </div>
-            <div>
-              <Label className="text-[#000000] font-medium mb-2 block">Duration (Hours) *</Label>
-              <Input type="number" placeholder="40" value={form.duration_hours} onChange={(e) => setForm(prev => ({ ...prev, duration_hours: e.target.value }))} className="border-[#DCDCDC]" />
             </div>
             <div>
               <Label className="text-[#000000] font-medium mb-2 block">Opening people count *</Label>

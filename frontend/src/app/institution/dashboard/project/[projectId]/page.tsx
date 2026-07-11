@@ -35,8 +35,14 @@ import { isTrainingProjectType } from '@/lib/trainingTypes'
 import { TrainingAttendancePanel } from '@/components/training/TrainingAttendancePanel'
 import { InterviewAvailabilitySelector } from '@/components/requirements/InterviewAvailabilitySelector'
 import type { InterviewSlot } from '@/components/requirements/InterviewAvailabilitySelector'
-import { resolveHourlyRate } from '@/lib/projectPricing'
 import { formatInterviewDateTime } from '@/lib/datetime'
+import { RateIntentBadge } from '@/components/requirements/RateIntentBadge'
+import { RateAgreementPanel } from '@/components/requirements/RateAgreementPanel'
+import {
+  isRateAgreed,
+  moneyInr,
+  projectCompensationDisplay,
+} from '@/lib/projectCompensation'
 import { 
   ArrowLeft,
   Building, 
@@ -97,7 +103,7 @@ export default function InstitutionProjectDetailsPage() {
   const [selectedInterviewSlot, setSelectedInterviewSlot] = useState<InterviewSlot | null>(null)
   const [showFinalRateModal, setShowFinalRateModal] = useState(false)
   const [selectedBookingApplication, setSelectedBookingApplication] = useState<any>(null)
-  const [finalHourlyRate, setFinalHourlyRate] = useState('')
+  const [approveOverBudget, setApproveOverBudget] = useState(false)
   const [confirmAction, setConfirmAction] = useState<null | {
     title: string
     description: string
@@ -457,8 +463,13 @@ export default function InstitutionProjectDetailsPage() {
       toast.error('Application not found')
       return
     }
+    const status = application.rate_status || application.rate_intent
+    if (!isRateAgreed(status) && application.rate_intent === 'open_to_negotiate') {
+      toast.error('Complete rate negotiation before confirming booking')
+      return
+    }
     setSelectedBookingApplication(application)
-    setFinalHourlyRate('')
+    setApproveOverBudget(false)
     setShowFinalRateModal(true)
   }
 
@@ -470,44 +481,18 @@ export default function InstitutionProjectDetailsPage() {
     try {
       setProcessingApplications(prev => ({ ...prev, [applicationId]: true }))
 
-      const resolvedAmount = resolveHourlyRate({
-        finalHourlyRate,
-        proposedRate: (application as any).proposed_rate,
-        projectHourlyRate: project?.hourly_rate,
-        fallback: 1000,
+      const result = await api.applications.confirmLock(applicationId, {
+        approve_over_budget: approveOverBudget,
       })
-
-      // Update application status to accepted
-      await api.applications.update(applicationId, {
-        status: 'accepted',
-        final_hourly_rate: finalHourlyRate ? Number(finalHourlyRate) : null,
-        reviewed_at: new Date().toISOString()
-      })
-
-      // Create booking (same logic as current accept flow)
-      const bookingData = {
-        expert_id: (application as any).expert_id,
-        institution_id: institution.id,
-        project_id: (application as any).project_id,
-        application_id: applicationId,
-        amount: resolvedAmount,
-        start_date: project.start_date
-          ? String(project.start_date).slice(0, 10)
-          : new Date().toISOString().split('T')[0],
-        end_date: project.end_date
-          ? String(project.end_date).slice(0, 10)
-          : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        hours_booked: project.duration_hours,
-        status: 'in_progress',
-        payment_status: 'pending'
+      if (result?.error) {
+        toast.error(result.error)
+        return
       }
-      
-      await api.bookings.create(bookingData)
 
       toast.success('Booking created successfully!')
       setShowFinalRateModal(false)
       setSelectedBookingApplication(null)
-      setFinalHourlyRate('')
+      setApproveOverBudget(false)
       refreshInterview()
       refreshSelected()
     } catch (error) {
@@ -888,7 +873,9 @@ export default function InstitutionProjectDetailsPage() {
                               </Avatar>
                               <div className="min-w-0">
                                 <h3 className="font-semibold text-black text-sm sm:text-base truncate">{expertDisplayName(application.experts)}</h3>
-                                <p className="text-xs sm:text-sm text-black">₹{getInstitutionRate(application.experts?.hourly_rate)}/hr</p>
+                                <p className="text-xs sm:text-sm text-black">
+                                  You pay ~₹{getInstitutionRate(application.experts?.hourly_rate)}/hr
+                                </p>
                               </div>
                             </div>
                             <Badge className='bg-[#FFF6D3] text-xs font-semibold text-[#967800] flex-shrink-0'>
@@ -938,8 +925,13 @@ export default function InstitutionProjectDetailsPage() {
                               <p className="font-medium text-[#000000] text-sm">{application.experts?.completed_trainings_count || application.experts?.training_count || 0}</p>
                             </div>
                             <div>
-                              <span className="text-[#666666] font-medium text-sm">Proposed rate:</span>
-                              <p className="font-medium text-[#000000] text-sm">Rs {application.proposed_rate || project?.hourly_rate || 0}/hr</p>
+                              <span className="text-[#666666] font-medium text-sm">Rate preference:</span>
+                              <div className="mt-1">
+                                <RateIntentBadge
+                                  rateIntent={application.rate_intent}
+                                  rateStatus={application.rate_status}
+                                />
+                              </div>
                             </div>
                         
                           </div>
@@ -1056,7 +1048,9 @@ export default function InstitutionProjectDetailsPage() {
                     </Avatar>
                     <div className="min-w-0">
                       <h3 className="font-semibold text-black text-sm sm:text-base truncate">{expertDisplayName(application.experts)}</h3>
-                      <p className="text-xs sm:text-sm text-black">₹{getInstitutionRate(application.experts?.hourly_rate)}/hr</p>
+                      <p className="text-xs sm:text-sm text-black">
+                        You pay ~₹{getInstitutionRate(application.experts?.hourly_rate)}/hr
+                      </p>
                     </div>
                   </div>
                   <Badge className='bg-[#FFF6D3] text-xs font-semibold text-[#967800] flex-shrink-0'>
@@ -1124,6 +1118,26 @@ export default function InstitutionProjectDetailsPage() {
                     </span>
                   </div>
                 )}
+
+                <div className="mb-4">
+                  <RateIntentBadge
+                    rateIntent={application.rate_intent}
+                    rateStatus={application.rate_status}
+                  />
+                </div>
+
+                {project && (
+                  <div className="mb-4">
+                    <RateAgreementPanel
+                      application={application}
+                      project={project}
+                      role="institution"
+                      onUpdated={() => {
+                        refreshInterview()
+                      }}
+                    />
+                  </div>
+                )}
                 
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <div className="text-[#666666] font-medium text-xs sm:text-sm">
@@ -1143,11 +1157,15 @@ export default function InstitutionProjectDetailsPage() {
                     <Button
                       size="sm"
                       onClick={() => openProceedToBookingConfirm(application.id)}
-                      disabled={processingApplications[application.id]}
+                      disabled={
+                        processingApplications[application.id] ||
+                        (application.rate_intent === 'open_to_negotiate' &&
+                          !isRateAgreed(application.rate_status || application.rate_intent))
+                      }
                       className="bg-[#008260] hover:bg-[#008260] text-white hover:text-white rounded-[25px] text-[13px] w-full sm:w-auto"
                     >
                       <CheckCircle className="h-4 w-4" />
-                      {processingApplications[application.id] ? 'Processing...' : 'Proceed for Booking'}
+                      {processingApplications[application.id] ? 'Processing...' : 'Confirm & lock booking'}
                     </Button>
                   </div>
                 </div>
@@ -1203,7 +1221,9 @@ export default function InstitutionProjectDetailsPage() {
                     </Avatar>
                     <div className="min-w-0">
                       <h3 className="font-semibold text-black text-sm sm:text-base truncate">{expertDisplayName(application.experts)}</h3>
-                      <p className="text-xs sm:text-sm text-black">₹{getInstitutionRate(application.experts?.hourly_rate)}/hr</p>
+                      <p className="text-xs sm:text-sm text-black">
+                        You pay ~₹{getInstitutionRate(application.experts?.hourly_rate)}/hr
+                      </p>
                     </div>
                   </div>
                   <Badge className={`${getStatusColor(application.status)} flex-shrink-0`}>
@@ -1439,8 +1459,8 @@ export default function InstitutionProjectDetailsPage() {
                       </p>
                     </div>
                     <div>
-                      <h4 className="font-medium text-sm text-[#666666] mb-1">Hourly Rate</h4>
-                      <p className="text-sm text-[#000000]">₹{getInstitutionRate(booking.experts?.hourly_rate)}</p>
+                      <h4 className="font-medium text-sm text-[#666666] mb-1">You pay (from profile)</h4>
+                      <p className="text-sm text-[#000000]">₹{getInstitutionRate(booking.experts?.hourly_rate)}/hr</p>
                     </div>
                     <div>
                       <h4 className="font-medium text-sm text-[#666666] mb-1">Experience</h4>
@@ -1651,43 +1671,79 @@ export default function InstitutionProjectDetailsPage() {
       <Dialog open={showFinalRateModal} onOpenChange={setShowFinalRateModal}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Confirm final hourly rate</DialogTitle>
+            <DialogTitle>Confirm & lock booking</DialogTitle>
             <DialogDescription>
-              Leave this blank to use the expert proposed rate or the project rate.
+              Review locked compensation before creating the booking.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="rounded-lg border border-[#DCDCDC] bg-[#F8FBFA] p-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-[#6A6A6A]">Project rate</span>
-                <span className="font-semibold">Rs {project?.hourly_rate || 0}/hr</span>
-              </div>
-              <div className="mt-1 flex justify-between">
-                <span className="text-[#6A6A6A]">Expert proposed</span>
-                <span className="font-semibold">Rs {selectedBookingApplication?.proposed_rate || project?.hourly_rate || 0}/hr</span>
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="finalHourlyRate">Final hourly rate (optional)</Label>
-              <Input
-                id="finalHourlyRate"
-                type="number"
-                min="1"
-                value={finalHourlyRate}
-                onChange={(event) => setFinalHourlyRate(event.target.value)}
-                placeholder="Use previous pricing"
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowFinalRateModal(false)}>Cancel</Button>
-              <Button
-                onClick={confirmProceedToBooking}
-                disabled={processingApplications[selectedBookingApplication?.id || '']}
-                className="bg-[#008260] hover:bg-[#008260]"
-              >
-                {processingApplications[selectedBookingApplication?.id || ''] ? 'Processing...' : 'Create Booking'}
-              </Button>
-            </div>
+            {(() => {
+              const pricing = projectCompensationDisplay(project)
+              const app = selectedBookingApplication
+              const gross =
+                Number(app?.final_gross_per_unit) > 0
+                  ? Number(app.final_gross_per_unit)
+                  : pricing.grossPerUnitDisplay
+              const net =
+                Number(app?.final_net_per_unit) > 0
+                  ? Number(app.final_net_per_unit)
+                  : pricing.netPerUnitDisplay
+              const total =
+                pricing.unit === 'fixed_package' ? gross : gross * (pricing.quantity || 1)
+              const overBudget = pricing.totalBudgetGross > 0 && total > pricing.totalBudgetGross * 1.001
+              return (
+                <>
+                  <div className="rounded-lg border border-[#DCDCDC] bg-[#F8FBFA] p-3 text-sm space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-[#6A6A6A]">Unit</span>
+                      <span className="font-semibold">{pricing.unitLabel}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#6A6A6A]">You pay</span>
+                      <span className="font-semibold">{moneyInr(gross)} / {pricing.unitShort}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#6A6A6A]">Expert earns</span>
+                      <span className="font-semibold">{moneyInr(net)} / {pricing.unitShort}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#6A6A6A]">Total you pay</span>
+                      <span className="font-semibold">{moneyInr(total)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#6A6A6A]">Hours</span>
+                      <span className="font-semibold">{pricing.expectedTotalHours || project?.duration_hours || '—'}</span>
+                    </div>
+                  </div>
+                  {overBudget && (
+                    <label className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={approveOverBudget}
+                        onChange={(e) => setApproveOverBudget(e.target.checked)}
+                      />
+                      <span>
+                        Total exceeds posted budget ({moneyInr(pricing.totalBudgetGross)}). I approve this amount.
+                      </span>
+                    </label>
+                  )}
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setShowFinalRateModal(false)}>Back</Button>
+                    <Button
+                      onClick={confirmProceedToBooking}
+                      disabled={
+                        processingApplications[selectedBookingApplication?.id || ''] ||
+                        (overBudget && !approveOverBudget)
+                      }
+                      className="bg-[#008260] hover:bg-[#008260]"
+                    >
+                      {processingApplications[selectedBookingApplication?.id || ''] ? 'Processing...' : 'Confirm & create booking'}
+                    </Button>
+                  </div>
+                </>
+              )
+            })()}
           </div>
         </DialogContent>
       </Dialog>

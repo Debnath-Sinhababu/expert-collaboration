@@ -16,6 +16,7 @@ import {
   Star
 } from 'lucide-react'
 import { getInstitutionRate } from '@/lib/utils'
+import { RateIntentBadge } from '@/components/requirements/RateIntentBadge'
 
 interface ProjectApplicationsProps {
   projectId: string
@@ -208,7 +209,7 @@ export default function ProjectApplications({ projectId, projectTitle, onClose, 
                         </div>
                         <div>
                           <h3 className="font-semibold text-slate-900">{expert?.name || 'Unknown Expert'}</h3>
-                          <p className="text-sm text-slate-600">₹{getInstitutionRate(expert?.hourly_rate)}/hr</p>
+                          <p className="text-sm text-slate-600">You pay ~₹{getInstitutionRate(expert?.hourly_rate)}/hr</p>
                         </div>
                       </div>
                       <Badge 
@@ -236,7 +237,7 @@ export default function ProjectApplications({ projectId, projectTitle, onClose, 
                           </p>
                         </div>
                         <div>
-                          <span className="text-slate-500">Hourly Rate:</span>
+                          <span className="text-slate-500">You pay (from profile):</span>
                           <p className="font-medium text-slate-700">₹{getInstitutionRate(expert?.hourly_rate)}/hr</p>
                         </div>
                         <div>
@@ -349,8 +350,8 @@ export default function ProjectApplications({ projectId, projectTitle, onClose, 
                                     <p className="text-sm">{expertDetail?.domain_expertise || 'Not specified'}</p>
                                   </div>
                                   <div>
-                                    <h4 className="font-medium mb-1">Hourly Rate</h4>
-                                    <p className="text-sm">₹{getInstitutionRate(expert?.hourly_rate)}</p>
+                                    <h4 className="font-medium mb-1">You pay (from profile)</h4>
+                                    <p className="text-sm">₹{getInstitutionRate(expert?.hourly_rate)}/hr</p>
                                   </div>
                                   <div>
                                     <h4 className="font-medium mb-1">Experience</h4>

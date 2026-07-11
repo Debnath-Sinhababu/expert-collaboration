@@ -81,9 +81,11 @@ export function RequirementCard({ project, detailHref, onApply }: Props) {
           </div>
           <div className="w-full lg:w-72 space-y-3">
             <PricingSummary
+              project={project}
               hourlyRate={project.hourly_rate}
               totalBudget={project.total_budget}
               durationHours={project.duration_hours}
+              audience="expert"
               compact
             />
             <div className="flex gap-2">

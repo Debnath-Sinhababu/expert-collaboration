@@ -9,7 +9,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel'
 import Autoplay from "embla-carousel-autoplay"
@@ -42,6 +41,11 @@ import { ShareRequirementButton } from '@/components/requirements/ShareRequireme
 import { ProjectRequirementMeta } from '@/components/requirements/ProjectRequirementMeta'
 import { projectLocationLine } from '@/lib/requirementLabels'
 import type { InterviewSlot } from '@/components/requirements/InterviewAvailabilitySelector'
+import {
+  moneyInr,
+  projectCompensationDisplay,
+  type RateIntent,
+} from '@/lib/projectCompensation'
 
 type UserMeta = { role?: string; name?: string }
 type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }
@@ -55,6 +59,11 @@ interface Project {
   end_date: string
   hourly_rate: number
   duration_hours: number
+  compensation_unit?: string | null
+  unit_quantity?: number | null
+  duration_per_unit?: number | null
+  institution_gross_per_unit?: number | null
+  institution_gross_total?: number | null
   location: string
   status: string
   created_at: string
@@ -118,8 +127,8 @@ export default function ExpertProjectPage() {
   const [success, setSuccess] = useState('')
   const [applicationForm, setApplicationForm] = useState({
     coverLetter: '',
-    proposedRate: '',
-    agreeProjectPrice: true,
+    rateIntent: 'agreed_posted' as RateIntent,
+    rateNote: '',
     interviewAvailability: [] as InterviewSlot[]
   })
   const [isApplying, setIsApplying] = useState(false)
@@ -222,14 +231,13 @@ export default function ExpertProjectPage() {
       await api.applications.create({
         project_id: projectId,
         cover_letter: applicationForm.coverLetter,
-        proposed_rate: applicationForm.agreeProjectPrice
-          ? project?.hourly_rate || 0
-          : parseFloat(applicationForm.proposedRate) || project?.hourly_rate || 0,
+        rate_intent: applicationForm.rateIntent,
+        rate_note: applicationForm.rateNote.trim() || null,
         interview_availability: applicationForm.interviewAvailability
       })
       
       setSuccess('Application submitted successfully!')
-      setApplicationForm({ coverLetter: '', proposedRate: '', agreeProjectPrice: true, interviewAvailability: [] })
+      setApplicationForm({ coverLetter: '', rateIntent: 'agreed_posted', rateNote: '', interviewAvailability: [] })
       setHasApplied(true)
       
       // Refresh similar and recommended projects
@@ -372,7 +380,9 @@ export default function ExpertProjectPage() {
               )}
             </div>
             <div className="flex flex-col sm:items-end gap-2 flex-shrink-0">
-                  <div className="text-lg sm:text-xl md:text-[24px] font-bold text-[#008260]">₹{project.hourly_rate}/hour</div>
+                  <div className="text-lg sm:text-xl md:text-[24px] font-bold text-[#008260]">
+                    {moneyInr(projectCompensationDisplay(project).netPerUnitDisplay)}/{projectCompensationDisplay(project).unitShort} earn
+                  </div>
                   <div className="text-sm text-[#757575]">Hourly Rate</div>
                   <ShareRequirementButton
                     path={`/requirements/contract/${project.id}`}
@@ -529,10 +539,17 @@ export default function ExpertProjectPage() {
                         </DialogDescription>
                       </DialogHeader>
                       <div className="max-h-[calc(85vh-96px)] space-y-6 overflow-y-auto px-6 pb-6 pt-2">
-                        <div className="rounded-lg border border-[#DCDCDC] bg-[#F8FBFA] p-3 text-sm">
+                        <div className="rounded-lg border border-[#DCDCDC] bg-[#F8FBFA] p-3 text-sm space-y-1">
                           <div className="font-semibold text-[#000000]">{project.title}</div>
-                          <div className="mt-1 text-[#6A6A6A]">
-                            Project price: <span className="font-semibold text-[#008260]">Rs {project.hourly_rate}/hr</span>
+                          <div className="text-[#6A6A6A]">Posted compensation</div>
+                          <div className="font-semibold text-[#008260]">
+                            You earn ~{moneyInr(projectCompensationDisplay(project).netPerUnitDisplay)} / {projectCompensationDisplay(project).unitShort}
+                          </div>
+                          <div className="text-[#6A6A6A]">
+                            ~{moneyInr(projectCompensationDisplay(project).expertNetTotal)} total
+                            {projectCompensationDisplay(project).expectedTotalHours > 0
+                              ? ` · ${projectCompensationDisplay(project).expectedTotalHours} hours`
+                              : ''}
                           </div>
                         </div>
                         <div className="space-y-2">
@@ -547,30 +564,49 @@ export default function ExpertProjectPage() {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="proposedRate" className="text-sm font-medium text-black">Proposed Hourly Rate (₹)</Label>
+                          <Label className="text-sm font-medium text-black">Rate preference *</Label>
+                          <div className="space-y-2">
+                            <label className="flex items-start gap-2 rounded-lg border border-[#DCDCDC] p-3 text-sm cursor-pointer">
+                              <input
+                                type="radio"
+                                name="rateIntentDetail"
+                                className="mt-1"
+                                checked={applicationForm.rateIntent === 'agreed_posted'}
+                                onChange={() => setApplicationForm({ ...applicationForm, rateIntent: 'agreed_posted' })}
+                              />
+                              <span>
+                                <span className="block font-medium text-[#000000]">I agree to the posted rate</span>
+                                <span className="text-[#6A6A6A]">
+                                  Proceed at ~{moneyInr(projectCompensationDisplay(project).netPerUnitDisplay)} / {projectCompensationDisplay(project).unitShort} earn
+                                </span>
+                              </span>
+                            </label>
+                            <label className="flex items-start gap-2 rounded-lg border border-[#DCDCDC] p-3 text-sm cursor-pointer">
+                              <input
+                                type="radio"
+                                name="rateIntentDetail"
+                                className="mt-1"
+                                checked={applicationForm.rateIntent === 'open_to_negotiate'}
+                                onChange={() => setApplicationForm({ ...applicationForm, rateIntent: 'open_to_negotiate' })}
+                              />
+                              <span>
+                                <span className="block font-medium text-[#000000]">I&apos;m open to negotiate if shortlisted</span>
+                                <span className="text-[#6A6A6A]">No amount now — discuss after interview</span>
+                              </span>
+                            </label>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="rateNote" className="text-sm font-medium text-black">Optional note (no amounts)</Label>
                           <input
-                            id="proposedRate"
-                            type="number"
-                            placeholder={project.hourly_rate.toString()}
-                            value={applicationForm.proposedRate}
-                            onChange={(e) => setApplicationForm({...applicationForm, proposedRate: e.target.value})}
+                            id="rateNote"
+                            type="text"
+                            placeholder="e.g. Travel from another city"
+                            value={applicationForm.rateNote}
+                            onChange={(e) => setApplicationForm({ ...applicationForm, rateNote: e.target.value })}
                             className="w-full px-3 py-2 border-2 border-[#D6D6D6] rounded-md focus:outline-none focus:border-[#008260] focus:ring-1 focus:ring-[#008260] transition-all duration-200"
                           />
                         </div>
-                        <label className="flex items-start gap-2 rounded-lg border border-[#DCDCDC] p-3 text-sm">
-                          <Checkbox
-                            checked={applicationForm.agreeProjectPrice}
-                            onCheckedChange={(checked) => setApplicationForm({
-                              ...applicationForm,
-                              agreeProjectPrice: checked === true,
-                              proposedRate: checked === true ? '' : applicationForm.proposedRate,
-                            })}
-                          />
-                          <span>
-                            <span className="block font-medium text-[#000000]">Agree with project price</span>
-                            <span className="text-[#6A6A6A]">Proceed at Rs {project.hourly_rate}/hr. Uncheck and enter a proposed rate above to negotiate.</span>
-                          </span>
-                        </label>
                         {project.interview_period_interval && (
                           <div className="rounded-lg border border-[#DCDCDC] bg-[#F8FBFA] p-3 text-sm">
                             <span className="block font-medium text-[#000000]">Interview period</span>
@@ -593,7 +629,7 @@ export default function ExpertProjectPage() {
                           <Button 
                             onClick={handleApplicationSubmit}
                             className="w-full bg-[#008260] hover:bg-[#006d51] text-white font-medium rounded-lg h-11"
-                            disabled={!applicationForm.coverLetter || isApplying || (!applicationForm.agreeProjectPrice && !applicationForm.proposedRate)}
+                            disabled={!applicationForm.coverLetter || isApplying}
                           >
                             {isApplying ? 'Submitting...' : 'Submit Application'}
                           </Button>
@@ -631,7 +667,9 @@ export default function ExpertProjectPage() {
                         </div>
                         
                         <div className="flex items-center justify-between">
-                          <div className="text-2xl font-bold text-[#008260]">₹{proj.hourly_rate}/hr</div>
+                          <div className="text-2xl font-bold text-[#008260]">
+                            {moneyInr(projectCompensationDisplay(proj).netPerUnitDisplay)}/{projectCompensationDisplay(proj).unitShort}
+                          </div>
                           <Link href={`${basePath}/project/${proj.id}`}>
                             <Button className="bg-[#008260] hover:bg-[#006d51] text-white rounded-lg w-20">
                               View
@@ -670,7 +708,9 @@ export default function ExpertProjectPage() {
                       </div>
                       
                       <div className="flex items-center justify-between">
-                        <div className="text-2xl font-bold text-[#008260]">₹{proj.hourly_rate}/hr</div>
+                        <div className="text-2xl font-bold text-[#008260]">
+                          {moneyInr(projectCompensationDisplay(proj).netPerUnitDisplay)}/{projectCompensationDisplay(proj).unitShort}
+                        </div>
                         <Link href={`${basePath}/project/${proj.id}`}>
                           <Button className="bg-[#008260] hover:bg-[#006d51] text-white rounded-lg w-20">
                             View
