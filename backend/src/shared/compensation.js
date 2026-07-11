@@ -125,12 +125,96 @@ function resolveBookingAmount(application, project) {
   return null;
 }
 
+/** Resolve locked settlement rates for a booking (never expert profile hourly_rate). */
+function resolveSettlementRates(booking) {
+  const project = booking?.projects || booking?.project || {};
+  const application = booking?.applications || booking?.application || {};
+
+  let unit =
+    (booking?.compensation_unit && COMPENSATION_UNITS.has(booking.compensation_unit)
+      ? booking.compensation_unit
+      : null) ||
+    (application?.compensation_unit && COMPENSATION_UNITS.has(application.compensation_unit)
+      ? application.compensation_unit
+      : null) ||
+    (project?.compensation_unit && COMPENSATION_UNITS.has(project.compensation_unit)
+      ? project.compensation_unit
+      : null) ||
+    'hourly';
+
+  let grossPerUnit = Number(booking?.final_gross_per_unit);
+  let netPerUnit = Number(booking?.final_net_per_unit);
+
+  if (!(Number.isFinite(grossPerUnit) && grossPerUnit > 0)) {
+    grossPerUnit = Number(application?.final_gross_per_unit);
+  }
+  if (!(Number.isFinite(netPerUnit) && netPerUnit > 0)) {
+    netPerUnit = Number(application?.final_net_per_unit);
+  }
+
+  // booking.amount historically stores locked institution gross per unit
+  if (!(Number.isFinite(grossPerUnit) && grossPerUnit > 0)) {
+    const amount = Number(booking?.amount);
+    if (Number.isFinite(amount) && amount > 0) grossPerUnit = amount;
+  }
+
+  if (!(Number.isFinite(grossPerUnit) && grossPerUnit > 0)) {
+    const legacyHourly = Number(booking?.final_hourly_rate || application?.final_hourly_rate);
+    if (Number.isFinite(legacyHourly) && legacyHourly > 0) {
+      grossPerUnit = legacyHourly;
+      unit = 'hourly';
+    }
+  }
+
+  if (!(Number.isFinite(grossPerUnit) && grossPerUnit > 0)) {
+    const posted = projectPostedRates(project);
+    if (posted.grossPerUnit > 0) {
+      grossPerUnit = posted.grossPerUnit;
+      unit = posted.unit;
+      if (!(Number.isFinite(netPerUnit) && netPerUnit > 0)) {
+        netPerUnit = posted.netPerUnit;
+      }
+    }
+  }
+
+  if (!(Number.isFinite(netPerUnit) && netPerUnit > 0) && Number.isFinite(grossPerUnit) && grossPerUnit > 0) {
+    netPerUnit = toExpertNet(grossPerUnit);
+  }
+
+  return {
+    unit,
+    unitShort:
+      unit === 'per_session'
+        ? 'session'
+        : unit === 'per_day'
+          ? 'day'
+          : unit === 'fixed_package'
+            ? 'package'
+            : 'hour',
+    grossPerUnit: Number.isFinite(grossPerUnit) && grossPerUnit > 0 ? grossPerUnit : 0,
+    netPerUnit: Number.isFinite(netPerUnit) && netPerUnit > 0 ? netPerUnit : 0,
+  };
+}
+
+/** Booking statuses that count as active work for dashboards / running stats. */
+const ACTIVE_BOOKING_STATUSES_FOR_STATS = [
+  'confirmed',
+  'in_progress',
+  'completion_requested',
+  'cancellation_requested',
+];
+
+function isActiveBookingStatus(status) {
+  return ACTIVE_BOOKING_STATUSES_FOR_STATS.includes(String(status || '').toLowerCase());
+}
+
 module.exports = {
   EXPERT_NET_SHARE,
   PLATFORM_FEE_SHARE,
   COMPENSATION_UNITS,
   RATE_INTENTS,
   RATE_STATUSES,
+  ACTIVE_BOOKING_STATUSES_FOR_STATS,
   toExpertNet,
   toInstitutionGrossFromNet,
   toPlatformFee,
@@ -138,7 +222,9 @@ module.exports = {
   isPostedRateOfferPending,
   isPostedRateDeclined,
   isRateNegotiationClosed,
+  isActiveBookingStatus,
   projectPostedRates,
   appendNegotiationHistory,
   resolveBookingAmount,
+  resolveSettlementRates,
 };

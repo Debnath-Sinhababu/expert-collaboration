@@ -46,6 +46,7 @@ import {
   isRateAgreed,
   moneyInr,
   projectCompensationDisplay,
+  resolveBookingSettlementRates,
 } from '@/lib/projectCompensation'
 import {
   formatEmploymentType,
@@ -638,12 +639,22 @@ export default function InstitutionProjectDetailsPage() {
 
   const handleBookingDateUpdate = async (booking: any) => {
     const edits = bookingDateEdits[booking.id] || {}
+    const actualStart = (edits.actual_start_date || booking.actual_start_date || '').slice(0, 10) || null
+    const actualEnd = (edits.actual_end_date || booking.actual_end_date || '').slice(0, 10) || null
     try {
+      // Keep attendance window in sync: actual dates drive training, and also update booking start/end.
       await api.bookings.update(booking.id, {
-        actual_start_date: edits.actual_start_date || booking.actual_start_date || null,
-        actual_end_date: edits.actual_end_date || booking.actual_end_date || null,
+        actual_start_date: actualStart,
+        actual_end_date: actualEnd,
+        ...(actualStart ? { start_date: actualStart } : {}),
+        ...(actualEnd ? { end_date: actualEnd } : {}),
       })
-      toast.success('Project dates updated')
+      toast.success('Training dates updated')
+      setBookingDateEdits((prev) => {
+        const next = { ...prev }
+        delete next[booking.id]
+        return next
+      })
       refreshSelected()
     } catch (error) {
       console.error('Error updating project dates:', error)
@@ -1507,8 +1518,10 @@ export default function InstitutionProjectDetailsPage() {
             
             {/* Right Column */}
             <div>
-              <span className="text-[#666666] font-medium text-sm">Amount: </span>
-              <span className="text-[#000000] font-medium text-sm">₹{booking.amount}</span>
+              <span className="text-[#666666] font-medium text-sm">You pay: </span>
+              <span className="text-[#000000] font-medium text-sm">
+                {moneyInr(resolveBookingSettlementRates(booking).grossPerUnit)} / {resolveBookingSettlementRates(booking).unitShort}
+              </span>
             </div>
             
             {/* Left Column */}
@@ -1618,8 +1631,10 @@ export default function InstitutionProjectDetailsPage() {
                       </p>
                     </div>
                     <div>
-                      <h4 className="font-medium text-sm text-[#666666] mb-1">Original rate</h4>
-                      <p className="text-sm text-[#000000]">₹{getInstitutionRate(booking.experts?.hourly_rate)}/hr</p>
+                      <h4 className="font-medium text-sm text-[#666666] mb-1">Agreed rate (you pay)</h4>
+                      <p className="text-sm text-[#000000]">
+                        {moneyInr(resolveBookingSettlementRates(booking).grossPerUnit)} / {resolveBookingSettlementRates(booking).unitShort}
+                      </p>
                     </div>
                     <div>
                       <h4 className="font-medium text-sm text-[#666666] mb-1">Experience</h4>
@@ -1716,8 +1731,8 @@ export default function InstitutionProjectDetailsPage() {
         {isTrainingProjectType(project?.type) && (
           <TrainingAttendancePanel
             bookingId={booking.id}
-            startDate={booking.start_date}
-            endDate={booking.end_date}
+            startDate={booking.actual_start_date || booking.start_date}
+            endDate={booking.actual_end_date || booking.end_date}
             hoursBooked={booking.hours_booked}
             bookingStatus={booking.status}
             expectedViewerRole="institution"

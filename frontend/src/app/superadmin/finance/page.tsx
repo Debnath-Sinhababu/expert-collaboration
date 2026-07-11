@@ -21,6 +21,7 @@ import { DataTable } from '@/components/superadmin/common/DataTable'
 import { PermissionGate } from '@/components/superadmin/common/PermissionGate'
 import { PaginationControls } from '@/components/superadmin/common/PaginationControls'
 import { superAdminApi } from '@/lib/superadmin/api'
+import { compensationUnitShortLabel, resolveBookingSettlementRates } from '@/lib/projectCompensation'
 
 const PAGE_SIZE = 15
 
@@ -30,6 +31,20 @@ function money(value: unknown) {
 
 function formatDate(value?: string | null) {
   return value ? new Date(value).toLocaleString() : '-'
+}
+
+function paymentPayUnit(row: any): string {
+  const fromBooking =
+    row?.booking?.compensation_unit ||
+    row?.projects?.compensation_unit ||
+    row?.booking?.projects?.compensation_unit
+  if (fromBooking) return compensationUnitShortLabel(fromBooking)
+  const rates = resolveBookingSettlementRates(row?.booking || { projects: row?.projects })
+  return rates.unitShort || 'unit'
+}
+
+function formatRateWithUnit(row: any): string {
+  return `${money(row.hourly_rate_snapshot)} / ${paymentPayUnit(row)}`
 }
 
 function statusClass(status?: string) {
@@ -300,8 +315,8 @@ export default function SuperAdminFinancePage() {
                 const party = activeTab === 'expert' ? row.institutions : row.experts
                 return party?.name || '-'
               } },
-              { key: 'hours', header: 'Hours', render: (row) => Number(row.approved_hours || 0).toFixed(2) },
-              { key: 'rate', header: 'Rate', render: (row) => money(row.hourly_rate_snapshot) },
+              { key: 'hours', header: 'Qty / hours', render: (row) => Number(row.approved_hours || 0).toFixed(2) },
+              { key: 'rate', header: 'Rate', render: (row) => formatRateWithUnit(row) },
               { key: 'amount', header: 'Amount', render: (row) => money(row.invoice_amount || row.calculated_amount) },
               { key: 'status', header: 'Status', render: (row) => <span className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${statusClass(row.status)}`}>{row.status}</span> },
               { key: 'action', header: '', render: (row) => <Button type="button" size="sm" variant="outline" onClick={() => openPayment(row)}>Details</Button> },
@@ -325,7 +340,7 @@ export default function SuperAdminFinancePage() {
                 <div><span className="text-slate-500">Expert</span><p className="font-medium text-slate-950">{selected.experts?.name || '-'}</p></div>
                 <div><span className="text-slate-500">Institute</span><p className="font-medium text-slate-950">{selected.institutions?.name || '-'}</p></div>
                 <div><span className="text-slate-500">Approved hours</span><p className="font-medium text-slate-950">{Number(selected.approved_hours || 0).toFixed(2)}</p></div>
-                <div><span className="text-slate-500">Hourly rate</span><p className="font-medium text-slate-950">{money(selected.hourly_rate_snapshot)}</p></div>
+                <div><span className="text-slate-500">Rate</span><p className="font-medium text-slate-950">{formatRateWithUnit(selected)}</p></div>
                 <div><span className="text-slate-500">Calculated amount</span><p className="font-medium text-slate-950">{money(selected.calculated_amount)}</p></div>
                 <div><span className="text-slate-500">Current status</span><p className="font-medium capitalize text-slate-950">{selected.status}</p></div>
               </div>

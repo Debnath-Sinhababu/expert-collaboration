@@ -4723,7 +4723,25 @@ app.get('/api/applications/counts', async (req, res) => {
 
     if (expert_id) query = query.eq('expert_id', expert_id);
     if (project_id) query = query.eq('project_id', project_id);
-    if (institution_id) query = query.eq('institution_id', institution_id);
+    if (institution_id) {
+      // applications may not have institution_id — scope via this institution's projects
+      const { data: projectRows, error: projectErr } = await queryClient
+        .from('projects')
+        .select('id')
+        .eq('institution_id', institution_id);
+      if (projectErr) throw projectErr;
+      const projectIds = (projectRows || []).map((p) => p.id).filter(Boolean);
+      if (!projectIds.length) {
+        return res.json({
+          total: 0,
+          pending: 0,
+          interview: 0,
+          accepted: 0,
+          rejected: 0,
+        });
+      }
+      query = query.in('project_id', projectIds);
+    }
     // Only filter by status if specifically requested
     if (status) query = query.eq('status', status);
 
@@ -5337,7 +5355,14 @@ app.get('/api/bookings', async (req, res) => {
       // Calculate counts by status
       const counts = {
         total: allBookings?.length || 0,
-        in_progress: allBookings?.filter(b => b.status === 'in_progress' || b.status === 'completion_requested' || b.status === 'cancellation_requested').length || 0,
+        in_progress: allBookings?.filter(b =>
+          b.status === 'in_progress' ||
+          b.status === 'completion_requested' ||
+          b.status === 'cancellation_requested' ||
+          b.status === 'confirmed'
+        ).length || 0,
+        completion_requested: allBookings?.filter(b => b.status === 'completion_requested').length || 0,
+        cancellation_requested: allBookings?.filter(b => b.status === 'cancellation_requested').length || 0,
         completed: allBookings?.filter(b => b.status === 'completed').length || 0,
         cancelled: allBookings?.filter(b => b.status === 'cancelled').length || 0,
         pending: allBookings?.filter(b => b.status === 'pending').length || 0
@@ -5410,7 +5435,14 @@ app.get('/api/bookings/counts', async (req, res) => {
     // Calculate counts by status
     const bookingCounts = {
       total: data?.length || 0,
-      in_progress: data?.filter(b => b.status === 'in_progress' || b.status === 'completion_requested' || b.status === 'cancellation_requested').length || 0,
+      in_progress: data?.filter(b =>
+        b.status === 'in_progress' ||
+        b.status === 'completion_requested' ||
+        b.status === 'cancellation_requested' ||
+        b.status === 'confirmed'
+      ).length || 0,
+      completion_requested: data?.filter(b => b.status === 'completion_requested').length || 0,
+      cancellation_requested: data?.filter(b => b.status === 'cancellation_requested').length || 0,
       completed: data?.filter(b => b.status === 'completed').length || 0,
       cancelled: data?.filter(b => b.status === 'cancelled').length || 0,
       pending: data?.filter(b => b.status === 'pending').length || 0

@@ -24,6 +24,7 @@ import { RateIntentBadge } from '@/components/requirements/RateIntentBadge'
 import { RateAgreementPanel } from '@/components/requirements/RateAgreementPanel'
 import { PostedCompensationRate } from '@/components/requirements/PostedCompensationRate'
 import { BookingCompletionActions } from '@/components/bookings/BookingCompletionActions'
+import { moneyInr, resolveBookingSettlementRates } from '@/lib/projectCompensation'
 import { 
   User, 
   Briefcase, 
@@ -438,54 +439,73 @@ export default function ExpertDashboard() {
   }
 
   const calculateAnalytics = useCallback(() => {
-    if (!pagedBookings || !pagedPendingApplications || !pagedInterviewApplications || !pagedRejectedApplications) return
+    if (!pagedBookings) return
 
-    // Calculate total earnings from completed bookings
-    const completedBookings = pagedBookings.filter((booking: any) => booking.status === 'completed')
-    const totalEarnings = completedBookings.reduce((sum: number, booking: any) => sum + (booking.amount || 0), 0)
-    
-    // Calculate total hours worked
-    const totalHoursWorked = completedBookings.reduce((sum: number, booking: any) => sum + (booking.hours_booked || 0), 0)
-    
-    // Calculate average project value
-    const averageProjectValue = completedBookings.length > 0 ? totalEarnings / completedBookings.length : 0
-    
-    // Calculate success rate (accepted applications / total applications)
-    const totalApplications = (pagedPendingApplications?.length || 0) + 
-                             (pagedInterviewApplications?.length || 0) + 
-                             (pagedRejectedApplications?.length || 0) + 
-                             completedBookings.length
-    const acceptedApplications = completedBookings.length
-    const successRate = totalApplications > 0 ? (acceptedApplications / totalApplications) * 100 : 0
-    
-    // Calculate monthly earnings (last 30 days)
+    // Prefer API booking counts for completed; use paged rows only for earnings estimates from locked net.
+    const completedFromPage = (pagedBookings || []).filter((booking: any) => booking.status === 'completed')
+    const totalEarnings = completedFromPage.reduce((sum: number, booking: any) => {
+      const rates = resolveBookingSettlementRates(booking)
+      // Expert earnings use locked net × unit_quantity (or 1) — not institution gross amount.
+      const qty = Number(booking.unit_quantity) > 0 ? Number(booking.unit_quantity) : 1
+      return sum + rates.netPerUnit * (rates.unit === 'fixed_package' ? 1 : qty)
+    }, 0)
+
+    const totalHoursWorked = completedFromPage.reduce(
+      (sum: number, booking: any) => sum + (Number(booking.hours_booked) || 0),
+      0
+    )
+
+    const completedCount = Number(bookingCounts.completed) || completedFromPage.length
+    const averageProjectValue = completedFromPage.length > 0 ? totalEarnings / completedFromPage.length : 0
+
+    const totalApplications =
+      Number(applicationCounts.pending || 0) +
+      Number(applicationCounts.interview || 0) +
+      Number(applicationCounts.accepted || 0) +
+      Number(applicationCounts.rejected || 0)
+    const acceptedApplications = Number(applicationCounts.accepted || 0) + completedCount
+    const successRate = totalApplications > 0 ? (Number(applicationCounts.accepted || 0) / totalApplications) * 100 : 0
+
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-    const monthlyBookings = completedBookings.filter((booking: any) => 
-      new Date(booking.created_at || booking.start_date) >= thirtyDaysAgo
+    const monthlyBookings = completedFromPage.filter(
+      (booking: any) => new Date(booking.created_at || booking.start_date) >= thirtyDaysAgo
     )
-    const monthlyEarnings = monthlyBookings.reduce((sum: number, booking: any) => sum + (booking.amount || 0), 0)
-    
-    // Calculate weekly applications (last 7 days)
+    const monthlyEarnings = monthlyBookings.reduce((sum: number, booking: any) => {
+      const rates = resolveBookingSettlementRates(booking)
+      const qty = Number(booking.unit_quantity) > 0 ? Number(booking.unit_quantity) : 1
+      return sum + rates.netPerUnit * (rates.unit === 'fixed_package' ? 1 : qty)
+    }, 0)
+
     const sevenDaysAgo = new Date()
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
     const weeklyApplications = [
       ...(pagedPendingApplications || []),
       ...(pagedInterviewApplications || []),
-      ...(pagedRejectedApplications || [])
+      ...(pagedRejectedApplications || []),
     ].filter((app: any) => new Date(app.applied_at || app.created_at) >= sevenDaysAgo).length
 
     setAnalytics({
       totalEarnings,
-      completedBookings: completedBookings.length,
+      completedBookings: completedCount,
       totalHoursWorked,
       averageProjectValue,
       successRate,
-      responseTime: 0, // This would need to be calculated from application timestamps
+      responseTime: 0,
       monthlyEarnings,
-      weeklyApplications
+      weeklyApplications,
     })
-  }, [pagedBookings, pagedPendingApplications, pagedInterviewApplications, pagedRejectedApplications])
+  }, [
+    pagedBookings,
+    pagedPendingApplications,
+    pagedInterviewApplications,
+    pagedRejectedApplications,
+    bookingCounts.completed,
+    applicationCounts.pending,
+    applicationCounts.interview,
+    applicationCounts.accepted,
+    applicationCounts.rejected,
+  ])
 
   // Update analytics when data changes
   useEffect(() => {
@@ -493,7 +513,13 @@ export default function ExpertDashboard() {
   }, [calculateAnalytics])
 
   const expertAggregate = computeExpertRating()
-  const runningStatuses = new Set(['in_progress', 'pending', 'confirmed'])
+  const runningStatuses = new Set([
+    'in_progress',
+    'pending',
+    'confirmed',
+    'completion_requested',
+    'cancellation_requested',
+  ])
   const sortedPagedBookings = [...(pagedBookings || [])].sort((a: any, b: any) => {
     const aRunning = runningStatuses.has(a.status) ? 0 : 1
     const bRunning = runningStatuses.has(b.status) ? 0 : 1
@@ -555,7 +581,7 @@ export default function ExpertDashboard() {
               <p className="mt-2 text-sm text-[#6A6A6A] sm:text-base">Track applications, running projects, attendance, and earnings.</p>
             </div>
             <div className="rounded-xl bg-[#E8F5F1] px-4 py-3 text-left sm:text-right">
-              <p className="text-xs font-medium text-[#6A6A6A]">Running project</p>
+              <p className="text-xs font-medium text-[#6A6A6A]">Active bookings</p>
               <p className="text-2xl font-bold text-[#008260]">{bookingCounts.in_progress || 0}</p>
             </div>
           </div>
@@ -567,13 +593,18 @@ export default function ExpertDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-[#000000]">Total Applications</p>
-                  <p className="text-3xl font-bold text-[#000000] my-1">{applicationCounts.pending + applicationCounts.interview + applicationCounts.rejected + analytics.completedBookings}</p>
+                  <p className="text-3xl font-bold text-[#000000] my-1">
+                    {Number(applicationCounts.pending || 0) +
+                      Number(applicationCounts.interview || 0) +
+                      Number(applicationCounts.accepted || 0) +
+                      Number(applicationCounts.rejected || 0)}
+                  </p>
                   <div className="flex space-x-2 text-xs text-[#656565] font-medium my-2">
                     <span>{applicationCounts.pending} pending</span>
                     <span>•</span>
                     <span>{applicationCounts.interview} interview</span>
                     <span>•</span>
-                    <span>{analytics.completedBookings} completed</span>
+                    <span>{applicationCounts.accepted || 0} accepted</span>
                   </div>
                 </div>
                 <div className="p-3 bg-[#ECF2FF] rounded-full">
@@ -688,7 +719,7 @@ export default function ExpertDashboard() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#000000]">Running project</p>
+                  <p className="text-sm font-medium text-[#000000]">Active bookings</p>
                   <p className="text-2xl font-bold text-[#000000] my-1">{bookingCounts.in_progress || 0}</p>
                   <p className="text-xs text-slate-500">
                     {bookingCounts.completed || 0} completed 
@@ -1076,8 +1107,10 @@ export default function ExpertDashboard() {
                               <IndianRupee className="w-4 h-4 sm:w-5 sm:h-5 text-[#008260]" />
                             </div>
                             <div className="min-w-0">
-                              <div className="text-[#717171] text-xs">Amount</div>
-                              <div className="font-semibold text-[#008260] text-sm sm:text-base truncate">₹{booking.amount}</div>
+                              <div className="text-[#717171] text-xs">You earn (agreed)</div>
+                              <div className="font-semibold text-[#008260] text-sm sm:text-base truncate">
+                                {moneyInr(resolveBookingSettlementRates(booking).netPerUnit)} / {resolveBookingSettlementRates(booking).unitShort}
+                              </div>
                             </div>
                           </div>
                           <div className="flex items-start gap-2 sm:gap-3 min-w-0">
@@ -1111,8 +1144,8 @@ export default function ExpertDashboard() {
                         {isTrainingBooking(booking) && (
                           <TrainingAttendancePanel
                             bookingId={booking.id}
-                            startDate={booking.start_date}
-                            endDate={booking.end_date}
+                            startDate={booking.actual_start_date || booking.start_date}
+                            endDate={booking.actual_end_date || booking.end_date}
                             hoursBooked={booking.hours_booked}
                             bookingStatus={booking.status}
                             expectedViewerRole="expert"

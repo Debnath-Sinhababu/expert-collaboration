@@ -65,7 +65,23 @@ export default function InstitutionDashboardPage() {
   const [projects, setProjects] = useState<any[]>([])
   const [applications, setApplications] = useState<any[]>([])
   const [bookings, setBookings] = useState<any[]>([])
-  const [bookingCounts, setBookingCounts] = useState<any>({ total: 0, in_progress: 0, completed: 0, cancelled: 0, pending: 0 })
+  const [bookingCounts, setBookingCounts] = useState<any>({
+    total: 0,
+    in_progress: 0,
+    completed: 0,
+    cancelled: 0,
+    pending: 0,
+    completion_requested: 0,
+    cancellation_requested: 0,
+  })
+  const [applicationCounts, setApplicationCounts] = useState<any>({
+    total: 0,
+    pending: 0,
+    interview: 0,
+    accepted: 0,
+    rejected: 0,
+  })
+  const [projectCounts, setProjectCounts] = useState({ total: 0, open: 0 })
   const [financeSummary, setFinanceSummary] = useState<any>(null)
   const [ratings, setRatings] = useState<any[]>([])
   const [allRatings, setAllRatings] = useState<any[]>([])
@@ -307,8 +323,10 @@ export default function InstitutionDashboardPage() {
         .catch(() => setFinanceSummary(null))
       
       // Initial light calls (experts list is paginated below). Lists are fed by paginated hooks
-      const [bookingCountsResponse] = await Promise.all([
-        api.bookings.getCounts({ institution_id: institutionsResponse.id })
+      const [bookingCountsResponse, applicationCountsResponse, projectsCountResponse] = await Promise.all([
+        api.bookings.getCounts({ institution_id: institutionsResponse.id }),
+        api.applications.getCounts({ institution_id: institutionsResponse.id }).catch(() => null),
+        api.projects.getAll({ institution_id: institutionsResponse.id, page: 1, limit: 1 }).catch(() => null),
       ])
     
       
@@ -320,6 +338,18 @@ export default function InstitutionDashboardPage() {
       const counts = bookingCountsResponse || { total: 0, in_progress: 0, completed: 0, cancelled: 0, pending: 0 }
 
       setBookingCounts(counts)
+      if (applicationCountsResponse && !applicationCountsResponse.error) {
+        setApplicationCounts(applicationCountsResponse)
+      }
+      // Prefer exact total if API returns count metadata; fallback later from paged projects
+      const totalFromMeta =
+        Number(projectsCountResponse?.total) ||
+        Number(projectsCountResponse?.count) ||
+        Number(projectsCountResponse?.pagination?.total) ||
+        0
+      if (totalFromMeta > 0) {
+        setProjectCounts((prev) => ({ ...prev, total: totalFromMeta }))
+      }
       
 
     
@@ -571,8 +601,19 @@ export default function InstitutionDashboardPage() {
   const runningProjects = projects.filter((project: any) => !['completed', 'closed', 'cancelled'].includes(project.status))
   const closedProjects = projects.filter((project: any) => ['completed', 'closed', 'cancelled'].includes(project.status))
   const orderedProjects = [...runningProjects, ...closedProjects]
-  const totalApplications = projects.reduce((total, project) => total + (project.applicationCounts?.total || 0), 0)
-  const pendingApplications = projects.reduce((total, project) => total + (project.applicationCounts?.pending || 0), 0)
+  const totalProjectsDisplay = projectCounts.total > 0 ? projectCounts.total : projects.length
+  const openProjectsDisplay =
+    projectCounts.total > 0
+      ? projectCounts.open || runningProjects.length
+      : projects.filter((p) => p.status === 'open').length
+  const totalApplicationsDisplay =
+    applicationCounts.total > 0
+      ? applicationCounts.total
+      : projects.reduce((total, project) => total + (project.applicationCounts?.total || 0), 0)
+  const pendingApplicationsDisplay =
+    applicationCounts.total > 0
+      ? applicationCounts.pending + applicationCounts.interview
+      : projects.reduce((total, project) => total + (project.applicationCounts?.pending || 0), 0)
 
   if (loading) {
     return (
@@ -988,9 +1029,9 @@ export default function InstitutionDashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-[#000000]">Total Projects</p>
-                  <p className="text-3xl font-bold text-[#000000] my-2">{projects.length}</p>
+                  <p className="text-3xl font-bold text-[#000000] my-2">{totalProjectsDisplay}</p>
                   <p className="text-xs text-[#656565]">
-                    {projects.filter(p => p.status === 'open').length} open
+                    {openProjectsDisplay} open
                   </p>
                 </div>
                 <div className="p-3 bg-[#ECF2FF] rounded-full">
@@ -1006,10 +1047,10 @@ export default function InstitutionDashboardPage() {
                 <div>
                   <p className="text-sm font-medium text-[#000000]">Applications</p>
                   <p className="text-3xl font-bold text-[#000000] my-2">
-                    {totalApplications}
+                    {totalApplicationsDisplay}
                   </p>
                   <p className="text-xs text-[#656565]">
-                    {pendingApplications} pending
+                    {pendingApplicationsDisplay} pending / interview
                   </p>
                 </div>
                 <div className="p-3 bg-[#ECF2FF] rounded-full">
@@ -1023,11 +1064,15 @@ export default function InstitutionDashboardPage() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#000000]">Running projects</p>
+                  <p className="text-sm font-medium text-[#000000]">Active bookings</p>
                   <p className="text-3xl font-bold text-[#000000] my-2">
                     {bookingCounts.in_progress}
                   </p>
-                  <p className="text-xs text-[#656565]">in progress</p>
+                  <p className="text-xs text-[#656565]">
+                    {(bookingCounts.completion_requested || 0) + (bookingCounts.cancellation_requested || 0) > 0
+                      ? `${bookingCounts.completion_requested || 0} completion · ${bookingCounts.cancellation_requested || 0} cancel pending`
+                      : 'in progress'}
+                  </p>
                 </div>
                 <div className="p-3 bg-[#ECF2FF] rounded-full">
                   <BookOpen className="h-8 w-8 text-[#008260]" />
@@ -1078,7 +1123,7 @@ export default function InstitutionDashboardPage() {
           <div className="grid md:grid-cols-3 gap-6 mb-8">
             <Card className="bg-white border-2 border-[#D6D6D6]">
               <CardContent className="p-4">
-                <p className="text-sm font-medium text-[#000000]">Pending Payable</p>
+                <p className="text-sm font-medium text-[#000000]">Pending receivable</p>
                 <p className="text-3xl font-bold text-[#000000] my-2">Rs. {Number(financeSummary.summary.pending || 0).toFixed(2)}</p>
                 <p className="text-xs text-[#656565]">Not invoiced yet</p>
               </CardContent>
@@ -1130,7 +1175,7 @@ export default function InstitutionDashboardPage() {
                       </div>
                       <div className="rounded-lg border border-[#DCDCDC] p-3">
                         <p className="text-xs text-[#656565]">Pending applications</p>
-                        <p className="text-xl font-bold text-[#000000]">{pendingApplications}</p>
+                        <p className="text-xl font-bold text-[#000000]">{pendingApplicationsDisplay}</p>
                       </div>
                     </div>
                     {orderedProjects.map((project: any, index: number) => (

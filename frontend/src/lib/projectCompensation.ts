@@ -533,3 +533,82 @@ export function resolveApplicationRates(
     source: 'posted' as const,
   }
 }
+
+/** Locked settlement rates for a booking — never expert profile hourly_rate. */
+export function resolveBookingSettlementRates(
+  booking?: {
+    amount?: number | string | null
+    final_gross_per_unit?: number | string | null
+    final_net_per_unit?: number | string | null
+    final_hourly_rate?: number | string | null
+    compensation_unit?: string | null
+    unit_quantity?: number | string | null
+    projects?: ProjectCompensationLike | null
+    project?: ProjectCompensationLike | null
+  } | null
+) {
+  const project = booking?.projects || booking?.project || null
+  const posted = projectCompensationDisplay(project)
+  let unit = (booking?.compensation_unit as CompensationUnit) || posted.unit
+
+  let grossPerUnit = Number(booking?.final_gross_per_unit)
+  let netPerUnit = Number(booking?.final_net_per_unit)
+
+  if (!(Number.isFinite(grossPerUnit) && grossPerUnit > 0)) {
+    const amount = Number(booking?.amount)
+    if (Number.isFinite(amount) && amount > 0) grossPerUnit = amount
+  }
+  if (!(Number.isFinite(grossPerUnit) && grossPerUnit > 0)) {
+    const legacy = Number(booking?.final_hourly_rate)
+    if (Number.isFinite(legacy) && legacy > 0) {
+      grossPerUnit = legacy
+      unit = 'hourly'
+    }
+  }
+  if (!(Number.isFinite(grossPerUnit) && grossPerUnit > 0)) {
+    grossPerUnit = posted.grossPerUnitDisplay
+    unit = posted.unit
+  }
+  if (!(Number.isFinite(netPerUnit) && netPerUnit > 0)) {
+    netPerUnit = toExpertNet(grossPerUnit)
+  }
+
+  return {
+    unit,
+    unitShort: compensationUnitShortLabel(unit),
+    unitLabel: compensationUnitLabel(unit),
+    grossPerUnit: Number.isFinite(grossPerUnit) && grossPerUnit > 0 ? grossPerUnit : 0,
+    netPerUnit: Number.isFinite(netPerUnit) && netPerUnit > 0 ? netPerUnit : 0,
+    locked: Boolean(
+      Number(booking?.final_gross_per_unit) > 0 ||
+        Number(booking?.final_net_per_unit) > 0 ||
+        Number(booking?.amount) > 0
+    ),
+  }
+}
+
+export function formatInstitutionDealRate(
+  bookingOrApp: Parameters<typeof resolveBookingSettlementRates>[0] | null | undefined,
+  application?: Parameters<typeof resolveApplicationRates>[0],
+  project?: ProjectCompensationLike | null
+): string {
+  if (application) {
+    const rates = resolveApplicationRates(application, project || bookingOrApp?.projects || null)
+    return `${moneyInr(rates.grossPerUnit)} / ${rates.unitShort}`
+  }
+  const rates = resolveBookingSettlementRates(bookingOrApp)
+  return `${moneyInr(rates.grossPerUnit)} / ${rates.unitShort}`
+}
+
+export function formatExpertDealRate(
+  bookingOrApp: Parameters<typeof resolveBookingSettlementRates>[0] | null | undefined,
+  application?: Parameters<typeof resolveApplicationRates>[0],
+  project?: ProjectCompensationLike | null
+): string {
+  if (application) {
+    const rates = resolveApplicationRates(application, project || bookingOrApp?.projects || null)
+    return `${moneyInr(rates.netPerUnit)} / ${rates.unitShort}`
+  }
+  const rates = resolveBookingSettlementRates(bookingOrApp)
+  return `${moneyInr(rates.netPerUnit)} / ${rates.unitShort}`
+}

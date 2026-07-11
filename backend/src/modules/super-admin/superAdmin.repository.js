@@ -1,9 +1,12 @@
 const { createServiceClient } = require('../../config/supabase');
 const {
   approvedHoursFromDays,
+  approvedDaysFromDays,
   buildPaymentRecordDraft,
+  estimateSettlementAmounts,
   roundMoney,
 } = require('../../../services/financeCalculationService');
+const { isActiveBookingStatus } = require('../../shared/compensation');
 
 function tableMissing(error) {
   return error && (error.code === '42P01' || /relation .* does not exist/i.test(error.message || ''));
@@ -30,7 +33,9 @@ function cancelledStatus(status) {
 }
 
 function activeStatus(status) {
-  return ['in_progress', 'ongoing', 'active', 'accepted', 'shortlisted'].includes(String(status || '').toLowerCase());
+  const value = String(status || '').toLowerCase();
+  if (isActiveBookingStatus(value)) return true;
+  return ['ongoing', 'active', 'accepted', 'shortlisted'].includes(value);
 }
 
 function boolParam(value) {
@@ -1283,7 +1288,7 @@ class SuperAdminRepository {
   }
 
   async updateRequirementBooking(requirementId, bookingId, payload) {
-    const allowed = ['pending', 'in_progress', 'completed', 'cancelled'];
+    const allowed = ['pending', 'confirmed', 'in_progress', 'completion_requested', 'cancellation_requested', 'completed', 'cancelled'];
     const status = String(payload.status || '').trim();
     if (!allowed.includes(status)) {
       const err = new Error('Invalid booking status');
@@ -1348,12 +1353,14 @@ class SuperAdminRepository {
     if (daysError && !tableMissing(daysError)) throw daysError;
 
     const approvedHoursByBooking = {};
+    const approvedDaysByBooking = {};
     for (const day of days || []) {
       if (day.status !== 'approved') continue;
       const entry = day.effective_entry_at || day.expert_entry_at;
       const exit = day.effective_exit_at || day.expert_exit_at;
       const minutes = entry && exit ? Math.max(0, new Date(exit) - new Date(entry)) / 60000 : 0;
       approvedHoursByBooking[day.booking_id] = (approvedHoursByBooking[day.booking_id] || 0) + minutes / 60;
+      approvedDaysByBooking[day.booking_id] = (approvedDaysByBooking[day.booking_id] || 0) + 1;
     }
 
     const { data: records } = bookingIds.length
@@ -1363,11 +1370,15 @@ class SuperAdminRepository {
 
     const rows = (data || []).map((booking) => {
       const approvedHours = Math.round((approvedHoursByBooking[booking.id] || 0) * 100) / 100;
-      const hourlyRate = Number(booking.hourly_rate || booking.experts?.hourly_rate || 0);
+      const approvedDays = approvedDaysByBooking[booking.id] || 0;
+      const estimate = estimateSettlementAmounts(booking, approvedHours, approvedDays);
       return {
         ...booking,
         approved_hours: approvedHours,
-        estimated_expert_amount: Math.round(approvedHours * hourlyRate * 100) / 100,
+        approved_days: approvedDays,
+        compensation_unit: estimate.unit,
+        estimated_expert_amount: estimate.estimated_expert_amount,
+        estimated_institution_amount: estimate.estimated_institution_amount,
         finance_record: recordByBooking[booking.id] || null,
       };
     });
@@ -1388,7 +1399,10 @@ class SuperAdminRepository {
   async listFinanceSourceBookings({ page, limit, offset, search = '' }) {
     let query = this.client
       .from('bookings')
-      .select('*, projects!inner(id,title,type,description,hourly_rate,total_budget,start_date,end_date,duration_hours,job_location,workplace_type,employment_type,status,call_status), experts(id,name,email,hourly_rate), institutions(id,name,email)', { count: 'exact' })
+      .select(
+        '*, projects!inner(id,title,type,description,hourly_rate,total_budget,start_date,end_date,duration_hours,job_location,workplace_type,employment_type,status,call_status,compensation_unit,institution_gross_per_unit,institution_gross_total,unit_quantity), experts(id,name,email,hourly_rate), institutions(id,name,email)',
+        { count: 'exact' }
+      )
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -1401,7 +1415,7 @@ class SuperAdminRepository {
     return { data: data || [], total: count || 0, page, limit };
   }
 
-  async approvedHoursForBookingIds(bookingIds) {
+  async attendanceMetricsForBookingIds(bookingIds) {
     if (!bookingIds.length) return {};
     const { data, error } = await this.client
       .from('training_attendance_days')
@@ -1417,7 +1431,20 @@ class SuperAdminRepository {
       daysByBooking[day.booking_id].push(day);
     }
     return Object.fromEntries(
-      Object.entries(daysByBooking).map(([bookingId, days]) => [bookingId, approvedHoursFromDays(days)]),
+      Object.entries(daysByBooking).map(([bookingId, days]) => [
+        bookingId,
+        {
+          approvedHours: approvedHoursFromDays(days),
+          approvedDays: approvedDaysFromDays(days),
+        },
+      ]),
+    );
+  }
+
+  async approvedHoursForBookingIds(bookingIds) {
+    const metrics = await this.attendanceMetricsForBookingIds(bookingIds);
+    return Object.fromEntries(
+      Object.entries(metrics).map(([bookingId, value]) => [bookingId, value.approvedHours || 0]),
     );
   }
 
@@ -1458,22 +1485,44 @@ class SuperAdminRepository {
     const bookingIds = rows.map((booking) => booking.id).filter(Boolean);
     if (!bookingIds.length) return [];
 
-    const [approvedHoursByBooking, existingByBooking] = await Promise.all([
-      this.approvedHoursForBookingIds(bookingIds),
+    const [metricsByBooking, existingByBooking] = await Promise.all([
+      this.attendanceMetricsForBookingIds(bookingIds),
       this.getFinanceRecordsByBookingIds(bookingIds),
     ]);
 
     const upserts = [];
     for (const booking of rows) {
-      const approvedHours = approvedHoursByBooking[booking.id] || 0;
+      const metrics = metricsByBooking[booking.id] || { approvedHours: 0, approvedDays: 0 };
+      const approvedHours = metrics.approvedHours || 0;
       for (const partyType of ['expert', 'institution']) {
         const existing = existingByBooking[booking.id]?.[partyType];
-        const draft = buildPaymentRecordDraft(booking, partyType, approvedHours);
+        const draft = buildPaymentRecordDraft(booking, partyType, approvedHours, {
+          approvedDays: metrics.approvedDays || 0,
+        });
+        if (existing && existing.status !== 'pending') {
+          upserts.push({
+            booking_id: draft.booking_id,
+            project_id: draft.project_id,
+            expert_id: draft.expert_id,
+            institution_id: draft.institution_id,
+            party_type: draft.party_type,
+            direction: draft.direction,
+            approved_hours: draft.approved_hours,
+            hourly_rate_snapshot: existing.hourly_rate_snapshot,
+            calculated_amount: existing.calculated_amount,
+            invoice_amount: existing.invoice_amount,
+            status: existing.status,
+            invoice_id: existing.invoice_id || null,
+            paid_amount: existing.paid_amount || 0,
+            paid_at: existing.paid_at || null,
+            notes: existing.notes || null,
+            updated_by: existing.updated_by || null,
+            updated_at: new Date().toISOString(),
+          });
+          continue;
+        }
         upserts.push({
           ...draft,
-          invoice_amount: existing && existing.status !== 'pending'
-            ? existing.invoice_amount
-            : draft.invoice_amount,
           status: existing?.status || 'pending',
           invoice_id: existing?.invoice_id || null,
           paid_amount: existing?.paid_amount || 0,
@@ -1548,7 +1597,7 @@ class SuperAdminRepository {
       bookingIds.length
         ? this.client
             .from('bookings')
-            .select('*, projects(id,title,type,description,hourly_rate,total_budget,start_date,end_date,duration_hours,job_location,workplace_type,employment_type,status,call_status), experts(id,name,email,hourly_rate), institutions(id,name,email)')
+            .select('*, projects(id,title,type,description,hourly_rate,total_budget,start_date,end_date,duration_hours,job_location,workplace_type,employment_type,status,call_status,compensation_unit,institution_gross_per_unit,unit_quantity), experts(id,name,email,hourly_rate), institutions(id,name,email)')
             .in('id', bookingIds)
         : { data: [], error: null },
       invoiceIds.length

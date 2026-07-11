@@ -557,8 +557,8 @@ export default function SuperAdminRequirementDetailPage() {
           <div className="mt-4 border-t border-slate-100 pt-4">
             <TrainingAttendancePanel
               bookingId={booking.id}
-              startDate={booking.start_date}
-              endDate={booking.end_date}
+              startDate={booking.actual_start_date || booking.start_date}
+              endDate={booking.actual_end_date || booking.end_date}
               hoursBooked={booking.hours_booked}
               bookingStatus={booking.status}
               expectedViewerRole="institution"

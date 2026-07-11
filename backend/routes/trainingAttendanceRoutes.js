@@ -30,6 +30,18 @@ function dateInRange(sessionDate, startDate, endDate) {
   return d >= start && d <= end;
 }
 
+/** Prefer actual training window when set; fall back to booking start/end. */
+function bookingTrainingWindow(booking) {
+  return {
+    start:
+      normalizeDateOnly(booking?.actual_start_date) ||
+      normalizeDateOnly(booking?.start_date),
+    end:
+      normalizeDateOnly(booking?.actual_end_date) ||
+      normalizeDateOnly(booking?.end_date),
+  };
+}
+
 function minutesBetween(entry, exit) {
   if (!entry || !exit) return 0;
   const ms = new Date(exit).getTime() - new Date(entry).getTime();
@@ -298,6 +310,7 @@ function registerTrainingAttendanceRoutes(app, upload) {
         );
       }
 
+      const window = bookingTrainingWindow(ctx.booking);
       const summary = computeSummary(allDays || [], ctx.booking.hours_booked);
       res.json({
         days: mergedDays,
@@ -306,8 +319,10 @@ function registerTrainingAttendanceRoutes(app, upload) {
         booking: {
           id: ctx.booking.id,
           status: ctx.booking.status,
-          start_date: normalizeDateOnly(ctx.booking.start_date),
-          end_date: normalizeDateOnly(ctx.booking.end_date),
+          start_date: window.start,
+          end_date: window.end,
+          actual_start_date: normalizeDateOnly(ctx.booking.actual_start_date),
+          actual_end_date: normalizeDateOnly(ctx.booking.actual_end_date),
           hours_booked: ctx.booking.hours_booked,
           project_type: ctx.projectType,
           project_title: ctx.booking.projects?.title,
@@ -337,7 +352,8 @@ function registerTrainingAttendanceRoutes(app, upload) {
       if (!sessionDate) {
         return res.status(400).json({ error: 'session_date (YYYY-MM-DD) is required' });
       }
-      if (!dateInRange(sessionDate, ctx.booking.start_date, ctx.booking.end_date)) {
+      const trainingWindow = bookingTrainingWindow(ctx.booking);
+      if (!dateInRange(sessionDate, trainingWindow.start, trainingWindow.end)) {
         return res.status(400).json({ error: 'session_date must be within booking start and end dates' });
       }
 
