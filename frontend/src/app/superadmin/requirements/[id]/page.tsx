@@ -698,14 +698,16 @@ export default function SuperAdminRequirementDetailPage() {
 
       {!loading && !error && requirement ? (
         <>
-          <div className="grid gap-4 md:grid-cols-4 xl:grid-cols-7">
-            <StatCard label="Pending" value={pendingRows.length} />
-            <StatCard label="Interview" value={interviewRows.length} tone="blue" />
-            <StatCard label="Selected" value={selectedRows.length} tone="green" />
-            <StatCard label="Rejected" value={rejectedRows.length} tone="amber" />
-            <StatCard label="Applications" value={counts.applications_total || 0} tone="amber" />
-            <StatCard label="Bookings" value={counts.bookings_total || 0} tone="blue" />
-            <StatCard label="Approved Hours" value={counts.approved_hours || 0} tone="green" />
+          <div className="-mx-1 overflow-x-auto pb-1">
+            <div className="flex w-max min-w-full gap-4 px-1">
+              <div className="w-[11.5rem] shrink-0"><StatCard label="Pending" value={pendingRows.length} /></div>
+              <div className="w-[11.5rem] shrink-0"><StatCard label="Interview" value={interviewRows.length} tone="blue" /></div>
+              <div className="w-[11.5rem] shrink-0"><StatCard label="Selected" value={selectedRows.length} tone="green" /></div>
+              <div className="w-[11.5rem] shrink-0"><StatCard label="Rejected" value={rejectedRows.length} tone="amber" /></div>
+              <div className="w-[11.5rem] shrink-0"><StatCard label="Applications" value={counts.applications_total || 0} tone="amber" /></div>
+              <div className="w-[11.5rem] shrink-0"><StatCard label="Bookings" value={counts.bookings_total || 0} tone="blue" /></div>
+              <div className="w-[11.5rem] shrink-0"><StatCard label="Approved Hours" value={counts.approved_hours || 0} tone="green" /></div>
+            </div>
           </div>
 
           <SectionCard title={requirement.title || 'Requirement'} description={`${requirement.requirement_type} requirement`}>
