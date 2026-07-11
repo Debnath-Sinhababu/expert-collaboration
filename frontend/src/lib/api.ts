@@ -696,6 +696,39 @@ export const api = {
       if (!res.ok) throw new Error(json?.error || 'Failed to decline completion')
       return json
     },
+    requestCancellation: async (id: string, data?: { note?: string | null }) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/bookings/${id}/request-cancellation`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data || {})
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to request cancellation')
+      return json
+    },
+    approveCancellation: async (id: string, data?: { note?: string | null }) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/bookings/${id}/approve-cancellation`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data || {})
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to approve cancellation')
+      return json
+    },
+    declineCancellation: async (id: string, data?: { note?: string | null }) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/bookings/${id}/decline-cancellation`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data || {})
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to decline cancellation')
+      return json
+    },
     delete: async (id: string) => {
       const headers = await getAuthHeaders()
       return fetch(`${API_BASE_URL}/api/bookings/${id}`, {

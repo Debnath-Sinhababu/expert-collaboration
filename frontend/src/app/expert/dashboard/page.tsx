@@ -1116,58 +1116,21 @@ export default function ExpertDashboard() {
                             hoursBooked={booking.hours_booked}
                             bookingStatus={booking.status}
                             expectedViewerRole="expert"
-                            defaultExpanded={booking.status === 'in_progress' || booking.status === 'completion_requested'}
+                            defaultExpanded={
+                              booking.status === 'in_progress' ||
+                              booking.status === 'completion_requested' ||
+                              booking.status === 'cancellation_requested'
+                            }
                           />
                         )}
                         <div className="flex justify-end pt-3 border-t border-[#ECECEC]">
-                          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:items-start sm:justify-end">
-                            <BookingCompletionActions
-                              booking={booking}
-                              role="expert"
-                              onUpdated={async () => {
-                                await refreshBookings()
-                              }}
-                            />
-                            {(booking.status === 'in_progress' || booking.status === 'completion_requested') && (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className='bg-[#FFF2F2] rounded-3xl border border-[#9B0000] text-[#9B0000] font-medium hover:bg-[#FFE5E5] w-full sm:w-auto'
-                                >
-                                  <XCircle className="h-4 w-4 mr-1" />
-                                  Cancel Booking
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Cancel Booking</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to cancel this booking? This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>No, Keep Booking</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    className="bg-[#9B0000] hover:bg-[#7A0000]"
-                                    onClick={async () => {
-                                      try {
-                                        await api.bookings.delete(booking.id)
-                                        await refreshBookings()
-                                      } catch (e) {
-                                        console.error('Failed to cancel booking', e)
-                                        setError('Failed to cancel booking')
-                                      }
-                                    }}
-                                  >
-                                    Yes, Cancel Booking
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                            )}
-                          </div>
+                          <BookingCompletionActions
+                            booking={booking}
+                            role="expert"
+                            onUpdated={async () => {
+                              await refreshBookings()
+                            }}
+                          />
                         </div>
                       </div>
                     ))}

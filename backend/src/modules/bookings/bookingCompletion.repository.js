@@ -21,6 +21,8 @@ class BookingCompletionRepository {
         completion_decision_note,
         completion_decided_at,
         completion_history,
+        cancellation_note,
+        cancellation_requested_at,
         projects ( id, title, type, duration_hours, institution_id )
       `
       )

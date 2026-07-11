@@ -61,6 +61,57 @@ class BookingCompletionController {
     }
   };
 
+  requestCancellation = async (req, res) => {
+    const bookingId = req.params.id;
+    const body = parseCompletionBody(req.body || {});
+    try {
+      const { actor, writeClient } = await this.#resolveExpertActor(req, bookingId);
+      const updated = await this.service.requestCancellation({
+        bookingId,
+        actor,
+        writeClient,
+        note: body.note,
+      });
+      res.json(updated);
+    } catch (err) {
+      this.#sendError(res, err);
+    }
+  };
+
+  approveCancellation = async (req, res) => {
+    const bookingId = req.params.id;
+    const body = parseCompletionBody(req.body || {});
+    try {
+      const { actor, writeClient } = await this.#resolveInstitutionActor(req, bookingId);
+      const updated = await this.service.approveCancellation({
+        bookingId,
+        actor,
+        writeClient,
+        note: body.note,
+      });
+      res.json(updated);
+    } catch (err) {
+      this.#sendError(res, err);
+    }
+  };
+
+  declineCancellation = async (req, res) => {
+    const bookingId = req.params.id;
+    const body = parseCompletionBody(req.body || {});
+    try {
+      const { actor, writeClient } = await this.#resolveInstitutionActor(req, bookingId);
+      const updated = await this.service.declineCancellation({
+        bookingId,
+        actor,
+        writeClient,
+        note: body.note,
+      });
+      res.json(updated);
+    } catch (err) {
+      this.#sendError(res, err);
+    }
+  };
+
   async #loadBooking(bookingId) {
     const service = institutionAccess.getServiceClient();
     const { data, error } = await service

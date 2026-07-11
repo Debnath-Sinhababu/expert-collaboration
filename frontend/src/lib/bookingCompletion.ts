@@ -10,11 +10,12 @@ export type CompletionHistoryEntry = {
 
 export type CompletionHistoryDetailLine = { label: string; value: string }
 
-export function formatCompletionHistoryEntry(entry: CompletionHistoryEntry): {
+export function formatEngagementHistoryEntry(entry: CompletionHistoryEntry): {
   title: string
   details: CompletionHistoryDetailLine[]
   who: string
-  tone: 'neutral' | 'expert' | 'institution' | 'success'
+  tone: 'neutral' | 'expert' | 'institution' | 'success' | 'danger'
+  kind: 'completion' | 'cancellation' | 'other'
 } {
   const who =
     entry.actor === 'expert'
@@ -43,11 +44,13 @@ export function formatCompletionHistoryEntry(entry: CompletionHistoryEntry): {
 
   const withLines = (
     title: string,
-    tone: 'neutral' | 'expert' | 'institution' | 'success',
+    tone: 'neutral' | 'expert' | 'institution' | 'success' | 'danger',
+    kind: 'completion' | 'cancellation' | 'other',
     fallback?: CompletionHistoryDetailLine
   ) => ({
     who,
     tone,
+    kind,
     title,
     details: [
       ...attendanceDetails,
@@ -57,31 +60,54 @@ export function formatCompletionHistoryEntry(entry: CompletionHistoryEntry): {
 
   switch (entry.action) {
     case 'request_completion':
-      return withLines('Expert requested completion', 'expert', {
+      return withLines('Expert requested completion', 'expert', 'completion', {
         label: 'Status',
         value: 'Waiting for institution approval',
       })
     case 'approve_completion':
-      return withLines('Institution approved the completion request', 'success', {
+      return withLines('Institution approved completion', 'success', 'completion', {
         label: 'Status',
         value: 'Booking marked completed',
       })
     case 'decline_completion':
-      return withLines('Institution declined the completion request', 'institution', {
+      return withLines('Institution declined completion request', 'institution', 'completion', {
         label: 'Status',
         value: 'Booking returned to in progress',
       })
     case 'institution_mark_completed':
-      return withLines('Institution marked the booking completed', 'success', {
+      return withLines('Institution marked booking completed', 'success', 'completion', {
         label: 'Status',
         value: 'Closed without an expert completion request',
       })
+    case 'request_cancellation':
+      return withLines('Expert requested cancellation', 'danger', 'cancellation', {
+        label: 'Status',
+        value: 'Waiting for institution approval',
+      })
+    case 'approve_cancellation':
+      return withLines('Institution approved cancellation', 'danger', 'cancellation', {
+        label: 'Status',
+        value: 'Booking cancelled',
+      })
+    case 'decline_cancellation':
+      return withLines('Institution declined cancellation request', 'institution', 'cancellation', {
+        label: 'Status',
+        value: 'Booking returned to in progress',
+      })
+    case 'institution_mark_cancelled':
+      return withLines('Institution cancelled the booking', 'danger', 'cancellation', {
+        label: 'Status',
+        value: 'Cancelled without an expert request',
+      })
     default: {
       const readable = String(entry.action || 'update').replace(/_/g, ' ')
-      return withLines(`${who} updated completion status`, 'neutral', {
+      return withLines(`${who} updated booking status`, 'neutral', 'other', {
         label: 'Action',
         value: readable,
       })
     }
   }
 }
+
+/** @deprecated use formatEngagementHistoryEntry */
+export const formatCompletionHistoryEntry = formatEngagementHistoryEntry

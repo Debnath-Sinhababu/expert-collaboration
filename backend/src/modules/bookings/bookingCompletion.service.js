@@ -21,13 +21,9 @@ class BookingCompletionService {
     this.#assertExpert(actor);
     const booking = await this.#requireBooking(bookingId);
     this.#assertExpertOwns(booking, actor);
+    this.#assertNotTerminal(booking);
+    this.#assertNoOtherPendingRequest(booking, 'completion');
 
-    if (booking.status === 'completed') {
-      throw new HttpError(400, 'Booking is already completed');
-    }
-    if (booking.status === 'cancelled') {
-      throw new HttpError(400, 'Cancelled bookings cannot be completed');
-    }
     if (booking.status === 'completion_requested') {
       throw new HttpError(400, 'Completion is already requested — waiting for institution approval');
     }
@@ -75,12 +71,10 @@ class BookingCompletionService {
     this.#assertInstitution(actor);
     const booking = await this.#requireBooking(bookingId);
     this.#assertInstitutionOwns(booking, actor);
+    this.#assertNotTerminal(booking);
 
-    if (booking.status === 'completed') {
-      throw new HttpError(400, 'Booking is already completed');
-    }
-    if (booking.status === 'cancelled') {
-      throw new HttpError(400, 'Cancelled bookings cannot be completed');
+    if (booking.status === 'cancellation_requested') {
+      throw new HttpError(400, 'A cancellation request is pending — resolve that first');
     }
     if (booking.status !== 'completion_requested' && booking.status !== 'in_progress') {
       throw new HttpError(400, 'Booking cannot be marked completed from this status');
@@ -133,18 +127,132 @@ class BookingCompletionService {
     );
   }
 
+  async requestCancellation({ bookingId, actor, writeClient, note }) {
+    this.#assertExpert(actor);
+    const booking = await this.#requireBooking(bookingId);
+    this.#assertExpertOwns(booking, actor);
+    this.#assertNotTerminal(booking);
+    this.#assertNoOtherPendingRequest(booking, 'cancellation');
+
+    if (booking.status === 'cancellation_requested') {
+      throw new HttpError(400, 'Cancellation is already requested — waiting for institution approval');
+    }
+    if (booking.status !== 'in_progress') {
+      throw new HttpError(400, 'Only in-progress bookings can request cancellation');
+    }
+
+    const now = new Date().toISOString();
+    return this.repo.updateBooking(
+      bookingId,
+      {
+        status: 'cancellation_requested',
+        cancellation_note: note || null,
+        cancellation_requested_at: now,
+        completion_history: appendCompletionHistory(booking.completion_history, {
+          actor: 'expert',
+          action: 'request_cancellation',
+          note: note || null,
+        }),
+      },
+      writeClient
+    );
+  }
+
+  async approveCancellation({ bookingId, actor, writeClient, note }) {
+    this.#assertInstitution(actor);
+    const booking = await this.#requireBooking(bookingId);
+    this.#assertInstitutionOwns(booking, actor);
+    this.#assertNotTerminal(booking);
+
+    if (booking.status === 'completion_requested') {
+      throw new HttpError(400, 'A completion request is pending — resolve that first');
+    }
+    if (booking.status !== 'cancellation_requested' && booking.status !== 'in_progress') {
+      throw new HttpError(400, 'Booking cannot be cancelled from this status');
+    }
+
+    const now = new Date().toISOString();
+    const action =
+      booking.status === 'cancellation_requested'
+        ? 'approve_cancellation'
+        : 'institution_mark_cancelled';
+
+    return this.repo.updateBooking(
+      bookingId,
+      {
+        status: 'cancelled',
+        cancellation_note: booking.cancellation_note || note || null,
+        cancellation_requested_at: booking.cancellation_requested_at || now,
+        completion_decision_note: note || booking.completion_decision_note || null,
+        completion_decided_at: now,
+        completion_history: appendCompletionHistory(booking.completion_history, {
+          actor: 'institution',
+          action,
+          note: note || null,
+        }),
+      },
+      writeClient
+    );
+  }
+
+  async declineCancellation({ bookingId, actor, writeClient, note }) {
+    this.#assertInstitution(actor);
+    const booking = await this.#requireBooking(bookingId);
+    this.#assertInstitutionOwns(booking, actor);
+
+    if (booking.status !== 'cancellation_requested') {
+      throw new HttpError(400, 'No cancellation request to decline');
+    }
+
+    const now = new Date().toISOString();
+    return this.repo.updateBooking(
+      bookingId,
+      {
+        status: 'in_progress',
+        completion_decision_note: note || null,
+        completion_decided_at: now,
+        completion_history: appendCompletionHistory(booking.completion_history, {
+          actor: 'institution',
+          action: 'decline_cancellation',
+          note: note || null,
+        }),
+      },
+      writeClient
+    );
+  }
+
   async #requireBooking(bookingId) {
     const booking = await this.repo.getBooking(bookingId);
     if (!booking) throw new HttpError(404, 'Booking not found');
     return booking;
   }
 
+  #assertNotTerminal(booking) {
+    if (booking.status === 'completed') {
+      throw new HttpError(400, 'Booking is already completed');
+    }
+    if (booking.status === 'cancelled') {
+      throw new HttpError(400, 'Booking is already cancelled');
+    }
+  }
+
+  #assertNoOtherPendingRequest(booking, kind) {
+    if (kind === 'completion' && booking.status === 'cancellation_requested') {
+      throw new HttpError(400, 'A cancellation request is pending — wait for the institution to respond');
+    }
+    if (kind === 'cancellation' && booking.status === 'completion_requested') {
+      throw new HttpError(400, 'A completion request is pending — wait for the institution to respond');
+    }
+  }
+
   #assertExpert(actor) {
-    if (actor?.role !== 'expert') throw new HttpError(403, 'Only the expert can request completion');
+    if (actor?.role !== 'expert') throw new HttpError(403, 'Only the expert can perform this action');
   }
 
   #assertInstitution(actor) {
-    if (actor?.role !== 'institution') throw new HttpError(403, 'Only the institution can decide completion');
+    if (actor?.role !== 'institution') {
+      throw new HttpError(403, 'Only the institution can perform this action');
+    }
   }
 
   #assertExpertOwns(booking, actor) {

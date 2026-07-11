@@ -17,7 +17,7 @@ import {
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
 import {
-  formatCompletionHistoryEntry,
+  formatEngagementHistoryEntry,
   type CompletionHistoryEntry,
 } from '@/lib/bookingCompletion'
 import { CheckCircle, XCircle } from 'lucide-react'
@@ -30,6 +30,8 @@ type BookingLike = {
   completion_requested_at?: string | null
   completion_decision_note?: string | null
   completion_history?: CompletionHistoryEntry[] | null
+  cancellation_note?: string | null
+  cancellation_requested_at?: string | null
   application_id?: string | null
 }
 
@@ -37,27 +39,34 @@ type Props = {
   booking: BookingLike
   role: 'expert' | 'institution'
   onUpdated?: (booking?: any) => void | Promise<void>
-  /** Institution: after approve, optionally open rating */
   onApproved?: (booking: any) => void
-  /** Institution: cancel/delete booking control (unchanged) */
-  showInstitutionCancel?: boolean
-  onInstitutionCancel?: () => void
 }
 
-function CompletionHistoryTimeline({ history }: { history: CompletionHistoryEntry[] }) {
+type DialogKind =
+  | 'request_completion'
+  | 'approve_completion'
+  | 'decline_completion'
+  | 'direct_complete'
+  | 'request_cancellation'
+  | 'approve_cancellation'
+  | 'decline_cancellation'
+  | 'direct_cancel'
+  | null
+
+function ActivityHistory({ history }: { history: CompletionHistoryEntry[] }) {
   if (!history.length) return null
 
   return (
-    <div className="w-full border-t border-[#E8E8E8] pt-3 mt-1">
-      <p className="text-xs font-semibold uppercase tracking-wide text-[#6A6A6A] mb-3">
-        Completion history
+    <div className="border-t border-[#ECECEC] pt-3 mt-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-[#6A6A6A] mb-2">
+        Activity history
       </p>
-      <ol className="relative max-h-64 space-y-0 overflow-y-auto border-l border-[#E5E7EB] ml-2 pl-4 pr-1">
+      <ol className="relative max-h-56 overflow-y-auto border-l border-[#E5E7EB] ml-1.5 pl-3.5 pr-1 space-y-0">
         {history
           .slice()
           .reverse()
           .map((entry, idx) => {
-            const formatted = formatCompletionHistoryEntry(entry)
+            const formatted = formatEngagementHistoryEntry(entry)
             const when = entry.at
               ? new Date(entry.at).toLocaleString('en-IN', {
                   day: 'numeric',
@@ -71,39 +80,40 @@ function CompletionHistoryTimeline({ history }: { history: CompletionHistoryEntr
             const toneClass =
               formatted.tone === 'success'
                 ? 'bg-emerald-500'
-                : formatted.tone === 'expert'
-                  ? 'bg-amber-500'
-                  : formatted.tone === 'institution'
-                    ? 'bg-[#008260]'
-                    : 'bg-slate-400'
-            const badgeClass =
-              formatted.tone === 'success'
-                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                : formatted.tone === 'expert'
-                  ? 'bg-amber-50 text-amber-900 border-amber-200'
-                  : formatted.tone === 'institution'
-                    ? 'bg-[#E8F5F1] text-[#006B4F] border-[#BFE3D8]'
-                    : 'bg-slate-50 text-slate-700 border-slate-200'
+                : formatted.tone === 'danger'
+                  ? 'bg-rose-500'
+                  : formatted.tone === 'expert'
+                    ? 'bg-amber-500'
+                    : formatted.tone === 'institution'
+                      ? 'bg-[#008260]'
+                      : 'bg-slate-400'
+            const kindLabel =
+              formatted.kind === 'completion'
+                ? 'Completion'
+                : formatted.kind === 'cancellation'
+                  ? 'Cancellation'
+                  : null
 
             return (
-              <li key={`${entry.at}-${entry.action}-${idx}`} className="relative pb-4 last:pb-0">
+              <li key={`${entry.at}-${entry.action}-${idx}`} className="relative pb-3 last:pb-0">
                 <span
-                  className={`absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full ring-2 ring-white ${toneClass}`}
+                  className={`absolute -left-[18px] top-1.5 h-2 w-2 rounded-full ring-2 ring-white ${toneClass}`}
                 />
-                <div className="rounded-lg border border-[#ECECEC] bg-[#FAFAFA] p-3">
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <span
-                      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${badgeClass}`}
-                    >
-                      {formatted.who}
-                    </span>
-                    {when && <span className="text-[11px] text-[#9CA3AF]">{when}</span>}
+                <div className="rounded-md border border-[#EFEFEF] bg-[#FAFAFA] px-2.5 py-2">
+                  <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
+                    <span className="text-[11px] font-medium text-[#374151]">{formatted.who}</span>
+                    {kindLabel && (
+                      <span className="text-[10px] uppercase tracking-wide text-[#9CA3AF]">
+                        {kindLabel}
+                      </span>
+                    )}
+                    {when && <span className="text-[10px] text-[#9CA3AF] ml-auto">{when}</span>}
                   </div>
-                  <p className="text-sm font-medium text-[#111827] leading-snug">{formatted.title}</p>
+                  <p className="text-[13px] font-medium text-[#111827] leading-snug">{formatted.title}</p>
                   {formatted.details.length > 0 && (
-                    <dl className="mt-1.5 space-y-0.5 text-xs text-[#6B7280]">
+                    <dl className="mt-1 space-y-0.5 text-[11px] text-[#6B7280]">
                       {formatted.details.map((line) => (
-                        <div key={`${line.label}-${line.value}`} className="leading-relaxed">
+                        <div key={`${line.label}-${line.value}`}>
                           <dt className="inline font-medium text-[#4B5563]">{line.label}:</dt>{' '}
                           <dd className="inline">{line.value}</dd>
                         </div>
@@ -119,21 +129,11 @@ function CompletionHistoryTimeline({ history }: { history: CompletionHistoryEntr
   )
 }
 
-export function BookingCompletionActions({
-  booking,
-  role,
-  onUpdated,
-  onApproved,
-  showInstitutionCancel = false,
-  onInstitutionCancel,
-}: Props) {
+export function BookingCompletionActions({ booking, role, onUpdated, onApproved }: Props) {
   const [localBooking, setLocalBooking] = useState(booking)
   const [submitting, setSubmitting] = useState(false)
   const [note, setNote] = useState('')
-  const [requestOpen, setRequestOpen] = useState(false)
-  const [approveOpen, setApproveOpen] = useState(false)
-  const [declineOpen, setDeclineOpen] = useState(false)
-  const [directCompleteOpen, setDirectCompleteOpen] = useState(false)
+  const [dialog, setDialog] = useState<DialogKind>(null)
   const [lowAttendance, setLowAttendance] = useState<{
     approved_hours: number
     hours_booked: number
@@ -146,7 +146,9 @@ export function BookingCompletionActions({
 
   const status = String(localBooking.status || '')
   const isInProgress = status === 'in_progress'
-  const isRequested = status === 'completion_requested'
+  const isCompletionRequested = status === 'completion_requested'
+  const isCancellationRequested = status === 'cancellation_requested'
+  const isTerminal = status === 'completed' || status === 'cancelled'
   const history = Array.isArray(localBooking.completion_history)
     ? localBooking.completion_history
     : []
@@ -158,15 +160,29 @@ export function BookingCompletionActions({
     await onUpdated?.(updated)
   }
 
-  const handleRequest = async (acknowledgeLowAttendance = false) => {
+  const closeDialog = () => {
+    if (!submitting) {
+      setDialog(null)
+      setLowAttendance(null)
+      setNote('')
+    }
+  }
+
+  const openDialog = (kind: DialogKind) => {
+    setNote('')
+    setLowAttendance(null)
+    setDialog(kind)
+  }
+
+  const handleRequestCompletion = async (acknowledgeLowAttendance = false) => {
     try {
       setSubmitting(true)
       const updated = await api.bookings.requestCompletion(localBooking.id, {
         note: note.trim() || null,
         acknowledge_low_attendance: acknowledgeLowAttendance,
       })
-      toast.success('Completion requested — waiting for institution approval')
-      setRequestOpen(false)
+      toast.success('Completion requested')
+      setDialog(null)
       setLowAttendance(null)
       setNote('')
       await refresh(updated)
@@ -186,15 +202,14 @@ export function BookingCompletionActions({
     }
   }
 
-  const handleApprove = async () => {
+  const handleApproveCompletion = async () => {
     try {
       setSubmitting(true)
       const updated = await api.bookings.approveCompletion(localBooking.id, {
         note: note.trim() || null,
       })
       toast.success('Booking marked completed')
-      setApproveOpen(false)
-      setDirectCompleteOpen(false)
+      setDialog(null)
       setNote('')
       await refresh(updated)
       onApproved?.(updated)
@@ -205,14 +220,14 @@ export function BookingCompletionActions({
     }
   }
 
-  const handleDecline = async () => {
+  const handleDeclineCompletion = async () => {
     try {
       setSubmitting(true)
       const updated = await api.bookings.declineCompletion(localBooking.id, {
         note: note.trim() || null,
       })
-      toast.success('Completion request declined — booking remains in progress')
-      setDeclineOpen(false)
+      toast.success('Completion request declined')
+      setDialog(null)
       setNote('')
       await refresh(updated)
     } catch (e: any) {
@@ -222,216 +237,222 @@ export function BookingCompletionActions({
     }
   }
 
-  if (role === 'expert') {
-    return (
-      <div className="flex flex-col gap-2 w-full sm:max-w-xl">
-        {isInProgress && (
-          <>
-            <Button
-              size="sm"
-              className="bg-[#008260] hover:bg-[#006D51] rounded-3xl text-white font-medium w-full sm:w-auto"
-              onClick={() => {
-                setNote('')
-                setLowAttendance(null)
-                setRequestOpen(true)
-              }}
-            >
-              <CheckCircle className="h-4 w-4 mr-1" />
-              Request completion
-            </Button>
-
-            <AlertDialog
-              open={requestOpen}
-              onOpenChange={(open) => {
-                if (!submitting) {
-                  setRequestOpen(open)
-                  if (!open) setLowAttendance(null)
-                }
-              }}
-            >
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    {lowAttendance ? 'Attendance below expected hours' : 'Request completion?'}
-                  </AlertDialogTitle>
-                  <AlertDialogDescription asChild>
-                    <div className="space-y-3 text-sm text-muted-foreground">
-                      {lowAttendance ? (
-                        <>
-                          <p>
-                            Approved attendance is{' '}
-                            <span className="font-semibold text-foreground">
-                              {lowAttendance.approved_hours}h
-                            </span>{' '}
-                            ({lowAttendance.percent}%) of the planned{' '}
-                            <span className="font-semibold text-foreground">
-                              {lowAttendance.hours_booked}h
-                            </span>
-                            .
-                          </p>
-                          <p>
-                            You can still send the request. The institution will review before marking
-                            this engagement complete.
-                          </p>
-                        </>
-                      ) : (
-                        <>
-                          <p>
-                            This does not complete the booking immediately. The institution will review
-                            and approve before it is marked complete.
-                          </p>
-                          <div>
-                            <Label htmlFor="completion-note-expert" className="text-foreground">
-                              Note for institution (optional)
-                            </Label>
-                            <Textarea
-                              id="completion-note-expert"
-                              className="mt-1.5"
-                              rows={3}
-                              value={note}
-                              onChange={(e) => setNote(e.target.value)}
-                              placeholder="e.g. All planned sessions are done"
-                            />
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel disabled={submitting}>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    disabled={submitting}
-                    className="bg-[#008260] hover:bg-[#006d51]"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      void handleRequest(Boolean(lowAttendance))
-                    }}
-                  >
-                    {submitting
-                      ? 'Sending...'
-                      : lowAttendance
-                        ? 'Request anyway'
-                        : 'Send request'}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </>
-        )}
-
-        {isRequested && (
-          <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-950 w-full">
-            <p className="font-semibold">Completion requested</p>
-            <p className="mt-1 text-sky-900/90 leading-relaxed">
-              Waiting for the institution to approve. The booking is not completed yet.
-            </p>
-            {localBooking.completion_note && (
-              <p className="mt-1.5 text-xs text-sky-800">Your note: {localBooking.completion_note}</p>
-            )}
-          </div>
-        )}
-
-        {status === 'completed' && localBooking.completion_decision_note && (
-          <p className="text-xs text-[#6A6A6A]">Institution note: {localBooking.completion_decision_note}</p>
-        )}
-
-        <CompletionHistoryTimeline history={history} />
-      </div>
-    )
+  const handleRequestCancellation = async () => {
+    try {
+      setSubmitting(true)
+      const updated = await api.bookings.requestCancellation(localBooking.id, {
+        note: note.trim() || null,
+      })
+      toast.success('Cancellation requested')
+      setDialog(null)
+      setNote('')
+      await refresh(updated)
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to request cancellation')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
+  const handleApproveCancellation = async () => {
+    try {
+      setSubmitting(true)
+      const updated = await api.bookings.approveCancellation(localBooking.id, {
+        note: note.trim() || null,
+      })
+      toast.success('Booking cancelled')
+      setDialog(null)
+      setNote('')
+      await refresh(updated)
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to approve cancellation')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleDeclineCancellation = async () => {
+    try {
+      setSubmitting(true)
+      const updated = await api.bookings.declineCancellation(localBooking.id, {
+        note: note.trim() || null,
+      })
+      toast.success('Cancellation request declined')
+      setDialog(null)
+      setNote('')
+      await refresh(updated)
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to decline cancellation')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const statusBanner = isCompletionRequested ? (
+    <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2.5 text-sm text-sky-950">
+      <p className="font-semibold">Completion pending approval</p>
+      <p className="mt-1 text-sky-900/85 leading-relaxed text-[13px]">
+        {role === 'expert'
+          ? 'Waiting for the institution to approve. This booking is not completed yet.'
+          : 'Expert asked to mark this booking complete. Approve or decline below.'}
+      </p>
+      {localBooking.completion_note && (
+        <p className="mt-1.5 text-xs text-sky-800">
+          Note: {localBooking.completion_note}
+        </p>
+      )}
+    </div>
+  ) : isCancellationRequested ? (
+    <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-950">
+      <p className="font-semibold">Cancellation pending approval</p>
+      <p className="mt-1 text-rose-900/85 leading-relaxed text-[13px]">
+        {role === 'expert'
+          ? 'Waiting for the institution to approve. This booking is still active.'
+          : 'Expert asked to cancel this booking. Approve or decline below.'}
+      </p>
+      {localBooking.cancellation_note && (
+        <p className="mt-1.5 text-xs text-rose-800">
+          Note: {localBooking.cancellation_note}
+        </p>
+      )}
+    </div>
+  ) : null
+
   return (
-    <div className="flex flex-col gap-2 w-full sm:max-w-xl">
-      {isRequested && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 mb-1">
-          <p className="font-semibold">Expert requested completion</p>
-          {localBooking.completion_note && (
-            <p className="mt-1 text-amber-900/90">Note: {localBooking.completion_note}</p>
-          )}
-          <p className="mt-1 text-amber-900/80 text-xs">
-            Approve to mark completed, or decline to keep the engagement in progress.
-          </p>
+    <div className="w-full sm:max-w-md rounded-xl border border-[#E8E8E8] bg-white p-3 space-y-3">
+      {statusBanner}
+
+      {role === 'expert' && isInProgress && (
+        <div className="flex flex-col gap-2">
+          <Button
+            size="sm"
+            className="bg-[#008260] hover:bg-[#006D51] rounded-3xl text-white font-medium w-full"
+            onClick={() => openDialog('request_completion')}
+          >
+            <CheckCircle className="h-4 w-4 mr-1" />
+            Request completion
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-[#9B0000] hover:text-[#9B0000] hover:bg-[#FFF2F2] rounded-3xl font-medium w-full"
+            onClick={() => openDialog('request_cancellation')}
+          >
+            <XCircle className="h-4 w-4 mr-1" />
+            Request cancellation
+          </Button>
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row gap-2">
-        {isRequested && (
-          <>
-            <Button
-              size="sm"
-              onClick={() => {
-                setNote('')
-                setApproveOpen(true)
-              }}
-              className="bg-[#008260] hover:bg-[#008260] text-white hover:text-white rounded-[25px] text-[13px] whitespace-nowrap px-6"
-            >
-              <CheckCircle className="h-4 w-4 mr-1" />
-              Approve completion
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setNote('')
-                setDeclineOpen(true)
-              }}
-              className="border border-[#C2410C] text-[13px] font-medium text-[#C2410C] rounded-[25px] bg-white hover:bg-orange-50"
-            >
-              Decline request
-            </Button>
-          </>
-        )}
-
-        {isInProgress && (
+      {role === 'institution' && isCompletionRequested && (
+        <div className="flex flex-col sm:flex-row gap-2">
           <Button
             size="sm"
-            onClick={() => {
-              setNote('')
-              setDirectCompleteOpen(true)
-            }}
-            className="bg-[#008260] hover:bg-[#008260] text-white hover:text-white rounded-[25px] text-[13px] whitespace-nowrap px-6"
+            className="bg-[#008260] hover:bg-[#008260] text-white rounded-[25px] text-[13px] flex-1"
+            onClick={() => openDialog('approve_completion')}
           >
-            Mark Completed
+            Approve completion
           </Button>
-        )}
-
-        {showInstitutionCancel && (isInProgress || isRequested) && (
           <Button
             size="sm"
             variant="outline"
-            onClick={onInstitutionCancel}
-            className="border border-[#FF0000] text-[13px] font-medium text-[#FF0000] rounded-[25px] bg-white hover:bg-white hover:text-[#FF0000]"
+            className="border-[#C2410C] text-[#C2410C] rounded-[25px] text-[13px] flex-1"
+            onClick={() => openDialog('decline_completion')}
           >
-            <XCircle className="h-4 w-4 mr-1" />
-            Delete
+            Decline
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
-      <CompletionHistoryTimeline history={history} />
+      {role === 'institution' && isCancellationRequested && (
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button
+            size="sm"
+            className="bg-[#9B0000] hover:bg-[#7A0000] text-white rounded-[25px] text-[13px] flex-1"
+            onClick={() => openDialog('approve_cancellation')}
+          >
+            Approve cancellation
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-[#008260] text-[#008260] rounded-[25px] text-[13px] flex-1"
+            onClick={() => openDialog('decline_cancellation')}
+          >
+            Keep booking
+          </Button>
+        </div>
+      )}
 
-      <AlertDialog open={approveOpen} onOpenChange={(open) => !submitting && setApproveOpen(open)}>
+      {role === 'institution' && isInProgress && (
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button
+            size="sm"
+            className="bg-[#008260] hover:bg-[#008260] text-white rounded-[25px] text-[13px] flex-1"
+            onClick={() => openDialog('direct_complete')}
+          >
+            Mark completed
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-[#FF0000] text-[#FF0000] rounded-[25px] text-[13px] flex-1"
+            onClick={() => openDialog('direct_cancel')}
+          >
+            Cancel booking
+          </Button>
+        </div>
+      )}
+
+      {isTerminal && (
+        <p className="text-xs text-[#6A6A6A]">
+          {status === 'completed' ? 'This booking is completed.' : 'This booking is cancelled.'}
+        </p>
+      )}
+
+      <ActivityHistory history={history} />
+
+      {/* Request completion */}
+      <AlertDialog
+        open={dialog === 'request_completion'}
+        onOpenChange={(open) => (!open ? closeDialog() : undefined)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Approve completion?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {lowAttendance ? 'Attendance below expected hours' : 'Request completion?'}
+            </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3 text-sm text-muted-foreground">
-                <p>
-                  This will mark the booking as completed. Attendance becomes read-only after this.
-                </p>
-                <div>
-                  <Label htmlFor="approve-note" className="text-foreground">
-                    Note (optional)
-                  </Label>
-                  <Textarea
-                    id="approve-note"
-                    className="mt-1.5"
-                    rows={2}
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                  />
-                </div>
+                {lowAttendance ? (
+                  <p>
+                    Approved attendance is{' '}
+                    <span className="font-semibold text-foreground">
+                      {lowAttendance.approved_hours}h
+                    </span>{' '}
+                    ({lowAttendance.percent}%) of planned{' '}
+                    <span className="font-semibold text-foreground">
+                      {lowAttendance.hours_booked}h
+                    </span>
+                    . You can still send the request for institution review.
+                  </p>
+                ) : (
+                  <>
+                    <p>
+                      The institution must approve before this booking is marked complete.
+                    </p>
+                    <div>
+                      <Label className="text-foreground">Note (optional)</Label>
+                      <Textarea
+                        className="mt-1.5"
+                        rows={3}
+                        value={note}
+                        onChange={(e) => setNote(e.target.value)}
+                        placeholder="e.g. All planned sessions are done"
+                      />
+                    </div>
+                  </>
+                )}
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -442,49 +463,91 @@ export function BookingCompletionActions({
               className="bg-[#008260] hover:bg-[#006d51]"
               onClick={(e) => {
                 e.preventDefault()
-                void handleApprove()
+                void handleRequestCompletion(Boolean(lowAttendance))
               }}
             >
-              {submitting ? 'Saving...' : 'Approve & complete'}
+              {submitting ? 'Sending...' : lowAttendance ? 'Request anyway' : 'Send request'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={declineOpen} onOpenChange={(open) => !submitting && setDeclineOpen(open)}>
+      {/* Approve / decline completion */}
+      <AlertDialog
+        open={dialog === 'approve_completion' || dialog === 'direct_complete'}
+        onOpenChange={(open) => (!open ? closeDialog() : undefined)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Decline completion request?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {dialog === 'direct_complete' ? 'Mark booking completed?' : 'Approve completion?'}
+            </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3 text-sm text-muted-foreground">
                 <p>
-                  The booking stays in progress so the expert can continue work or attendance. Please
-                  share a short reason.
+                  {dialog === 'direct_complete'
+                    ? 'Close this engagement from your side. Attendance becomes read-only.'
+                    : 'This will mark the booking completed. Attendance becomes read-only.'}
                 </p>
                 <div>
-                  <Label htmlFor="decline-note" className="text-foreground">
-                    Reason (optional but recommended)
-                  </Label>
+                  <Label className="text-foreground">Note (optional)</Label>
                   <Textarea
-                    id="decline-note"
                     className="mt-1.5"
                     rows={2}
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
-                    placeholder="e.g. Pending session approval / remaining hours"
                   />
                 </div>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={submitting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={submitting}>Back</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={submitting}
+              className="bg-[#008260] hover:bg-[#006d51]"
+              onClick={(e) => {
+                e.preventDefault()
+                void handleApproveCompletion()
+              }}
+            >
+              {submitting ? 'Saving...' : 'Confirm'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={dialog === 'decline_completion'}
+        onOpenChange={(open) => (!open ? closeDialog() : undefined)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Decline completion request?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm text-muted-foreground">
+                <p>The booking stays in progress so work can continue.</p>
+                <div>
+                  <Label className="text-foreground">Reason (optional)</Label>
+                  <Textarea
+                    className="mt-1.5"
+                    rows={2}
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="e.g. Pending session approval"
+                  />
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={submitting}>Back</AlertDialogCancel>
             <AlertDialogAction
               disabled={submitting}
               className="bg-[#C2410C] hover:bg-[#9A3412]"
               onClick={(e) => {
                 e.preventDefault()
-                void handleDecline()
+                void handleDeclineCompletion()
               }}
             >
               {submitting ? 'Saving...' : 'Decline request'}
@@ -493,25 +556,68 @@ export function BookingCompletionActions({
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Request cancellation */}
       <AlertDialog
-        open={directCompleteOpen}
-        onOpenChange={(open) => !submitting && setDirectCompleteOpen(open)}
+        open={dialog === 'request_cancellation'}
+        onOpenChange={(open) => (!open ? closeDialog() : undefined)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Mark booking completed?</AlertDialogTitle>
+            <AlertDialogTitle>Request cancellation?</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3 text-sm text-muted-foreground">
                 <p>
-                  You are closing this engagement without an expert completion request. Use this when
-                  work is finished from your side (or closing with an exception).
+                  This does not cancel immediately. The institution must approve before the booking
+                  is cancelled.
                 </p>
                 <div>
-                  <Label htmlFor="direct-complete-note" className="text-foreground">
-                    Note (optional)
-                  </Label>
+                  <Label className="text-foreground">Reason (optional)</Label>
                   <Textarea
-                    id="direct-complete-note"
+                    className="mt-1.5"
+                    rows={3}
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="e.g. Schedule conflict / unable to continue"
+                  />
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={submitting}>Keep booking</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={submitting}
+              className="bg-[#9B0000] hover:bg-[#7A0000]"
+              onClick={(e) => {
+                e.preventDefault()
+                void handleRequestCancellation()
+              }}
+            >
+              {submitting ? 'Sending...' : 'Send cancellation request'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={dialog === 'approve_cancellation' || dialog === 'direct_cancel'}
+        onOpenChange={(open) => (!open ? closeDialog() : undefined)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {dialog === 'direct_cancel' ? 'Cancel this booking?' : 'Approve cancellation?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm text-muted-foreground">
+                <p>
+                  {dialog === 'direct_cancel'
+                    ? 'This will cancel the booking immediately from your side.'
+                    : 'This will cancel the booking as requested by the expert.'}
+                </p>
+                <div>
+                  <Label className="text-foreground">Note (optional)</Label>
+                  <Textarea
                     className="mt-1.5"
                     rows={2}
                     value={note}
@@ -522,16 +628,55 @@ export function BookingCompletionActions({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={submitting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={submitting}>Back</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={submitting}
+              className="bg-[#9B0000] hover:bg-[#7A0000]"
+              onClick={(e) => {
+                e.preventDefault()
+                void handleApproveCancellation()
+              }}
+            >
+              {submitting ? 'Saving...' : 'Confirm cancel'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={dialog === 'decline_cancellation'}
+        onOpenChange={(open) => (!open ? closeDialog() : undefined)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Keep this booking active?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm text-muted-foreground">
+                <p>The cancellation request will be declined and the booking stays in progress.</p>
+                <div>
+                  <Label className="text-foreground">Note to expert (optional)</Label>
+                  <Textarea
+                    className="mt-1.5"
+                    rows={2}
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="e.g. Please continue with remaining sessions"
+                  />
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={submitting}>Back</AlertDialogCancel>
             <AlertDialogAction
               disabled={submitting}
               className="bg-[#008260] hover:bg-[#006d51]"
               onClick={(e) => {
                 e.preventDefault()
-                void handleApprove()
+                void handleDeclineCancellation()
               }}
             >
-              {submitting ? 'Saving...' : 'Mark completed'}
+              {submitting ? 'Saving...' : 'Keep booking'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

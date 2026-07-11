@@ -37,7 +37,12 @@ export type AttendancePayload = {
   role?: 'expert' | 'institution' | 'super_admin'
 }
 
-export const ACTIVE_ATTENDANCE_BOOKING_STATUSES = ['confirmed', 'in_progress', 'completion_requested']
+export const ACTIVE_ATTENDANCE_BOOKING_STATUSES = [
+  'confirmed',
+  'in_progress',
+  'completion_requested',
+  'cancellation_requested',
+]
 export const TRAINING_ATTENDANCE_UPDATED_EVENT = 'training-attendance-updated'
 
 export function notifyTrainingAttendanceUpdated(bookingId?: string) {

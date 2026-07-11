@@ -48,7 +48,12 @@ type Props = {
   basePath: string
 }
 
-const ACTIVE_BOOKING_STATUSES = new Set(['confirmed', 'in_progress', 'completion_requested'])
+const ACTIVE_BOOKING_STATUSES = new Set([
+  'confirmed',
+  'in_progress',
+  'completion_requested',
+  'cancellation_requested',
+])
 
 function normalizeBookingsPayload(payload: unknown): TrainingBooking[] {
   if (Array.isArray(payload)) return payload as TrainingBooking[]

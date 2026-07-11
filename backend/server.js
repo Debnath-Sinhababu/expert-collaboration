@@ -5337,7 +5337,7 @@ app.get('/api/bookings', async (req, res) => {
       // Calculate counts by status
       const counts = {
         total: allBookings?.length || 0,
-        in_progress: allBookings?.filter(b => b.status === 'in_progress' || b.status === 'completion_requested').length || 0,
+        in_progress: allBookings?.filter(b => b.status === 'in_progress' || b.status === 'completion_requested' || b.status === 'cancellation_requested').length || 0,
         completed: allBookings?.filter(b => b.status === 'completed').length || 0,
         cancelled: allBookings?.filter(b => b.status === 'cancelled').length || 0,
         pending: allBookings?.filter(b => b.status === 'pending').length || 0
@@ -5410,7 +5410,7 @@ app.get('/api/bookings/counts', async (req, res) => {
     // Calculate counts by status
     const bookingCounts = {
       total: data?.length || 0,
-      in_progress: data?.filter(b => b.status === 'in_progress' || b.status === 'completion_requested').length || 0,
+      in_progress: data?.filter(b => b.status === 'in_progress' || b.status === 'completion_requested' || b.status === 'cancellation_requested').length || 0,
       completed: data?.filter(b => b.status === 'completed').length || 0,
       cancelled: data?.filter(b => b.status === 'cancelled').length || 0,
       pending: data?.filter(b => b.status === 'pending').length || 0
@@ -5617,8 +5617,11 @@ app.put('/api/bookings/:id', async (req, res) => {
     const updateData = req.body;
     console.log('Updating booking:', id, 'with data:', updateData);
 
-    // Experts cannot unilaterally mark a booking completed — use request-completion.
-    if (updateData && String(updateData.status) === 'completed') {
+    // Experts cannot unilaterally mark a booking completed/cancelled — use request flows.
+    if (
+      updateData &&
+      (String(updateData.status) === 'completed' || String(updateData.status) === 'cancelled')
+    ) {
       const serviceClient = createClient(
         process.env.SUPABASE_URL,
         process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -5640,7 +5643,9 @@ app.put('/api/bookings/:id', async (req, res) => {
         if (!institutionOk && expertOk && role !== 'super_admin') {
           return res.status(403).json({
             error:
-              'Experts cannot mark bookings completed directly. Request completion for institution approval.',
+              String(updateData.status) === 'cancelled'
+                ? 'Experts cannot cancel bookings directly. Request cancellation for institution approval.'
+                : 'Experts cannot mark bookings completed directly. Request completion for institution approval.',
           });
         }
       }
@@ -5744,6 +5749,33 @@ app.delete('/api/bookings/:id', async (req, res) => {
 
     const { id } = req.params;
     console.log('Deleting booking:', id);
+
+    // Experts cannot delete bookings — use cancellation request flow.
+    {
+      const serviceClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+      const { data: bookingRow } = await serviceClient
+        .from('bookings')
+        .select('id, expert_id, institution_id, projects(institution_id)')
+        .eq('id', id)
+        .maybeSingle();
+      if (bookingRow) {
+        const institutionId = bookingRow.institution_id || bookingRow.projects?.institution_id;
+        const institutionOk = institutionId
+          ? await institutionAccess.resolveInstitutionAccess(req, institutionId)
+          : null;
+        const expertOk = await expertAccess.resolveExpertAccess(req, bookingRow.expert_id);
+        const role = userData?.user?.user_metadata?.role || userData?.user?.app_metadata?.role;
+        if (!institutionOk && expertOk && role !== 'super_admin') {
+          return res.status(403).json({
+            error:
+              'Experts cannot delete bookings. Request cancellation for institution approval.',
+          });
+        }
+      }
+    }
     
     const { data, error } = await supabaseClient
       .from('bookings')

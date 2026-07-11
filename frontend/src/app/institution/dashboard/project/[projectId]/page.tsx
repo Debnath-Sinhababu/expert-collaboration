@@ -1691,10 +1691,6 @@ export default function InstitutionProjectDetailsPage() {
             <BookingCompletionActions
               booking={booking}
               role="institution"
-              showInstitutionCancel
-              onInstitutionCancel={() =>
-                handleUpdateBookingStatus(booking.id, booking?.application_id, 'cancelled')
-              }
               onUpdated={async () => {
                 await loadProjectData()
                 refreshSelected()
@@ -1725,7 +1721,11 @@ export default function InstitutionProjectDetailsPage() {
             hoursBooked={booking.hours_booked}
             bookingStatus={booking.status}
             expectedViewerRole="institution"
-            defaultExpanded={booking.status === 'in_progress' || booking.status === 'completion_requested'}
+            defaultExpanded={
+              booking.status === 'in_progress' ||
+              booking.status === 'completion_requested' ||
+              booking.status === 'cancellation_requested'
+            }
           />
         )}
       </div>
