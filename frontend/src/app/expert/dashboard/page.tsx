@@ -23,6 +23,7 @@ import { formatInterviewDateTime } from '@/lib/datetime'
 import { RateIntentBadge } from '@/components/requirements/RateIntentBadge'
 import { RateAgreementPanel } from '@/components/requirements/RateAgreementPanel'
 import { PostedCompensationRate } from '@/components/requirements/PostedCompensationRate'
+import { BookingCompletionActions } from '@/components/bookings/BookingCompletionActions'
 import { 
   User, 
   Briefcase, 
@@ -1115,28 +1116,19 @@ export default function ExpertDashboard() {
                             hoursBooked={booking.hours_booked}
                             bookingStatus={booking.status}
                             expectedViewerRole="expert"
-                            defaultExpanded={booking.status === 'in_progress'}
+                            defaultExpanded={booking.status === 'in_progress' || booking.status === 'completion_requested'}
                           />
                         )}
                         <div className="flex justify-end pt-3 border-t border-[#ECECEC]">
-                          {booking.status === 'in_progress' && (
-                            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                              <Button
-                                size="sm"
-                                className="bg-[#008260] hover:bg-[#006D51] rounded-3xl text-white font-medium w-full sm:w-auto"
-                                onClick={async () => {
-                                  try {
-                                    await api.bookings.update(booking.id, { status: 'completed' })
-                                    await refreshBookings()
-                                  } catch (e) {
-                                    console.error('Failed to mark booking complete', e)
-                                    setError('Failed to mark project complete')
-                                  }
-                                }}
-                              >
-                                <CheckCircle className="h-4 w-4 mr-1" />
-                                Mark Complete
-                              </Button>
+                          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:items-start sm:justify-end">
+                            <BookingCompletionActions
+                              booking={booking}
+                              role="expert"
+                              onUpdated={async () => {
+                                await refreshBookings()
+                              }}
+                            />
+                            {(booking.status === 'in_progress' || booking.status === 'completion_requested') && (
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button
@@ -1174,8 +1166,8 @@ export default function ExpertDashboard() {
                                 </AlertDialogFooter>
                               </AlertDialogContent>
                             </AlertDialog>
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}

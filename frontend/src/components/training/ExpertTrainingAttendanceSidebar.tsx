@@ -55,7 +55,7 @@ type Props = {
   basePath: string
 }
 
-const ACTIVE_BOOKING_STATUSES = new Set(['confirmed', 'in_progress'])
+const ACTIVE_BOOKING_STATUSES = new Set(['confirmed', 'in_progress', 'completion_requested'])
 
 function todayDateOnly() {
   const date = new Date()

@@ -13,7 +13,7 @@ function isTrainingProjectType(type) {
   return TRAINING_PROJECT_TYPES.includes(type);
 }
 
-const ACTIVE_BOOKING_STATUSES = ['confirmed', 'in_progress'];
+const ACTIVE_BOOKING_STATUSES = ['confirmed', 'in_progress', 'completion_requested'];
 const READ_ONLY_BOOKING_STATUSES = ['completed', 'cancelled'];
 
 module.exports = {

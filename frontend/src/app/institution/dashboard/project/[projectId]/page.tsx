@@ -39,6 +39,7 @@ import { formatInterviewDateTime } from '@/lib/datetime'
 import { RateIntentBadge } from '@/components/requirements/RateIntentBadge'
 import { RateAgreementPanel } from '@/components/requirements/RateAgreementPanel'
 import { PostedCompensationRate } from '@/components/requirements/PostedCompensationRate'
+import { BookingCompletionActions } from '@/components/bookings/BookingCompletionActions'
 import {
   isPostedRateDeclined,
   isPostedRateOfferPending,
@@ -1687,25 +1688,22 @@ export default function InstitutionProjectDetailsPage() {
               </DialogContent>
             </Dialog>
 
-            {booking.status === 'in_progress' && (
-              <>
-                <Button
-                  size="sm"
-                  onClick={() => handleUpdateBookingStatus(booking.id, booking?.application_id, 'completed')}
-                  className="bg-[#008260] hover:bg-[#008260] text-white hover:text-white rounded-[25px] text-[13px] whitespace-nowrap px-6"
-                >
-                  Mark Completed
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleUpdateBookingStatus(booking.id, booking?.application_id, 'cancelled')}
-                  className="border border-[#FF0000] text-[13px] font-medium text-[#FF0000] rounded-[25px] bg-white hover:bg-white hover:text-[#FF0000]"
-                >
-                  Delete
-                </Button>
-              </>
-            )}
+            <BookingCompletionActions
+              booking={booking}
+              role="institution"
+              showInstitutionCancel
+              onInstitutionCancel={() =>
+                handleUpdateBookingStatus(booking.id, booking?.application_id, 'cancelled')
+              }
+              onUpdated={async () => {
+                await loadProjectData()
+                refreshSelected()
+              }}
+              onApproved={(updated) => {
+                setSelectedBooking({ ...booking, ...updated, status: 'completed' })
+                setRatingModalOpen(true)
+              }}
+            />
             
             {booking.status === 'completed' && !getBookingRating(booking.id) && (
               <Button
@@ -1727,7 +1725,7 @@ export default function InstitutionProjectDetailsPage() {
             hoursBooked={booking.hours_booked}
             bookingStatus={booking.status}
             expectedViewerRole="institution"
-            defaultExpanded={booking.status === 'in_progress'}
+            defaultExpanded={booking.status === 'in_progress' || booking.status === 'completion_requested'}
           />
         )}
       </div>

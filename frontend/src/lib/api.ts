@@ -658,6 +658,44 @@ export const api = {
         body: JSON.stringify(data)
       }).then(res => res.json())
     },
+    requestCompletion: async (id: string, data?: { note?: string | null; acknowledge_low_attendance?: boolean }) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/bookings/${id}/request-completion`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data || {})
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        const err: any = new Error(json?.error || 'Failed to request completion')
+        err.status = res.status
+        err.payload = json
+        throw err
+      }
+      return json
+    },
+    approveCompletion: async (id: string, data?: { note?: string | null }) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/bookings/${id}/approve-completion`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data || {})
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to approve completion')
+      return json
+    },
+    declineCompletion: async (id: string, data?: { note?: string | null }) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/bookings/${id}/decline-completion`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data || {})
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to decline completion')
+      return json
+    },
     delete: async (id: string) => {
       const headers = await getAuthHeaders()
       return fetch(`${API_BASE_URL}/api/bookings/${id}`, {
