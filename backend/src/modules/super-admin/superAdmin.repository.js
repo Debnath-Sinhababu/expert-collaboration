@@ -1662,6 +1662,45 @@ class SuperAdminRepository {
     return (await this.hydrateFinanceRecords([data]))[0] || data;
   }
 
+  emptyFinancePartyBreakdown() {
+    return {
+      pipeline: 0,
+      awaiting_invoice: 0,
+      invoice_sent: 0,
+      settled: 0,
+      outstanding: 0,
+      remaining: 0,
+      cancelled: 0,
+      counts: { pending: 0, invoiced: 0, paid: 0, cancelled: 0, other: 0 },
+    };
+  }
+
+  emptyFinanceSummary() {
+    const emptyParty = this.emptyFinancePartyBreakdown();
+    return {
+      total_receivable: 0,
+      total_payable: 0,
+      invoiced: 0,
+      paid: 0,
+      pending: 0,
+      remaining: 0,
+      institute: { ...emptyParty },
+      expert: { ...emptyParty },
+      platform: {
+        expected_margin: 0,
+        realized_margin: 0,
+        outstanding_net: 0,
+      },
+      equation: {
+        institute: 'pipeline = awaiting_invoice + invoice_sent + settled (+ cancelled excluded)',
+        expert: 'pipeline = awaiting_invoice + invoice_sent + settled (+ cancelled excluded)',
+        outstanding: 'outstanding = awaiting_invoice + invoice_sent',
+        platform_expected: 'expected_margin = institute.pipeline − expert.pipeline',
+        platform_realized: 'realized_margin = institute.settled − expert.settled',
+      },
+    };
+  }
+
   async getFinanceSummary(scope = {}) {
     let query = this.client.from('finance_payment_records').select('*');
     if (scope.party_type) query = query.eq('party_type', scope.party_type);
@@ -1669,21 +1708,72 @@ class SuperAdminRepository {
     if (scope.institution_id) query = query.eq('institution_id', scope.institution_id);
     const { data, error } = await query;
     if (error) {
-      if (tableMissing(error)) return { total_receivable: 0, total_payable: 0, invoiced: 0, paid: 0, pending: 0, remaining: 0 };
+      if (tableMissing(error)) return this.emptyFinanceSummary();
       throw error;
     }
-    const summary = { total_receivable: 0, total_payable: 0, invoiced: 0, paid: 0, pending: 0, remaining: 0 };
+
+    const summary = this.emptyFinanceSummary();
+    const bumpParty = (party, status, amount, paidAmount) => {
+      const remaining = Math.max(0, amount - paidAmount);
+      party.remaining += remaining;
+      if (status === 'cancelled') {
+        party.cancelled += amount;
+        party.counts.cancelled += 1;
+        return;
+      }
+      party.pipeline += amount;
+      if (status === 'pending') {
+        party.awaiting_invoice += amount;
+        party.outstanding += amount;
+        party.counts.pending += 1;
+      } else if (status === 'invoiced') {
+        party.invoice_sent += amount;
+        party.outstanding += remaining;
+        party.counts.invoiced += 1;
+      } else if (status === 'paid') {
+        party.settled += paidAmount || amount;
+        party.counts.paid += 1;
+      } else {
+        party.outstanding += remaining;
+        party.counts.other += 1;
+      }
+    };
+
     for (const record of data || []) {
       const amount = Number(record.invoice_amount || record.calculated_amount || 0);
-      const paid = Number(record.paid_amount || 0);
-      if (record.direction === 'receivable') summary.total_receivable += amount;
-      if (record.direction === 'payable') summary.total_payable += amount;
-      if (record.status === 'invoiced') summary.invoiced += amount;
-      if (record.status === 'paid') summary.paid += paid || amount;
-      if (record.status === 'pending') summary.pending += amount;
-      summary.remaining += Math.max(0, amount - paid);
+      const paidAmount = Number(record.paid_amount || 0);
+      const status = String(record.status || 'pending').toLowerCase();
+      const direction =
+        record.direction ||
+        (record.party_type === 'expert' ? 'payable' : 'receivable');
+
+      // Legacy flat fields (cross-party status slice — kept for older dashboards).
+      if (direction === 'receivable' && status !== 'cancelled') summary.total_receivable += amount;
+      if (direction === 'payable' && status !== 'cancelled') summary.total_payable += amount;
+      if (status === 'invoiced') summary.invoiced += amount;
+      if (status === 'paid') summary.paid += paidAmount || amount;
+      if (status === 'pending') summary.pending += amount;
+      if (status !== 'cancelled') summary.remaining += Math.max(0, amount - paidAmount);
+
+      if (direction === 'receivable' || record.party_type === 'institution') {
+        bumpParty(summary.institute, status, amount, paidAmount);
+      } else if (direction === 'payable' || record.party_type === 'expert') {
+        bumpParty(summary.expert, status, amount, paidAmount);
+      }
     }
-    return Object.fromEntries(Object.entries(summary).map(([key, value]) => [key, roundMoney(value)]));
+
+    summary.platform.expected_margin = summary.institute.pipeline - summary.expert.pipeline;
+    summary.platform.realized_margin = summary.institute.settled - summary.expert.settled;
+    summary.platform.outstanding_net = summary.institute.outstanding - summary.expert.outstanding;
+
+    const roundDeep = (value) => {
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, roundDeep(v)]));
+      }
+      if (typeof value === 'number') return roundMoney(value);
+      return value;
+    };
+    return roundDeep(summary);
   }
 
   async listFinanceInvoices({ page, limit, offset, recipient_type = '', search = '' }) {
