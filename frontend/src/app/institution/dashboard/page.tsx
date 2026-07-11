@@ -22,6 +22,7 @@ import { Drawer } from '@/components/ui/drawer'
 import ProfileDropdown from '@/components/ProfileDropdown'
 import Logo from '@/components/Logo'
 import { getInstitutionRate } from '@/lib/utils'
+import { PostedCompensationRate } from '@/components/requirements/PostedCompensationRate'
 import { 
   Building, 
   Plus, 
@@ -1159,7 +1160,7 @@ export default function InstitutionDashboardPage() {
                             </div>
                             <div className="min-w-0">
                               <span className="text-[#717171] text-xs">Rate:</span>
-                              <p className="font-semibold text-[#008260] text-sm sm:text-base truncate">₹{project.hourly_rate}/hour</p>
+                              <PostedCompensationRate project={project} audience="institution" />
                             </div>
                           </div>
                           <div className='flex items-start gap-2.5 sm:gap-3'>

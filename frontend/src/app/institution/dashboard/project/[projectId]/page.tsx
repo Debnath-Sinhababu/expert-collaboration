@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
@@ -38,11 +38,17 @@ import type { InterviewSlot } from '@/components/requirements/InterviewAvailabil
 import { formatInterviewDateTime } from '@/lib/datetime'
 import { RateIntentBadge } from '@/components/requirements/RateIntentBadge'
 import { RateAgreementPanel } from '@/components/requirements/RateAgreementPanel'
+import { PostedCompensationRate } from '@/components/requirements/PostedCompensationRate'
 import {
   isRateAgreed,
   moneyInr,
   projectCompensationDisplay,
 } from '@/lib/projectCompensation'
+import {
+  formatEmploymentType,
+  formatWorkplaceType,
+  projectLocationLine,
+} from '@/lib/requirementLabels'
 import { 
   ArrowLeft,
   Building, 
@@ -60,7 +66,9 @@ import {
   BookOpen,
   FileText,
   IndianRupee,
-  Hourglass
+  Hourglass,
+  MapPin,
+  Edit,
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -754,49 +762,169 @@ export default function InstitutionProjectDetailsPage() {
                           <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
                             <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 px-3 sm:py-2 sm:px-4">{project.status}</Badge>
                             <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 px-3 sm:py-2 sm:px-4">{project.type}</Badge>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => router.push(`${basePath}/dashboard/project/${projectId}/edit`)}
+                              className="h-8 px-2.5 border-[#DCDCDC] text-[#008260] hover:bg-[#E8F5F1] hover:text-[#008260]"
+                              aria-label="Edit project"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
                           </div>
                         </div>
                         <p className="text-sm text-[#6A6A6A] mb-3">{project.description}</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 text-sm">
-                        <div className="flex items-start gap-3 min-w-0">
-    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
-      <Clock className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
-    </div>
-    <div className="min-w-0">
-      <span className="text-[#717171] text-xs">Rate:</span>
-      <p className="font-semibold text-[#008260] text-sm sm:text-base truncate">₹{project.hourly_rate}/hour</p>
-    </div>
-  </div>
-                          <div className='flex items-start gap-3 min-w-0'>
-                          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
-      <Hourglass className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
-    </div>
-                             <div className="min-w-0">
-                            <span className="text-[#717171] text-xs">Duration:</span>
-                            <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">{project.duration_hours} hours</p>
+                        {(() => {
+                          const pricing = projectCompensationDisplay(project)
+                          const location = projectLocationLine(project)
+                          const summaryItems: Array<{ label: string; value: ReactNode; icon: ReactNode }> = [
+                            {
+                              label: 'You pay',
+                              icon: <Clock className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: <PostedCompensationRate project={project} audience="institution" showLabel={false} />,
+                            },
+                            {
+                              label: 'Pay unit',
+                              icon: <Briefcase className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: pricing.unitLabel,
+                            },
+                          ]
+                          if (pricing.unit === 'per_session' || pricing.unit === 'per_day') {
+                            summaryItems.push({
+                              label: pricing.unit === 'per_day' ? 'Number of days' : 'Number of sessions',
+                              icon: <Users className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: String(pricing.quantity || '—'),
+                            })
+                            summaryItems.push({
+                              label: pricing.unit === 'per_day' ? 'Hours per day' : 'Hours per session',
+                              icon: <Hourglass className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: pricing.durationPerUnit > 0 ? `${pricing.durationPerUnit} hrs` : '—',
+                            })
+                          }
+                          if (pricing.unit === 'fixed_package') {
+                            summaryItems.push({
+                              label: 'Estimated hours',
+                              icon: <Hourglass className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: pricing.expectedTotalHours > 0 ? `${pricing.expectedTotalHours} hrs` : '—',
+                            })
+                          }
+                          summaryItems.push(
+                            {
+                              label: 'Total hours',
+                              icon: <Hourglass className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: pricing.expectedTotalHours > 0 ? `${pricing.expectedTotalHours} hours` : `${project.duration_hours || '—'} hours`,
+                            },
+                            {
+                              label: 'Total budget',
+                              icon: <IndianRupee className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: pricing.totalBudgetGross > 0 ? moneyInr(pricing.totalBudgetGross) : (project.total_budget != null ? `₹${project.total_budget}` : '—'),
+                            },
+                            {
+                              label: 'Expert earns (approx)',
+                              icon: <IndianRupee className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: pricing.expertNetTotal > 0
+                                ? `${moneyInr(pricing.netPerUnitDisplay)}/${pricing.unitShort}`
+                                : '—',
+                            },
+                            {
+                              label: 'Start date',
+                              icon: <Calendar className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: project.start_date ? new Date(project.start_date).toLocaleDateString('en-IN') : '—',
+                            },
+                            {
+                              label: 'End date',
+                              icon: <Calendar className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: project.end_date ? new Date(project.end_date).toLocaleDateString('en-IN') : '—',
+                            },
+                            {
+                              label: 'Openings',
+                              icon: <Users className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: String(project.opening_count || project.max_applications || 1),
+                            },
+                            {
+                              label: 'Posted',
+                              icon: <Calendar className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: project.created_at ? new Date(project.created_at).toLocaleDateString('en-IN') : '—',
+                            },
+                          )
+                          if (location) {
+                            summaryItems.push({
+                              label: 'Location',
+                              icon: <MapPin className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: location,
+                            })
+                          }
+                          if (project.workplace_type) {
+                            summaryItems.push({
+                              label: 'Workplace',
+                              icon: <Building className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: formatWorkplaceType(project.workplace_type),
+                            })
+                          }
+                          if (project.employment_type) {
+                            summaryItems.push({
+                              label: 'Employment',
+                              icon: <Briefcase className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: formatEmploymentType(project.employment_type),
+                            })
+                          }
+                          if (project.interview_period_interval) {
+                            summaryItems.push({
+                              label: 'Interview period',
+                              icon: <Clock className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: project.interview_period_interval,
+                            })
+                          }
+                          if (project.schedule_notes) {
+                            summaryItems.push({
+                              label: 'Schedule notes',
+                              icon: <FileText className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: project.schedule_notes,
+                            })
+                          }
+                          if (project.domain_expertise) {
+                            const domain = Array.isArray(project.domain_expertise)
+                              ? project.domain_expertise.join(', ')
+                              : String(project.domain_expertise)
+                            if (domain.trim()) {
+                              summaryItems.push({
+                                label: 'Domain',
+                                icon: <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                                value: domain,
+                              })
+                            }
+                          }
+
+                          return (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 text-sm">
+                              {summaryItems.map((item) => (
+                                <div key={item.label} className="flex items-start gap-3 min-w-0">
+                                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+                                    {item.icon}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <span className="text-[#717171] text-xs">{item.label}:</span>
+                                    <div className="font-medium text-sm sm:text-base text-[#1D1D1D] break-words">
+                                      {item.value}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )
+                        })()}
+                        {project.subskills && project.subskills.length > 0 && (
+                          <div className="mb-4">
+                            <span className="text-sm text-slate-500">Specializations:</span>
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              {project.subskills.map((skill: string, index: number) => (
+                                <Badge key={index} variant="secondary" className="text-xs bg-slate-100 text-slate-700">
+                                  {skill}
+                                </Badge>
+                              ))}
                             </div>
                           </div>
-                          <div className='flex items-start gap-3 min-w-0'>
-                          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
-      <IndianRupee className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
-    </div> 
-                         <div className="min-w-0">
-                            <span className="text-[#717171] text-xs">Budget:</span>
-                            <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">₹{project.total_budget}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3 min-w-0">
-    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
-      <Calendar className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
-    </div>
-    <div className="min-w-0">
-      <span className="text-[#717171] text-xs">Posted:</span>
-      <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">
-       {new Date(project.created_at).toLocaleDateString()}
-      </p>
-    </div>
-  </div>
-                        </div>
+                        )}
                         {project.required_expertise && project.required_expertise.length > 0 && (
                           <div className="mb-4">
                             <span className="text-sm text-slate-500">Required Expertise:</span>
@@ -807,6 +935,16 @@ export default function InstitutionProjectDetailsPage() {
                                 </Badge>
                               ))}
                             </div>
+                          </div>
+                        )}
+                        {Array.isArray(project.screening_questions) && project.screening_questions.filter(Boolean).length > 0 && (
+                          <div className="mb-2">
+                            <span className="text-sm text-slate-500">Screening questions:</span>
+                            <ol className="list-decimal list-inside text-sm text-[#1D1D1D] mt-1 space-y-1">
+                              {project.screening_questions.filter(Boolean).map((q: string, i: number) => (
+                                <li key={i}>{q}</li>
+                              ))}
+                            </ol>
                           </div>
                         )}
                       
@@ -874,7 +1012,7 @@ export default function InstitutionProjectDetailsPage() {
                               <div className="min-w-0">
                                 <h3 className="font-semibold text-black text-sm sm:text-base truncate">{expertDisplayName(application.experts)}</h3>
                                 <p className="text-xs sm:text-sm text-black">
-                                  You pay ~₹{getInstitutionRate(application.experts?.hourly_rate)}/hr
+                                  Original rate ₹{getInstitutionRate(application.experts?.hourly_rate)}/hr
                                 </p>
                               </div>
                             </div>
@@ -1049,7 +1187,7 @@ export default function InstitutionProjectDetailsPage() {
                     <div className="min-w-0">
                       <h3 className="font-semibold text-black text-sm sm:text-base truncate">{expertDisplayName(application.experts)}</h3>
                       <p className="text-xs sm:text-sm text-black">
-                        You pay ~₹{getInstitutionRate(application.experts?.hourly_rate)}/hr
+                        Original rate ₹{getInstitutionRate(application.experts?.hourly_rate)}/hr
                       </p>
                     </div>
                   </div>
@@ -1222,7 +1360,7 @@ export default function InstitutionProjectDetailsPage() {
                     <div className="min-w-0">
                       <h3 className="font-semibold text-black text-sm sm:text-base truncate">{expertDisplayName(application.experts)}</h3>
                       <p className="text-xs sm:text-sm text-black">
-                        You pay ~₹{getInstitutionRate(application.experts?.hourly_rate)}/hr
+                        Original rate ₹{getInstitutionRate(application.experts?.hourly_rate)}/hr
                       </p>
                     </div>
                   </div>
@@ -1459,7 +1597,7 @@ export default function InstitutionProjectDetailsPage() {
                       </p>
                     </div>
                     <div>
-                      <h4 className="font-medium text-sm text-[#666666] mb-1">You pay (from profile)</h4>
+                      <h4 className="font-medium text-sm text-[#666666] mb-1">Original rate</h4>
                       <p className="text-sm text-[#000000]">₹{getInstitutionRate(booking.experts?.hourly_rate)}/hr</p>
                     </div>
                     <div>

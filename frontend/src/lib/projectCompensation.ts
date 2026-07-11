@@ -213,6 +213,29 @@ export function projectCompensationDisplay(project?: ProjectCompensationLike | n
   }
 }
 
+/** Equivalent hourly amount for grey helper text (gross for institution, net for expert). */
+export function equivalentHourlyFromDisplay(
+  display: ReturnType<typeof projectCompensationDisplay>,
+  audience: 'institution' | 'expert' = 'institution'
+): number {
+  let hourlyGross = 0
+  if (display.unit === 'hourly') {
+    hourlyGross = display.grossPerUnitDisplay
+  } else if (display.expectedTotalHours > 0 && display.totalBudgetGross > 0) {
+    hourlyGross = display.totalBudgetGross / display.expectedTotalHours
+  }
+  if (!(hourlyGross > 0)) return 0
+  const rounded = Math.round(hourlyGross * 100) / 100
+  return audience === 'expert' ? toExpertNet(rounded) : rounded
+}
+
+export function quantityHint(display: ReturnType<typeof projectCompensationDisplay>): string {
+  if (display.unit === 'fixed_package' || display.unit === 'hourly') return ''
+  if (!(display.quantity > 0)) return ''
+  const plural = display.quantity === 1 ? display.unitShort : `${display.unitShort}s`
+  return ` · ${display.quantity} ${plural}`
+}
+
 export const RATE_INTENTS = ['agreed_posted', 'open_to_negotiate'] as const
 export type RateIntent = (typeof RATE_INTENTS)[number]
 

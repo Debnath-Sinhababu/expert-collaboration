@@ -24,6 +24,7 @@ import { ScreeningQuestionsEditor } from '@/components/requirements/ScreeningQue
 import { EMPLOYMENT_TYPE_OPTIONS, WORKPLACE_TYPE_OPTIONS } from '@/lib/requirementLabels'
 import { expertDisplayName } from '@/lib/privacyDisplay'
 import { ExpertAvailabilityTrigger } from '@/components/expert/ExpertAvailabilityTrigger'
+import { getInstitutionRate } from '@/lib/utils'
 import {
   COMPENSATION_UNIT_OPTIONS,
   type CompensationUnit,
@@ -132,7 +133,6 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
     institution_gross_per_unit: '',
     institution_gross_total: '',
     schedule_notes: '',
-    other_description: '',
     start_date: '',
     end_date: '',
     opening_count: '1',
@@ -177,7 +177,6 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
   const showGrossPerUnit = form.compensation_unit === 'per_session' || form.compensation_unit === 'per_day' || form.compensation_unit === 'hourly'
   const showPackageTotal = form.compensation_unit === 'fixed_package'
   const showScheduleNotes = ['fdp', 'workshop', 'training_program'].includes(form.type)
-  const requireOtherDescription = form.type === 'other'
   const requireExplicitUnit = form.type === 'other' || !getDefaultCompensationUnit(form.type)
 
   useEffect(() => {
@@ -249,7 +248,6 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
               ? String(project.total_budget)
               : '',
           schedule_notes: project.schedule_notes || '',
-          other_description: project.other_description || '',
           start_date: toDateInputValue(project.start_date),
           end_date: toDateInputValue(project.end_date),
           opening_count: project.opening_count != null ? String(project.opening_count) : '1',
@@ -305,7 +303,6 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
       return {
         ...applyCompensationUnit(nextUnit, prev),
         type,
-        other_description: type === 'other' ? prev.other_description : '',
       }
     })
   }
@@ -322,10 +319,6 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
   const validate = (): boolean => {
     if (!form.title.trim()) { toast.error('Please enter project title'); return false }
     if (!form.type) { toast.error('Please select project type'); return false }
-    if (requireOtherDescription && form.other_description.trim().length < 20) {
-      toast.error('Describe the engagement in at least 20 characters for type Other')
-      return false
-    }
     if (!form.compensation_unit) {
       toast.error(requireExplicitUnit ? 'Select how you will pay' : 'Select compensation unit')
       return false
@@ -545,7 +538,6 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
         opening_count: parseInt(form.opening_count),
         required_expertise: form.required_expertise.split(',').map(s => s.trim()).filter(Boolean),
         schedule_notes: form.schedule_notes.trim() || null,
-        other_description: form.type === 'other' ? form.other_description.trim() : null,
       }
       delete (payload as any).interview_period_start_date
       delete (payload as any).interview_period_end_date
@@ -554,7 +546,7 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
 
       Object.entries(payload).forEach(([key, value]) => {
         if (value === undefined || value === null) {
-          if ((key === 'interview_period_interval' || key === 'schedule_notes' || key === 'other_description' || key === 'institution_gross_per_unit') && isEdit) {
+          if ((key === 'interview_period_interval' || key === 'schedule_notes' || key === 'institution_gross_per_unit') && isEdit) {
             formData.append(key, '')
           }
           return
@@ -638,18 +630,6 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
                 </SelectContent>
               </Select>
             </div>
-            {requireOtherDescription && (
-              <div className="md:col-span-2">
-                <Label className="text-[#000000] font-medium mb-2 block">Engagement description *</Label>
-                <Textarea
-                  placeholder="Describe the engagement (what the expert will deliver, format, audience, etc.)"
-                  value={form.other_description}
-                  onChange={(e) => setForm((prev) => ({ ...prev, other_description: e.target.value }))}
-                  className="border-[#DCDCDC] min-h-[80px]"
-                />
-                <p className="text-xs text-[#6A6A6A] mt-1">Required for type Other (min 20 characters).</p>
-              </div>
-            )}
             <div>
               <Label className="text-[#000000] font-medium mb-2 block">How will you pay? *</Label>
               <Select
@@ -1017,43 +997,64 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
                 {recommendedExperts.map((expert) => {
                   const isSelected = selectedExperts.includes(expert.id)
                   return (
-                    <label key={expert.id} className="block cursor-pointer">
-                      <div className={`flex items-start gap-3 p-4 rounded-xl border bg-white transition-all duration-200 ${isSelected ? 'border-[#008260] bg-[#E8F5F1] shadow-md' : 'border-[#E0E0E0] hover:border-[#008260] hover:shadow-sm'}`}>
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedExperts(prev => [...prev, expert.id])
-                            } else {
-                              setSelectedExperts(prev => prev.filter(id => id !== expert.id))
-                            }
-                          }}
-                          className="mt-1 border-2 rounded-md border-[#DCDCDC] data-[state=checked]:bg-[#008260] data-[state=checked]:border-[#008260]"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start gap-3 mb-2">
-                            <Avatar className="h-12 w-12 flex-shrink-0">
-                              <AvatarImage src={expert.photo_url} />
-                              <AvatarFallback className="bg-[#E0E0E0] text-[#6A6A6A]">
-                                {expert.name?.charAt(0)?.toUpperCase() || 'E'}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-semibold text-[#000000] truncate">{expertDisplayName(expert)}</h4>
-                              <p className="text-xs text-[#6A6A6A] truncate">{expert.email}</p>
-                            </div>
+                    <div
+                      key={expert.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => {
+                        setSelectedExperts((prev) =>
+                          isSelected ? prev.filter((id) => id !== expert.id) : [...prev, expert.id]
+                        )
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          setSelectedExperts((prev) =>
+                            isSelected ? prev.filter((id) => id !== expert.id) : [...prev, expert.id]
+                          )
+                        }
+                      }}
+                      className={`flex items-start gap-3 p-4 rounded-xl border bg-white transition-all duration-200 cursor-pointer ${isSelected ? 'border-[#008260] bg-[#E8F5F1] shadow-md' : 'border-[#E0E0E0] hover:border-[#008260] hover:shadow-sm'}`}
+                    >
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedExperts(prev => [...prev, expert.id])
+                          } else {
+                            setSelectedExperts(prev => prev.filter(id => id !== expert.id))
+                          }
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="mt-1 border-2 rounded-md border-[#DCDCDC] data-[state=checked]:bg-[#008260] data-[state=checked]:border-[#008260]"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start gap-3 mb-2">
+                          <Avatar className="h-12 w-12 flex-shrink-0">
+                            <AvatarImage src={expert.photo_url} />
+                            <AvatarFallback className="bg-[#E0E0E0] text-[#6A6A6A]">
+                              {expert.name?.charAt(0)?.toUpperCase() || 'E'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-[#000000] truncate">{expertDisplayName(expert)}</h4>
+                            <p className="text-xs text-[#6A6A6A] truncate">{expert.email}</p>
                           </div>
-                          {expert.domain_expertise && (
-                            <Badge className="mb-2 bg-[#E8F5F1] text-[#008260] border border-[#008260] text-xs">
-                              {expert.domain_expertise}
-                            </Badge>
-                          )}
-                          {expert.bio && (
-                            <p className="text-xs text-[#6A6A6A] line-clamp-2">{expert.bio}</p>
-                          )}
-                          {expert.hourly_rate && (
-                            <p className="text-xs text-[#000000] font-medium mt-2">₹{getInstitutionRate(expert.hourly_rate)}/hour</p>
-                          )}
+                        </div>
+                        {expert.domain_expertise && (
+                          <Badge className="mb-2 bg-[#E8F5F1] text-[#008260] border border-[#008260] text-xs">
+                            {expert.domain_expertise}
+                          </Badge>
+                        )}
+                        {expert.bio && (
+                          <p className="text-xs text-[#6A6A6A] line-clamp-2">{expert.bio}</p>
+                        )}
+                        {expert.hourly_rate && (
+                          <p className="text-xs text-[#000000] font-medium mt-2">
+                            You pay ~₹{getInstitutionRate(expert.hourly_rate)}/hour
+                          </p>
+                        )}
+                        <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                           <ExpertAvailabilityTrigger
                             expertId={expert.id}
                             startDate={form.start_date}
@@ -1063,7 +1064,7 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
                           />
                         </div>
                       </div>
-                    </label>
+                    </div>
                   )
                 })}
               </div>

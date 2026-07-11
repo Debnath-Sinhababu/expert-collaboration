@@ -22,7 +22,7 @@ import Logo from '@/components/Logo'
 import { formatInterviewDateTime } from '@/lib/datetime'
 import { RateIntentBadge } from '@/components/requirements/RateIntentBadge'
 import { RateAgreementPanel } from '@/components/requirements/RateAgreementPanel'
-import { moneyInr, projectCompensationDisplay } from '@/lib/projectCompensation'
+import { PostedCompensationRate } from '@/components/requirements/PostedCompensationRate'
 import { 
   User, 
   Briefcase, 
@@ -816,10 +816,12 @@ export default function ExpertDashboard() {
                             </div>
                             <div className="min-w-0">
                               <span className="text-[#717171] text-xs">You earn (posted):</span>
-                              <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">
-                                {moneyInr(projectCompensationDisplay(application.projects).netPerUnitDisplay)}
-                                /{projectCompensationDisplay(application.projects).unitShort}
-                              </p>
+                              <PostedCompensationRate
+                                project={application.projects}
+                                audience="expert"
+                                showLabel={false}
+                                className="font-medium text-sm sm:text-base text-[#1D1D1D]"
+                              />
                             </div>
                           </div>
                         </div>
@@ -922,10 +924,12 @@ export default function ExpertDashboard() {
                             </div>
                             <div className="min-w-0">
                               <div className="text-[#717171] text-xs">You earn (posted)</div>
-                              <div className="font-semibold text-[#000000] text-sm sm:text-base truncate">
-                                {moneyInr(projectCompensationDisplay(application.projects).netPerUnitDisplay)}
-                                /{projectCompensationDisplay(application.projects).unitShort}
-                              </div>
+                              <PostedCompensationRate
+                                project={application.projects}
+                                audience="expert"
+                                showLabel={false}
+                                className="font-semibold text-[#000000] text-sm sm:text-base"
+                              />
                             </div>
                           </div>
                         </div>
@@ -1006,7 +1010,12 @@ export default function ExpertDashboard() {
                           <p className="text-xs sm:text-sm text-slate-600 mb-2 break-words line-clamp-2">{application.projects?.description || 'Project description'}</p>
                           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs sm:text-sm text-slate-500">
                             <span>Applied: {new Date(application.applied_at || Date.now()).toLocaleDateString()}</span>
-                            <span className="font-medium text-slate-700">Proposed Rate: ₹{application.proposed_rate}</span>
+                            <PostedCompensationRate
+                              project={application.projects}
+                              audience="expert"
+                              showLabel={false}
+                              className="font-medium text-slate-700 text-xs sm:text-sm"
+                            />
                           </div>
                         </div>
                       ))}
