@@ -17,6 +17,8 @@ export function RateIntentBadge({ rateIntent, rateStatus, className }: Props) {
     status === 'expert_proposed' ||
     status === 'institution_countered' ||
     status === 'expert_countered'
+  const pendingOffer = status === 'posted_rate_offered'
+  const declined = status === 'posted_rate_declined'
 
   const label = rateStatus
     ? rateStatusLabel(rateStatus)
@@ -33,6 +35,22 @@ export function RateIntentBadge({ rateIntent, rateStatus, className }: Props) {
   if (agreed) {
     return (
       <Badge className={`bg-emerald-100 text-emerald-800 border border-emerald-200 ${className || ''}`}>
+        {label}
+      </Badge>
+    )
+  }
+
+  if (pendingOffer) {
+    return (
+      <Badge className={`bg-sky-100 text-sky-900 border border-sky-200 ${className || ''}`}>
+        {label}
+      </Badge>
+    )
+  }
+
+  if (declined) {
+    return (
+      <Badge className={`bg-rose-100 text-rose-900 border border-rose-200 ${className || ''}`}>
         {label}
       </Badge>
     )

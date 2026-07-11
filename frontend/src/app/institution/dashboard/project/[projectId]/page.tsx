@@ -40,6 +40,8 @@ import { RateIntentBadge } from '@/components/requirements/RateIntentBadge'
 import { RateAgreementPanel } from '@/components/requirements/RateAgreementPanel'
 import { PostedCompensationRate } from '@/components/requirements/PostedCompensationRate'
 import {
+  isPostedRateDeclined,
+  isPostedRateOfferPending,
   isRateAgreed,
   moneyInr,
   projectCompensationDisplay,
@@ -472,6 +474,14 @@ export default function InstitutionProjectDetailsPage() {
       return
     }
     const status = application.rate_status || application.rate_intent
+    if (isPostedRateDeclined(status)) {
+      toast.error('Expert declined the posted rate. Booking cannot proceed for this application.')
+      return
+    }
+    if (isPostedRateOfferPending(status)) {
+      toast.error('Waiting for the expert to respond to your posted-rate request')
+      return
+    }
     if (!isRateAgreed(status) && application.rate_intent === 'open_to_negotiate') {
       toast.error('Complete rate negotiation before confirming booking')
       return
@@ -1306,6 +1316,16 @@ export default function InstitutionProjectDetailsPage() {
                       {processingApplications[application.id] ? 'Processing...' : 'Confirm & lock booking'}
                     </Button>
                   </div>
+                  {isPostedRateOfferPending(application.rate_status) && (
+                    <p className="text-xs text-sky-800 mt-2">
+                      Confirm &amp; lock is paused until the expert responds to your posted-rate request.
+                    </p>
+                  )}
+                  {isPostedRateDeclined(application.rate_status) && (
+                    <p className="text-xs text-rose-700 mt-2">
+                      Confirm &amp; lock is disabled — the expert declined proceeding at the posted rate only.
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>

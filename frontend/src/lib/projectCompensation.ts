@@ -246,11 +246,25 @@ export const RATE_STATUSES = [
   'institution_countered',
   'expert_countered',
   'agreed',
+  'posted_rate_offered',
+  'posted_rate_declined',
 ] as const
 export type RateStatus = (typeof RATE_STATUSES)[number]
 
 export function isRateAgreed(status?: string | null): boolean {
   return status === 'agreed_posted' || status === 'agreed'
+}
+
+export function isPostedRateOfferPending(status?: string | null): boolean {
+  return status === 'posted_rate_offered'
+}
+
+export function isPostedRateDeclined(status?: string | null): boolean {
+  return status === 'posted_rate_declined'
+}
+
+export function isRateNegotiationClosed(status?: string | null): boolean {
+  return isRateAgreed(status) || isPostedRateOfferPending(status) || isPostedRateDeclined(status)
 }
 
 export function rateIntentLabel(intent?: string | null): string {
@@ -273,6 +287,10 @@ export function rateStatusLabel(status?: string | null): string {
       return 'Expert countered'
     case 'agreed':
       return 'Rate agreed'
+    case 'posted_rate_offered':
+      return 'Posted rate requested'
+    case 'posted_rate_declined':
+      return 'Posted rate declined'
     default:
       return 'Pending rate discussion'
   }
@@ -285,6 +303,126 @@ export type NegotiationHistoryEntry = {
   net_per_unit?: number | null
   gross_per_unit?: number | null
   note?: string | null
+}
+
+export type NegotiationHistoryDetailLine = { label: string; value: string }
+
+export function formatNegotiationHistoryEntry(
+  entry: NegotiationHistoryEntry,
+  unitShort = 'unit',
+  audience: 'institution' | 'expert' = 'institution'
+): {
+  title: string
+  details: NegotiationHistoryDetailLine[]
+  who: string
+  tone: 'neutral' | 'expert' | 'institution' | 'success'
+} {
+  const who =
+    entry.actor === 'expert'
+      ? 'Expert'
+      : entry.actor === 'institution'
+        ? 'Institution'
+        : 'System'
+  const net = entry.net_per_unit != null && Number(entry.net_per_unit) > 0 ? Number(entry.net_per_unit) : null
+  const gross = entry.gross_per_unit != null && Number(entry.gross_per_unit) > 0 ? Number(entry.gross_per_unit) : null
+  const note = entry.note?.trim() || ''
+
+  const amountDetails: NegotiationHistoryDetailLine[] = []
+  if (audience === 'expert') {
+    if (net != null) amountDetails.push({ label: 'Expert earn', value: `${moneyInr(net)} / ${unitShort}` })
+  } else {
+    if (gross != null) amountDetails.push({ label: 'Institution pays', value: `${moneyInr(gross)} / ${unitShort}` })
+    if (net != null) amountDetails.push({ label: 'Expert earn', value: `${moneyInr(net)} / ${unitShort}` })
+  }
+
+  const noteDetails: NegotiationHistoryDetailLine[] = note
+    ? [{ label: entry.action === 'expert_propose' || entry.action === 'institution_counter' ? 'Message' : 'Note', value: note }]
+    : []
+
+  const withFallback = (
+    title: string,
+    tone: 'neutral' | 'expert' | 'institution' | 'success',
+    fallback?: NegotiationHistoryDetailLine
+  ) => ({
+    who,
+    tone,
+    title,
+    details: [
+      ...(amountDetails.length > 0 ? amountDetails : fallback ? [fallback] : []),
+      ...noteDetails,
+    ],
+  })
+
+  switch (entry.action) {
+    case 'agreed_posted_at_apply':
+      return withFallback(
+        'Expert agreed to the posted rate while applying',
+        'success',
+        { label: 'Status', value: 'Accepted the rate shown on the requirement' }
+      )
+    case 'open_to_negotiate_at_apply':
+      return withFallback(
+        'Expert chose to negotiate if shortlisted',
+        'expert',
+        { label: 'Status', value: 'No amount was proposed at apply' }
+      )
+    case 'expert_propose':
+      return withFallback('Expert sent a rate proposal', 'expert', {
+        label: 'Status',
+        value: 'Proposed a new rate',
+      })
+    case 'institution_counter':
+      return withFallback('Institution sent a counter offer', 'institution', {
+        label: 'Status',
+        value: 'Proposed a revised rate',
+      })
+    case 'accept_proposal':
+      return withFallback('Institution accepted the expert’s proposal', 'success', {
+        label: 'Status',
+        value: 'Rate agreed based on expert proposal',
+      })
+    case 'accept_counter':
+      return withFallback('Expert accepted the institution’s counter offer', 'success', {
+        label: 'Status',
+        value: 'Rate agreed based on counter offer',
+      })
+    case 'accept_posted':
+      return withFallback(`${who} accepted the original posted rate`, 'success', {
+        label: 'Status',
+        value: 'Returned to the original posted compensation',
+      })
+    case 'offer_posted_rate':
+      return withFallback(
+        'Institution requested to proceed at the posted rate only',
+        'institution',
+        {
+          label: 'Status',
+          value: 'Negotiation paused — waiting for expert approval',
+        }
+      )
+    case 'accept_posted_offer':
+      return withFallback('Expert agreed to proceed at the posted rate', 'success', {
+        label: 'Status',
+        value: 'Posted rate accepted; negotiation closed',
+      })
+    case 'decline_posted_offer':
+      return withFallback('Expert declined proceeding at the posted rate only', 'expert', {
+        label: 'Status',
+        value: 'Negotiation closed; booking cannot proceed on this application',
+      })
+    case 'confirm_and_lock':
+      return withFallback('Rates locked and booking confirmed', 'success', {
+        label: 'Status',
+        value: 'Final compensation was locked for this engagement',
+      })
+    default: {
+      const readableAction = String(entry.action || 'update').replace(/_/g, ' ')
+      return withFallback(`${who} updated the rate discussion`, 'neutral', {
+        label: 'Action',
+        value: readableAction,
+      })
+    }
+  }
 }
 
 /** Resolve locked or in-progress rates for an application against its project. */

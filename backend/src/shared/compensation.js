@@ -14,6 +14,8 @@ const RATE_STATUSES = new Set([
   'institution_countered',
   'expert_countered',
   'agreed',
+  'posted_rate_offered',
+  'posted_rate_declined',
 ]);
 
 function toExpertNet(gross) {
@@ -36,6 +38,23 @@ function toPlatformFee(gross) {
 
 function isRateAgreed(status) {
   return status === 'agreed_posted' || status === 'agreed';
+}
+
+function isPostedRateOfferPending(status) {
+  return status === 'posted_rate_offered';
+}
+
+function isPostedRateDeclined(status) {
+  return status === 'posted_rate_declined';
+}
+
+/** Negotiation inputs closed (offer pending, declined, or already agreed). */
+function isRateNegotiationClosed(status) {
+  return (
+    isRateAgreed(status) ||
+    isPostedRateOfferPending(status) ||
+    isPostedRateDeclined(status)
+  );
 }
 
 function projectPostedRates(project) {
@@ -116,6 +135,9 @@ module.exports = {
   toInstitutionGrossFromNet,
   toPlatformFee,
   isRateAgreed,
+  isPostedRateOfferPending,
+  isPostedRateDeclined,
+  isRateNegotiationClosed,
   projectPostedRates,
   appendNegotiationHistory,
   resolveBookingAmount,

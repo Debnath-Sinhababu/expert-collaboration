@@ -4,6 +4,9 @@ const {
   toExpertNet,
   toInstitutionGrossFromNet,
   isRateAgreed,
+  isPostedRateOfferPending,
+  isPostedRateDeclined,
+  isRateNegotiationClosed,
   projectPostedRates,
   appendNegotiationHistory,
   resolveBookingAmount,
@@ -138,12 +141,64 @@ class ApplicationRateService {
       if (!gross) throw new HttpError(400, 'No institution counter to accept');
       const net = toExpertNet(gross);
       patch = this.#lockRates(app, posted, gross, net, historyActor, 'accept_counter', actionBody.note);
+    } else if (action === 'offer_posted_rate') {
+      // Institution asks to close negotiation and proceed at the original posted rate.
+      // Does NOT lock — expert must accept or decline.
+      this.#assertInstitution(actor);
+      this.#assertCanNegotiate(app);
+      const gross = posted.grossPerUnit;
+      const net = posted.netPerUnit;
+      if (!(gross > 0)) throw new HttpError(400, 'Project has no posted rate to offer');
+      patch = {
+        rate_status: 'posted_rate_offered',
+        rate_note: actionBody.note || app.rate_note || null,
+        institution_counter_gross_per_unit: null,
+        negotiation_history: appendNegotiationHistory(app.negotiation_history, {
+          actor: historyActor,
+          action: 'offer_posted_rate',
+          net_per_unit: net,
+          gross_per_unit: gross,
+          note: actionBody.note || null,
+        }),
+      };
+    } else if (action === 'accept_posted_offer') {
+      this.#assertExpert(actor);
+      if (!isPostedRateOfferPending(app.rate_status)) {
+        throw new HttpError(400, 'No posted-rate request awaiting your response');
+      }
+      const gross = posted.grossPerUnit;
+      const net = posted.netPerUnit;
+      if (!(gross > 0)) throw new HttpError(400, 'Project has no posted rate to accept');
+      patch = this.#lockRates(app, posted, gross, net, historyActor, 'accept_posted_offer', actionBody.note);
+      patch.rate_status = 'agreed_posted';
+    } else if (action === 'decline_posted_offer') {
+      this.#assertExpert(actor);
+      if (!isPostedRateOfferPending(app.rate_status)) {
+        throw new HttpError(400, 'No posted-rate request awaiting your response');
+      }
+      patch = {
+        rate_status: 'posted_rate_declined',
+        final_gross_per_unit: null,
+        final_net_per_unit: null,
+        rate_note: actionBody.note || app.rate_note || null,
+        negotiation_history: appendNegotiationHistory(app.negotiation_history, {
+          actor: historyActor,
+          action: 'decline_posted_offer',
+          net_per_unit: posted.netPerUnit || null,
+          gross_per_unit: posted.grossPerUnit || null,
+          note: actionBody.note || null,
+        }),
+      };
     } else if (action === 'accept_posted') {
+      // Expert may still voluntarily accept posted during open negotiation.
+      // Institution must use offer_posted_rate (expert approval required).
+      this.#assertExpert(actor);
+      this.#assertCanNegotiate(app);
       const gross = posted.grossPerUnit;
       const net = posted.netPerUnit;
       if (!(gross > 0)) throw new HttpError(400, 'Project has no posted rate to accept');
       patch = this.#lockRates(app, posted, gross, net, historyActor, 'accept_posted', actionBody.note);
-      patch.rate_status = app.rate_intent === 'agreed_posted' ? 'agreed_posted' : 'agreed';
+      patch.rate_status = 'agreed_posted';
     } else {
       throw new HttpError(400, 'Unknown rate action');
     }
@@ -178,6 +233,15 @@ class ApplicationRateService {
     let rateStatus = app.rate_status || app.rate_intent;
 
     if (!isRateAgreed(rateStatus) || !(finalGross > 0 && finalNet > 0)) {
+      if (isPostedRateDeclined(rateStatus)) {
+        throw new HttpError(
+          400,
+          'Expert declined proceeding at the posted rate. Booking cannot continue for this application.'
+        );
+      }
+      if (isPostedRateOfferPending(rateStatus)) {
+        throw new HttpError(400, 'Waiting for the expert to respond to the posted-rate request');
+      }
       if (rateStatus === 'agreed_posted' || app.rate_intent === 'agreed_posted') {
         finalGross = posted.grossPerUnit;
         finalNet = posted.netPerUnit;
@@ -289,6 +353,15 @@ class ApplicationRateService {
     }
     if (isRateAgreed(app.rate_status)) {
       throw new HttpError(400, 'Rate is already agreed');
+    }
+    if (isPostedRateOfferPending(app.rate_status)) {
+      throw new HttpError(400, 'A posted-rate request is awaiting the expert’s response');
+    }
+    if (isPostedRateDeclined(app.rate_status)) {
+      throw new HttpError(400, 'Negotiation was closed after the expert declined the posted rate');
+    }
+    if (isRateNegotiationClosed(app.rate_status)) {
+      throw new HttpError(400, 'Rate negotiation is closed for this application');
     }
     if (app.status !== 'interview' && app.status !== 'accepted') {
       throw new HttpError(400, 'Negotiation unlocks after interview / shortlist');
