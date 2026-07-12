@@ -246,11 +246,13 @@ class BookingCompletionService {
   }
 
   #assertExpert(actor) {
-    if (actor?.role !== 'expert') throw new HttpError(403, 'Only the expert can perform this action');
+    if (actor?.role !== 'expert' && actor?.role !== 'super_admin') {
+      throw new HttpError(403, 'Only the expert can perform this action');
+    }
   }
 
   #assertInstitution(actor) {
-    if (actor?.role !== 'institution') {
+    if (actor?.role !== 'institution' && actor?.role !== 'super_admin') {
       throw new HttpError(403, 'Only the institution can perform this action');
     }
   }
