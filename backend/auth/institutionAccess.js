@@ -80,7 +80,10 @@ async function resolveInstitutionAccess(req, institutionId) {
 
   if (role === 'super_admin') {
     const actingId = parseActingInstitutionId(req);
-    if (!actingId || actingId !== institutionId) return null;
+    // When acting as a specific institution, only that institution is allowed.
+    // When no acting header is set, super_admin may operate on any institution
+    // (e.g. requirements detail using shared institution APIs).
+    if (actingId && actingId !== institutionId) return null;
     return { mode: 'super_admin', institution: instRow, user, userClient };
   }
 

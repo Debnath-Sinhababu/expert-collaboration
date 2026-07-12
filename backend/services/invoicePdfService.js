@@ -1,4 +1,5 @@
 const PDFDocument = require('pdfkit');
+const { resolveSettlementRates } = require('../src/shared/compensation');
 
 function money(value) {
   return `Rs. ${Number(value || 0).toFixed(2)}`;
@@ -151,10 +152,12 @@ function generateInvoicePdf({ invoiceNumber, payment, booking, recipient }) {
     doc.moveDown(1).font('Helvetica-Bold').fontSize(14).text('Calculation');
     doc.moveDown(0.6);
     const widths = [160, 130, 130, 120];
-    const headers = ['Approved Hours', 'Hourly Rate', 'Calculated', 'Invoice Amount'];
+    const headers = ['Approved Hours', 'Rate / unit', 'Calculated', 'Invoice Amount'];
+    const settlement = resolveSettlementRates(booking || payment.booking || { projects: payment.projects });
+    const unitShort = settlement?.unitShort || 'unit';
     const values = [
       Number(payment.approved_hours || 0).toFixed(2),
-      money(payment.hourly_rate_snapshot),
+      `${money(payment.hourly_rate_snapshot)} / ${unitShort}`,
       money(payment.calculated_amount),
       money(payment.invoice_amount),
     ];

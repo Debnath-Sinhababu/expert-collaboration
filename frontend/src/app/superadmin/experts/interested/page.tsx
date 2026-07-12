@@ -104,7 +104,7 @@ export default function InterestedExpertsPage() {
                     <Check className="mr-2"/>
                     {!ex.calxbook_verified ? 'Verify' : 'Unverify'}
                   </Button>
-                  <Link href={`/superadmin/experts/${ex.id}/home`} className="ml-auto text-sm text-slate-600 hover:underline">Open workspace</Link>
+                  <Link href={`/superadmin/experts/${ex.id}/home`} target="_blank" rel="noopener noreferrer" className="ml-auto text-sm text-slate-600 hover:underline">Open workspace</Link>
                 </div>
               </CardContent>
             </Card>

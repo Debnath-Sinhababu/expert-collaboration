@@ -1,9 +1,12 @@
 const { createServiceClient } = require('../../config/supabase');
 const {
   approvedHoursFromDays,
+  approvedDaysFromDays,
   buildPaymentRecordDraft,
+  estimateSettlementAmounts,
   roundMoney,
 } = require('../../../services/financeCalculationService');
+const { isActiveBookingStatus } = require('../../shared/compensation');
 
 function tableMissing(error) {
   return error && (error.code === '42P01' || /relation .* does not exist/i.test(error.message || ''));
@@ -30,7 +33,9 @@ function cancelledStatus(status) {
 }
 
 function activeStatus(status) {
-  return ['in_progress', 'ongoing', 'active', 'accepted', 'shortlisted'].includes(String(status || '').toLowerCase());
+  const value = String(status || '').toLowerCase();
+  if (isActiveBookingStatus(value)) return true;
+  return ['ongoing', 'active', 'accepted', 'shortlisted'].includes(value);
 }
 
 function boolParam(value) {
@@ -1040,7 +1045,7 @@ class SuperAdminRepository {
     if (type !== 'project') return [];
     const { data, error } = await this.client
       .from('bookings')
-      .select('*, experts(id,name,email,phone,photo_url,bio,city,state,domain_expertise,subskills,qualifications,hourly_rate,experience_years,rating,total_ratings,is_verified,kyc_status), institutions(id,name,email)')
+      .select('*, experts(id,name,email,phone,photo_url,bio,city,state,domain_expertise,subskills,qualifications,hourly_rate,experience_years,rating,total_ratings,is_verified,kyc_status), institutions(id,name,email), projects(id,title,compensation_unit,institution_gross_per_unit,institution_gross_total,unit_quantity,duration_per_unit,hourly_rate,total_budget,duration_hours)')
       .eq('project_id', id)
       .order('created_at', { ascending: false });
     if (error) {
@@ -1085,7 +1090,8 @@ class SuperAdminRepository {
       project: {
         table: 'applications',
         key: 'project_id',
-        select: 'id,status,applied_at,interview_date,expert_id,experts:expert_id(id,name,email,phone,photo_url,bio,city,state,domain_expertise,subskills,qualifications,hourly_rate,experience_years,rating,total_ratings,is_verified,kyc_status)',
+        select:
+          'id,status,applied_at,interview_date,expert_id,cover_letter,screening_answers,rate_intent,rate_status,proposed_net_per_unit,institution_counter_gross_per_unit,final_gross_per_unit,final_net_per_unit,final_hourly_rate,compensation_unit,unit_quantity,rate_note,negotiation_history,proposed_rate,experts:expert_id(id,name,email,phone,photo_url,bio,city,state,domain_expertise,subskills,qualifications,hourly_rate,experience_years,rating,total_ratings,is_verified,kyc_status)',
         order: 'applied_at',
       },
       internship: {
@@ -1225,6 +1231,15 @@ class SuperAdminRepository {
       throw err;
     }
 
+    if (status === 'interview' && cfg.dateField) {
+      const interviewAt = payload.interview_scheduled_at;
+      if (!interviewAt) {
+        const err = new Error('Interview date and time are required');
+        err.statusCode = 400;
+        throw err;
+      }
+    }
+
     const update = { status };
     if (cfg.dateField && payload.interview_scheduled_at !== undefined) {
       update[cfg.dateField] = payload.interview_scheduled_at || null;
@@ -1244,7 +1259,7 @@ class SuperAdminRepository {
     return data || null;
   }
 
-  async createProjectBooking(project, expertId) {
+  async createProjectBooking(project, expertId, application = null) {
     const existing = await this.client
       .from('bookings')
       .select('*')
@@ -1254,18 +1269,41 @@ class SuperAdminRepository {
     if (existing.error && !tableMissing(existing.error)) throw existing.error;
     if (existing.data?.[0]) return existing.data[0];
 
+    const {
+      projectPostedRates,
+      toExpertNet,
+      resolveBookingAmount,
+    } = require('../../shared/compensation');
+
+    const posted = projectPostedRates(project || {});
+    let finalGross = Number(application?.final_gross_per_unit);
+    let finalNet = Number(application?.final_net_per_unit);
+    if (!(Number.isFinite(finalGross) && finalGross > 0)) {
+      finalGross = resolveBookingAmount(application, project) || posted.grossPerUnit || Number(project.hourly_rate) || 0;
+    }
+    if (!(Number.isFinite(finalNet) && finalNet > 0)) {
+      finalNet = toExpertNet(finalGross) || 0;
+    }
+    const unit = application?.compensation_unit || posted.unit || 'hourly';
+    const quantity = application?.unit_quantity ?? posted.quantity ?? null;
+
     const { data, error } = await this.client
       .from('bookings')
       .insert([{
         expert_id: expertId,
         project_id: project.id,
         institution_id: project.institution_id,
-        amount: project.hourly_rate || 0,
+        application_id: application?.id || null,
+        amount: finalGross || 0,
         start_date: project.start_date || new Date().toISOString().split('T')[0],
         end_date: project.end_date || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        hours_booked: project.duration_hours || 0,
+        hours_booked: posted.durationHours || project.duration_hours || 0,
         status: 'in_progress',
         payment_status: 'pending',
+        final_gross_per_unit: finalGross || null,
+        final_net_per_unit: finalNet || null,
+        compensation_unit: unit,
+        unit_quantity: quantity,
       }])
       .select()
       .single();
@@ -1274,7 +1312,7 @@ class SuperAdminRepository {
   }
 
   async updateRequirementBooking(requirementId, bookingId, payload) {
-    const allowed = ['pending', 'in_progress', 'completed', 'cancelled'];
+    const allowed = ['pending', 'confirmed', 'in_progress', 'completion_requested', 'cancellation_requested', 'completed', 'cancelled'];
     const status = String(payload.status || '').trim();
     if (!allowed.includes(status)) {
       const err = new Error('Invalid booking status');
@@ -1339,12 +1377,14 @@ class SuperAdminRepository {
     if (daysError && !tableMissing(daysError)) throw daysError;
 
     const approvedHoursByBooking = {};
+    const approvedDaysByBooking = {};
     for (const day of days || []) {
       if (day.status !== 'approved') continue;
       const entry = day.effective_entry_at || day.expert_entry_at;
       const exit = day.effective_exit_at || day.expert_exit_at;
       const minutes = entry && exit ? Math.max(0, new Date(exit) - new Date(entry)) / 60000 : 0;
       approvedHoursByBooking[day.booking_id] = (approvedHoursByBooking[day.booking_id] || 0) + minutes / 60;
+      approvedDaysByBooking[day.booking_id] = (approvedDaysByBooking[day.booking_id] || 0) + 1;
     }
 
     const { data: records } = bookingIds.length
@@ -1354,11 +1394,15 @@ class SuperAdminRepository {
 
     const rows = (data || []).map((booking) => {
       const approvedHours = Math.round((approvedHoursByBooking[booking.id] || 0) * 100) / 100;
-      const hourlyRate = Number(booking.hourly_rate || booking.experts?.hourly_rate || 0);
+      const approvedDays = approvedDaysByBooking[booking.id] || 0;
+      const estimate = estimateSettlementAmounts(booking, approvedHours, approvedDays);
       return {
         ...booking,
         approved_hours: approvedHours,
-        estimated_expert_amount: Math.round(approvedHours * hourlyRate * 100) / 100,
+        approved_days: approvedDays,
+        compensation_unit: estimate.unit,
+        estimated_expert_amount: estimate.estimated_expert_amount,
+        estimated_institution_amount: estimate.estimated_institution_amount,
         finance_record: recordByBooking[booking.id] || null,
       };
     });
@@ -1379,7 +1423,10 @@ class SuperAdminRepository {
   async listFinanceSourceBookings({ page, limit, offset, search = '' }) {
     let query = this.client
       .from('bookings')
-      .select('*, projects!inner(id,title,type,description,hourly_rate,total_budget,start_date,end_date,duration_hours,job_location,workplace_type,employment_type,status,call_status), experts(id,name,email,hourly_rate), institutions(id,name,email)', { count: 'exact' })
+      .select(
+        '*, projects!inner(id,title,type,description,hourly_rate,total_budget,start_date,end_date,duration_hours,job_location,workplace_type,employment_type,status,call_status,compensation_unit,institution_gross_per_unit,institution_gross_total,unit_quantity), experts(id,name,email,hourly_rate), institutions(id,name,email)',
+        { count: 'exact' }
+      )
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -1392,7 +1439,7 @@ class SuperAdminRepository {
     return { data: data || [], total: count || 0, page, limit };
   }
 
-  async approvedHoursForBookingIds(bookingIds) {
+  async attendanceMetricsForBookingIds(bookingIds) {
     if (!bookingIds.length) return {};
     const { data, error } = await this.client
       .from('training_attendance_days')
@@ -1408,7 +1455,20 @@ class SuperAdminRepository {
       daysByBooking[day.booking_id].push(day);
     }
     return Object.fromEntries(
-      Object.entries(daysByBooking).map(([bookingId, days]) => [bookingId, approvedHoursFromDays(days)]),
+      Object.entries(daysByBooking).map(([bookingId, days]) => [
+        bookingId,
+        {
+          approvedHours: approvedHoursFromDays(days),
+          approvedDays: approvedDaysFromDays(days),
+        },
+      ]),
+    );
+  }
+
+  async approvedHoursForBookingIds(bookingIds) {
+    const metrics = await this.attendanceMetricsForBookingIds(bookingIds);
+    return Object.fromEntries(
+      Object.entries(metrics).map(([bookingId, value]) => [bookingId, value.approvedHours || 0]),
     );
   }
 
@@ -1449,22 +1509,44 @@ class SuperAdminRepository {
     const bookingIds = rows.map((booking) => booking.id).filter(Boolean);
     if (!bookingIds.length) return [];
 
-    const [approvedHoursByBooking, existingByBooking] = await Promise.all([
-      this.approvedHoursForBookingIds(bookingIds),
+    const [metricsByBooking, existingByBooking] = await Promise.all([
+      this.attendanceMetricsForBookingIds(bookingIds),
       this.getFinanceRecordsByBookingIds(bookingIds),
     ]);
 
     const upserts = [];
     for (const booking of rows) {
-      const approvedHours = approvedHoursByBooking[booking.id] || 0;
+      const metrics = metricsByBooking[booking.id] || { approvedHours: 0, approvedDays: 0 };
+      const approvedHours = metrics.approvedHours || 0;
       for (const partyType of ['expert', 'institution']) {
         const existing = existingByBooking[booking.id]?.[partyType];
-        const draft = buildPaymentRecordDraft(booking, partyType, approvedHours);
+        const draft = buildPaymentRecordDraft(booking, partyType, approvedHours, {
+          approvedDays: metrics.approvedDays || 0,
+        });
+        if (existing && existing.status !== 'pending') {
+          upserts.push({
+            booking_id: draft.booking_id,
+            project_id: draft.project_id,
+            expert_id: draft.expert_id,
+            institution_id: draft.institution_id,
+            party_type: draft.party_type,
+            direction: draft.direction,
+            approved_hours: draft.approved_hours,
+            hourly_rate_snapshot: existing.hourly_rate_snapshot,
+            calculated_amount: existing.calculated_amount,
+            invoice_amount: existing.invoice_amount,
+            status: existing.status,
+            invoice_id: existing.invoice_id || null,
+            paid_amount: existing.paid_amount || 0,
+            paid_at: existing.paid_at || null,
+            notes: existing.notes || null,
+            updated_by: existing.updated_by || null,
+            updated_at: new Date().toISOString(),
+          });
+          continue;
+        }
         upserts.push({
           ...draft,
-          invoice_amount: existing && existing.status !== 'pending'
-            ? existing.invoice_amount
-            : draft.invoice_amount,
           status: existing?.status || 'pending',
           invoice_id: existing?.invoice_id || null,
           paid_amount: existing?.paid_amount || 0,
@@ -1539,7 +1621,7 @@ class SuperAdminRepository {
       bookingIds.length
         ? this.client
             .from('bookings')
-            .select('*, projects(id,title,type,description,hourly_rate,total_budget,start_date,end_date,duration_hours,job_location,workplace_type,employment_type,status,call_status), experts(id,name,email,hourly_rate), institutions(id,name,email)')
+            .select('*, projects(id,title,type,description,hourly_rate,total_budget,start_date,end_date,duration_hours,job_location,workplace_type,employment_type,status,call_status,compensation_unit,institution_gross_per_unit,unit_quantity), experts(id,name,email,hourly_rate), institutions(id,name,email)')
             .in('id', bookingIds)
         : { data: [], error: null },
       invoiceIds.length
@@ -1604,6 +1686,45 @@ class SuperAdminRepository {
     return (await this.hydrateFinanceRecords([data]))[0] || data;
   }
 
+  emptyFinancePartyBreakdown() {
+    return {
+      pipeline: 0,
+      awaiting_invoice: 0,
+      invoice_sent: 0,
+      settled: 0,
+      outstanding: 0,
+      remaining: 0,
+      cancelled: 0,
+      counts: { pending: 0, invoiced: 0, paid: 0, cancelled: 0, other: 0 },
+    };
+  }
+
+  emptyFinanceSummary() {
+    const emptyParty = this.emptyFinancePartyBreakdown();
+    return {
+      total_receivable: 0,
+      total_payable: 0,
+      invoiced: 0,
+      paid: 0,
+      pending: 0,
+      remaining: 0,
+      institute: { ...emptyParty },
+      expert: { ...emptyParty },
+      platform: {
+        expected_margin: 0,
+        realized_margin: 0,
+        outstanding_net: 0,
+      },
+      equation: {
+        institute: 'pipeline = awaiting_invoice + invoice_sent + settled (+ cancelled excluded)',
+        expert: 'pipeline = awaiting_invoice + invoice_sent + settled (+ cancelled excluded)',
+        outstanding: 'outstanding = awaiting_invoice + invoice_sent',
+        platform_expected: 'expected_margin = institute.pipeline − expert.pipeline',
+        platform_realized: 'realized_margin = institute.settled − expert.settled',
+      },
+    };
+  }
+
   async getFinanceSummary(scope = {}) {
     let query = this.client.from('finance_payment_records').select('*');
     if (scope.party_type) query = query.eq('party_type', scope.party_type);
@@ -1611,21 +1732,72 @@ class SuperAdminRepository {
     if (scope.institution_id) query = query.eq('institution_id', scope.institution_id);
     const { data, error } = await query;
     if (error) {
-      if (tableMissing(error)) return { total_receivable: 0, total_payable: 0, invoiced: 0, paid: 0, pending: 0, remaining: 0 };
+      if (tableMissing(error)) return this.emptyFinanceSummary();
       throw error;
     }
-    const summary = { total_receivable: 0, total_payable: 0, invoiced: 0, paid: 0, pending: 0, remaining: 0 };
+
+    const summary = this.emptyFinanceSummary();
+    const bumpParty = (party, status, amount, paidAmount) => {
+      const remaining = Math.max(0, amount - paidAmount);
+      party.remaining += remaining;
+      if (status === 'cancelled') {
+        party.cancelled += amount;
+        party.counts.cancelled += 1;
+        return;
+      }
+      party.pipeline += amount;
+      if (status === 'pending') {
+        party.awaiting_invoice += amount;
+        party.outstanding += amount;
+        party.counts.pending += 1;
+      } else if (status === 'invoiced') {
+        party.invoice_sent += amount;
+        party.outstanding += remaining;
+        party.counts.invoiced += 1;
+      } else if (status === 'paid') {
+        party.settled += paidAmount || amount;
+        party.counts.paid += 1;
+      } else {
+        party.outstanding += remaining;
+        party.counts.other += 1;
+      }
+    };
+
     for (const record of data || []) {
       const amount = Number(record.invoice_amount || record.calculated_amount || 0);
-      const paid = Number(record.paid_amount || 0);
-      if (record.direction === 'receivable') summary.total_receivable += amount;
-      if (record.direction === 'payable') summary.total_payable += amount;
-      if (record.status === 'invoiced') summary.invoiced += amount;
-      if (record.status === 'paid') summary.paid += paid || amount;
-      if (record.status === 'pending') summary.pending += amount;
-      summary.remaining += Math.max(0, amount - paid);
+      const paidAmount = Number(record.paid_amount || 0);
+      const status = String(record.status || 'pending').toLowerCase();
+      const direction =
+        record.direction ||
+        (record.party_type === 'expert' ? 'payable' : 'receivable');
+
+      // Legacy flat fields (cross-party status slice — kept for older dashboards).
+      if (direction === 'receivable' && status !== 'cancelled') summary.total_receivable += amount;
+      if (direction === 'payable' && status !== 'cancelled') summary.total_payable += amount;
+      if (status === 'invoiced') summary.invoiced += amount;
+      if (status === 'paid') summary.paid += paidAmount || amount;
+      if (status === 'pending') summary.pending += amount;
+      if (status !== 'cancelled') summary.remaining += Math.max(0, amount - paidAmount);
+
+      if (direction === 'receivable' || record.party_type === 'institution') {
+        bumpParty(summary.institute, status, amount, paidAmount);
+      } else if (direction === 'payable' || record.party_type === 'expert') {
+        bumpParty(summary.expert, status, amount, paidAmount);
+      }
     }
-    return Object.fromEntries(Object.entries(summary).map(([key, value]) => [key, roundMoney(value)]));
+
+    summary.platform.expected_margin = summary.institute.pipeline - summary.expert.pipeline;
+    summary.platform.realized_margin = summary.institute.settled - summary.expert.settled;
+    summary.platform.outstanding_net = summary.institute.outstanding - summary.expert.outstanding;
+
+    const roundDeep = (value) => {
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, roundDeep(v)]));
+      }
+      if (typeof value === 'number') return roundMoney(value);
+      return value;
+    };
+    return roundDeep(summary);
   }
 
   async listFinanceInvoices({ page, limit, offset, recipient_type = '', search = '' }) {

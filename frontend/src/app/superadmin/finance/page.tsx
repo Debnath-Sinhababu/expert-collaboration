@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
-import { Banknote, FileText, ReceiptText, Search } from 'lucide-react'
+import { ArrowDownLeft, ArrowUpRight, Banknote, FileText, ReceiptText, Scale, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -21,6 +21,7 @@ import { DataTable } from '@/components/superadmin/common/DataTable'
 import { PermissionGate } from '@/components/superadmin/common/PermissionGate'
 import { PaginationControls } from '@/components/superadmin/common/PaginationControls'
 import { superAdminApi } from '@/lib/superadmin/api'
+import { compensationUnitShortLabel, resolveBookingSettlementRates } from '@/lib/projectCompensation'
 
 const PAGE_SIZE = 15
 
@@ -30,6 +31,20 @@ function money(value: unknown) {
 
 function formatDate(value?: string | null) {
   return value ? new Date(value).toLocaleString() : '-'
+}
+
+function paymentPayUnit(row: any): string {
+  const fromBooking =
+    row?.booking?.compensation_unit ||
+    row?.projects?.compensation_unit ||
+    row?.booking?.projects?.compensation_unit
+  if (fromBooking) return compensationUnitShortLabel(fromBooking)
+  const rates = resolveBookingSettlementRates(row?.booking || { projects: row?.projects })
+  return rates.unitShort || 'unit'
+}
+
+function formatRateWithUnit(row: any): string {
+  return `${money(row.hourly_rate_snapshot)} / ${paymentPayUnit(row)}`
 }
 
 function statusClass(status?: string) {
@@ -45,12 +60,14 @@ function FinanceMetricCard({
   icon: Icon,
   tone = 'green',
   helper,
+  footnote,
 }: {
   label: string
   value: string
   icon: typeof Banknote
   tone?: 'green' | 'blue' | 'amber' | 'slate'
   helper: string
+  footnote?: string
 }) {
   const styles = {
     green: 'border-emerald-200 bg-emerald-50 text-[#008260]',
@@ -61,20 +78,54 @@ function FinanceMetricCard({
 
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-[#008260]/30 hover:shadow-md">
-      <div className="mb-4 flex items-start justify-between gap-3">
+      <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-          <p className="mt-1 text-xs text-slate-500">{helper}</p>
+          <p className="mt-1 text-xs leading-snug text-slate-500">{helper}</p>
         </div>
         <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border ${styles}`}>
           <Icon className="h-5 w-5" />
         </div>
       </div>
-      <p className="break-words text-[clamp(1.25rem,1.7vw,1.9rem)] font-bold leading-tight tracking-tight text-slate-950">
+      <p className="break-words text-[clamp(1.15rem,1.6vw,1.75rem)] font-bold leading-tight tracking-tight text-slate-950">
         {value}
       </p>
+      {footnote ? <p className="mt-2 text-[11px] leading-snug text-slate-400">{footnote}</p> : null}
     </article>
   )
+}
+
+function FinanceStatSection({
+  title,
+  description,
+  children,
+}: {
+  title: string
+  description: string
+  children: ReactNode
+}) {
+  return (
+    <section className="space-y-3">
+      <div>
+        <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
+        <p className="mt-0.5 text-xs text-slate-500">{description}</p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{children}</div>
+    </section>
+  )
+}
+
+function emptyParty() {
+  return {
+    pipeline: 0,
+    awaiting_invoice: 0,
+    invoice_sent: 0,
+    settled: 0,
+    outstanding: 0,
+    remaining: 0,
+    cancelled: 0,
+    counts: { pending: 0, invoiced: 0, paid: 0, cancelled: 0, other: 0 },
+  }
 }
 
 export default function SuperAdminFinancePage() {
@@ -229,19 +280,130 @@ export default function SuperAdminFinancePage() {
         ]
   ), [activeTab])
 
+  const institute = summary.institute || emptyParty()
+  const expert = summary.expert || emptyParty()
+  const platform = summary.platform || { expected_margin: 0, realized_margin: 0, outstanding_net: 0 }
+
+  const countLabel = (n: number, singular = 'payment', plural = 'payments') =>
+    `${n} ${n === 1 ? singular : plural}`
+
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <FinanceMetricCard label="Receivable" value={money(summary.total_receivable)} icon={Banknote} helper="Institute collections" />
-        <FinanceMetricCard label="Payable" value={money(summary.total_payable)} icon={Banknote} tone="blue" helper="Expert payouts" />
-        <FinanceMetricCard label="Invoiced" value={money(summary.invoiced)} icon={ReceiptText} tone="blue" helper="Invoices sent" />
-        <FinanceMetricCard label="Paid" value={money(summary.paid)} icon={ReceiptText} helper="Settled amount" />
-        <FinanceMetricCard label="Pending" value={money(summary.pending)} icon={FileText} tone="amber" helper="Awaiting invoice" />
+      <div className="space-y-5 rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5">
+        <FinanceStatSection
+          title="Quick picture"
+          description="The most useful numbers to check first."
+        >
+          <FinanceMetricCard
+            label="CalxMap’s share (expected)"
+            value={money(platform.expected_margin)}
+            icon={Scale}
+            tone="slate"
+            helper="If everything currently listed gets paid as planned"
+            footnote="Institute total minus expert total"
+          />
+          <FinanceMetricCard
+            label="CalxMap’s share (already received)"
+            value={money(platform.realized_margin)}
+            icon={Banknote}
+            helper="Based only on payments already marked as paid"
+            footnote="Money in from institutes minus money out to experts"
+          />
+          <FinanceMetricCard
+            label="Still to collect from institutes"
+            value={money(institute.outstanding)}
+            icon={ArrowDownLeft}
+            tone="amber"
+            helper="Not paid yet by institutes"
+            footnote={`${countLabel(institute.counts.pending || 0)} not billed yet · ${countLabel(institute.counts.invoiced || 0)} billed, unpaid`}
+          />
+          <FinanceMetricCard
+            label="Still to pay to experts"
+            value={money(expert.outstanding)}
+            icon={ArrowUpRight}
+            tone="blue"
+            helper="Not paid out yet to experts"
+            footnote={`${countLabel(expert.counts.pending || 0)} not billed yet · ${countLabel(expert.counts.invoiced || 0)} billed, unpaid`}
+          />
+        </FinanceStatSection>
+
+        <FinanceStatSection
+          title="Money from institutes"
+          description="What institutes owe CalxMap, and what they have already paid."
+        >
+          <FinanceMetricCard
+            label="Total for institutes"
+            value={money(institute.pipeline)}
+            icon={Banknote}
+            helper="Everything currently on the books for institutes"
+            footnote="Not billed + billed + already paid"
+          />
+          <FinanceMetricCard
+            label="Not billed yet"
+            value={money(institute.awaiting_invoice)}
+            icon={FileText}
+            tone="amber"
+            helper="Work is done / listed, but no invoice has been sent"
+            footnote={countLabel(institute.counts.pending || 0)}
+          />
+          <FinanceMetricCard
+            label="Invoice sent, waiting for payment"
+            value={money(institute.invoice_sent)}
+            icon={ReceiptText}
+            tone="blue"
+            helper="Invoice went out; institute has not paid yet"
+            footnote={countLabel(institute.counts.invoiced || 0)}
+          />
+          <FinanceMetricCard
+            label="Already received"
+            value={money(institute.settled)}
+            icon={Banknote}
+            helper="Marked as paid from institutes"
+            footnote={countLabel(institute.counts.paid || 0)}
+          />
+        </FinanceStatSection>
+
+        <FinanceStatSection
+          title="Money to experts"
+          description="What CalxMap owes experts, and what has already been paid out."
+        >
+          <FinanceMetricCard
+            label="Total for experts"
+            value={money(expert.pipeline)}
+            icon={Banknote}
+            tone="blue"
+            helper="Everything currently on the books for experts"
+            footnote="Not billed + billed + already paid"
+          />
+          <FinanceMetricCard
+            label="Not billed yet"
+            value={money(expert.awaiting_invoice)}
+            icon={FileText}
+            tone="amber"
+            helper="Ready to pay, but payout invoice has not been sent"
+            footnote={countLabel(expert.counts.pending || 0)}
+          />
+          <FinanceMetricCard
+            label="Invoice sent, waiting to pay out"
+            value={money(expert.invoice_sent)}
+            icon={ReceiptText}
+            tone="blue"
+            helper="Payout invoice sent; not marked paid yet"
+            footnote={countLabel(expert.counts.invoiced || 0)}
+          />
+          <FinanceMetricCard
+            label="Already paid to experts"
+            value={money(expert.settled)}
+            icon={Banknote}
+            helper="Marked as paid out to experts"
+            footnote={countLabel(expert.counts.paid || 0)}
+          />
+        </FinanceStatSection>
       </div>
 
       <SectionCard
-        title="Finance Operations"
-        description="Manage institute collections and expert payouts from approved training attendance."
+        title="Payment list"
+        description="Open a payment to send an invoice or mark it as paid."
       >
         <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <Tabs
@@ -300,8 +462,8 @@ export default function SuperAdminFinancePage() {
                 const party = activeTab === 'expert' ? row.institutions : row.experts
                 return party?.name || '-'
               } },
-              { key: 'hours', header: 'Hours', render: (row) => Number(row.approved_hours || 0).toFixed(2) },
-              { key: 'rate', header: 'Rate', render: (row) => money(row.hourly_rate_snapshot) },
+              { key: 'hours', header: 'Qty / hours', render: (row) => Number(row.approved_hours || 0).toFixed(2) },
+              { key: 'rate', header: 'Rate', render: (row) => formatRateWithUnit(row) },
               { key: 'amount', header: 'Amount', render: (row) => money(row.invoice_amount || row.calculated_amount) },
               { key: 'status', header: 'Status', render: (row) => <span className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${statusClass(row.status)}`}>{row.status}</span> },
               { key: 'action', header: '', render: (row) => <Button type="button" size="sm" variant="outline" onClick={() => openPayment(row)}>Details</Button> },
@@ -325,7 +487,7 @@ export default function SuperAdminFinancePage() {
                 <div><span className="text-slate-500">Expert</span><p className="font-medium text-slate-950">{selected.experts?.name || '-'}</p></div>
                 <div><span className="text-slate-500">Institute</span><p className="font-medium text-slate-950">{selected.institutions?.name || '-'}</p></div>
                 <div><span className="text-slate-500">Approved hours</span><p className="font-medium text-slate-950">{Number(selected.approved_hours || 0).toFixed(2)}</p></div>
-                <div><span className="text-slate-500">Hourly rate</span><p className="font-medium text-slate-950">{money(selected.hourly_rate_snapshot)}</p></div>
+                <div><span className="text-slate-500">Rate</span><p className="font-medium text-slate-950">{formatRateWithUnit(selected)}</p></div>
                 <div><span className="text-slate-500">Calculated amount</span><p className="font-medium text-slate-950">{money(selected.calculated_amount)}</p></div>
                 <div><span className="text-slate-500">Current status</span><p className="font-medium capitalize text-slate-950">{selected.status}</p></div>
               </div>

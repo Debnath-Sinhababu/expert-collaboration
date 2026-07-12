@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
-import { EXPERTISE_DOMAINS } from '@/lib/constants'
+import { EXPERTISE_DOMAINS, EXPERT_TYPES, EXPERT_SERVICES } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
 
 const STATES = [
@@ -109,6 +109,8 @@ export default function InstitutionHomePage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
   const [selectedDomain, setSelectedDomain] = useState('')
+  const [selectedExpertType, setSelectedExpertType] = useState('')
+  const [selectedExpertService, setSelectedExpertService] = useState('')
   const [selectedState, setSelectedState] = useState('')
   const [minRate, setMinRate] = useState('')
   const [maxRate, setMaxRate] = useState('')
@@ -152,13 +154,15 @@ export default function InstitutionHomePage() {
       }
       if (debouncedSearchTerm) params.subskill_search = debouncedSearchTerm
       if (selectedDomain && selectedDomain !== 'all') params.domain_expertise = selectedDomain
+      if (selectedExpertType && selectedExpertType !== 'all') params.expert_type = selectedExpertType
+      if (selectedExpertService && selectedExpertService !== 'all') params.expert_service = selectedExpertService
       if (selectedState && selectedState !== 'all') params.state = selectedState
       if (minRate) params.min_hourly_rate = parseFloat(minRate)
       if (maxRate) params.max_hourly_rate = parseFloat(maxRate)
       const data = await api.experts.getAll(params)
       return Array.isArray(data) ? data : (data?.data || [])
     },
-    [debouncedSearchTerm, selectedDomain, selectedState, minRate, maxRate]
+    [debouncedSearchTerm, selectedDomain, selectedExpertType, selectedExpertService, selectedState, minRate, maxRate]
   )
   
   // Expert selection modal state
@@ -266,6 +270,8 @@ export default function InstitutionHomePage() {
       
       if (debouncedSearchTerm) params.subskill_search = debouncedSearchTerm
       if (selectedDomain && selectedDomain !== 'all') params.domain_expertise = selectedDomain
+      if (selectedExpertType && selectedExpertType !== 'all') params.expert_type = selectedExpertType
+      if (selectedExpertService && selectedExpertService !== 'all') params.expert_service = selectedExpertService
       if (selectedState && selectedState !== 'all') params.state = selectedState
       if (minRate) params.min_hourly_rate = parseFloat(minRate)
       if (maxRate) params.max_hourly_rate = parseFloat(maxRate)
@@ -375,7 +381,7 @@ export default function InstitutionHomePage() {
     if (institution) {
       refreshExpertsList()
     }
-  }, [debouncedSearchTerm, selectedDomain, selectedState, minRate, maxRate])
+  }, [debouncedSearchTerm, selectedDomain, selectedExpertType, selectedExpertService, selectedState, minRate, maxRate])
 
   // useEffect(()=>{
   //    loadRecommendedExperts('cb2b9213-077c-4115-845d-8699d489d2d6')
@@ -1520,7 +1526,7 @@ export default function InstitutionHomePage() {
 
         {/* Search and Filters */}
         <div className="bg-white rounded-2xl border-2 border-[#D6D6D6] p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             <div>
               <Label htmlFor="search">Search Experts</Label>
               <div className="relative">
@@ -1546,6 +1552,40 @@ export default function InstitutionHomePage() {
                   {EXPERTISE_DOMAINS.map((domain) => (
                     <SelectItem key={domain.name} value={domain.name}>
                       {domain.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="expertType">Expert Type</Label>
+              <Select value={selectedExpertType} onValueChange={setSelectedExpertType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All types</SelectItem>
+                  {EXPERT_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="expertService">Expert Services</Label>
+              <Select value={selectedExpertService} onValueChange={setSelectedExpertService}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All services" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All services</SelectItem>
+                  {EXPERT_SERVICES.map((service) => (
+                    <SelectItem key={service} value={service}>
+                      {service}
                     </SelectItem>
                   ))}
                 </SelectContent>

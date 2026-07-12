@@ -79,10 +79,16 @@ export function ProjectRequirementMeta({ project }: { project: ProjectLike }) {
         </p>
       )}
       {project.interview_period_interval && (
-        <p className="flex items-center text-sm text-[#6A6A6A]">
-          <Clock className="h-4 w-4 mr-2 shrink-0 text-[#008260]" />
-          <span>Interview period: <span className="font-semibold text-[#000000]">{project.interview_period_interval}</span></span>
-        </p>
+        <div className="rounded-lg border border-[#BFE3D8] bg-[#E8F5F1] p-3">
+          <div className="flex items-start gap-2">
+            <Clock className="mt-0.5 h-4 w-4 shrink-0 text-[#008260]" />
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#008260]">Probable interview dates</p>
+              <p className="mt-1 text-sm font-semibold text-[#000000]">{project.interview_period_interval}</p>
+              <p className="mt-1 text-xs text-[#4B5563]">Institution shared this preferred interview window for the project.</p>
+            </div>
+          </div>
+        </div>
       )}
       {questions.length > 0 && (
         <div>
