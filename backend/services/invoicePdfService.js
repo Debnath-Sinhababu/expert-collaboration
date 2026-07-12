@@ -1,5 +1,8 @@
 const PDFDocument = require('pdfkit');
-const { resolveSettlementRates } = require('../src/shared/compensation');
+const {
+  resolveSettlementRates,
+  resolveInstitutionContractBudget,
+} = require('./financeCalculationService');
 
 function money(value) {
   return `Rs. ${Number(value || 0).toFixed(2)}`;
@@ -32,6 +35,67 @@ function truncate(value, max = 90) {
 
 function counterpartyLabel(partyType) {
   return partyType === 'expert' ? 'Verified client' : 'Assigned expert';
+}
+
+function displayPaymentStatus(payment) {
+  const due = Number(payment.invoice_amount || payment.calculated_amount || 0);
+  const paid = Number(payment.paid_amount || 0);
+  const status = String(payment.status || 'pending').toLowerCase();
+  if (status === 'paid' || (due > 0 && paid + 0.001 >= due)) return 'Paid';
+  if (paid > 0 && due > 0 && paid + 0.001 < due) return 'Partial paid';
+  if (status === 'invoiced') return 'Invoiced';
+  if (status === 'cancelled') return 'Cancelled';
+  return labelize(status);
+}
+
+function invoiceSettlementContext(payment, booking) {
+  const partyType = payment.party_type;
+  const rates = resolveSettlementRates(booking || { projects: payment.projects });
+  const invoiceAmount = Number(payment.invoice_amount || payment.calculated_amount || 0);
+
+  if (partyType === 'institution') {
+    const contract = resolveInstitutionContractBudget(booking || { projects: payment.projects });
+    const qty = Number(contract.quantity) || 0;
+    const rate = Number(
+      payment.hourly_rate_snapshot > 0 ? payment.hourly_rate_snapshot : contract.ratePerUnit
+    ) || Number(contract.ratePerUnit) || 0;
+    // Always recompute from contract math so PDF never shows a stale calculated_amount.
+    const lineTotal = qty > 0 && rate > 0
+      ? Math.round(rate * qty * 100) / 100
+      : Number(contract.amount) || Number(payment.calculated_amount) || 0;
+    const invoiceAmount =
+      Number(payment.invoice_amount) > 0 ? Number(payment.invoice_amount) : lineTotal;
+    return {
+      partyType,
+      unitShort: contract.unitShort || rates.unitShort || 'unit',
+      qtyLabel: 'Contract qty',
+      rateLabel: `Gross / ${contract.unitShort || rates.unitShort || 'unit'}`,
+      qty: qty > 0 ? String(qty) : '-',
+      rate,
+      lineTotal,
+      invoiceAmount,
+      budgetForProjectTable: invoiceAmount,
+      formula: `${money(rate)} × ${qty > 0 ? qty : '-'} = ${money(lineTotal)}`,
+    };
+  }
+
+  const qty = Number(payment.approved_hours || 0);
+  const rate = Number(payment.hourly_rate_snapshot || rates.netPerUnit || 0);
+  const lineTotal = Number(payment.calculated_amount) > 0
+    ? Number(payment.calculated_amount)
+    : rate * qty;
+  return {
+    partyType,
+    unitShort: rates.unitShort || 'unit',
+    qtyLabel: rates.unit === 'hourly' ? 'Approved hours' : 'Approved qty',
+    rateLabel: `Net / ${rates.unitShort || 'unit'}`,
+    qty: qty.toFixed(2),
+    rate,
+    lineTotal,
+    invoiceAmount,
+    budgetForProjectTable: invoiceAmount > 0 ? invoiceAmount : lineTotal,
+    formula: `${money(rate)} × ${qty.toFixed(2)} = ${money(lineTotal)}`,
+  };
 }
 
 function drawTable(doc, { headers, rows, widths, rowHeight = 48 }) {
@@ -67,19 +131,19 @@ function drawTable(doc, { headers, rows, widths, rowHeight = 48 }) {
   doc.y = y + 12;
 }
 
-function drawProjectDetailsTable(doc, booking, payment) {
+function drawProjectDetailsTable(doc, booking, payment, settlementCtx) {
   const project = booking?.projects || booking?.project || {};
   const projectStart = project.start_date || booking?.start_date;
   const projectEnd = project.end_date || booking?.end_date;
-  const headers = ['Project', 'Type', 'Dates', 'Hours', 'Rate', 'Budget', 'Mode / Location'];
+  const headers = ['Project', 'Type', 'Dates', 'Qty', 'Rate', 'Invoice total', 'Mode / Location'];
   const widths = [112, 70, 72, 48, 58, 62, 118];
   const rows = [[
     truncate(project.title || payment.project_id, 80),
     labelize(project.type),
     `${date(projectStart)} to ${date(projectEnd)}`,
-    project.duration_hours != null ? `${project.duration_hours} hrs` : '-',
-    money(project.hourly_rate),
-    money(project.total_budget),
+    settlementCtx.qty,
+    money(settlementCtx.rate),
+    money(settlementCtx.budgetForProjectTable),
     truncate([labelize(project.workplace_type), labelize(project.employment_type), project.job_location]
       .filter((value) => value && value !== '-')
       .join(' / '), 90),
@@ -107,6 +171,7 @@ function generateInvoicePdf({ invoiceNumber, payment, booking, recipient }) {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', margin: 48 });
     const chunks = [];
+    const settlementCtx = invoiceSettlementContext(payment, booking);
 
     doc.on('data', (chunk) => chunks.push(chunk));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
@@ -129,7 +194,7 @@ function generateInvoicePdf({ invoiceNumber, payment, booking, recipient }) {
     line(doc, 'Invoice Number', invoiceNumber);
     line(doc, 'Generated Date', date(new Date().toISOString()));
     line(doc, 'Payment Type', payment.party_type === 'expert' ? 'Expert payout from CalxMap' : 'Payment due to CalxMap');
-    line(doc, 'Payment Status', payment.status || 'pending');
+    line(doc, 'Payment Status', displayPaymentStatus(payment));
 
     doc.moveDown(1).font('Helvetica-Bold').fontSize(14).text('Recipient');
     doc.moveDown(0.4).fontSize(11);
@@ -147,19 +212,23 @@ function generateInvoicePdf({ invoiceNumber, payment, booking, recipient }) {
 
     doc.moveDown(1).font('Helvetica-Bold').fontSize(14).fillColor('#0f172a').text('Project Details');
     doc.moveDown(0.5);
-    drawProjectDetailsTable(doc, booking, payment);
+    drawProjectDetailsTable(doc, booking, payment, settlementCtx);
 
     doc.moveDown(1).font('Helvetica-Bold').fontSize(14).text('Calculation');
-    doc.moveDown(0.6);
-    const widths = [160, 130, 130, 120];
-    const headers = ['Approved Hours', 'Rate / unit', 'Calculated', 'Invoice Amount'];
-    const settlement = resolveSettlementRates(booking || payment.booking || { projects: payment.projects });
-    const unitShort = settlement?.unitShort || 'unit';
+    doc.moveDown(0.4).font('Helvetica').fontSize(9).fillColor('#475569').text(settlementCtx.formula);
+    doc.moveDown(0.6).fillColor('#0f172a');
+    const widths = [140, 130, 130, 140];
+    const headers = [
+      settlementCtx.qtyLabel,
+      settlementCtx.rateLabel,
+      'Line total',
+      'Invoice amount',
+    ];
     const values = [
-      Number(payment.approved_hours || 0).toFixed(2),
-      `${money(payment.hourly_rate_snapshot)} / ${unitShort}`,
-      money(payment.calculated_amount),
-      money(payment.invoice_amount),
+      settlementCtx.qty,
+      `${money(settlementCtx.rate)} / ${settlementCtx.unitShort}`,
+      money(settlementCtx.lineTotal),
+      money(settlementCtx.invoiceAmount),
     ];
 
     drawTable(doc, { headers, rows: [values], widths, rowHeight: 34 });
@@ -193,4 +262,6 @@ function generateInvoicePdf({ invoiceNumber, payment, booking, recipient }) {
 
 module.exports = {
   generateInvoicePdf,
+  displayPaymentStatus,
+  invoiceSettlementContext,
 };
