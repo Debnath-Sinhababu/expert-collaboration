@@ -1050,20 +1050,42 @@ class SuperAdminService {
 
   async markFinancePaymentPaid(id, body, actorUserId, auth = null) {
     const payment = await this.getFinancePayment(id);
-    const amount = Number(body.paid_amount || payment.invoice_amount || payment.calculated_amount || 0);
-    if (!Number.isFinite(amount) || amount <= 0) {
+    const due = Number(payment.invoice_amount || payment.calculated_amount || 0);
+    const paidAmount =
+      body.paid_amount != null && body.paid_amount !== ''
+        ? Number(body.paid_amount)
+        : Number(payment.paid_amount || 0);
+
+    if (!Number.isFinite(paidAmount) || paidAmount <= 0) {
       const err = new Error('Paid amount must be greater than zero');
       err.statusCode = 400;
       throw err;
     }
+    if (!Number.isFinite(due) || due <= 0) {
+      const err = new Error('Invoice / calculated amount is missing. Send or set invoice amount first.');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    // Fully settled only when paid covers the due amount; otherwise keep as invoiced (partial).
+    const fullyPaid = paidAmount + 0.001 >= due;
+    const nextStatus = fullyPaid ? 'paid' : 'invoiced';
+    const invoiceAmount =
+      Number(payment.invoice_amount) > 0 ? Number(payment.invoice_amount) : due;
+
     const updated = await this.repository.updateFinancePayment(id, {
-      status: 'paid',
-      paid_amount: amount,
-      paid_at: body.paid_at || new Date().toISOString(),
+      status: nextStatus,
+      invoice_amount: invoiceAmount,
+      paid_amount: paidAmount,
+      paid_at: fullyPaid ? (body.paid_at || new Date().toISOString()) : payment.paid_at || null,
       notes: body.notes || payment.notes || null,
       updated_by: actorUserId || null,
     });
-    await this.logActivity(auth, 'finance.payment_marked_paid', { entity_type: 'finance_payment', entity_id: id, metadata: { amount } });
+    await this.logActivity(auth, 'finance.payment_marked_paid', {
+      entity_type: 'finance_payment',
+      entity_id: id,
+      metadata: { amount: paidAmount, due: invoiceAmount, status: nextStatus },
+    });
     return updated;
   }
 

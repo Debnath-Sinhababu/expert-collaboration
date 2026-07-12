@@ -44,13 +44,34 @@ function paymentPayUnit(row: any): string {
 }
 
 function formatRateWithUnit(row: any): string {
-  return `${money(row.hourly_rate_snapshot)} / ${paymentPayUnit(row)}`
+  const rate = row?.settlement?.rate_per_unit ?? row?.hourly_rate_snapshot
+  const unit =
+    row?.settlement?.unit_short ||
+    paymentPayUnit(row)
+  return `${money(rate)} / ${unit}`
+}
+
+function institutionContractQty(row: any): string {
+  const qty = Number(row?.settlement?.contract_quantity)
+  return qty > 0 ? String(qty) : '—'
+}
+
+/** Display label — DB still stores invoiced/paid; partial is derived from amounts. */
+function displayPaymentStatus(row: any): string {
+  const due = Number(row?.invoice_amount || row?.calculated_amount || 0)
+  const paid = Number(row?.paid_amount || 0)
+  const status = String(row?.status || 'pending').toLowerCase()
+  if (status === 'paid' || (due > 0 && paid + 0.001 >= due)) return 'paid'
+  if (paid > 0 && due > 0 && paid + 0.001 < due) return 'partial paid'
+  return status
 }
 
 function statusClass(status?: string) {
-  if (status === 'paid') return 'bg-emerald-50 text-[#008260]'
-  if (status === 'invoiced') return 'bg-blue-50 text-blue-700'
-  if (status === 'cancelled') return 'bg-red-50 text-red-700'
+  const key = String(status || '').toLowerCase()
+  if (key === 'paid') return 'bg-emerald-50 text-[#008260]'
+  if (key === 'partial paid') return 'bg-violet-50 text-violet-700'
+  if (key === 'invoiced') return 'bg-blue-50 text-blue-700'
+  if (key === 'cancelled') return 'bg-red-50 text-red-700'
   return 'bg-amber-50 text-amber-700'
 }
 
@@ -209,16 +230,20 @@ export default function SuperAdminFinancePage() {
 
   function openPayment(row: any) {
     setSelected(row)
-    setInvoiceAmount(String(row.invoice_amount || row.calculated_amount || 0))
-    setPaidAmount(String(row.paid_amount || row.invoice_amount || row.calculated_amount || 0))
+    const due = Number(row.invoice_amount || row.calculated_amount || 0)
+    const paid = Number(row.paid_amount || 0)
+    setInvoiceAmount(String(due))
+    setPaidAmount(String(paid))
     setNotes(row.notes || '')
   }
 
   async function refreshAfterChange(updated?: any) {
     if (updated) {
       setSelected(updated)
-      setInvoiceAmount(String(updated.invoice_amount || updated.calculated_amount || 0))
-      setPaidAmount(String(updated.paid_amount || updated.invoice_amount || updated.calculated_amount || 0))
+      const due = Number(updated.invoice_amount || updated.calculated_amount || 0)
+      const paid = Number(updated.paid_amount || 0)
+      setInvoiceAmount(String(due))
+      setPaidAmount(String(paid))
       setNotes(updated.notes || '')
     }
     await Promise.all([loadSummary(), loadRows()])
@@ -226,10 +251,15 @@ export default function SuperAdminFinancePage() {
 
   async function sendInvoice() {
     if (!selected) return
+    const amount = Number(invoiceAmount || 0)
+    if (!(amount > 0)) {
+      toast.error('Invoice amount must be greater than zero')
+      return
+    }
     setSaving(true)
     try {
       const updated = await superAdminApi.sendFinanceInvoice(selected.id, {
-        invoice_amount: Number(invoiceAmount || 0),
+        invoice_amount: amount,
         notes,
       })
       toast.success('Invoice sent')
@@ -243,13 +273,21 @@ export default function SuperAdminFinancePage() {
 
   async function markPaid() {
     if (!selected) return
+    const amount = Number(paidAmount || 0)
+    if (!(amount > 0)) {
+      toast.error('Enter the amount actually paid (cannot be zero)')
+      return
+    }
     setSaving(true)
     try {
       const updated = await superAdminApi.markFinancePaymentPaid(selected.id, {
-        paid_amount: Number(paidAmount || 0),
+        paid_amount: amount,
         notes,
       })
-      toast.success('Payment marked paid')
+      const due = Number(updated?.invoice_amount || updated?.calculated_amount || invoiceAmount || 0)
+      toast.success(
+        amount + 0.001 >= due ? 'Marked as fully paid' : 'Partial payment saved'
+      )
       await refreshAfterChange(updated)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to mark paid')
@@ -274,7 +312,7 @@ export default function SuperAdminFinancePage() {
       : [
           { value: 'all', label: 'All statuses' },
           { value: 'pending', label: 'Pending' },
-          { value: 'invoiced', label: 'Invoiced' },
+          { value: 'invoiced', label: 'Invoiced / partial paid' },
           { value: 'paid', label: 'Paid' },
           { value: 'cancelled', label: 'Cancelled' },
         ]
@@ -306,7 +344,7 @@ export default function SuperAdminFinancePage() {
             label="CalxMap’s share (already received)"
             value={money(platform.realized_margin)}
             icon={Banknote}
-            helper="Based only on payments already marked as paid"
+            helper="Based on amounts actually paid so far (including partials)"
             footnote="Money in from institutes minus money out to experts"
           />
           <FinanceMetricCard
@@ -314,7 +352,7 @@ export default function SuperAdminFinancePage() {
             value={money(institute.outstanding)}
             icon={ArrowDownLeft}
             tone="amber"
-            helper="Not paid yet by institutes"
+            helper="Invoice due minus what institutes have paid"
             footnote={`${countLabel(institute.counts.pending || 0)} not billed yet · ${countLabel(institute.counts.invoiced || 0)} billed, unpaid`}
           />
           <FinanceMetricCard
@@ -322,7 +360,7 @@ export default function SuperAdminFinancePage() {
             value={money(expert.outstanding)}
             icon={ArrowUpRight}
             tone="blue"
-            helper="Not paid out yet to experts"
+            helper="Invoice due minus what has been paid out"
             footnote={`${countLabel(expert.counts.pending || 0)} not billed yet · ${countLabel(expert.counts.invoiced || 0)} billed, unpaid`}
           />
         </FinanceStatSection>
@@ -351,15 +389,15 @@ export default function SuperAdminFinancePage() {
             value={money(institute.invoice_sent)}
             icon={ReceiptText}
             tone="blue"
-            helper="Invoice went out; institute has not paid yet"
+            helper="Remaining balance on sent invoices"
             footnote={countLabel(institute.counts.invoiced || 0)}
           />
           <FinanceMetricCard
             label="Already received"
             value={money(institute.settled)}
             icon={Banknote}
-            helper="Marked as paid from institutes"
-            footnote={countLabel(institute.counts.paid || 0)}
+            helper="Sum of paid amounts from institutes"
+            footnote={`${countLabel(institute.counts.paid || 0)} fully paid`}
           />
         </FinanceStatSection>
 
@@ -388,15 +426,15 @@ export default function SuperAdminFinancePage() {
             value={money(expert.invoice_sent)}
             icon={ReceiptText}
             tone="blue"
-            helper="Payout invoice sent; not marked paid yet"
+            helper="Remaining balance on sent payout invoices"
             footnote={countLabel(expert.counts.invoiced || 0)}
           />
           <FinanceMetricCard
             label="Already paid to experts"
             value={money(expert.settled)}
             icon={Banknote}
-            helper="Marked as paid out to experts"
-            footnote={countLabel(expert.counts.paid || 0)}
+            helper="Sum of amounts paid out so far"
+            footnote={`${countLabel(expert.counts.paid || 0)} fully paid`}
           />
         </FinanceStatSection>
       </div>
@@ -462,10 +500,41 @@ export default function SuperAdminFinancePage() {
                 const party = activeTab === 'expert' ? row.institutions : row.experts
                 return party?.name || '-'
               } },
-              { key: 'hours', header: 'Qty / hours', render: (row) => Number(row.approved_hours || 0).toFixed(2) },
-              { key: 'rate', header: 'Rate', render: (row) => formatRateWithUnit(row) },
-              { key: 'amount', header: 'Amount', render: (row) => money(row.invoice_amount || row.calculated_amount) },
-              { key: 'status', header: 'Status', render: (row) => <span className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${statusClass(row.status)}`}>{row.status}</span> },
+              {
+                key: 'hours',
+                header: activeTab === 'institution' ? 'Contract qty' : 'Approved qty / hrs',
+                render: (row) => {
+                  if (activeTab === 'institution') return institutionContractQty(row)
+                  return Number(row.approved_hours || 0).toFixed(2)
+                },
+              },
+              {
+                key: 'rate',
+                header: activeTab === 'institution' ? 'Gross rate' : 'Net rate',
+                render: (row) => formatRateWithUnit(row),
+              },
+              {
+                key: 'amount',
+                header: activeTab === 'institution' ? 'Institute total' : 'Amount',
+                render: (row) => money(row.invoice_amount || row.calculated_amount),
+              },
+              {
+                key: 'paid',
+                header: 'Paid amount',
+                render: (row) => money(row.paid_amount),
+              },
+              {
+                key: 'status',
+                header: 'Status',
+                render: (row) => {
+                  const label = displayPaymentStatus(row)
+                  return (
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${statusClass(label)}`}>
+                      {label}
+                    </span>
+                  )
+                },
+              },
               { key: 'action', header: '', render: (row) => <Button type="button" size="sm" variant="outline" onClick={() => openPayment(row)}>Details</Button> },
             ]}
             emptyText={`No ${activeTab} payment records found.`}
@@ -486,20 +555,84 @@ export default function SuperAdminFinancePage() {
                 <div><span className="text-slate-500">Booking</span><p className="font-medium text-slate-950">{selected.booking_id}</p></div>
                 <div><span className="text-slate-500">Expert</span><p className="font-medium text-slate-950">{selected.experts?.name || '-'}</p></div>
                 <div><span className="text-slate-500">Institute</span><p className="font-medium text-slate-950">{selected.institutions?.name || '-'}</p></div>
-                <div><span className="text-slate-500">Approved hours</span><p className="font-medium text-slate-950">{Number(selected.approved_hours || 0).toFixed(2)}</p></div>
-                <div><span className="text-slate-500">Rate</span><p className="font-medium text-slate-950">{formatRateWithUnit(selected)}</p></div>
-                <div><span className="text-slate-500">Calculated amount</span><p className="font-medium text-slate-950">{money(selected.calculated_amount)}</p></div>
-                <div><span className="text-slate-500">Current status</span><p className="font-medium capitalize text-slate-950">{selected.status}</p></div>
+                {selected.party_type === 'institution' ? (
+                  <>
+                    <div>
+                      <span className="text-slate-500">Contract qty</span>
+                      <p className="font-medium text-slate-950">{institutionContractQty(selected)}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Gross rate</span>
+                      <p className="font-medium text-slate-950">{formatRateWithUnit(selected)}</p>
+                    </div>
+                    <div className="md:col-span-2">
+                      <span className="text-slate-500">Institute total (calculated)</span>
+                      <p className="font-medium text-slate-950">
+                        {money(selected.settlement?.expected_amount ?? selected.calculated_amount)}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Formula: {selected.settlement?.formula || 'gross_rate × contract_qty'}
+                        {selected.settlement?.rate_per_unit != null && selected.settlement?.contract_quantity != null
+                          ? ` = ${money(selected.settlement.rate_per_unit)} × ${selected.settlement.contract_quantity}`
+                          : ''}
+                      </p>
+                      {selected.status !== 'pending' &&
+                      Number(selected.invoice_amount || selected.calculated_amount) !==
+                        Number(selected.settlement?.expected_amount || 0) ? (
+                        <p className="mt-1 text-xs text-amber-700">
+                          Saved invoice amount is {money(selected.invoice_amount || selected.calculated_amount)} (locked because status is {selected.status}).
+                          Contract math is {money(selected.settlement?.expected_amount)}.
+                        </p>
+                      ) : null}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <span className="text-slate-500">Approved hours</span>
+                      <p className="font-medium text-slate-950">{Number(selected.approved_hours || 0).toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Net rate</span>
+                      <p className="font-medium text-slate-950">{formatRateWithUnit(selected)}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Calculated amount</span>
+                      <p className="font-medium text-slate-950">{money(selected.calculated_amount)}</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Formula: net_rate × approved delivery qty
+                      </p>
+                    </div>
+                  </>
+                )}
+                <div>
+                  <span className="text-slate-500">Current status</span>
+                  <p className="font-medium capitalize text-slate-950">{displayPaymentStatus(selected)}</p>
+                </div>
+                <div>
+                  <span className="text-slate-500">Paid amount</span>
+                  <p className="font-medium text-slate-950">{money(selected.paid_amount)}</p>
+                </div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="invoiceAmount">Invoice amount</Label>
                   <Input id="invoiceAmount" type="number" min="0" step="0.01" value={invoiceAmount} onChange={(e) => setInvoiceAmount(e.target.value)} />
+                  <p className="text-xs text-slate-500">Amount on the invoice / payout statement</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="paidAmount">Paid amount</Label>
                   <Input id="paidAmount" type="number" min="0" step="0.01" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)} />
+                  <p className="text-xs text-slate-500">
+                    Amount actually received/paid so far.
+                    {(() => {
+                      const due = Number(invoiceAmount || 0)
+                      const paid = Number(paidAmount || 0)
+                      const remaining = Math.max(0, due - paid)
+                      return ` Remaining: ${money(remaining)}`
+                    })()}
+                  </p>
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="financeNotes">Notes</Label>
@@ -524,7 +657,7 @@ export default function SuperAdminFinancePage() {
                 {saving ? 'Working...' : 'Send Invoice'}
               </Button>
               <Button type="button" className="bg-[#008260] hover:bg-[#006d51]" onClick={markPaid} disabled={saving || !selected}>
-                {saving ? 'Working...' : 'Mark Paid'}
+                {saving ? 'Working...' : 'Save paid amount'}
               </Button>
             </PermissionGate>
           </DialogFooter>

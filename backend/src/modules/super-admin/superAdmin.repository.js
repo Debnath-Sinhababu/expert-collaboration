@@ -4,6 +4,7 @@ const {
   approvedDaysFromDays,
   buildPaymentRecordDraft,
   estimateSettlementAmounts,
+  attachSettlementBreakdown,
   roundMoney,
 } = require('../../../services/financeCalculationService');
 const { isActiveBookingStatus } = require('../../shared/compensation');
@@ -1523,15 +1524,16 @@ class SuperAdminRepository {
         const draft = buildPaymentRecordDraft(booking, partyType, approvedHours, {
           approvedDays: metrics.approvedDays || 0,
         });
+        const { settlement: _settlement, ...draftRow } = draft;
         if (existing && existing.status !== 'pending') {
           upserts.push({
-            booking_id: draft.booking_id,
-            project_id: draft.project_id,
-            expert_id: draft.expert_id,
-            institution_id: draft.institution_id,
-            party_type: draft.party_type,
-            direction: draft.direction,
-            approved_hours: draft.approved_hours,
+            booking_id: draftRow.booking_id,
+            project_id: draftRow.project_id,
+            expert_id: draftRow.expert_id,
+            institution_id: draftRow.institution_id,
+            party_type: draftRow.party_type,
+            direction: draftRow.direction,
+            approved_hours: draftRow.approved_hours,
             hourly_rate_snapshot: existing.hourly_rate_snapshot,
             calculated_amount: existing.calculated_amount,
             invoice_amount: existing.invoice_amount,
@@ -1546,7 +1548,7 @@ class SuperAdminRepository {
           continue;
         }
         upserts.push({
-          ...draft,
+          ...draftRow,
           status: existing?.status || 'pending',
           invoice_id: existing?.invoice_id || null,
           paid_amount: existing?.paid_amount || 0,
@@ -1580,11 +1582,13 @@ class SuperAdminRepository {
       const recordsByBooking = await this.getFinanceRecordsByBookingIds(bookingIds);
       const data = bookingsPage.data
         .map((booking) => recordsByBooking[booking.id]?.[party_type] ? {
-          ...recordsByBooking[booking.id][party_type],
-          booking,
-          projects: booking.projects,
-          experts: booking.experts,
-          institutions: booking.institutions,
+          ...attachSettlementBreakdown({
+            ...recordsByBooking[booking.id][party_type],
+            booking,
+            projects: booking.projects,
+            experts: booking.experts,
+            institutions: booking.institutions,
+          }, booking),
         } : null)
         .filter(Boolean);
       return { data, total: bookingsPage.total, page, limit };
@@ -1621,7 +1625,7 @@ class SuperAdminRepository {
       bookingIds.length
         ? this.client
             .from('bookings')
-            .select('*, projects(id,title,type,description,hourly_rate,total_budget,start_date,end_date,duration_hours,job_location,workplace_type,employment_type,status,call_status,compensation_unit,institution_gross_per_unit,unit_quantity), experts(id,name,email,hourly_rate), institutions(id,name,email)')
+            .select('*, projects(id,title,type,description,hourly_rate,total_budget,start_date,end_date,duration_hours,job_location,workplace_type,employment_type,status,call_status,compensation_unit,institution_gross_per_unit,institution_gross_total,unit_quantity), experts(id,name,email,hourly_rate), institutions(id,name,email)')
             .in('id', bookingIds)
         : { data: [], error: null },
       invoiceIds.length
@@ -1635,7 +1639,7 @@ class SuperAdminRepository {
     return records.map((record) => {
       const booking = bookingById[record.booking_id] || null;
       const invoice = invoiceById[record.invoice_id] || null;
-      return {
+      const hydrated = {
         ...record,
         booking,
         projects: booking?.projects || null,
@@ -1644,6 +1648,7 @@ class SuperAdminRepository {
         invoice,
         remaining_amount: roundMoney(Number(record.invoice_amount || record.calculated_amount || 0) - Number(record.paid_amount || 0)),
       };
+      return attachSettlementBreakdown(hydrated, booking);
     });
   }
 
@@ -1716,9 +1721,9 @@ class SuperAdminRepository {
         outstanding_net: 0,
       },
       equation: {
-        institute: 'pipeline = awaiting_invoice + invoice_sent + settled (+ cancelled excluded)',
-        expert: 'pipeline = awaiting_invoice + invoice_sent + settled (+ cancelled excluded)',
-        outstanding: 'outstanding = awaiting_invoice + invoice_sent',
+        institute: 'pipeline = settled + outstanding; outstanding = awaiting_invoice + invoice_sent',
+        expert: 'pipeline = settled + outstanding; outstanding = awaiting_invoice + invoice_sent',
+        outstanding: 'outstanding = due − paid (per open record)',
         platform_expected: 'expected_margin = institute.pipeline − expert.pipeline',
         platform_realized: 'realized_margin = institute.settled − expert.settled',
       },
@@ -1737,29 +1742,35 @@ class SuperAdminRepository {
     }
 
     const summary = this.emptyFinanceSummary();
-    const bumpParty = (party, status, amount, paidAmount) => {
-      const remaining = Math.max(0, amount - paidAmount);
-      party.remaining += remaining;
+    const bumpParty = (party, status, due, paidAmount) => {
+      const paid = Math.max(0, Number(paidAmount) || 0);
+      const amount = Math.max(0, Number(due) || 0);
+      const remaining = Math.max(0, amount - paid);
+
       if (status === 'cancelled') {
         party.cancelled += amount;
         party.counts.cancelled += 1;
         return;
       }
+
       party.pipeline += amount;
+      party.settled += paid;
+      party.remaining += remaining;
+      party.outstanding += remaining;
+
       if (status === 'pending') {
-        party.awaiting_invoice += amount;
-        party.outstanding += amount;
+        party.awaiting_invoice += remaining;
         party.counts.pending += 1;
       } else if (status === 'invoiced') {
-        party.invoice_sent += amount;
-        party.outstanding += remaining;
+        party.invoice_sent += remaining;
         party.counts.invoiced += 1;
       } else if (status === 'paid') {
-        party.settled += paidAmount || amount;
+        // Fully settled rows contribute to settled via paid; remaining should be ~0.
         party.counts.paid += 1;
+        if (remaining > 0) party.invoice_sent += remaining;
       } else {
-        party.outstanding += remaining;
         party.counts.other += 1;
+        if (remaining > 0) party.invoice_sent += remaining;
       }
     };
 
@@ -1770,14 +1781,15 @@ class SuperAdminRepository {
       const direction =
         record.direction ||
         (record.party_type === 'expert' ? 'payable' : 'receivable');
+      const remaining = Math.max(0, amount - paidAmount);
 
       // Legacy flat fields (cross-party status slice — kept for older dashboards).
       if (direction === 'receivable' && status !== 'cancelled') summary.total_receivable += amount;
       if (direction === 'payable' && status !== 'cancelled') summary.total_payable += amount;
-      if (status === 'invoiced') summary.invoiced += amount;
-      if (status === 'paid') summary.paid += paidAmount || amount;
-      if (status === 'pending') summary.pending += amount;
-      if (status !== 'cancelled') summary.remaining += Math.max(0, amount - paidAmount);
+      if (status === 'invoiced') summary.invoiced += remaining;
+      if (status !== 'cancelled') summary.paid += paidAmount;
+      if (status === 'pending') summary.pending += remaining;
+      if (status !== 'cancelled') summary.remaining += remaining;
 
       if (direction === 'receivable' || record.party_type === 'institution') {
         bumpParty(summary.institute, status, amount, paidAmount);
