@@ -84,15 +84,38 @@ class ApplicationRateController {
     }
 
     const institutionId = app.projects?.institution_id;
+    const actingExpertId = expertAccess.parseActingExpertId(req);
+    const actingInstitutionId = institutionAccess.parseActingInstitutionId(req);
 
-    const institutionAccessResult = institutionId
-      ? await institutionAccess.resolveInstitutionAccess(req, institutionId)
-      : null;
-    if (institutionAccessResult) {
-      return {
-        actor: { role: 'institution', institutionId },
-        writeClient: institutionAccess.getWriteClientForInstitution(institutionAccessResult),
-      };
+    // Prefer the explicit acting workspace (super_admin browsing as expert vs institution).
+    const preferExpert =
+      Boolean(actingExpertId) && String(actingExpertId) === String(app.expert_id);
+    const preferInstitution =
+      Boolean(actingInstitutionId) &&
+      institutionId &&
+      String(actingInstitutionId) === String(institutionId);
+
+    if (preferExpert) {
+      const expertAccessResult = await expertAccess.resolveExpertAccess(req, app.expert_id);
+      if (expertAccessResult) {
+        return {
+          actor: { role: 'expert', expertId: app.expert_id },
+          writeClient: expertAccess.getWriteClientForExpert(expertAccessResult),
+        };
+      }
+    }
+
+    if (preferInstitution || (!preferExpert && institutionId)) {
+      const institutionAccessResult = await institutionAccess.resolveInstitutionAccess(
+        req,
+        institutionId
+      );
+      if (institutionAccessResult) {
+        return {
+          actor: { role: 'institution', institutionId },
+          writeClient: institutionAccess.getWriteClientForInstitution(institutionAccessResult),
+        };
+      }
     }
 
     const expertAccessResult = await expertAccess.resolveExpertAccess(req, app.expert_id);

@@ -80,7 +80,9 @@ async function resolveExpertAccess(req, expertId) {
 
   if (role === 'super_admin') {
     const actingId = parseActingExpertId(req);
-    if (!actingId || actingId !== expertId) return null;
+    // When acting as a specific expert, only that expert is allowed.
+    // When no acting header is set, super_admin may operate on any expert.
+    if (actingId && actingId !== expertId) return null;
     return { mode: 'super_admin', expert: expertRow, user, userClient };
   }
 
