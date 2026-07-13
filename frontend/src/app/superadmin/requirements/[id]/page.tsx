@@ -141,6 +141,9 @@ export default function SuperAdminRequirementDetailPage() {
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [workflowSaving, setWorkflowSaving] = useState(false)
+  const [dateEdits, setDateEdits] = useState({ start_date: '', end_date: '' })
+  const [dateSaving, setDateSaving] = useState(false)
+  const [bookingStatusSaving, setBookingStatusSaving] = useState<Record<string, boolean>>({})
   const [interviewDialog, setInterviewDialog] = useState<null | {
     kind: 'pipeline' | 'native'
     row: any
@@ -179,6 +182,44 @@ export default function SuperAdminRequirementDetailPage() {
   useEffect(() => {
     loadDetail()
   }, [requirementType, requirementId])
+
+  useEffect(() => {
+    const requirement = detail?.requirement
+    setDateEdits({
+      start_date: requirement?.start_date ? String(requirement.start_date).slice(0, 10) : '',
+      end_date: requirement?.end_date ? String(requirement.end_date).slice(0, 10) : '',
+    })
+  }, [detail?.requirement?.start_date, detail?.requirement?.end_date])
+
+  async function saveRequirementDates() {
+    if (!dateEdits.start_date || !dateEdits.end_date) {
+      toast.error('Start and end dates are required')
+      return
+    }
+    setDateSaving(true)
+    try {
+      await superAdminApi.updateRequirementDates(requirementType, requirementId, dateEdits)
+      toast.success('Requirement dates updated')
+      await loadDetail()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update dates')
+    } finally {
+      setDateSaving(false)
+    }
+  }
+
+  async function updateBookingStatus(booking: any, status: string) {
+    setBookingStatusSaving((current) => ({ ...current, [booking.id]: true }))
+    try {
+      await superAdminApi.updateRequirementBooking(requirementType, requirementId, booking.id, { status })
+      toast.success('Booking status updated')
+      await loadDetail()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update booking status')
+    } finally {
+      setBookingStatusSaving((current) => ({ ...current, [booking.id]: false }))
+    }
+  }
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -667,6 +708,29 @@ export default function SuperAdminRequirementDetailPage() {
           </div>
           <div className="flex shrink-0 flex-col gap-2 lg:min-w-56">
             {renderStatusActions(item)}
+            {booking ? (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <Label className="text-xs text-slate-500">Booking status</Label>
+                <Select
+                  value={booking.status || ''}
+                  onValueChange={(value) => updateBookingStatus(booking, value)}
+                  disabled={Boolean(bookingStatusSaving[booking.id])}
+                >
+                  <SelectTrigger className="mt-1 bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="confirmed">Confirmed</SelectItem>
+                    <SelectItem value="in_progress">In progress</SelectItem>
+                    <SelectItem value="completion_requested">Completion requested</SelectItem>
+                    <SelectItem value="cancellation_requested">Cancellation requested</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
           </div>
         </div>
         {booking && requirementType === 'project' ? (
@@ -772,6 +836,31 @@ export default function SuperAdminRequirementDetailPage() {
               {detailValue('Openings', requirement.openings)}
               {detailValue('Location', requirement.location || requirement.job_location)}
             </div>
+            {requirementType === 'project' ? (
+              <div className="mt-5 grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+                <div>
+                  <Label className="text-xs text-slate-500">Start date</Label>
+                  <Input
+                    type="date"
+                    value={dateEdits.start_date}
+                    onChange={(event) => setDateEdits((current) => ({ ...current, start_date: event.target.value }))}
+                    className="mt-1 bg-white"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-slate-500">End date</Label>
+                  <Input
+                    type="date"
+                    value={dateEdits.end_date}
+                    onChange={(event) => setDateEdits((current) => ({ ...current, end_date: event.target.value }))}
+                    className="mt-1 bg-white"
+                  />
+                </div>
+                <Button type="button" onClick={saveRequirementDates} disabled={dateSaving} className="bg-[#008260] hover:bg-[#006d51]">
+                  {dateSaving ? 'Saving...' : 'Update duration'}
+                </Button>
+              </div>
+            ) : null}
             {requirement.description || requirement.responsibilities ? (
               <p className="mt-4 whitespace-pre-wrap rounded-lg bg-slate-50 p-4 text-sm text-slate-700">
                 {requirement.description || requirement.responsibilities}

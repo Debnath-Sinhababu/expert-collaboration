@@ -169,53 +169,71 @@ function drawProjectDetailsTable(doc, booking, payment, settlementCtx) {
 
 function generateInvoicePdf({ invoiceNumber, payment, booking, recipient }) {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', margin: 48 });
+    const doc = new PDFDocument({ size: 'A4', margin: 42 });
     const chunks = [];
     const settlementCtx = invoiceSettlementContext(payment, booking);
+    const isExpert = payment.party_type === 'expert';
+    const title = isExpert ? 'Expert Payout Statement' : 'Institute Payment Invoice';
+    const project = booking?.projects || booking?.project || {};
 
     doc.on('data', (chunk) => chunks.push(chunk));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
+    doc.rect(0, 0, 595.28, 132).fill('#064e3b');
+    doc
+      .fillColor('#ffffff')
+      .font('Helvetica-Bold')
+      .fontSize(24)
+      .text('CalxMap', 42, 36)
+      .fontSize(10)
+      .font('Helvetica')
+      .fillColor('#d1fae5')
+      .text('Managed training finance', 42, 66);
+
     doc
       .font('Helvetica-Bold')
       .fontSize(22)
-      .fillColor('#008260')
-      .text(payment.party_type === 'expert' ? 'CalxMap Expert Payout Statement' : 'CalxMap Payment Invoice');
-
-    doc
-      .moveDown(0.4)
+      .fillColor('#ffffff')
+      .text(title, 310, 36, { width: 240, align: 'right' })
       .font('Helvetica')
-      .fontSize(10)
-      .fillColor('#64748b')
-      .text('All payments for this engagement are processed through CalxMap.');
+      .fontSize(9)
+      .fillColor('#d1fae5')
+      .text(isExpert ? 'Amount payable by CalxMap' : 'Amount payable to CalxMap', 310, 66, { width: 240, align: 'right' });
 
-    doc.moveDown(1.5).fillColor('#0f172a').fontSize(12);
-    line(doc, 'Invoice Number', invoiceNumber);
-    line(doc, 'Generated Date', date(new Date().toISOString()));
-    line(doc, 'Payment Type', payment.party_type === 'expert' ? 'Expert payout from CalxMap' : 'Payment due to CalxMap');
-    line(doc, 'Payment Status', displayPaymentStatus(payment));
+    doc.roundedRect(42, 104, 511, 70, 8).fill('#ffffff').stroke('#dbeafe');
+    doc.fillColor('#64748b').font('Helvetica').fontSize(8);
+    doc.text('INVOICE NUMBER', 60, 122);
+    doc.text('GENERATED', 190, 122);
+    doc.text('STATUS', 315, 122);
+    doc.text('AMOUNT', 430, 122);
+    doc.fillColor('#0f172a').font('Helvetica-Bold').fontSize(11);
+    doc.text(invoiceNumber, 60, 138, { width: 115 });
+    doc.text(date(new Date().toISOString()), 190, 138, { width: 110 });
+    doc.text(displayPaymentStatus(payment), 315, 138, { width: 100 });
+    doc.fillColor('#008260').fontSize(16).text(money(settlementCtx.invoiceAmount), 430, 134, { width: 105, align: 'right' });
 
-    doc.moveDown(1).font('Helvetica-Bold').fontSize(14).text('Recipient');
-    doc.moveDown(0.4).fontSize(11);
-    line(doc, 'Name', recipient?.name);
-    line(doc, 'Email', recipient?.email);
+    doc.y = 202;
+    const leftTop = doc.y;
+    doc.roundedRect(42, leftTop, 245, 92, 8).fill('#f8fafc').stroke('#e2e8f0');
+    doc.roundedRect(308, leftTop, 245, 92, 8).fill('#f8fafc').stroke('#e2e8f0');
+    doc.fillColor('#0f172a').font('Helvetica-Bold').fontSize(11).text('Recipient', 58, leftTop + 16);
+    doc.fillColor('#334155').font('Helvetica').fontSize(9)
+      .text(recipient?.name || '-', 58, leftTop + 36, { width: 210 })
+      .text(recipient?.email || '-', 58, leftTop + 52, { width: 210 });
+    doc.fillColor('#0f172a').font('Helvetica-Bold').fontSize(11).text('Engagement', 324, leftTop + 16);
+    doc.fillColor('#334155').font('Helvetica').fontSize(9)
+      .text(project.title || payment.project_id || '-', 324, leftTop + 36, { width: 210 })
+      .text(`Booking: ${payment.booking_id || '-'}`, 324, leftTop + 52, { width: 210 })
+      .text(`${date(booking?.start_date)} to ${date(booking?.end_date)}`, 324, leftTop + 68, { width: 210 });
 
-    doc.moveDown(1).font('Helvetica-Bold').fontSize(14).text('Training');
-    doc.moveDown(0.4).fontSize(11);
-    line(doc, 'Project', booking?.projects?.title || booking?.project?.title || payment.project_id);
-    line(doc, 'Booking ID', payment.booking_id);
-    line(doc, 'Start Date', date(booking?.start_date));
-    line(doc, 'End Date', date(booking?.end_date));
-    line(doc, 'Counterparty', counterpartyLabel(payment.party_type));
-    line(doc, 'Payment Channel', 'CalxMap managed payment flow');
-
-    doc.moveDown(1).font('Helvetica-Bold').fontSize(14).fillColor('#0f172a').text('Project Details');
+    doc.y = leftTop + 120;
+    doc.font('Helvetica-Bold').fontSize(13).fillColor('#0f172a').text('Project Summary');
     doc.moveDown(0.5);
     drawProjectDetailsTable(doc, booking, payment, settlementCtx);
 
-    doc.moveDown(1).font('Helvetica-Bold').fontSize(14).text('Calculation');
-    doc.moveDown(0.4).font('Helvetica').fontSize(9).fillColor('#475569').text(settlementCtx.formula);
+    doc.moveDown(0.5).font('Helvetica-Bold').fontSize(13).text('Line Items');
+    doc.moveDown(0.3).font('Helvetica').fontSize(9).fillColor('#475569').text(settlementCtx.formula);
     doc.moveDown(0.6).fillColor('#0f172a');
     const widths = [140, 130, 130, 140];
     const headers = [
@@ -233,9 +251,15 @@ function generateInvoicePdf({ invoiceNumber, payment, booking, recipient }) {
 
     drawTable(doc, { headers, rows: [values], widths, rowHeight: 34 });
 
+    const totalsY = doc.y + 4;
+    doc.roundedRect(330, totalsY, 223, 78, 8).fill('#ecfdf5').stroke('#bbf7d0');
+    doc.fillColor('#064e3b').font('Helvetica-Bold').fontSize(10).text('Total amount', 348, totalsY + 18);
+    doc.fillColor('#008260').fontSize(20).text(money(settlementCtx.invoiceAmount), 348, totalsY + 38, { width: 185, align: 'right' });
+    doc.y = totalsY + 96;
+
     if (payment.notes) {
-      doc.moveDown(1).font('Helvetica-Bold').fontSize(14).text('Notes');
-      doc.moveDown(0.4).font('Helvetica').fontSize(11).text(payment.notes, { width: 480 });
+      doc.font('Helvetica-Bold').fontSize(13).fillColor('#0f172a').text('Admin Notes');
+      doc.moveDown(0.3).font('Helvetica').fontSize(10).fillColor('#334155').text(payment.notes, { width: 500 });
     }
 
     doc
@@ -244,9 +268,14 @@ function generateInvoicePdf({ invoiceNumber, payment, booking, recipient }) {
       .fontSize(10)
       .fillColor('#475569')
       .text(
-        'For privacy, CalxMap does not disclose client or expert legal names on outward-facing payment documents. Please use the project and booking references for support or reconciliation.',
+        'Terms: This document was generated by CalxMap Finance for the selected payment record. Amounts follow the locked booking and attendance settlement data visible to the admin at generation time.',
         { width: 480 }
       );
+    doc
+      .moveDown(0.5)
+      .fontSize(9)
+      .fillColor('#64748b')
+      .text('For privacy, counterparty legal names are limited on outward-facing documents. Use the invoice and booking references for reconciliation.');
 
     doc
       .fontSize(9)

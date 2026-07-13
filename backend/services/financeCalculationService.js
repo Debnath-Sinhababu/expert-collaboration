@@ -163,12 +163,12 @@ function approvedDaysFromDays(days = []) {
 /**
  * Billable quantity for expert settlement based on compensation unit.
  * - hourly: approved hours
- * - per_day / per_session: approved attendance days
+ * - per_day / per_session / per_month: approved attendance days
  * - fixed_package: 1 when completed or any delivery recorded; else hours-based proration
  */
 function billableQuantity(unit, { approvedHours = 0, approvedDays = 0, hoursBooked = 0, bookingStatus = '' } = {}) {
   const status = String(bookingStatus || '').toLowerCase();
-  if (unit === 'per_day' || unit === 'per_session') {
+  if (unit === 'per_day' || unit === 'per_session' || unit === 'per_month') {
     return Math.max(0, Number(approvedDays) || 0);
   }
   if (unit === 'fixed_package') {
@@ -310,7 +310,7 @@ function attachSettlementBreakdown(record, booking) {
     0;
   // Delivery qty for display: prefer approved days for day/session when we only have hours on the row.
   const deliveryQuantity =
-    rates.unit === 'per_day' || rates.unit === 'per_session'
+    rates.unit === 'per_day' || rates.unit === 'per_session' || rates.unit === 'per_month'
       ? null
       : Number(record.approved_hours || 0);
   return {

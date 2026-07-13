@@ -38,6 +38,7 @@ import { ShareRequirementButton } from '@/components/requirements/ShareRequireme
 import { ProjectRequirementMeta } from '@/components/requirements/ProjectRequirementMeta'
 import { ExpertApplicationDrawer } from '@/components/requirements/ExpertApplicationDrawer'
 import { projectLocationLine } from '@/lib/requirementLabels'
+import { formatLongDate } from '@/lib/dateFormat'
 import type { InterviewSlot } from '@/components/requirements/InterviewAvailabilitySelector'
 import {
   moneyInr,
@@ -338,6 +339,7 @@ export default function ExpertProjectPage() {
   }
 
   if (!project) return null
+  const pricing = projectCompensationDisplay(project)
 
   return (
     <div className="min-h-screen bg-[#ECF2FF] overflow-x-hidden">
@@ -392,9 +394,9 @@ export default function ExpertProjectPage() {
             </div>
             <div className="flex flex-col sm:items-end gap-2 flex-shrink-0">
                   <div className="text-lg sm:text-xl md:text-[24px] font-bold text-[#008260]">
-                    {moneyInr(projectCompensationDisplay(project).netPerUnitDisplay)}/{projectCompensationDisplay(project).unitShort} earn
+                    {moneyInr(pricing.totalBudgetGross || Number(project.total_budget || 0))}
                   </div>
-                  <div className="text-sm text-[#757575]">Hourly Rate</div>
+                  <div className="text-sm text-[#757575]">Total project budget</div>
                   <ShareRequirementButton
                     path={`/requirements/contract/${project.id}`}
                     title={project.title}
@@ -488,7 +490,7 @@ export default function ExpertProjectPage() {
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-black">Starts Date</p>
-                      <p className="text-base font-medium text-black mt-1">{new Date(project.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                      <p className="text-base font-medium text-black mt-1">{formatLongDate(project.start_date)}</p>
                     </div>
                   </div>
 
@@ -499,7 +501,7 @@ export default function ExpertProjectPage() {
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-black">End Date</p>
-                      <p className="text-base font-medium text-black mt-1">{new Date(project.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                      <p className="text-base font-medium text-black mt-1">{formatLongDate(project.end_date)}</p>
                     </div>
                   </div>
 

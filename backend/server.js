@@ -80,7 +80,7 @@ function normalizePositiveInt(value, fallback = 1) {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
-const PROJECT_COMPENSATION_UNITS = new Set(['per_session', 'per_day', 'fixed_package', 'hourly']);
+const PROJECT_COMPENSATION_UNITS = new Set(['per_session', 'per_day', 'per_month', 'fixed_package', 'hourly']);
 
 function normalizeOptionalPositiveNumber(value) {
   if (value === undefined) return undefined;
@@ -1936,6 +1936,58 @@ app.get('/api/projects', async (req, res) => {
 
   } catch (error) {
     console.error('GET projects error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/projects/types', async (_req, res) => {
+  try {
+    const baseTypes = [
+      'guest_lecture',
+      'fdp',
+      'workshop',
+      'curriculum_dev',
+      'research_collaboration',
+      'training_program',
+      'consultation',
+      'other'
+    ];
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+    const { data, error } = await serviceClient
+      .from('projects')
+      .select('type')
+      .not('type', 'is', null)
+      .limit(1000);
+    if (error) throw error;
+
+    const seen = new Set();
+    const normalize = (value) => String(value || '').trim();
+    const labelize = (value) =>
+      normalize(value)
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+    const options = [...baseTypes, ...(data || []).map((row) => row.type)]
+      .map(normalize)
+      .filter(Boolean)
+      .filter((value) => {
+        const key = value.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .map((value) => ({ value, label: labelize(value) }))
+      .sort((a, b) => {
+        const ai = baseTypes.indexOf(a.value);
+        const bi = baseTypes.indexOf(b.value);
+        if (ai !== -1 || bi !== -1) return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+        return a.label.localeCompare(b.label);
+      });
+    res.json(options);
+  } catch (error) {
+    console.error('GET project types error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -4549,6 +4601,8 @@ app.get('/api/applications', async (req, res) => {
           qualifications_url,
           domain_expertise,
           subskills,
+          expert_types,
+          expert_services,
           hourly_rate,
           resume_url,
           availability,
@@ -5246,6 +5300,8 @@ app.get('/api/bookings', async (req, res) => {
           qualifications_url,
           domain_expertise,
           subskills,
+          expert_types,
+          expert_services,
           hourly_rate,
           resume_url,
           availability,

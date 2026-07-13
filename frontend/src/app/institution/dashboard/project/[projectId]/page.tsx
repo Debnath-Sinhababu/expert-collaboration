@@ -80,6 +80,15 @@ import { RatingModal } from '@/components/RatingModal'
 import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
 import { fetchInstitutionForWorkspace } from '@/lib/institutionWorkspace'
 
+function formatExpertTypes(expert: any) {
+  const types = Array.isArray(expert?.expert_types)
+    ? expert.expert_types
+    : typeof expert?.expert_types === 'string'
+      ? expert.expert_types.split(',').map((item: string) => item.trim()).filter(Boolean)
+      : []
+  return types.length ? types.join(', ') : 'Not specified'
+}
+
 export default function InstitutionProjectDetailsPage() {
   const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
   const params = useParams()
@@ -470,7 +479,7 @@ export default function InstitutionProjectDetailsPage() {
   }
 
   const handleProceedToBooking = async (applicationId: string) => {
-    const application = [...(pendingApplications || []), ...(interviewApplications || [])].find((app: any) => app.id === applicationId)
+    const application: any = [...(pendingApplications || []), ...(interviewApplications || [])].find((app: any) => app.id === applicationId)
     if (!application) {
       toast.error('Application not found')
       return
@@ -556,7 +565,7 @@ export default function InstitutionProjectDetailsPage() {
   }
 
   function openProceedToBookingConfirm(applicationId: string) {
-    const application = [...(pendingApplications || []), ...(interviewApplications || [])].find((app: any) => app.id === applicationId)
+    const application: any = [...(pendingApplications || []), ...(interviewApplications || [])].find((app: any) => app.id === applicationId)
     const name = application?.experts?.name || 'this expert'
     setConfirmAction({
       title: 'Proceed for booking?',
@@ -1085,6 +1094,10 @@ export default function InstitutionProjectDetailsPage() {
                               <p className="font-medium text-[#000000] text-sm">{application.experts?.completed_trainings_count || application.experts?.training_count || 0}</p>
                             </div>
                             <div>
+                              <span className="text-[#666666] font-medium text-sm">Expert Type:</span>
+                              <p className="font-medium text-[#000000] text-sm">{formatExpertTypes(application.experts)}</p>
+                            </div>
+                            <div>
                               <span className="text-[#666666] font-medium text-sm">Rate preference:</span>
                               <div className="mt-1">
                                 <RateIntentBadge
@@ -1267,6 +1280,10 @@ export default function InstitutionProjectDetailsPage() {
                         ? application.experts.domain_expertise.join(', ') 
                         : 'Not specified'}
                     </p>
+                  </div>
+                  <div>
+                    <span className="text-[#666666] font-medium text-sm">Expert Type:</span>
+                    <p className="font-medium text-[#000000] text-sm">{formatExpertTypes(application.experts)}</p>
                   </div>
                
                 </div>
@@ -1540,6 +1557,10 @@ export default function InstitutionProjectDetailsPage() {
               <span className="text-[#666666] font-medium text-sm">Expert: </span>
               <span className="text-[#000000] font-medium text-sm">{expertDisplayName(booking.experts)}</span>
             </div>
+            <div>
+              <span className="text-[#666666] font-medium text-sm">Expert Type: </span>
+              <span className="text-[#000000] font-medium text-sm">{formatExpertTypes(booking.experts)}</span>
+            </div>
             
             {/* Right Column */}
             <div>
@@ -1654,6 +1675,10 @@ export default function InstitutionProjectDetailsPage() {
                           ? booking.experts.domain_expertise.join(', ') 
                           : 'Not specified'}
                       </p>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-sm text-[#666666] mb-1">Expert Type</h4>
+                      <p className="text-sm text-[#000000]">{formatExpertTypes(booking.experts)}</p>
                     </div>
                     <div>
                       <h4 className="font-medium text-sm text-[#666666] mb-1">Agreed rate (you pay)</h4>

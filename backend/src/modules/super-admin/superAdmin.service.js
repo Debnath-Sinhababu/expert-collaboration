@@ -936,6 +936,29 @@ class SuperAdminService {
     return updated;
   }
 
+  async updateRequirementDates(type, requirementId, body, auth = null) {
+    const requirementType = parseRequirementType(type);
+    if (requirementType !== 'project') {
+      const err = new Error('Date editing is only available for project requirements');
+      err.statusCode = 400;
+      throw err;
+    }
+    const updated = await this.repository.updateProjectRequirementDates(requirementId, body || {});
+    if (!updated) {
+      const err = new Error('Requirement not found');
+      err.statusCode = 404;
+      throw err;
+    }
+    await this.logActivity(auth, 'requirement.dates_updated', {
+      entity_type: 'project',
+      entity_id: requirementId,
+      requirement_type: requirementType,
+      requirement_id: requirementId,
+      metadata: { start_date: body?.start_date, end_date: body?.end_date },
+    });
+    return updated;
+  }
+
   async listFreelance(params) {
     return this.repository.listFreelance(params);
   }

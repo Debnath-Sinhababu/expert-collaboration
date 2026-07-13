@@ -40,6 +40,7 @@ import { ExpertApplicationDrawer } from '@/components/requirements/ExpertApplica
 import { institutionDisplayName } from '@/lib/privacyDisplay'
 import { ExpertTrainingAttendanceSidebar } from '@/components/training/ExpertTrainingAttendanceSidebar'
 import type { InterviewSlot } from '@/components/requirements/InterviewAvailabilitySelector'
+import { formatLongDate } from '@/lib/dateFormat'
 import {
   moneyInr,
   projectCompensationDisplay,
@@ -514,10 +515,10 @@ export default function ExpertHome() {
                               <div className="hidden lg:flex justify-between items-start space-y-2 flex-shrink-0">
                                 <div className="text-right flex flex-col items-end">
                                   <div className="text-2xl font-bold text-[#008260]">
-                                    {moneyInr(projectCompensationDisplay(project).netPerUnitDisplay)}
+                                    {moneyInr(projectCompensationDisplay(project).totalBudgetGross || Number(project.total_budget || 0))}
                                   </div>
                                   <div className="text-sm text-slate-500">
-                                    you earn / {projectCompensationDisplay(project).unitShort}
+                                    total budget
                                   </div>
                                 </div>
                              
@@ -1017,10 +1018,10 @@ export default function ExpertHome() {
                       <div className="hidden lg:flex flex-col items-end space-y-2 flex-shrink-0">
                         <div className="text-right">
                           <div className="text-2xl font-bold text-[#008260]">
-                            {moneyInr(projectCompensationDisplay(project).netPerUnitDisplay)}
+                            {moneyInr(projectCompensationDisplay(project).totalBudgetGross || Number(project.total_budget || 0))}
                           </div>
                           <div className="text-sm text-slate-500">
-                            you earn / {projectCompensationDisplay(project).unitShort}
+                            total budget
                           </div>
                         </div>
                        
@@ -1063,13 +1064,13 @@ export default function ExpertHome() {
                         </div>
                         <div className="flex items-center font-medium text-base">
                           <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />
-                          <span className="truncate">{project.start_date} - {project.end_date}</span>
+                          <span className="truncate">{formatLongDate(project.start_date)} - {formatLongDate(project.end_date)}</span>
                         </div>
                         
                         {/* Price for mobile */}
                         <div className="lg:hidden flex items-center">
                           <span className="text-lg font-bold text-[#008260]">
-                            {moneyInr(projectCompensationDisplay(project).netPerUnitDisplay)}/{projectCompensationDisplay(project).unitShort}
+                            {moneyInr(projectCompensationDisplay(project).totalBudgetGross || Number(project.total_budget || 0))}
                           </span>
                         </div>
                       </div>

@@ -687,7 +687,7 @@ function registerTrainingAttendanceRoutes(app, upload) {
 
       const day = await getDayForBooking(ctx.service, req.params.bookingId, req.params.dayId);
       if (!day) return res.status(404).json({ error: 'Attendance day not found' });
-      if (day.status !== 'pending_review') {
+      if (day.status !== 'pending_review' && !(ctx.role === 'super_admin' && day.status === 'approved')) {
         return res.status(400).json({ error: 'Times can only be edited while pending review' });
       }
 

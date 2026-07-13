@@ -481,19 +481,23 @@ class SuperAdminRepository {
   async listProfiles(type, params = {}) {
     const { page, limit, offset, search } = params;
     const table = type === 'institutions' ? 'institutions' : type === 'students' ? 'site_students' : 'experts';
+    const hasExpertKeywordSearch = type === 'experts' && String(search || '').trim();
     const select = type === 'students'
       ? 'id, name, email, phone, city, state, degree, specialization, skills, year, availability, preferred_engagement, preferred_work_mode, currently_studying, institution_id, created_at, institutions:institution_id(id, name)'
       : type === 'institutions'
         ? 'id, name, email, phone, type, city, state, logo_url, is_verified, student_count, established_year, created_at'
-        : 'id, name, email, phone, city, state, domain_expertise, subskills, expert_types, expert_services, current_designation, experience_years, hourly_rate, is_verified, kyc_status, calxbook_verified, interested_in_services, service_price, course_video_url, created_at';
+        : 'id, name, email, phone, city, state, bio, qualifications, domain_expertise, subskills, expert_types, expert_services, current_designation, experience_years, hourly_rate, is_verified, kyc_status, calxbook_verified, interested_in_services, service_price, course_video_url, created_at';
 
     let query = this.client
       .from(table)
       .select(select, { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .order('created_at', { ascending: false });
 
-    if (search) {
+    if (!hasExpertKeywordSearch) {
+      query = query.range(offset, offset + limit - 1);
+    }
+
+    if (search && type !== 'experts') {
       const s = `%${String(search).trim()}%`;
       query = query.or(`name.ilike.${s},email.ilike.${s}`);
     }
@@ -562,8 +566,32 @@ class SuperAdminRepository {
       if (currentlyStudying !== undefined) query = query.eq('currently_studying', currentlyStudying);
     }
 
+    if (hasExpertKeywordSearch) {
+      query = query.limit(1000);
+    }
+
     const { data, error, count } = await query;
     if (error) throw error;
+    if (hasExpertKeywordSearch) {
+      const needle = String(search).trim().toLowerCase();
+      const matches = (row) => [
+        row.name,
+        row.email,
+        row.phone,
+        row.bio,
+        row.current_designation,
+        row.city,
+        row.state,
+        row.qualifications,
+        row.kyc_status,
+        ...(Array.isArray(row.domain_expertise) ? row.domain_expertise : []),
+        ...(Array.isArray(row.subskills) ? row.subskills : []),
+        ...(Array.isArray(row.expert_types) ? row.expert_types : []),
+        ...(Array.isArray(row.expert_services) ? row.expert_services : []),
+      ].some((value) => String(value || '').toLowerCase().includes(needle));
+      const filtered = (data || []).filter(matches);
+      return { data: filtered.slice(offset, offset + limit), total: filtered.length, page, limit };
+    }
     return { data: data || [], total: count || 0, page, limit };
   }
 
@@ -1332,6 +1360,48 @@ class SuperAdminRepository {
       throw error;
     }
     return data || null;
+  }
+
+  async updateProjectRequirementDates(requirementId, payload) {
+    const startDate = payload.start_date || null;
+    const endDate = payload.end_date || null;
+    if (!startDate || !endDate || String(endDate) < String(startDate)) {
+      const err = new Error('Valid start_date and end_date are required');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const { data: project, error } = await this.client
+      .from('projects')
+      .update({ start_date: startDate, end_date: endDate, updated_at: new Date().toISOString() })
+      .eq('id', requirementId)
+      .select('*')
+      .maybeSingle();
+    if (error) throw error;
+    if (!project) return null;
+
+    const { data: bookings, error: bookingFetchError } = await this.client
+      .from('bookings')
+      .select('id, actual_start_date, actual_end_date')
+      .eq('project_id', requirementId);
+    if (bookingFetchError && !tableMissing(bookingFetchError)) throw bookingFetchError;
+
+    for (const booking of bookings || []) {
+      const updates = {
+        start_date: startDate,
+        end_date: endDate,
+        updated_at: new Date().toISOString(),
+      };
+      if (booking.actual_start_date && String(booking.actual_start_date).slice(0, 10) > startDate) {
+        updates.actual_start_date = startDate;
+      }
+      if (booking.actual_end_date && String(booking.actual_end_date).slice(0, 10) < endDate) {
+        updates.actual_end_date = endDate;
+      }
+      await this.client.from('bookings').update(updates).eq('id', booking.id);
+    }
+
+    return project;
   }
 
   async listFreelance(params) {

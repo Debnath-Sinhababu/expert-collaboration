@@ -18,6 +18,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
+import { ChevronDown } from 'lucide-react'
 import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
 import { fetchInstitutionForWorkspace } from '@/lib/institutionWorkspace'
 import { ScreeningQuestionsEditor } from '@/components/requirements/ScreeningQuestionsEditor'
@@ -28,11 +29,11 @@ import { getInstitutionRate } from '@/lib/utils'
 import {
   COMPENSATION_UNIT_OPTIONS,
   type CompensationUnit,
-  compensationUnitShortLabel,
-  deriveCompensation,
   getDefaultCompensationUnit,
   legacyHourlyRateFromCompensation,
   moneyInr,
+  toExpertNet,
+  toPlatformFee,
 } from '@/lib/projectCompensation'
 
 function formatInterviewPeriodDate(value: string) {
@@ -97,6 +98,12 @@ function normalizeExpertiseList(value: unknown): string[] {
   return []
 }
 
+function projectTypeLabel(value: string) {
+  return value
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+}
+
 type ContractFormProps = {
   mode?: 'create' | 'edit'
   projectId?: string
@@ -122,6 +129,8 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [selectedExperts, setSelectedExperts] = useState<string[]>([])
   const [sendingNotifications, setSendingNotifications] = useState(false)
+  const [projectTypeOptions, setProjectTypeOptions] = useState<Array<{ value: string; label: string }>>([])
+  const [projectTypeOpen, setProjectTypeOpen] = useState(false)
 
   const [form, setForm] = useState({
     title: '',
@@ -150,34 +159,77 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
   const [requirementPdf, setRequirementPdf] = useState<File | null>(null)
   const [requirementPdfError, setRequirementPdfError] = useState<string | null>(null)
 
-  const compensationDerived = useMemo(
-    () =>
-      deriveCompensation({
-        compensation_unit: form.compensation_unit,
-        unit_quantity: form.unit_quantity,
-        duration_per_unit: form.duration_per_unit,
-        institution_gross_per_unit: form.institution_gross_per_unit,
-        institution_gross_total: form.institution_gross_total,
-      }),
-    [
-      form.compensation_unit,
-      form.unit_quantity,
-      form.duration_per_unit,
-      form.institution_gross_per_unit,
-      form.institution_gross_total,
-    ]
-  )
+  const compensationDerived = useMemo(() => {
+    const expectedTotalHours = Math.max(0, Number(form.duration_per_unit) || 0)
+    const totalBudgetGross = Math.max(0, Number(form.institution_gross_total) || 0)
+    const grossPerUnit =
+      expectedTotalHours > 0 && totalBudgetGross > 0
+        ? Math.round((totalBudgetGross / expectedTotalHours) * 100) / 100
+        : 0
+    return {
+      expectedTotalHours,
+      totalBudgetGross,
+      grossPerUnit,
+      quantity: form.compensation_unit === 'hourly' ? expectedTotalHours : 1,
+      durationPerUnit: form.compensation_unit === 'hourly' ? 1 : expectedTotalHours,
+      expertNetPerUnit: toExpertNet(grossPerUnit),
+      expertNetTotal: toExpertNet(totalBudgetGross),
+      platformFeeTotal: toPlatformFee(totalBudgetGross),
+    }
+  }, [form.compensation_unit, form.duration_per_unit, form.institution_gross_total])
 
-  const unitShort = compensationUnitShortLabel(form.compensation_unit)
-  const showUnitQuantity = form.compensation_unit === 'per_session' || form.compensation_unit === 'per_day' || form.compensation_unit === 'hourly'
-  const showDurationPerUnit =
-    form.compensation_unit === 'per_session' ||
-    form.compensation_unit === 'per_day' ||
-    form.compensation_unit === 'fixed_package'
-  const showGrossPerUnit = form.compensation_unit === 'per_session' || form.compensation_unit === 'per_day' || form.compensation_unit === 'hourly'
-  const showPackageTotal = form.compensation_unit === 'fixed_package'
   const showScheduleNotes = ['fdp', 'workshop', 'training_program'].includes(form.type)
-  const requireExplicitUnit = form.type === 'other' || !getDefaultCompensationUnit(form.type)
+  const requireExplicitUnit = !form.compensation_unit
+  const showBudgetSummary = viewer === 'super_admin'
+  const allProjectTypeOptions = useMemo(() => {
+    const baseOptions = [
+      'guest_lecture',
+      'fdp',
+      'workshop',
+      'curriculum_dev',
+      'research_collaboration',
+      'training_program',
+      'consultation',
+      'other',
+    ].map((value) => ({ value, label: projectTypeLabel(value) }))
+    const merged = [
+      ...baseOptions,
+      ...(projectTypeOptions.length ? projectTypeOptions : []),
+    ]
+    const seen = new Set<string>()
+    return merged.filter((option) => {
+      const key = option.value.trim().toLowerCase()
+      if (!key || seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  }, [projectTypeOptions])
+
+  const filteredProjectTypeOptions = useMemo(() => {
+    const typed = form.type.trim().toLowerCase()
+    const options = allProjectTypeOptions.length
+      ? allProjectTypeOptions
+      : projectTypeOptions.length
+      ? projectTypeOptions
+      : []
+    const exactMatch = options.some((option) =>
+      option.value.toLowerCase() === typed || option.label.toLowerCase() === typed
+    )
+    if (!typed || exactMatch) return options
+    return options
+      .filter((option) =>
+        option.value.toLowerCase().includes(typed) ||
+        option.label.toLowerCase().includes(typed)
+      )
+  }, [form.type, allProjectTypeOptions, projectTypeOptions])
+
+  const hasExactProjectType = useMemo(() => {
+    const typed = form.type.trim().toLowerCase()
+    if (!typed) return true
+    return allProjectTypeOptions.some((option) =>
+      option.value.toLowerCase() === typed || option.label.toLowerCase() === typed
+    )
+  }, [allProjectTypeOptions, form.type])
 
   useEffect(() => {
     const init = async () => {
@@ -191,6 +243,18 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
     }
     init()
   }, [router, viewer, actingInstitutionId])
+
+  useEffect(() => {
+    let cancelled = false
+    api.projects.getTypes()
+      .then((options) => {
+        if (!cancelled) setProjectTypeOptions(options)
+      })
+      .catch(() => {
+        if (!cancelled) setProjectTypeOptions([])
+      })
+    return () => { cancelled = true }
+  }, [])
 
   useEffect(() => {
     if (!isEdit || !projectId || !institution?.id) return
@@ -227,15 +291,11 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
           description: project.description || '',
           type: project.type || '',
           compensation_unit: (project.compensation_unit as CompensationUnit) || getDefaultCompensationUnit(project.type) || 'hourly',
-          unit_quantity: project.unit_quantity != null
-            ? String(project.unit_quantity)
-            : project.duration_hours != null
-              ? String(project.duration_hours)
-              : '1',
+          unit_quantity: project.unit_quantity != null ? String(project.unit_quantity) : '1',
           duration_per_unit: project.duration_per_unit != null
             ? String(project.duration_per_unit)
-            : project.compensation_unit === 'hourly' || !project.compensation_unit
-              ? '1'
+            : project.duration_hours != null
+              ? String(project.duration_hours)
               : '',
           institution_gross_per_unit: project.institution_gross_per_unit != null
             ? String(project.institution_gross_per_unit)
@@ -287,24 +347,28 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
   }
 
   const applyCompensationUnit = (unit: CompensationUnit | '', prev: typeof form) => {
-    if (unit === 'hourly') {
-      return { ...prev, compensation_unit: unit, duration_per_unit: '1', unit_quantity: prev.unit_quantity || '1' }
-    }
-    if (unit === 'fixed_package') {
-      return { ...prev, compensation_unit: unit, unit_quantity: '1' }
-    }
-    return { ...prev, compensation_unit: unit }
+    return { ...prev, compensation_unit: unit, unit_quantity: '1' }
   }
 
   const handleTypeChange = (type: string) => {
-    const defaultUnit = getDefaultCompensationUnit(type)
+    const typed = type.trim().toLowerCase()
+    const matchedOption = allProjectTypeOptions.find((option) =>
+      option.value.toLowerCase() === typed || option.label.toLowerCase() === typed
+    )
+    const defaultUnit = getDefaultCompensationUnit(matchedOption?.value || type)
     setForm((prev) => {
-      const nextUnit = (defaultUnit || (type === 'other' ? '' : prev.compensation_unit)) as CompensationUnit | ''
+      const nextUnit = (defaultUnit || prev.compensation_unit || 'hourly') as CompensationUnit | ''
       return {
         ...applyCompensationUnit(nextUnit, prev),
         type,
       }
     })
+    setProjectTypeOpen(true)
+  }
+
+  const selectProjectType = (type: string) => {
+    handleTypeChange(type)
+    setProjectTypeOpen(false)
   }
 
   const handleCompensationUnitChange = (unit: CompensationUnit) => {
@@ -323,32 +387,12 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
       toast.error(requireExplicitUnit ? 'Select how you will pay' : 'Select compensation unit')
       return false
     }
-    if (showUnitQuantity && (!form.unit_quantity || Number(form.unit_quantity) <= 0)) {
-      toast.error(
-        form.compensation_unit === 'hourly'
-          ? 'Enter expected total hours'
-          : form.compensation_unit === 'per_day'
-            ? 'Enter number of days'
-            : 'Enter number of sessions'
-      )
+    if (!form.duration_per_unit || Number(form.duration_per_unit) <= 0) {
+      toast.error('Enter expected total hours')
       return false
     }
-    if (showDurationPerUnit && (!form.duration_per_unit || Number(form.duration_per_unit) <= 0)) {
-      toast.error(
-        form.compensation_unit === 'fixed_package'
-          ? 'Enter estimated total hours for the package'
-          : form.compensation_unit === 'per_day'
-            ? 'Enter hours per day'
-            : 'Enter hours per session'
-      )
-      return false
-    }
-    if (showGrossPerUnit && (!form.institution_gross_per_unit || Number(form.institution_gross_per_unit) <= 0)) {
-      toast.error(`Enter what you pay per ${unitShort}`)
-      return false
-    }
-    if (showPackageTotal && (!form.institution_gross_total || Number(form.institution_gross_total) <= 0)) {
-      toast.error('Enter total package fee you will pay')
+    if (!form.institution_gross_total || Number(form.institution_gross_total) <= 0) {
+      toast.error('Enter total project budget')
       return false
     }
     if (compensationDerived.expectedTotalHours <= 0) {
@@ -523,14 +567,21 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
       )
       const unit = form.compensation_unit as CompensationUnit
       const derived = compensationDerived
+      const projectTypeInput = form.type.trim()
+      const projectTypeValue =
+        allProjectTypeOptions.find((option) =>
+          option.value.toLowerCase() === projectTypeInput.toLowerCase() ||
+          option.label.toLowerCase() === projectTypeInput.toLowerCase()
+        )?.value || projectTypeInput
       const payload = {
         ...form,
+        type: projectTypeValue,
         interview_period_interval: interviewPeriodInterval || null,
         institution_id: institution?.id,
         compensation_unit: unit,
-        unit_quantity: unit === 'fixed_package' ? 1 : derived.quantity,
-        duration_per_unit: unit === 'hourly' ? 1 : derived.durationPerUnit,
-        institution_gross_per_unit: unit === 'fixed_package' ? null : derived.grossPerUnit,
+        unit_quantity: unit === 'hourly' ? Math.round(derived.expectedTotalHours * 100) / 100 : 1,
+        duration_per_unit: unit === 'hourly' ? 1 : derived.expectedTotalHours,
+        institution_gross_per_unit: unit === 'hourly' ? derived.grossPerUnit : derived.totalBudgetGross,
         institution_gross_total: derived.totalBudgetGross,
         total_budget: derived.totalBudgetGross,
         duration_hours: Math.round(derived.expectedTotalHours),
@@ -614,21 +665,61 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
             </div>
             <div>
               <Label className="text-[#000000] font-medium mb-2 block">Project Type *</Label>
-              <Select value={form.type} onValueChange={handleTypeChange}>
-                <SelectTrigger className="border-[#DCDCDC]">
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="guest_lecture">Guest Lecture</SelectItem>
-                  <SelectItem value="fdp">Faculty Development Program</SelectItem>
-                  <SelectItem value="workshop">Workshop</SelectItem>
-                  <SelectItem value="curriculum_dev">Curriculum Development</SelectItem>
-                  <SelectItem value="research_collaboration">Research Collaboration</SelectItem>
-                  <SelectItem value="training_program">Training Program</SelectItem>
-                  <SelectItem value="consultation">Consultation</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
+              <div
+                className="relative"
+                onBlur={() => {
+                  window.setTimeout(() => setProjectTypeOpen(false), 120)
+                }}
+              >
+                <Input
+                  placeholder="Search or type project type"
+                  value={form.type}
+                  onFocus={() => setProjectTypeOpen(true)}
+                  onChange={(e) => handleTypeChange(e.target.value)}
+                  className="border-[#DCDCDC] pr-10"
+                />
+                <button
+                  type="button"
+                  aria-label="Show project types"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => setProjectTypeOpen((open) => !open)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-[#6A6A6A] hover:text-[#008260] focus:outline-none focus:ring-1 focus:ring-[#008260]"
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+                {projectTypeOpen && (
+                  <div className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-[#DCDCDC] bg-white p-1 shadow-lg">
+                    {filteredProjectTypeOptions.length > 0 ? (
+                      filteredProjectTypeOptions.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => selectProjectType(option.value)}
+                          className="flex w-full flex-col rounded px-3 py-2 text-left text-sm hover:bg-[#E8F5F1] focus:bg-[#E8F5F1] focus:outline-none"
+                        >
+                          <span className="font-medium text-[#000000]">{option.label}</span>
+                          {option.value !== option.label && (
+                            <span className="text-xs text-[#6A6A6A]">{option.value}</span>
+                          )}
+                        </button>
+                      ))
+                    ) : (
+                      <p className="px-3 py-2 text-sm text-[#6A6A6A]">No matching project types</p>
+                    )}
+                    {form.type.trim() && !hasExactProjectType && (
+                      <button
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => selectProjectType(form.type.trim())}
+                        className="mt-1 w-full rounded border border-dashed border-[#008260] px-3 py-2 text-left text-sm text-[#008260] hover:bg-[#E8F5F1] focus:bg-[#E8F5F1] focus:outline-none"
+                      >
+                        Use "{form.type.trim()}" as a new project type
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
             <div>
               <Label className="text-[#000000] font-medium mb-2 block">How will you pay? *</Label>
@@ -649,79 +740,40 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
                 <p className="text-xs text-[#6A6A6A] mt-1">Default for this type — you can change it.</p>
               )}
             </div>
-            {showUnitQuantity && (
-              <div>
-                <Label className="text-[#000000] font-medium mb-2 block">
-                  {form.compensation_unit === 'hourly'
-                    ? 'Expected total hours *'
-                    : form.compensation_unit === 'per_day'
-                      ? 'Number of days *'
-                      : 'Number of sessions *'}
-                </Label>
-                <Input
-                  type="number"
-                  min="1"
-                  step="1"
-                  placeholder={form.compensation_unit === 'hourly' ? '40' : '8'}
-                  value={form.unit_quantity}
-                  onChange={(e) => setForm((prev) => ({ ...prev, unit_quantity: e.target.value }))}
-                  className="border-[#DCDCDC]"
-                />
-              </div>
-            )}
-            {showDurationPerUnit && (
-              <div>
-                <Label className="text-[#000000] font-medium mb-2 block">
-                  {form.compensation_unit === 'fixed_package'
-                    ? 'Estimated total hours *'
-                    : form.compensation_unit === 'per_day'
-                      ? 'Hours per day *'
-                      : 'Hours per session *'}
-                </Label>
-                <Input
-                  type="number"
-                  min="0.5"
-                  step="0.5"
-                  placeholder={form.compensation_unit === 'fixed_package' ? '40' : '2'}
-                  value={form.duration_per_unit}
-                  onChange={(e) => setForm((prev) => ({ ...prev, duration_per_unit: e.target.value }))}
-                  className="border-[#DCDCDC]"
-                />
-              </div>
-            )}
-            {showGrossPerUnit && (
-              <div>
-                <Label className="text-[#000000] font-medium mb-2 block">
-                  What you pay per {unitShort} (₹) *
-                </Label>
-                <Input
-                  type="number"
-                  min="1"
-                  step="1"
-                  placeholder="15000"
-                  value={form.institution_gross_per_unit}
-                  onChange={(e) => setForm((prev) => ({ ...prev, institution_gross_per_unit: e.target.value }))}
-                  className="border-[#DCDCDC]"
-                />
-                <p className="text-xs text-[#6A6A6A] mt-1">Gross amount you pay (100%). Expert sees ~70% of this.</p>
-              </div>
-            )}
-            {showPackageTotal && (
-              <div>
-                <Label className="text-[#000000] font-medium mb-2 block">Total package fee you pay (₹) *</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  step="1"
-                  placeholder="100000"
-                  value={form.institution_gross_total}
-                  onChange={(e) => setForm((prev) => ({ ...prev, institution_gross_total: e.target.value }))}
-                  className="border-[#DCDCDC]"
-                />
-                <p className="text-xs text-[#6A6A6A] mt-1">Gross package total (100%). Expert earns ~70%.</p>
-              </div>
-            )}
-            {form.compensation_unit && (
+            <div>
+              <Label className="text-[#000000] font-medium mb-2 block">Expected total hours *</Label>
+              <Input
+                type="number"
+                min="0.5"
+                step="0.5"
+                placeholder="40"
+                value={form.duration_per_unit}
+                onChange={(e) => setForm((prev) => ({ ...prev, duration_per_unit: e.target.value }))}
+                className="border-[#DCDCDC]"
+              />
+            </div>
+            <div>
+              <Label className="text-[#000000] font-medium mb-2 block">Total project budget (Rs.) *</Label>
+              <Input
+                type="number"
+                min="1"
+                step="1"
+                placeholder="100000"
+                value={form.institution_gross_total}
+                onChange={(e) => setForm((prev) => ({ ...prev, institution_gross_total: e.target.value }))}
+                className="border-[#DCDCDC]"
+              />
+            </div>
+            <div>
+              <Label className="text-[#000000] font-medium mb-2 block">Hourly rate (auto-calculated)</Label>
+              <Input
+                readOnly
+                value={compensationDerived.grossPerUnit > 0 ? `${moneyInr(compensationDerived.grossPerUnit)} / hour` : ''}
+                placeholder="Calculated from budget and hours"
+                className="border-[#DCDCDC] bg-[#F8FAFC]"
+              />
+            </div>
+            {form.compensation_unit && showBudgetSummary && (
               <div className="md:col-span-2 rounded-xl border border-[#DCDCDC] bg-[#FAFAFA] p-4">
                 <p className="text-sm font-semibold text-[#000000] mb-3">Budget summary (auto-calculated)</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">

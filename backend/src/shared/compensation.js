@@ -5,7 +5,7 @@
 const EXPERT_NET_SHARE = 0.7;
 const PLATFORM_FEE_SHARE = 0.3;
 
-const COMPENSATION_UNITS = new Set(['per_session', 'per_day', 'fixed_package', 'hourly']);
+const COMPENSATION_UNITS = new Set(['per_session', 'per_day', 'per_month', 'fixed_package', 'hourly']);
 const RATE_INTENTS = new Set(['agreed_posted', 'open_to_negotiate']);
 const RATE_STATUSES = new Set([
   'agreed_posted',
@@ -188,9 +188,11 @@ function resolveSettlementRates(booking) {
         ? 'session'
         : unit === 'per_day'
           ? 'day'
-          : unit === 'fixed_package'
-            ? 'package'
-            : 'hour',
+          : unit === 'per_month'
+            ? 'month'
+            : unit === 'fixed_package'
+              ? 'package'
+              : 'hour',
     grossPerUnit: Number.isFinite(grossPerUnit) && grossPerUnit > 0 ? grossPerUnit : 0,
     netPerUnit: Number.isFinite(netPerUnit) && netPerUnit > 0 ? netPerUnit : 0,
   };

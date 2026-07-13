@@ -161,6 +161,11 @@ export const superAdminApi = {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),
+  updateRequirementDates: (type: string, id: string, body: { start_date: string; end_date: string }) =>
+    request<any>(`/api/superadmin/requirements/${encodeURIComponent(type)}/${encodeURIComponent(id)}/dates`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
   assignRequirement: (type: string, id: string, body: { admin_id: string; notes?: string }) =>
     request<any>(`/api/superadmin/requirements/${encodeURIComponent(type)}/${encodeURIComponent(id)}/assignment`, {
       method: 'POST',

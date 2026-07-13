@@ -3,6 +3,7 @@
 export const COMPENSATION_UNITS = [
   'per_session',
   'per_day',
+  'per_month',
   'fixed_package',
   'hourly',
 ] as const
@@ -13,22 +14,21 @@ export const EXPERT_NET_SHARE = 0.7
 export const PLATFORM_FEE_SHARE = 0.3
 
 export const COMPENSATION_UNIT_OPTIONS: Array<{ value: CompensationUnit; label: string; shortLabel: string }> = [
-  { value: 'per_session', label: 'Per session', shortLabel: 'session' },
-  { value: 'per_day', label: 'Per day', shortLabel: 'day' },
-  { value: 'fixed_package', label: 'Fixed package', shortLabel: 'package' },
   { value: 'hourly', label: 'Per hour', shortLabel: 'hour' },
+  { value: 'per_day', label: 'Per day', shortLabel: 'day' },
+  { value: 'per_month', label: 'Per month', shortLabel: 'month' },
 ]
 
 /** Default pay unit by project type. `other` requires explicit choice. */
 export const DEFAULT_COMPENSATION_UNIT_BY_TYPE: Record<string, CompensationUnit | null> = {
-  guest_lecture: 'per_session',
-  consultation: 'per_session',
+  guest_lecture: 'hourly',
+  consultation: 'hourly',
   fdp: 'per_day',
   workshop: 'per_day',
   training_program: 'per_day',
-  curriculum_dev: 'fixed_package',
-  research_collaboration: 'fixed_package',
-  other: null,
+  curriculum_dev: 'per_month',
+  research_collaboration: 'per_month',
+  other: 'hourly',
 }
 
 export function getDefaultCompensationUnit(projectType?: string | null): CompensationUnit | '' {
@@ -37,10 +37,14 @@ export function getDefaultCompensationUnit(projectType?: string | null): Compens
 }
 
 export function compensationUnitLabel(unit?: string | null): string {
+  if (unit === 'per_session') return 'Per session'
+  if (unit === 'fixed_package') return 'Fixed package'
   return COMPENSATION_UNIT_OPTIONS.find((item) => item.value === unit)?.label || 'Per unit'
 }
 
 export function compensationUnitShortLabel(unit?: string | null): string {
+  if (unit === 'per_session') return 'session'
+  if (unit === 'fixed_package') return 'package'
   return COMPENSATION_UNIT_OPTIONS.find((item) => item.value === unit)?.shortLabel || 'unit'
 }
 
@@ -88,7 +92,7 @@ export function deriveCompensation(input: CompensationInput): CompensationDerive
   let expectedTotalHours = 0
   let totalBudgetGross = 0
 
-  if (unit === 'per_session' || unit === 'per_day') {
+  if (unit === 'per_session' || unit === 'per_day' || unit === 'per_month') {
     expectedTotalHours = quantity * durationPerUnit
     totalBudgetGross = quantity * grossPerUnit
   } else if (unit === 'hourly') {
