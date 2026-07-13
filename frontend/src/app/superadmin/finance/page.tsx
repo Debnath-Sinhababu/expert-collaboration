@@ -56,13 +56,12 @@ function institutionContractQty(row: any): string {
   return qty > 0 ? String(qty) : '—'
 }
 
-/** Display label — DB still stores invoiced/paid; partial is derived from amounts. */
+/** Display label: saved status wins; partial is a display state for open invoices only. */
 function displayPaymentStatus(row: any): string {
   const due = Number(row?.invoice_amount || row?.calculated_amount || 0)
   const paid = Number(row?.paid_amount || 0)
   const status = String(row?.status || 'pending').toLowerCase()
-  if (status === 'paid' || (due > 0 && paid + 0.001 >= due)) return 'paid'
-  if (paid > 0 && due > 0 && paid + 0.001 < due) return 'partial paid'
+  if (status === 'invoiced' && paid > 0 && due > 0 && paid + 0.001 < due) return 'partial paid'
   return status
 }
 
@@ -163,6 +162,7 @@ export default function SuperAdminFinancePage() {
   const [selected, setSelected] = useState<any | null>(null)
   const [invoiceAmount, setInvoiceAmount] = useState('')
   const [paidAmount, setPaidAmount] = useState('')
+  const [financeStatus, setFinanceStatus] = useState('pending')
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -234,6 +234,7 @@ export default function SuperAdminFinancePage() {
     const paid = Number(row.paid_amount || 0)
     setInvoiceAmount(String(due))
     setPaidAmount(String(paid))
+    setFinanceStatus(String(row.status || 'pending'))
     setNotes(row.notes || '')
   }
 
@@ -244,9 +245,39 @@ export default function SuperAdminFinancePage() {
       const paid = Number(updated.paid_amount || 0)
       setInvoiceAmount(String(due))
       setPaidAmount(String(paid))
+      setFinanceStatus(String(updated.status || 'pending'))
       setNotes(updated.notes || '')
     }
     await Promise.all([loadSummary(), loadRows()])
+  }
+
+  async function saveFinanceAdjustment() {
+    if (!selected) return
+    const amount = Number(invoiceAmount || 0)
+    const paid = Number(paidAmount || 0)
+    if (!Number.isFinite(amount) || amount < 0) {
+      toast.error('Invoice amount cannot be negative')
+      return
+    }
+    if (!Number.isFinite(paid) || paid < 0) {
+      toast.error('Paid amount cannot be negative')
+      return
+    }
+    setSaving(true)
+    try {
+      const updated = await superAdminApi.updateFinancePayment(selected.id, {
+        invoice_amount: amount,
+        paid_amount: paid,
+        status: financeStatus,
+        notes,
+      })
+      toast.success('Finance adjustment saved')
+      await refreshAfterChange(updated)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save finance adjustment')
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function sendInvoice() {
@@ -619,7 +650,9 @@ export default function SuperAdminFinancePage() {
                 <div className="space-y-2">
                   <Label htmlFor="invoiceAmount">Invoice amount</Label>
                   <Input id="invoiceAmount" type="number" min="0" step="0.01" value={invoiceAmount} onChange={(e) => setInvoiceAmount(e.target.value)} />
-                  <p className="text-xs text-slate-500">Amount on the invoice / payout statement</p>
+                  <p className="text-xs text-slate-500">
+                    Amount on the invoice / payout statement. Contract math remains {money(selected.settlement?.expected_amount ?? selected.calculated_amount)}.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="paidAmount">Paid amount</Label>
@@ -633,6 +666,32 @@ export default function SuperAdminFinancePage() {
                       return ` Remaining: ${money(remaining)}`
                     })()}
                   </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select value={financeStatus} onValueChange={setFinanceStatus}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="invoiced">Invoiced / partial paid</SelectItem>
+                      <SelectItem value="paid">Paid</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-slate-500">Manual status for finance correction.</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+                  <p className="font-semibold text-slate-900">Budget check</p>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                    <span className="text-slate-500">Calculated</span>
+                    <span className="text-right font-medium text-slate-950">{money(selected.settlement?.expected_amount ?? selected.calculated_amount)}</span>
+                    <span className="text-slate-500">Invoice / statement</span>
+                    <span className="text-right font-medium text-slate-950">{money(invoiceAmount)}</span>
+                    <span className="text-slate-500">Paid</span>
+                    <span className="text-right font-medium text-slate-950">{money(paidAmount)}</span>
+                    <span className="text-slate-500">Remaining</span>
+                    <span className="text-right font-semibold text-[#008260]">{money(Math.max(0, Number(invoiceAmount || 0) - Number(paidAmount || 0)))}</span>
+                  </div>
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="financeNotes">Notes</Label>
@@ -652,6 +711,11 @@ export default function SuperAdminFinancePage() {
           ) : null}
           <DialogFooter className="gap-2">
             <Button type="button" variant="outline" onClick={() => setSelected(null)}>Close</Button>
+            <PermissionGate permission="finance:write" fallback={null}>
+              <Button type="button" variant="outline" onClick={saveFinanceAdjustment} disabled={saving || !selected}>
+                {saving ? 'Working...' : 'Save finance edit'}
+              </Button>
+            </PermissionGate>
             <PermissionGate permission="finance:confirm" fallback={null}>
               <Button type="button" variant="outline" onClick={sendInvoice} disabled={saving || !selected}>
                 {saving ? 'Working...' : 'Send Invoice'}

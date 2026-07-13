@@ -12,11 +12,6 @@ function date(value) {
   return value ? new Date(value).toLocaleDateString('en-IN') : '-';
 }
 
-function line(doc, label, value) {
-  doc.font('Helvetica-Bold').text(`${label}: `, { continued: true });
-  doc.font('Helvetica').text(value == null || value === '' ? '-' : String(value));
-}
-
 function valueOrDash(value) {
   return value == null || value === '' ? '-' : String(value);
 }
@@ -33,16 +28,12 @@ function truncate(value, max = 90) {
   return `${text.slice(0, max - 3)}...`;
 }
 
-function counterpartyLabel(partyType) {
-  return partyType === 'expert' ? 'Verified client' : 'Assigned expert';
-}
-
 function displayPaymentStatus(payment) {
   const due = Number(payment.invoice_amount || payment.calculated_amount || 0);
   const paid = Number(payment.paid_amount || 0);
   const status = String(payment.status || 'pending').toLowerCase();
-  if (status === 'paid' || (due > 0 && paid + 0.001 >= due)) return 'Paid';
-  if (paid > 0 && due > 0 && paid + 0.001 < due) return 'Partial paid';
+  if (status === 'invoiced' && paid > 0 && due > 0 && paid + 0.001 < due) return 'Partial paid';
+  if (status === 'paid') return 'Paid';
   if (status === 'invoiced') return 'Invoiced';
   if (status === 'cancelled') return 'Cancelled';
   return labelize(status);
@@ -98,78 +89,194 @@ function invoiceSettlementContext(payment, booking) {
   };
 }
 
-function drawTable(doc, { headers, rows, widths, rowHeight = 48 }) {
+const PAGE = {
+  width: 595.28,
+  height: 841.89,
+  margin: 42,
+  bottom: 760,
+};
+
+function ensureSpace(doc, height) {
+  if (doc.y + height <= PAGE.bottom) return;
+  doc.addPage();
+  doc.y = PAGE.margin;
+}
+
+function sectionTitle(doc, title) {
+  ensureSpace(doc, 34);
+  doc.font('Helvetica-Bold').fontSize(13).fillColor('#0f172a').text(title);
+  doc.moveDown(0.45);
+}
+
+function card(doc, x, y, width, height, title, lines = []) {
+  doc.roundedRect(x, y, width, height, 8).fill('#f8fafc').stroke('#e2e8f0');
+  doc.fillColor('#0f172a').font('Helvetica-Bold').fontSize(11).text(title, x + 16, y + 14, { width: width - 32 });
+  doc.fillColor('#334155').font('Helvetica').fontSize(9);
+  let lineY = y + 34;
+  for (const item of lines) {
+    doc.text(valueOrDash(item), x + 16, lineY, { width: width - 32 });
+    lineY += doc.heightOfString(valueOrDash(item), { width: width - 32 }) + 4;
+  }
+}
+
+function drawKeyValueGrid(doc, items, columns = 2) {
+  const left = PAGE.margin;
+  const gap = 12;
+  const width = (PAGE.width - PAGE.margin * 2 - gap * (columns - 1)) / columns;
+  const labelHeight = 10;
+  const rows = [];
+  for (let i = 0; i < items.length; i += columns) rows.push(items.slice(i, i + columns));
+
+  for (const row of rows) {
+    const heights = row.map((item) => {
+      doc.font('Helvetica-Bold').fontSize(8);
+      const labelH = doc.heightOfString(item.label, { width: width - 20 });
+      doc.font('Helvetica').fontSize(9);
+      const valueH = doc.heightOfString(valueOrDash(item.value), { width: width - 20 });
+      return Math.max(52, labelHeight + labelH + valueH + 24);
+    });
+    const rowHeight = Math.max(...heights);
+    ensureSpace(doc, rowHeight + 10);
+    const y = doc.y;
+    row.forEach((item, index) => {
+      const x = left + index * (width + gap);
+      doc.roundedRect(x, y, width, rowHeight, 6).fill('#ffffff').stroke('#e2e8f0');
+      doc.fillColor('#64748b').font('Helvetica-Bold').fontSize(8).text(item.label, x + 10, y + 10, { width: width - 20 });
+      doc.fillColor('#0f172a').font('Helvetica').fontSize(9).text(valueOrDash(item.value), x + 10, y + 27, { width: width - 20 });
+    });
+    doc.y = y + rowHeight + 10;
+  }
+}
+
+function drawTable(doc, { headers, rows, widths, minRowHeight = 34 }) {
   const left = doc.x;
-  const top = doc.y;
   const tableWidth = widths.reduce((sum, width) => sum + width, 0);
 
-  doc.rect(left, top, tableWidth, 26).fill('#ecfdf5');
-  doc.fillColor('#064e3b').font('Helvetica-Bold').fontSize(8);
+  const drawHeader = () => {
+    ensureSpace(doc, 34);
+    const top = doc.y;
+    doc.rect(left, top, tableWidth, 26).fill('#ecfdf5');
+    doc.fillColor('#064e3b').font('Helvetica-Bold').fontSize(8);
 
-  let x = left;
-  headers.forEach((header, index) => {
-    doc.text(header, x + 5, top + 8, { width: widths[index] - 10, ellipsis: true });
-    x += widths[index];
-  });
+    let x = left;
+    headers.forEach((header, index) => {
+      doc.text(header, x + 5, top + 8, { width: widths[index] - 10 });
+      x += widths[index];
+    });
+    doc.y = top + 26;
+  };
 
-  let y = top + 26;
+  drawHeader();
+
   rows.forEach((row) => {
+    doc.font('Helvetica').fontSize(8);
+    const cellHeights = row.map((value, index) =>
+      doc.heightOfString(valueOrDash(value), { width: widths[index] - 10 }) + 16
+    );
+    const rowHeight = Math.max(minRowHeight, ...cellHeights);
+    if (doc.y + rowHeight > PAGE.bottom) {
+      doc.addPage();
+      doc.y = PAGE.margin;
+      drawHeader();
+    }
+    const y = doc.y;
     doc.rect(left, y, tableWidth, rowHeight).fill('#ffffff').stroke('#e2e8f0');
     doc.fillColor('#0f172a').font('Helvetica').fontSize(8);
-    x = left;
+    let x = left;
     row.forEach((value, index) => {
       doc.text(valueOrDash(value), x + 5, y + 8, {
         width: widths[index] - 10,
-        height: rowHeight - 12,
-        ellipsis: true,
       });
       x += widths[index];
     });
-    y += rowHeight;
+    doc.y = y + rowHeight;
   });
 
-  doc.y = y + 12;
+  doc.y += 12;
+}
+
+function drawLineItems(doc, settlementCtx) {
+  const widths = [135, 125, 125, 155];
+  drawTable(doc, {
+    headers: [
+      settlementCtx.qtyLabel,
+      settlementCtx.rateLabel,
+      'Line total',
+      'Invoice amount',
+    ],
+    rows: [[
+      settlementCtx.qty,
+      `${money(settlementCtx.rate)} / ${settlementCtx.unitShort}`,
+      money(settlementCtx.lineTotal),
+      money(settlementCtx.invoiceAmount),
+    ]],
+    widths,
+    minRowHeight: 36,
+  });
+}
+
+function drawTotalPanel(doc, settlementCtx, payment) {
+  ensureSpace(doc, 120);
+  const due = Number(settlementCtx.invoiceAmount || 0);
+  const paid = Number(payment.paid_amount || 0);
+  const remaining = Math.max(0, due - paid);
+  const y = doc.y + 2;
+  doc.roundedRect(306, y, 247, 96, 8).fill('#ecfdf5').stroke('#bbf7d0');
+  doc.fillColor('#064e3b').font('Helvetica-Bold').fontSize(10).text('Total amount', 324, y + 16);
+  doc.fillColor('#008260').fontSize(19).text(money(due), 324, y + 34, { width: 211, align: 'right' });
+  doc.fillColor('#334155').font('Helvetica').fontSize(8)
+    .text(`Paid: ${money(paid)}`, 324, y + 64, { width: 100 })
+    .text(`Remaining: ${money(remaining)}`, 432, y + 64, { width: 103, align: 'right' });
+  doc.y = y + 114;
+}
+
+function drawFooter(doc) {
+  const range = doc.bufferedPageRange();
+  for (let i = range.start; i < range.start + range.count; i += 1) {
+    doc.switchToPage(i);
+    doc.font('Helvetica').fontSize(8).fillColor('#64748b')
+      .text(
+        `Generated by CalxMap Finance. Page ${i + 1} of ${range.count}.`,
+        PAGE.margin,
+        790,
+        { align: 'center', width: PAGE.width - PAGE.margin * 2 }
+      );
+  }
 }
 
 function drawProjectDetailsTable(doc, booking, payment, settlementCtx) {
   const project = booking?.projects || booking?.project || {};
   const projectStart = project.start_date || booking?.start_date;
   const projectEnd = project.end_date || booking?.end_date;
-  const headers = ['Project', 'Type', 'Dates', 'Qty', 'Rate', 'Invoice total', 'Mode / Location'];
-  const widths = [112, 70, 72, 48, 58, 62, 118];
-  const rows = [[
-    truncate(project.title || payment.project_id, 80),
-    labelize(project.type),
-    `${date(projectStart)} to ${date(projectEnd)}`,
-    settlementCtx.qty,
-    money(settlementCtx.rate),
-    money(settlementCtx.budgetForProjectTable),
-    truncate([labelize(project.workplace_type), labelize(project.employment_type), project.job_location]
-      .filter((value) => value && value !== '-')
-      .join(' / '), 90),
-  ]];
-
-  drawTable(doc, { headers, rows, widths, rowHeight: 58 });
+  drawKeyValueGrid(doc, [
+    { label: 'Project', value: project.title || payment.project_id },
+    { label: 'Project type', value: labelize(project.type) },
+    { label: 'Project dates', value: `${date(projectStart)} to ${date(projectEnd)}` },
+    { label: settlementCtx.qtyLabel, value: settlementCtx.qty },
+    { label: settlementCtx.rateLabel, value: `${money(settlementCtx.rate)} / ${settlementCtx.unitShort}` },
+    { label: 'Invoice total', value: money(settlementCtx.budgetForProjectTable) },
+    {
+      label: 'Mode / location',
+      value: [labelize(project.workplace_type), labelize(project.employment_type), project.job_location]
+        .filter((value) => value && value !== '-')
+        .join(' / ') || '-',
+    },
+  ], 2);
 
   if (project.description) {
-    doc
-      .font('Helvetica-Bold')
-      .fontSize(10)
-      .fillColor('#0f172a')
-      .text('Project Description', { continued: false });
-    doc
-      .moveDown(0.2)
-      .font('Helvetica')
-      .fontSize(9)
-      .fillColor('#475569')
-      .text(truncate(project.description, 260), { width: 500 });
-    doc.moveDown(0.5);
+    ensureSpace(doc, 70);
+    doc.font('Helvetica-Bold').fontSize(10).fillColor('#0f172a').text('Project Description');
+    doc.moveDown(0.25);
+    doc.font('Helvetica').fontSize(9).fillColor('#475569').text(project.description, {
+      width: PAGE.width - PAGE.margin * 2,
+    });
+    doc.moveDown(0.6);
   }
 }
 
 function generateInvoicePdf({ invoiceNumber, payment, booking, recipient }) {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', margin: 42 });
+    const doc = new PDFDocument({ size: 'A4', margin: PAGE.margin, bufferPages: true });
     const chunks = [];
     const settlementCtx = invoiceSettlementContext(payment, booking);
     const isExpert = payment.party_type === 'expert';
@@ -180,7 +287,7 @@ function generateInvoicePdf({ invoiceNumber, payment, booking, recipient }) {
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    doc.rect(0, 0, 595.28, 132).fill('#064e3b');
+    doc.rect(0, 0, PAGE.width, 132).fill('#064e3b');
     doc
       .fillColor('#ffffff')
       .font('Helvetica-Bold')
@@ -213,55 +320,31 @@ function generateInvoicePdf({ invoiceNumber, payment, booking, recipient }) {
     doc.text(displayPaymentStatus(payment), 315, 138, { width: 100 });
     doc.fillColor('#008260').fontSize(16).text(money(settlementCtx.invoiceAmount), 430, 134, { width: 105, align: 'right' });
 
-    doc.y = 202;
+    doc.y = 198;
     const leftTop = doc.y;
-    doc.roundedRect(42, leftTop, 245, 92, 8).fill('#f8fafc').stroke('#e2e8f0');
-    doc.roundedRect(308, leftTop, 245, 92, 8).fill('#f8fafc').stroke('#e2e8f0');
-    doc.fillColor('#0f172a').font('Helvetica-Bold').fontSize(11).text('Recipient', 58, leftTop + 16);
-    doc.fillColor('#334155').font('Helvetica').fontSize(9)
-      .text(recipient?.name || '-', 58, leftTop + 36, { width: 210 })
-      .text(recipient?.email || '-', 58, leftTop + 52, { width: 210 });
-    doc.fillColor('#0f172a').font('Helvetica-Bold').fontSize(11).text('Engagement', 324, leftTop + 16);
-    doc.fillColor('#334155').font('Helvetica').fontSize(9)
-      .text(project.title || payment.project_id || '-', 324, leftTop + 36, { width: 210 })
-      .text(`Booking: ${payment.booking_id || '-'}`, 324, leftTop + 52, { width: 210 })
-      .text(`${date(booking?.start_date)} to ${date(booking?.end_date)}`, 324, leftTop + 68, { width: 210 });
+    card(doc, 42, leftTop, 245, 96, 'Recipient', [recipient?.name || '-', recipient?.email || '-']);
+    card(doc, 308, leftTop, 245, 96, 'Engagement', [
+      project.title || payment.project_id || '-',
+      `Booking: ${payment.booking_id || '-'}`,
+      `${date(booking?.start_date)} to ${date(booking?.end_date)}`,
+    ]);
 
-    doc.y = leftTop + 120;
-    doc.font('Helvetica-Bold').fontSize(13).fillColor('#0f172a').text('Project Summary');
-    doc.moveDown(0.5);
+    doc.y = leftTop + 124;
+    sectionTitle(doc, 'Project Summary');
     drawProjectDetailsTable(doc, booking, payment, settlementCtx);
 
-    doc.moveDown(0.5).font('Helvetica-Bold').fontSize(13).text('Line Items');
+    sectionTitle(doc, 'Line Items');
     doc.moveDown(0.3).font('Helvetica').fontSize(9).fillColor('#475569').text(settlementCtx.formula);
     doc.moveDown(0.6).fillColor('#0f172a');
-    const widths = [140, 130, 130, 140];
-    const headers = [
-      settlementCtx.qtyLabel,
-      settlementCtx.rateLabel,
-      'Line total',
-      'Invoice amount',
-    ];
-    const values = [
-      settlementCtx.qty,
-      `${money(settlementCtx.rate)} / ${settlementCtx.unitShort}`,
-      money(settlementCtx.lineTotal),
-      money(settlementCtx.invoiceAmount),
-    ];
-
-    drawTable(doc, { headers, rows: [values], widths, rowHeight: 34 });
-
-    const totalsY = doc.y + 4;
-    doc.roundedRect(330, totalsY, 223, 78, 8).fill('#ecfdf5').stroke('#bbf7d0');
-    doc.fillColor('#064e3b').font('Helvetica-Bold').fontSize(10).text('Total amount', 348, totalsY + 18);
-    doc.fillColor('#008260').fontSize(20).text(money(settlementCtx.invoiceAmount), 348, totalsY + 38, { width: 185, align: 'right' });
-    doc.y = totalsY + 96;
+    drawLineItems(doc, settlementCtx);
+    drawTotalPanel(doc, settlementCtx, payment);
 
     if (payment.notes) {
-      doc.font('Helvetica-Bold').fontSize(13).fillColor('#0f172a').text('Admin Notes');
+      sectionTitle(doc, 'Admin Notes');
       doc.moveDown(0.3).font('Helvetica').fontSize(10).fillColor('#334155').text(payment.notes, { width: 500 });
     }
 
+    ensureSpace(doc, 92);
     doc
       .moveDown(1)
       .font('Helvetica')
@@ -277,13 +360,7 @@ function generateInvoicePdf({ invoiceNumber, payment, booking, recipient }) {
       .fillColor('#64748b')
       .text('For privacy, counterparty legal names are limited on outward-facing documents. Use the invoice and booking references for reconciliation.');
 
-    doc
-      .fontSize(9)
-      .fillColor('#64748b')
-      .text('Generated by CalxMap Finance. This document is system generated.', 48, 760, {
-        align: 'center',
-        width: 500,
-      });
+    drawFooter(doc);
 
     doc.end();
   });

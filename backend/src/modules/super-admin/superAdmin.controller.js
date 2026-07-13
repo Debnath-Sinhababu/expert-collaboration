@@ -259,6 +259,15 @@ class SuperAdminController {
     res.json(await this.service.getFinancePayment(req.params.id));
   };
 
+  updateFinancePaymentAdjustment = async (req, res) => {
+    res.json(await this.service.updateFinancePaymentAdjustment(
+      req.params.id,
+      req.body || {},
+      req.superAdmin.user.id,
+      req.superAdmin,
+    ));
+  };
+
   sendFinanceInvoice = async (req, res) => {
     res.json(await this.service.sendFinanceInvoice(req.params.id, req.body || {}, req.superAdmin.user.id, req.superAdmin));
   };

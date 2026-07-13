@@ -194,6 +194,11 @@ export const superAdminApi = {
     request<PaginatedResponse<any>>(`/api/superadmin/finance/payments?${query({ ...params, _t: Date.now() })}`),
   financePayment: (id: string) =>
     request<any>(`/api/superadmin/finance/payments/${encodeURIComponent(id)}?${query({ _t: Date.now() })}`),
+  updateFinancePayment: (id: string, body: Record<string, unknown>) =>
+    request<any>(`/api/superadmin/finance/payments/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
   sendFinanceInvoice: (id: string, body: Record<string, unknown>) =>
     request<any>(`/api/superadmin/finance/payments/${encodeURIComponent(id)}/invoice`, {
       method: 'POST',

@@ -100,6 +100,7 @@ function createSuperAdminRouter() {
   router.get('/finance/summary', requireSuperAdmin('finance:read'), asyncHandler(controller.financeSummary));
   router.get('/finance/payments', requireSuperAdmin('finance:read'), asyncHandler(controller.listFinancePayments));
   router.get('/finance/payments/:id', requireSuperAdmin('finance:read'), asyncHandler(controller.getFinancePayment));
+  router.patch('/finance/payments/:id', requireSuperAdmin('finance:write'), asyncHandler(controller.updateFinancePaymentAdjustment));
   router.post('/finance/payments/:id/invoice', requireSuperAdmin('finance:confirm'), asyncHandler(controller.sendFinanceInvoice));
   router.patch('/finance/payments/:id/mark-paid', requireSuperAdmin('finance:confirm'), asyncHandler(controller.markFinancePaymentPaid));
   router.get('/finance/invoices', requireSuperAdmin('finance:read'), asyncHandler(controller.listFinanceInvoices));

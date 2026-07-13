@@ -1112,6 +1112,72 @@ class SuperAdminService {
     return updated;
   }
 
+  async updateFinancePaymentAdjustment(id, body, actorUserId, auth = null) {
+    const payment = await this.getFinancePayment(id);
+    const currentDue = Number(payment.invoice_amount || payment.calculated_amount || 0);
+    const nextInvoiceAmount =
+      body.invoice_amount != null && body.invoice_amount !== ''
+        ? Number(body.invoice_amount)
+        : currentDue;
+    const nextPaidAmount =
+      body.paid_amount != null && body.paid_amount !== ''
+        ? Number(body.paid_amount)
+        : Number(payment.paid_amount || 0);
+
+    if (!Number.isFinite(nextInvoiceAmount) || nextInvoiceAmount < 0) {
+      const err = new Error('Invoice amount must be zero or greater');
+      err.statusCode = 400;
+      throw err;
+    }
+    if (!Number.isFinite(nextPaidAmount) || nextPaidAmount < 0) {
+      const err = new Error('Paid amount must be zero or greater');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const due = nextInvoiceAmount > 0 ? nextInvoiceAmount : Number(payment.calculated_amount || 0);
+    const fullyPaid = due > 0 && nextPaidAmount + 0.001 >= due;
+    const nextStatus = body.status
+      ? String(body.status)
+      : fullyPaid
+        ? 'paid'
+        : nextPaidAmount > 0
+          ? 'invoiced'
+          : String(payment.status || 'pending');
+    const allowedStatuses = new Set(['pending', 'invoiced', 'paid', 'cancelled']);
+    if (!allowedStatuses.has(nextStatus)) {
+      const err = new Error('Invalid finance status');
+      err.statusCode = 400;
+      throw err;
+    }
+    if (nextStatus === 'paid' && due > 0 && nextPaidAmount + 0.001 < due) {
+      const err = new Error('Paid status requires paid amount to cover the invoice amount');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const updated = await this.repository.updateFinancePayment(id, {
+      status: nextStatus,
+      invoice_amount: nextInvoiceAmount > 0 ? nextInvoiceAmount : Number(payment.calculated_amount || 0),
+      paid_amount: nextPaidAmount,
+      paid_at: nextPaidAmount > 0 ? (body.paid_at || payment.paid_at || new Date().toISOString()) : null,
+      notes: body.notes != null ? body.notes : payment.notes || null,
+      updated_by: actorUserId || null,
+    });
+    await this.logActivity(auth, 'finance.payment_adjusted', {
+      entity_type: 'finance_payment',
+      entity_id: id,
+      metadata: {
+        previous_invoice_amount: payment.invoice_amount || payment.calculated_amount || 0,
+        invoice_amount: updated.invoice_amount,
+        previous_paid_amount: payment.paid_amount || 0,
+        paid_amount: updated.paid_amount || 0,
+        status: updated.status,
+      },
+    });
+    return updated;
+  }
+
   async listFinanceInvoices(params) {
     return this.repository.listFinanceInvoices(params);
   }
