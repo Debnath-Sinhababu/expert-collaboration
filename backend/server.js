@@ -113,6 +113,9 @@ function normalizeProjectCompensationFields(body) {
   if (body.duration_per_unit !== undefined) {
     body.duration_per_unit = normalizeOptionalPositiveNumber(body.duration_per_unit);
   }
+  if (body.hours_per_day !== undefined) {
+    body.hours_per_day = normalizeOptionalPositiveNumber(body.hours_per_day);
+  }
   if (body.institution_gross_per_unit !== undefined) {
     body.institution_gross_per_unit = normalizeOptionalPositiveNumber(body.institution_gross_per_unit);
   }
@@ -4633,6 +4636,7 @@ app.get('/api/applications', async (req, res) => {
           institution_gross_per_unit,
           institution_gross_total,
           schedule_notes,
+          hours_per_day,
           required_expertise,
           domain_expertise,
           subskills,

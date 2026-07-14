@@ -194,7 +194,9 @@ export function RateAgreementPanel({ application, project, role, onUpdated }: Pr
         <p className="text-sm text-[#6A6A6A] mt-1">
           {display.unitLabel}
           {display.quantity > 0 ? ` · ${display.quantity} ${display.unitShort}${display.quantity === 1 ? '' : 's'}` : ''}
-          {display.expectedTotalHours > 0 ? ` · ${display.expectedTotalHours} hours total` : ''}
+          {(display.unit === 'hourly' || display.unit === 'fixed_package') && display.expectedTotalHours > 0
+            ? ` · ${display.expectedTotalHours} hours total`
+            : ''}
         </p>
       </div>
 
@@ -219,7 +221,10 @@ export function RateAgreementPanel({ application, project, role, onUpdated }: Pr
               {display.unitShort}
             </p>
             <p className="text-[#6A6A6A]">
-              ~{moneyInr(display.expertNetTotal)} total · {display.expectedTotalHours || '—'} hours
+              ~{moneyInr(display.expertNetTotal)} total
+              {display.quantity > 0
+                ? ` · ${display.quantity} ${display.unitShort}${display.quantity === 1 ? '' : 's'}`
+                : ''}
             </p>
           </>
         )}

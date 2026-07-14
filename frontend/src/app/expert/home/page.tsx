@@ -44,6 +44,7 @@ import { formatLongDate } from '@/lib/dateFormat'
 import {
   moneyInr,
   projectCompensationDisplay,
+  projectEngagementQuantityDisplay,
   type RateIntent,
 } from '@/lib/projectCompensation'
 
@@ -55,6 +56,13 @@ function ExpertCardCompensation({ project, compact = false }: { project: any; co
   const pricing = projectCompensationDisplay(project)
   const earn = Number(pricing.netPerUnitDisplay || 0)
   const total = Number(pricing.expertNetTotal || 0)
+  const hoursPerDay =
+    Number(project?.hours_per_day) > 0
+      ? Number(project.hours_per_day)
+      : (pricing.unit === 'per_day' || pricing.unit === 'per_session' || pricing.unit === 'per_month') &&
+          Number(pricing.durationPerUnit) > 1
+        ? Number(pricing.durationPerUnit)
+        : 0
   if (!(earn > 0) && !(total > 0)) {
     return (
       <div className="text-right">
@@ -72,6 +80,9 @@ function ExpertCardCompensation({ project, compact = false }: { project: any; co
         {total > 0 ? `~${moneyInr(total)} total earn` : 'your earn'}
         {pricing.quantity > 1 ? ` · ${pricing.quantity} ${pricing.unitShort}s` : ''}
       </div>
+      {hoursPerDay > 0 ? (
+        <div className="text-xs text-slate-500 mt-0.5">{hoursPerDay} hrs / day</div>
+      ) : null}
     </div>
   )
 }
@@ -105,8 +116,10 @@ export default function ExpertHome() {
     compensation_unit?: string | null
     unit_quantity?: number | null
     duration_per_unit?: number | null
+    hours_per_day?: number | null
     institution_gross_per_unit?: number | null
     institution_gross_total?: number | null
+    schedule_notes?: string | null
     interview_period_interval?: string | null
     screening_questions?: string[] | null
     domain_expertise?: string
@@ -1072,7 +1085,12 @@ export default function ExpertHome() {
                       <div className="flex flex-col sm:flex-row sm:items-center gap-4 text-sm text-slate-600">
                         <div className="flex items-center font-medium text-base">
                           <Clock className="h-4 w-4 mr-2 flex-shrink-0" />
-                          <span>{project.duration_hours} hours</span>
+                          <span>
+                            {projectEngagementQuantityDisplay(project).value}
+                            {Number(project.hours_per_day) > 0
+                              ? ` · ${project.hours_per_day} hrs/day`
+                              : ''}
+                          </span>
                         </div>
                         <div className="flex items-center font-medium text-base">
                           <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />

@@ -170,6 +170,7 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
     compensation_unit: 'hourly' as CompensationUnit | '',
     unit_quantity: '1',
     duration_per_unit: '',
+    hours_per_day: '',
     institution_gross_per_unit: '',
     institution_gross_total: '',
     schedule_notes: '',
@@ -209,7 +210,6 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
     }
   }, [form.compensation_unit, form.duration_per_unit, form.institution_gross_total])
 
-  const showScheduleNotes = ['fdp', 'workshop', 'training_program'].includes(form.type)
   const requireExplicitUnit = !form.compensation_unit
   const showBudgetSummary = viewer === 'super_admin'
   const allProjectTypeOptions = useMemo(() => {
@@ -316,18 +316,67 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
         const interviewDates = parseInterviewPeriodInterval(project.interview_period_interval)
         const domainConfig = EXPERTISE_DOMAINS.find((item) => item.name === domain)
         const mergedSubskills = [...new Set([...(domainConfig?.subskills || []), ...subskills])]
+        const unit =
+          (project.compensation_unit as CompensationUnit) ||
+          getDefaultCompensationUnit(project.type) ||
+          'hourly'
+        const storedQty = Number(project.unit_quantity)
+        const storedDurationPerUnit = Number(project.duration_per_unit)
+        const storedGross = Number(project.institution_gross_per_unit)
+        const storedTotal = Number(project.institution_gross_total || project.total_budget)
+        const isUnitPay = unit === 'per_day' || unit === 'per_session' || unit === 'per_month'
+        // Form "expected total X" field: for unit pay use unit_quantity (repair older inverted rows).
+        let expectedTotalField = ''
+        if (unit === 'hourly') {
+          expectedTotalField =
+            storedQty > 0
+              ? String(storedQty)
+              : project.duration_hours != null
+                ? String(project.duration_hours)
+                : ''
+        } else if (unit === 'fixed_package') {
+          expectedTotalField =
+            storedDurationPerUnit > 0
+              ? String(storedDurationPerUnit)
+              : project.duration_hours != null
+                ? String(project.duration_hours)
+                : ''
+        } else if (
+          isUnitPay &&
+          storedQty === 1 &&
+          storedDurationPerUnit > 1 &&
+          storedTotal > 0 &&
+          storedGross > 0 &&
+          Math.abs(storedGross - storedTotal) / storedTotal < 0.01
+        ) {
+          expectedTotalField = String(storedDurationPerUnit)
+        } else {
+          expectedTotalField =
+            storedQty > 0
+              ? String(storedQty)
+              : project.duration_hours != null
+                ? String(project.duration_hours)
+                : ''
+        }
+        // Prefer explicit hours_per_day; else for unit pay use duration_per_unit when it is hours (not day count).
+        let hoursPerDayField = project.hours_per_day != null ? String(project.hours_per_day) : ''
+        if (
+          !hoursPerDayField &&
+          isUnitPay &&
+          storedDurationPerUnit > 0 &&
+          !(storedQty === 1 && storedDurationPerUnit > 1 && storedTotal > 0 && Math.abs(storedGross - storedTotal) / storedTotal < 0.01)
+        ) {
+          hoursPerDayField = String(storedDurationPerUnit)
+        }
 
         setForm({
           title: project.title || '',
           description: project.description || '',
           type: project.type || '',
-          compensation_unit: (project.compensation_unit as CompensationUnit) || getDefaultCompensationUnit(project.type) || 'hourly',
+          compensation_unit: unit,
           unit_quantity: project.unit_quantity != null ? String(project.unit_quantity) : '1',
-          duration_per_unit: project.duration_per_unit != null
-            ? String(project.duration_per_unit)
-            : project.duration_hours != null
-              ? String(project.duration_hours)
-              : '',
+          duration_per_unit: expectedTotalField,
+          hours_per_day: hoursPerDayField,
           institution_gross_per_unit: project.institution_gross_per_unit != null
             ? String(project.institution_gross_per_unit)
             : project.hourly_rate != null
@@ -590,6 +639,22 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
       )
       const unit = form.compensation_unit as CompensationUnit
       const derived = compensationDerived
+      const expectedQty = Math.max(0, Number(form.duration_per_unit) || 0)
+      const hoursPerDay = form.hours_per_day.trim() ? Number(form.hours_per_day) : null
+      const isUnitPay = unit === 'per_day' || unit === 'per_session' || unit === 'per_month'
+      // unit_quantity = count of pay units; duration_per_unit = hours per day/session (not the day count).
+      const unitQuantity = unit === 'hourly' || isUnitPay
+        ? Math.round(expectedQty * 100) / 100
+        : 1
+      const durationPerUnit =
+        unit === 'hourly'
+          ? 1
+          : isUnitPay
+            ? (hoursPerDay && hoursPerDay > 0 ? hoursPerDay : 1)
+            : expectedQty // fixed_package: expected effort hours
+      const durationHours = isUnitPay
+        ? Math.round(unitQuantity * durationPerUnit * 100) / 100
+        : Math.round(expectedQty)
       const projectTypeInput = form.type.trim()
       const projectTypeValue =
         allProjectTypeOptions.find((option) =>
@@ -602,15 +667,23 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
         interview_period_interval: interviewPeriodInterval || null,
         institution_id: institution?.id,
         compensation_unit: unit,
-        unit_quantity: unit === 'hourly' ? Math.round(derived.expectedTotalHours * 100) / 100 : 1,
-        duration_per_unit: unit === 'hourly' ? 1 : derived.expectedTotalHours,
-        institution_gross_per_unit: unit === 'hourly' ? derived.grossPerUnit : derived.totalBudgetGross,
+        unit_quantity: unitQuantity,
+        duration_per_unit: durationPerUnit,
+        // Always store rate-per-unit (budget ÷ qty), never the full budget as per-unit.
+        institution_gross_per_unit: derived.grossPerUnit,
         institution_gross_total: derived.totalBudgetGross,
         total_budget: derived.totalBudgetGross,
-        duration_hours: Math.round(derived.expectedTotalHours),
-        hourly_rate: legacyHourlyRateFromCompensation(unit, derived),
+        duration_hours: durationHours,
+        hourly_rate: legacyHourlyRateFromCompensation(unit, {
+          ...derived,
+          expectedTotalHours: durationHours > 0 ? durationHours : derived.expectedTotalHours,
+          quantity: unitQuantity,
+          durationPerUnit,
+          grossPerUnit: derived.grossPerUnit,
+        }),
         opening_count: parseInt(form.opening_count),
         required_expertise: form.required_expertise.split(',').map(s => s.trim()).filter(Boolean),
+        hours_per_day: hoursPerDay && hoursPerDay > 0 ? hoursPerDay : null,
         schedule_notes: form.schedule_notes.trim() || null,
       }
       delete (payload as any).interview_period_start_date
@@ -620,7 +693,14 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
 
       Object.entries(payload).forEach(([key, value]) => {
         if (value === undefined || value === null) {
-          if ((key === 'interview_period_interval' || key === 'schedule_notes' || key === 'institution_gross_per_unit') && isEdit) {
+          if (
+            (
+              key === 'interview_period_interval' ||
+              key === 'schedule_notes' ||
+              key === 'hours_per_day' ||
+              key === 'institution_gross_per_unit'
+            ) && isEdit
+          ) {
             formData.append(key, '')
           }
           return
@@ -841,17 +921,35 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
                 </div>
               </div>
             )}
-            {showScheduleNotes && (
-              <div className="md:col-span-2">
-                <Label className="text-[#000000] font-medium mb-2 block">Schedule notes (optional)</Label>
-                <Input
-                  placeholder='e.g. Saturdays only, 10am–1pm'
-                  value={form.schedule_notes}
-                  onChange={(e) => setForm((prev) => ({ ...prev, schedule_notes: e.target.value }))}
-                  className="border-[#DCDCDC]"
-                />
-              </div>
-            )}
+            <div>
+              <Label className="text-[#000000] font-medium mb-2 block">
+                Hours per day (optional)
+              </Label>
+              <Input
+                type="number"
+                min="0.5"
+                step="0.5"
+                placeholder="e.g. 3"
+                value={form.hours_per_day}
+                onChange={(e) => setForm((prev) => ({ ...prev, hours_per_day: e.target.value }))}
+                className="border-[#DCDCDC]"
+              />
+              <p className="text-xs text-[#6A6A6A] mt-1">
+                How many hours each day the session / program will run. Shown to experts.
+              </p>
+            </div>
+            <div className="md:col-span-2">
+              <Label className="text-[#000000] font-medium mb-2 block">Weekly schedule (optional)</Label>
+              <Input
+                placeholder="e.g. Mon to Saturday, 9am to 4pm"
+                value={form.schedule_notes}
+                onChange={(e) => setForm((prev) => ({ ...prev, schedule_notes: e.target.value }))}
+                className="border-[#DCDCDC]"
+              />
+              <p className="text-xs text-[#6A6A6A] mt-1">
+                Days and timing for the course / program. Shown to experts.
+              </p>
+            </div>
             <div>
               <Label className="text-[#000000] font-medium mb-2 block">Start Date *</Label>
               <Input type="date" value={form.start_date} onChange={(e) => setForm(prev => ({ ...prev, start_date: e.target.value }))} placeholder="DD/MM/YYYY" className="border-[#DCDCDC]" />

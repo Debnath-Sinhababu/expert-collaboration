@@ -48,6 +48,7 @@ import {
   isRateAgreed,
   moneyInr,
   projectCompensationDisplay,
+  projectEngagementQuantityDisplay,
   resolveBookingSettlementRates,
 } from '@/lib/projectCompensation'
 
@@ -811,8 +812,26 @@ export default function SuperAdminRequirementDetailPage() {
                     return (
                       <>
                         {detailValue('Pay unit', pricing.unitLabel)}
-                        {pricing.quantity > 0 ? detailValue(pricing.unit === 'per_day' ? 'Number of days' : pricing.unit === 'per_session' ? 'Number of sessions' : 'Quantity', pricing.quantity) : null}
-                        {pricing.durationPerUnit > 0 ? detailValue(pricing.unit === 'per_day' ? 'Hours per day' : 'Hours per session', `${pricing.durationPerUnit} hrs`) : null}
+                        {pricing.quantity > 0
+                          ? detailValue(
+                              pricing.unit === 'per_day'
+                                ? 'Number of days'
+                                : pricing.unit === 'per_month'
+                                  ? 'Number of months'
+                                  : pricing.unit === 'per_session'
+                                    ? 'Number of sessions'
+                                    : 'Quantity',
+                              pricing.quantity
+                            )
+                          : null}
+                        {Number(requirement.hours_per_day) > 0 ||
+                        ((pricing.unit === 'per_day' || pricing.unit === 'per_session' || pricing.unit === 'per_month') &&
+                          pricing.durationPerUnit > 1)
+                          ? detailValue(
+                              'Hours per day',
+                              `${Number(requirement.hours_per_day) > 0 ? requirement.hours_per_day : pricing.durationPerUnit} hrs`
+                            )
+                          : null}
                         {detailValue('Expert earns (approx)', pricing.netPerUnitDisplay > 0 ? `${moneyInr(pricing.netPerUnitDisplay)} / ${pricing.unitShort}` : null)}
                         {detailValue('Total budget', pricing.totalBudgetGross > 0 ? moneyInr(pricing.totalBudgetGross) : requirement.total_budget ? `Rs. ${requirement.total_budget}` : null)}
                       </>
@@ -821,7 +840,9 @@ export default function SuperAdminRequirementDetailPage() {
                 </>
               ) : (
                 <>
-                  {requirement.hourly_rate ? detailValue('Hourly', `Rs. ${requirement.hourly_rate}`) : null}
+                  {requirement.hourly_rate && projectCompensationDisplay(requirement).unit === 'hourly'
+                    ? detailValue('Hourly', `Rs. ${requirement.hourly_rate}`)
+                    : null}
                   {requirement.total_budget ? detailValue('Budget', `Rs. ${requirement.total_budget}`) : null}
                 </>
               )}
@@ -830,7 +851,18 @@ export default function SuperAdminRequirementDetailPage() {
               {requirement.start_date ? detailValue('Start Date', new Date(requirement.start_date).toLocaleDateString()) : null}
               {requirement.end_date ? detailValue('End Date', new Date(requirement.end_date).toLocaleDateString()) : null}
               {requirement.deadline ? detailValue('Deadline', new Date(requirement.deadline).toLocaleDateString()) : null}
-              {detailValue('Duration Hours', requirement.duration_hours)}
+              {requirementType === 'project'
+                ? detailValue(
+                    projectEngagementQuantityDisplay(requirement).label,
+                    projectEngagementQuantityDisplay(requirement).value
+                  )
+                : detailValue('Duration Hours', requirement.duration_hours)}
+              {Number(requirement.hours_per_day) > 0
+                ? detailValue('Hours per day', `${requirement.hours_per_day} hours`)
+                : null}
+              {requirement.schedule_notes
+                ? detailValue('Weekly schedule', requirement.schedule_notes)
+                : null}
               {detailValue('Work Mode', requirement.work_mode || requirement.workplace_type)}
               {detailValue('Engagement', requirement.engagement || requirement.employment_type)}
               {detailValue('Openings', requirement.openings)}

@@ -145,6 +145,7 @@ export type ProjectCompensationLike = {
   compensation_unit?: string | null
   unit_quantity?: number | string | null
   duration_per_unit?: number | string | null
+  hours_per_day?: number | string | null
   institution_gross_per_unit?: number | string | null
   institution_gross_total?: number | string | null
   hourly_rate?: number | string | null
@@ -152,45 +153,93 @@ export type ProjectCompensationLike = {
   duration_hours?: number | string | null
 }
 
+/**
+ * Normalize stored project compensation.
+ * Older per_day/session/month rows wrongly saved:
+ *   unit_quantity=1, duration_per_unit=<day count>, institution_gross_per_unit=<full budget>
+ * Correct shape:
+ *   unit_quantity=<day count>, duration_per_unit=<hours per day>, institution_gross_per_unit=<rate per day>
+ */
+export function normalizeStoredCompensation(project?: ProjectCompensationLike | null): {
+  unit: CompensationUnit
+  quantity: number
+  durationPerUnit: number
+  grossPerUnit: number
+  packageTotal: number
+} {
+  const unit = (project?.compensation_unit as CompensationUnit) || 'hourly'
+  let quantity = Number(project?.unit_quantity)
+  let durationPerUnit = Number(project?.duration_per_unit)
+  let grossPerUnit = Number(project?.institution_gross_per_unit)
+  const packageTotal = Number(project?.institution_gross_total) > 0
+    ? Number(project?.institution_gross_total)
+    : Number(project?.total_budget) > 0
+      ? Number(project?.total_budget)
+      : 0
+  const legacyHourly = Number(project?.hourly_rate)
+  const legacyHours = Number(project?.duration_hours)
+  const hoursPerDay = Number(project?.hours_per_day)
+
+  const isUnitPay = unit === 'per_day' || unit === 'per_session' || unit === 'per_month'
+  if (
+    isUnitPay &&
+    quantity === 1 &&
+    durationPerUnit > 1 &&
+    packageTotal > 0 &&
+    grossPerUnit > 0 &&
+    Math.abs(grossPerUnit - packageTotal) / packageTotal < 0.01
+  ) {
+    quantity = durationPerUnit
+    grossPerUnit = Math.round((packageTotal / quantity) * 100) / 100
+    durationPerUnit = hoursPerDay > 0 ? hoursPerDay : 1
+  }
+
+  if (!(Number.isFinite(quantity) && quantity > 0)) {
+    quantity =
+      unit === 'hourly' && legacyHours > 0
+        ? legacyHours
+        : 1
+  }
+  if (!(Number.isFinite(durationPerUnit) && durationPerUnit > 0)) {
+    if (isUnitPay && hoursPerDay > 0) durationPerUnit = hoursPerDay
+    else if (unit === 'hourly') durationPerUnit = 1
+    else if (unit === 'fixed_package' && legacyHours > 0) durationPerUnit = legacyHours
+    else durationPerUnit = 1
+  }
+  if (!(Number.isFinite(grossPerUnit) && grossPerUnit > 0)) {
+    if (unit === 'fixed_package' && packageTotal > 0) grossPerUnit = packageTotal
+    else if (legacyHourly > 0) grossPerUnit = legacyHourly
+    else if (isUnitPay && packageTotal > 0 && quantity > 0) {
+      grossPerUnit = Math.round((packageTotal / quantity) * 100) / 100
+    } else {
+      grossPerUnit = 0
+    }
+  }
+
+  return {
+    unit,
+    quantity,
+    durationPerUnit,
+    grossPerUnit,
+    packageTotal: packageTotal > 0 ? packageTotal : 0,
+  }
+}
+
 /** Resolve project compensation for display; falls back to legacy hourly fields. */
 export function projectCompensationDisplay(project?: ProjectCompensationLike | null) {
-  const unit = (project?.compensation_unit as CompensationUnit) || 'hourly'
-  const quantity = Number(project?.unit_quantity)
-  const durationPerUnit = Number(project?.duration_per_unit)
-  const grossPerUnit = Number(project?.institution_gross_per_unit)
-  const packageTotal = Number(project?.institution_gross_total)
-  const legacyHourly = Number(project?.hourly_rate)
+  const normalized = normalizeStoredCompensation(project)
+  const unit = normalized.unit
   const legacyBudget = Number(project?.total_budget)
   const legacyHours = Number(project?.duration_hours)
 
   const derived = deriveCompensation({
     compensation_unit: unit,
-    unit_quantity: String(
-      Number.isFinite(quantity) && quantity > 0
-        ? quantity
-        : unit === 'hourly' && Number.isFinite(legacyHours) && legacyHours > 0
-          ? legacyHours
-          : 1
-    ),
-    duration_per_unit: String(
-      Number.isFinite(durationPerUnit) && durationPerUnit > 0
-        ? durationPerUnit
-        : unit === 'hourly'
-          ? 1
-          : Number.isFinite(legacyHours) && legacyHours > 0 && unit === 'fixed_package'
-            ? legacyHours
-            : 1
-    ),
-    institution_gross_per_unit: String(
-      Number.isFinite(grossPerUnit) && grossPerUnit > 0
-        ? grossPerUnit
-        : Number.isFinite(legacyHourly) && legacyHourly > 0
-          ? legacyHourly
-          : 0
-    ),
+    unit_quantity: String(normalized.quantity),
+    duration_per_unit: String(normalized.durationPerUnit),
+    institution_gross_per_unit: String(normalized.grossPerUnit),
     institution_gross_total: String(
-      Number.isFinite(packageTotal) && packageTotal > 0
-        ? packageTotal
+      normalized.packageTotal > 0
+        ? normalized.packageTotal
         : Number.isFinite(legacyBudget) && legacyBudget > 0
           ? legacyBudget
           : 0
@@ -212,6 +261,8 @@ export function projectCompensationDisplay(project?: ProjectCompensationLike | n
     unitLabel: compensationUnitLabel(unit),
     unitShort: compensationUnitShortLabel(unit),
     ...derived,
+    quantity: normalized.quantity,
+    durationPerUnit: normalized.durationPerUnit,
     grossPerUnitDisplay: unit === 'fixed_package' ? derived.totalBudgetGross : derived.grossPerUnit,
     netPerUnitDisplay: unit === 'fixed_package' ? derived.expertNetTotal : derived.expertNetPerUnit,
   }
@@ -238,6 +289,51 @@ export function quantityHint(display: ReturnType<typeof projectCompensationDispl
   if (!(display.quantity > 0)) return ''
   const plural = display.quantity === 1 ? display.unitShort : `${display.unitShort}s`
   return ` · ${display.quantity} ${plural}`
+}
+
+/**
+ * Engagement size as shown to experts/institutions — not always "hours".
+ * per_day → "10 days"; hourly → "40 hours"; package → effort hours or "1 package".
+ */
+export function projectEngagementQuantityDisplay(project?: ProjectCompensationLike | null): {
+  label: string
+  value: string
+  quantity: number
+  unitShort: string
+} {
+  const display = projectCompensationDisplay(project)
+  const qty = Number(display.quantity) || 0
+  const plural = (short: string, n: number) => (n === 1 ? short : `${short}s`)
+
+  if (display.unit === 'per_day' || display.unit === 'per_session' || display.unit === 'per_month') {
+    return {
+      label: display.unit === 'per_day' ? 'Duration' : 'Quantity',
+      value: qty > 0 ? `${qty} ${plural(display.unitShort, qty)}` : '—',
+      quantity: qty,
+      unitShort: display.unitShort,
+    }
+  }
+  if (display.unit === 'fixed_package') {
+    const hours = Number(display.expectedTotalHours) || 0
+    return {
+      label: 'Estimated effort',
+      value: hours > 0 ? `${hours} ${plural('hour', hours)}` : '1 package',
+      quantity: hours > 0 ? hours : 1,
+      unitShort: hours > 0 ? 'hour' : 'package',
+    }
+  }
+  const hours =
+    qty > 0
+      ? qty
+      : Number(display.expectedTotalHours) > 0
+        ? Number(display.expectedTotalHours)
+        : Number(project?.duration_hours) || 0
+  return {
+    label: 'Duration',
+    value: hours > 0 ? `${hours} ${plural('hour', hours)}` : '—',
+    quantity: hours,
+    unitShort: 'hour',
+  }
 }
 
 export const RATE_INTENTS = ['agreed_posted', 'open_to_negotiate'] as const

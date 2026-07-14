@@ -11,6 +11,7 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import Autoplay from 'embla-carousel-autoplay'
 import { MapPin, IndianRupee, Calendar, Clock, Menu } from 'lucide-react'
 import { ShareRequirementButton } from '@/components/requirements/ShareRequirementButton'
+import { PostedCompensationRate } from '@/components/requirements/PostedCompensationRate'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 export default function RequirementsPage() {
@@ -278,7 +279,12 @@ export default function RequirementsPage() {
                             <Clock className="h-5 w-5 text-[#008260] mr-3 mt-0.5 flex-shrink-0" />
                             <div>
                               <p className="text-xs text-[#6A6A6A] mb-1">Rate</p>
-                              <p className="text-base font-semibold text-[#008260]">₹ {project.hourly_rate}/hrs</p>
+                              <PostedCompensationRate
+                                project={project}
+                                audience="institution"
+                                showLabel={false}
+                                className="text-base font-semibold text-[#008260]"
+                              />
                             </div>
                           </div>
 

@@ -23,6 +23,7 @@ import ProfileDropdown from '@/components/ProfileDropdown'
 import Logo from '@/components/Logo'
 import { getInstitutionRate } from '@/lib/utils'
 import { PostedCompensationRate } from '@/components/requirements/PostedCompensationRate'
+import { projectEngagementQuantityDisplay } from '@/lib/projectCompensation'
 import { 
   Building, 
   Plus, 
@@ -1213,8 +1214,15 @@ export default function InstitutionDashboardPage() {
                               <Hourglass className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
                             </div>
                             <div className="min-w-0">
-                              <span className="text-[#717171] text-xs">Duration:</span>
-                              <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">{project.duration_hours} hours</p>
+                              <span className="text-[#717171] text-xs">
+                                {(() => {
+                                  const engagement = projectEngagementQuantityDisplay(project)
+                                  return engagement.label
+                                })()}:
+                              </span>
+                              <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">
+                                {projectEngagementQuantityDisplay(project).value}
+                              </p>
                             </div>
                           </div>
                           <div className='flex items-start gap-2.5 sm:gap-3'>

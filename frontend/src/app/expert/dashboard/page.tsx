@@ -84,6 +84,7 @@ export default function ExpertDashboard() {
     project_id: string
     projects?: { title?: string; description?: string }
     proposed_rate?: number
+    cover_letter?: string | null
     applied_at?: string
     expert_id?: string
   }
@@ -827,6 +828,12 @@ export default function ExpertDashboard() {
                           </Badge>
                         </div>
                         <p className="text-xs sm:text-sm text-[#6A6A6A] mb-3 line-clamp-2">{application.projects?.description || 'Project description'}</p>
+                        {application.cover_letter ? (
+                          <div className="mb-3 rounded-lg border border-[#E8E8E8] bg-[#FAFAFA] p-3">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-[#717171] mb-1">Your cover letter</p>
+                            <p className="text-sm text-[#1D1D1D] whitespace-pre-wrap line-clamp-4">{application.cover_letter}</p>
+                          </div>
+                        ) : null}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 text-sm">
                           <div className="flex items-start gap-2 sm:gap-3 min-w-0">
                             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
@@ -920,6 +927,13 @@ export default function ExpertDashboard() {
                         </div>
                         <p className="text-xs sm:text-sm text-[#6A6A6A] mb-3 line-clamp-2">{application.projects?.description || 'Project description'}</p>
                         
+                        {application.cover_letter ? (
+                          <div className="mb-3 rounded-lg border border-[#E8E8E8] bg-[#FAFAFA] p-3">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-[#717171] mb-1">Your cover letter</p>
+                            <p className="text-sm text-[#1D1D1D] whitespace-pre-wrap line-clamp-4">{application.cover_letter}</p>
+                          </div>
+                        ) : null}
+
                         {/* Interview Date Highlight */}
                         {application.interview_date && (
                           <div className="border-l-4 border-[#008260] bg-[#F8F8F8] rounded-r-lg p-2 sm:p-3 mb-3">
@@ -1040,6 +1054,12 @@ export default function ExpertDashboard() {
                             </Badge>
                           </div>
                           <p className="text-xs sm:text-sm text-slate-600 mb-2 break-words line-clamp-2">{application.projects?.description || 'Project description'}</p>
+                          {application.cover_letter ? (
+                            <div className="mb-3 rounded-lg border border-[#E8E8E8] bg-[#FAFAFA] p-3">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-[#717171] mb-1">Your cover letter</p>
+                              <p className="text-sm text-[#1D1D1D] whitespace-pre-wrap line-clamp-4">{application.cover_letter}</p>
+                            </div>
+                          ) : null}
                           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs sm:text-sm text-slate-500">
                             <span>Applied: {new Date(application.applied_at || Date.now()).toLocaleDateString()}</span>
                             <PostedCompensationRate

@@ -14,13 +14,15 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { AlertCircle, CheckCircle } from 'lucide-react'
-import { moneyInr, projectCompensationDisplay, type ProjectCompensationLike } from '@/lib/projectCompensation'
+import { moneyInr, projectCompensationDisplay, projectEngagementQuantityDisplay, type ProjectCompensationLike } from '@/lib/projectCompensation'
 
 export type ExpertApplyProject = ProjectCompensationLike & {
   id: string
   title?: string | null
   interview_period_interval?: string | null
   screening_questions?: string[] | null
+  hours_per_day?: number | string | null
+  schedule_notes?: string | null
 }
 
 export type ExpertApplicationFormState = {
@@ -151,8 +153,16 @@ export function ExpertApplicationDrawer({
                     </div>
                     <div className="text-[#6A6A6A]">
                       ~{moneyInr(pricing.expertNetTotal)} total
-                      {pricing.expectedTotalHours > 0 ? ` · ${pricing.expectedTotalHours} hours` : ''}
+                      {pricing.quantity > 0
+                        ? ` · ${projectEngagementQuantityDisplay(project).value}`
+                        : ''}
                     </div>
+                    {Number(project.hours_per_day) > 0 ? (
+                      <div className="text-[#6A6A6A]">Hours per day: {project.hours_per_day}</div>
+                    ) : null}
+                    {project.schedule_notes ? (
+                      <div className="text-[#6A6A6A]">Weekly schedule: {project.schedule_notes}</div>
+                    ) : null}
                   </div>
                 ) : null}
 

@@ -14,7 +14,7 @@ import { Calendar, Clock, MapPin, Building, Send, CheckCircle, ArrowLeft, AlertC
 import { ProjectRequirementMeta } from '@/components/requirements/ProjectRequirementMeta'
 import { ShareRequirementButton } from '@/components/requirements/ShareRequirementButton'
 import { formatLongDate } from '@/lib/dateFormat'
-import { moneyInr, projectCompensationDisplay } from '@/lib/projectCompensation'
+import { moneyInr, projectCompensationDisplay, projectEngagementQuantityDisplay } from '@/lib/projectCompensation'
 
 export default function PublicContractDetail() {
   const params = useParams()
@@ -203,8 +203,17 @@ export default function PublicContractDetail() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
               <div>
-                <div className="text-xs text-[#6A6A6A] font-medium mb-1">Hourly Rate</div>
-                <div className="text-lg font-semibold text-[#008260]">₹{project.hourly_rate}/hr</div>
+                <div className="text-xs text-[#6A6A6A] font-medium mb-1">
+                  {projectCompensationDisplay(project).unit === 'hourly' ? 'Hourly rate' : 'Posted rate'}
+                </div>
+                <div className="text-lg font-semibold text-[#008260]">
+                  {(() => {
+                    const pricing = projectCompensationDisplay(project)
+                    if (!(pricing.grossPerUnitDisplay > 0)) return '—'
+                    if (pricing.unit === 'hourly') return `${moneyInr(pricing.grossPerUnitDisplay)}/hr`
+                    return `${moneyInr(pricing.grossPerUnitDisplay)}/${pricing.unitShort}`
+                  })()}
+                </div>
               </div>
               {project.start_date && (
                 <div>
@@ -222,10 +231,26 @@ export default function PublicContractDetail() {
                   </div>
                 </div>
               )}
-              {project.duration_hours && (
+              {(() => {
+                const engagement = projectEngagementQuantityDisplay(project)
+                if (engagement.value === '—') return null
+                return (
+                  <div>
+                    <div className="text-xs text-[#6A6A6A] font-medium mb-1">{engagement.label}</div>
+                    <div className="text-sm font-semibold text-[#000000]">{engagement.value}</div>
+                  </div>
+                )
+              })()}
+              {Number(project.hours_per_day) > 0 && (
                 <div>
-                  <div className="text-xs text-[#6A6A6A] font-medium mb-1">Duration</div>
-                  <div className="text-sm font-semibold text-[#000000]">{project.duration_hours} Hours</div>
+                  <div className="text-xs text-[#6A6A6A] font-medium mb-1">Hours per day</div>
+                  <div className="text-sm font-semibold text-[#000000]">{project.hours_per_day} hours</div>
+                </div>
+              )}
+              {project.schedule_notes && (
+                <div className="sm:col-span-2">
+                  <div className="text-xs text-[#6A6A6A] font-medium mb-1">Weekly schedule</div>
+                  <div className="text-sm font-semibold text-[#000000]">{project.schedule_notes}</div>
                 </div>
               )}
             </div>

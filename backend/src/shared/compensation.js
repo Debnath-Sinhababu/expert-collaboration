@@ -63,19 +63,44 @@ function projectPostedRates(project) {
       ? project.compensation_unit
       : 'hourly';
 
-  const quantity =
+  let quantity =
     Number(project?.unit_quantity) > 0
       ? Number(project.unit_quantity)
       : unit === 'hourly' && Number(project?.duration_hours) > 0
         ? Number(project.duration_hours)
         : 1;
 
+  let durationPerUnit = Number(project?.duration_per_unit);
   let grossPerUnit = Number(project?.institution_gross_per_unit);
+  const packageTotal =
+    Number(project?.institution_gross_total) > 0
+      ? Number(project.institution_gross_total)
+      : Number(project?.total_budget) > 0
+        ? Number(project.total_budget)
+        : 0;
+  const hoursPerDay = Number(project?.hours_per_day);
+  const isUnitPay = unit === 'per_day' || unit === 'per_session' || unit === 'per_month';
+
+  // Repair older bad saves: qty=1, duration_per_unit=day count, gross=full budget.
+  if (
+    isUnitPay &&
+    quantity === 1 &&
+    durationPerUnit > 1 &&
+    packageTotal > 0 &&
+    Number.isFinite(grossPerUnit) &&
+    grossPerUnit > 0 &&
+    Math.abs(grossPerUnit - packageTotal) / packageTotal < 0.01
+  ) {
+    quantity = durationPerUnit;
+    grossPerUnit = Math.round((packageTotal / quantity) * 100) / 100;
+    durationPerUnit = hoursPerDay > 0 ? hoursPerDay : 1;
+  }
+
   if (!(Number.isFinite(grossPerUnit) && grossPerUnit > 0)) {
-    if (unit === 'fixed_package' && Number(project?.institution_gross_total) > 0) {
-      grossPerUnit = Number(project.institution_gross_total);
-    } else if (Number(project?.total_budget) > 0 && unit === 'fixed_package') {
-      grossPerUnit = Number(project.total_budget);
+    if (unit === 'fixed_package' && packageTotal > 0) {
+      grossPerUnit = packageTotal;
+    } else if (isUnitPay && packageTotal > 0 && quantity > 0) {
+      grossPerUnit = Math.round((packageTotal / quantity) * 100) / 100;
     } else if (Number(project?.hourly_rate) > 0) {
       grossPerUnit = Number(project.hourly_rate);
     } else {
@@ -86,8 +111,15 @@ function projectPostedRates(project) {
   const netPerUnit = toExpertNet(grossPerUnit) || 0;
   const totalGross =
     unit === 'fixed_package'
-      ? Number(project?.institution_gross_total) || Number(project?.total_budget) || grossPerUnit
+      ? packageTotal || grossPerUnit
       : grossPerUnit * quantity;
+
+  const durationHours =
+    Number(project?.duration_hours) > 0
+      ? Number(project.duration_hours)
+      : isUnitPay && quantity > 0 && (hoursPerDay > 0 || durationPerUnit > 0)
+        ? quantity * (hoursPerDay > 0 ? hoursPerDay : durationPerUnit)
+        : null;
 
   return {
     unit,
@@ -95,7 +127,7 @@ function projectPostedRates(project) {
     grossPerUnit,
     netPerUnit,
     totalGross,
-    durationHours: Number(project?.duration_hours) > 0 ? Number(project.duration_hours) : null,
+    durationHours,
   };
 }
 

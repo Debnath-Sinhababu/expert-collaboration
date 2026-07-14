@@ -43,6 +43,7 @@ import type { InterviewSlot } from '@/components/requirements/InterviewAvailabil
 import {
   moneyInr,
   projectCompensationDisplay,
+  projectEngagementQuantityDisplay,
   type RateIntent,
 } from '@/lib/projectCompensation'
 
@@ -61,6 +62,8 @@ interface Project {
   compensation_unit?: string | null
   unit_quantity?: number | null
   duration_per_unit?: number | null
+  hours_per_day?: number | null
+  schedule_notes?: string | null
   institution_gross_per_unit?: number | null
   institution_gross_total?: number | null
   location: string
@@ -505,16 +508,44 @@ export default function ExpertProjectPage() {
                     </div>
                   </div>
 
-                  {/* Duration */}
-                  <div className="flex items-start gap-3 p-4 bg-[#E8F4F8] rounded-lg">
-                    <div className="w-12 h-12 bg-[#008260] rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Clock className="h-6 w-6 text-white" />
+                  {(() => {
+                    const engagement = projectEngagementQuantityDisplay(project)
+                    return (
+                      <div className="flex items-start gap-3 p-4 bg-[#E8F4F8] rounded-lg">
+                        <div className="w-12 h-12 bg-[#008260] rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Clock className="h-6 w-6 text-white" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-black">{engagement.label}</p>
+                          <p className="text-base font-medium text-black mt-1">{engagement.value}</p>
+                        </div>
+                      </div>
+                    )
+                  })()}
+
+                  {Number(project.hours_per_day) > 0 ? (
+                    <div className="flex items-start gap-3 p-4 bg-[#E8F4F8] rounded-lg">
+                      <div className="w-12 h-12 bg-[#008260] rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Clock className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-black">Hours per day</p>
+                        <p className="text-base font-medium text-black mt-1">{project.hours_per_day} hours</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold text-black">Duration</p>
-                      <p className="text-base font-medium text-black mt-1">{project.duration_hours} Hours</p>
+                  ) : null}
+
+                  {project.schedule_notes ? (
+                    <div className="flex items-start gap-3 p-4 bg-[#E8F4F8] rounded-lg">
+                      <div className="w-12 h-12 bg-[#008260] rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Calendar className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-black">Weekly schedule</p>
+                        <p className="text-base font-medium text-black mt-1">{project.schedule_notes}</p>
+                      </div>
                     </div>
-                  </div>
+                  ) : null}
 
                   {project.interview_period_interval ? (
                     <div className="flex items-start gap-3 rounded-lg border border-[#BFE3D8] bg-[#E8F5F1] p-4">

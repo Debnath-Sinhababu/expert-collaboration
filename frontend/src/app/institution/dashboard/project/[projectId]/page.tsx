@@ -46,6 +46,7 @@ import {
   isRateAgreed,
   moneyInr,
   projectCompensationDisplay,
+  projectEngagementQuantityDisplay,
   resolveBookingSettlementRates,
 } from '@/lib/projectCompensation'
 import {
@@ -820,17 +821,30 @@ export default function InstitutionProjectDetailsPage() {
                               value: pricing.unitLabel,
                             },
                           ]
-                          if (pricing.unit === 'per_session' || pricing.unit === 'per_day') {
+                          if (pricing.unit === 'per_session' || pricing.unit === 'per_day' || pricing.unit === 'per_month') {
                             summaryItems.push({
-                              label: pricing.unit === 'per_day' ? 'Number of days' : 'Number of sessions',
+                              label:
+                                pricing.unit === 'per_day'
+                                  ? 'Number of days'
+                                  : pricing.unit === 'per_month'
+                                    ? 'Number of months'
+                                    : 'Number of sessions',
                               icon: <Users className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
                               value: String(pricing.quantity || '—'),
                             })
-                            summaryItems.push({
-                              label: pricing.unit === 'per_day' ? 'Hours per day' : 'Hours per session',
-                              icon: <Hourglass className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
-                              value: pricing.durationPerUnit > 0 ? `${pricing.durationPerUnit} hrs` : '—',
-                            })
+                            const hoursPerDay =
+                              Number(project.hours_per_day) > 0
+                                ? Number(project.hours_per_day)
+                                : Number(pricing.durationPerUnit) > 1
+                                  ? Number(pricing.durationPerUnit)
+                                  : 0
+                            if (hoursPerDay > 0) {
+                              summaryItems.push({
+                                label: 'Hours per day',
+                                icon: <Hourglass className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                                value: `${hoursPerDay} hrs`,
+                              })
+                            }
                           }
                           if (pricing.unit === 'fixed_package') {
                             summaryItems.push({
@@ -839,12 +853,15 @@ export default function InstitutionProjectDetailsPage() {
                               value: pricing.expectedTotalHours > 0 ? `${pricing.expectedTotalHours} hrs` : '—',
                             })
                           }
-                          summaryItems.push(
-                            {
-                              label: 'Total hours',
+                          if (pricing.unit === 'hourly') {
+                            const engagement = projectEngagementQuantityDisplay(project)
+                            summaryItems.push({
+                              label: engagement.label,
                               icon: <Hourglass className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
-                              value: pricing.expectedTotalHours > 0 ? `${pricing.expectedTotalHours} hours` : `${project.duration_hours || '—'} hours`,
-                            },
+                              value: engagement.value,
+                            })
+                          }
+                          summaryItems.push(
                             {
                               label: 'Total budget',
                               icon: <IndianRupee className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
@@ -908,7 +925,7 @@ export default function InstitutionProjectDetailsPage() {
                           }
                           if (project.schedule_notes) {
                             summaryItems.push({
-                              label: 'Schedule notes',
+                              label: 'Weekly schedule',
                               icon: <FileText className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
                               value: project.schedule_notes,
                             })
@@ -1932,8 +1949,8 @@ export default function InstitutionProjectDetailsPage() {
                       <span className="font-semibold">{moneyInr(total)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-[#6A6A6A]">Hours</span>
-                      <span className="font-semibold">{pricing.expectedTotalHours || project?.duration_hours || '—'}</span>
+                      <span className="text-[#6A6A6A]">{projectEngagementQuantityDisplay(project).label}</span>
+                      <span className="font-semibold">{projectEngagementQuantityDisplay(project).value}</span>
                     </div>
                   </div>
                   {overBudget && (
