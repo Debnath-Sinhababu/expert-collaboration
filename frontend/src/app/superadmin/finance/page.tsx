@@ -56,19 +56,30 @@ function institutionContractQty(row: any): string {
   return qty > 0 ? String(qty) : '—'
 }
 
-/** Display label: saved status wins; partial is a display state for open invoices only. */
+/** Normalize stored status for display (supports legacy invoiced + partial cash). */
 function displayPaymentStatus(row: any): string {
   const due = Number(row?.invoice_amount || row?.calculated_amount || 0)
   const paid = Number(row?.paid_amount || 0)
   const status = String(row?.status || 'pending').toLowerCase()
+  if (status === 'partial_paid') return 'partial paid'
   if (status === 'invoiced' && paid > 0 && due > 0 && paid + 0.001 < due) return 'partial paid'
-  return status
+  if (status === 'partial paid') return 'partial paid'
+  return status.replace(/_/g, ' ')
+}
+
+function storedPaymentStatus(row: any): string {
+  const due = Number(row?.invoice_amount || row?.calculated_amount || 0)
+  const paid = Number(row?.paid_amount || 0)
+  const status = String(row?.status || 'pending').toLowerCase()
+  if (status === 'partial_paid') return 'partial_paid'
+  if (status === 'invoiced' && paid > 0 && due > 0 && paid + 0.001 < due) return 'partial_paid'
+  return status || 'pending'
 }
 
 function statusClass(status?: string) {
   const key = String(status || '').toLowerCase()
   if (key === 'paid') return 'bg-emerald-50 text-[#008260]'
-  if (key === 'partial paid') return 'bg-violet-50 text-violet-700'
+  if (key === 'partial paid' || key === 'partial_paid') return 'bg-violet-50 text-violet-700'
   if (key === 'invoiced') return 'bg-blue-50 text-blue-700'
   if (key === 'cancelled') return 'bg-red-50 text-red-700'
   return 'bg-amber-50 text-amber-700'
@@ -140,11 +151,14 @@ function emptyParty() {
     pipeline: 0,
     awaiting_invoice: 0,
     invoice_sent: 0,
+    invoice_unpaid: 0,
+    partial_remaining: 0,
+    partial_collected: 0,
     settled: 0,
     outstanding: 0,
     remaining: 0,
     cancelled: 0,
-    counts: { pending: 0, invoiced: 0, paid: 0, cancelled: 0, other: 0 },
+    counts: { pending: 0, invoiced: 0, partial_paid: 0, paid: 0, cancelled: 0, other: 0 },
   }
 }
 
@@ -234,7 +248,7 @@ export default function SuperAdminFinancePage() {
     const paid = Number(row.paid_amount || 0)
     setInvoiceAmount(String(due))
     setPaidAmount(String(paid))
-    setFinanceStatus(String(row.status || 'pending'))
+    setFinanceStatus(storedPaymentStatus(row))
     setNotes(row.notes || '')
   }
 
@@ -245,7 +259,7 @@ export default function SuperAdminFinancePage() {
       const paid = Number(updated.paid_amount || 0)
       setInvoiceAmount(String(due))
       setPaidAmount(String(paid))
-      setFinanceStatus(String(updated.status || 'pending'))
+      setFinanceStatus(storedPaymentStatus(updated))
       setNotes(updated.notes || '')
     }
     await Promise.all([loadSummary(), loadRows()])
@@ -343,7 +357,8 @@ export default function SuperAdminFinancePage() {
       : [
           { value: 'all', label: 'All statuses' },
           { value: 'pending', label: 'Pending' },
-          { value: 'invoiced', label: 'Invoiced / partial paid' },
+          { value: 'invoiced', label: 'Invoiced' },
+          { value: 'partial_paid', label: 'Partial paid' },
           { value: 'paid', label: 'Paid' },
           { value: 'cancelled', label: 'Cancelled' },
         ]
@@ -356,116 +371,145 @@ export default function SuperAdminFinancePage() {
   const countLabel = (n: number, singular = 'payment', plural = 'payments') =>
     `${n} ${n === 1 ? singular : plural}`
 
+  const openBillFootnote = (party: ReturnType<typeof emptyParty>) => {
+    const unpaid = party.counts.invoiced || 0
+    const partial = party.counts.partial_paid || 0
+    const parts = [
+      `${party.counts.pending || 0} not billed`,
+      `${unpaid} unpaid`,
+    ]
+    if (partial > 0) parts.push(`${partial} partial`)
+    return parts.join(' · ')
+  }
+
+  const waitingFootnote = (party: ReturnType<typeof emptyParty>) => {
+    const unpaid = party.counts.invoiced || 0
+    const partial = party.counts.partial_paid || 0
+    const parts = [`${unpaid} unpaid`]
+    if (partial > 0) {
+      parts.push(`${partial} partial (${money(party.partial_remaining)} left)`)
+    }
+    return parts.join(' · ')
+  }
+
+  const settledFootnote = (party: ReturnType<typeof emptyParty>) => {
+    const parts = [`${party.counts.paid || 0} fully paid`]
+    if ((party.counts.partial_paid || 0) > 0) {
+      parts.push(`${party.counts.partial_paid || 0} partial (${money(party.partial_collected)})`)
+    }
+    return parts.join(' · ')
+  }
+
   return (
     <div className="space-y-6">
       <div className="space-y-5 rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5">
         <FinanceStatSection
           title="Quick picture"
-          description="The most useful numbers to check first."
+          description="Where the money stands right now."
         >
           <FinanceMetricCard
-            label="CalxMap’s share (expected)"
+            label="What CalxMap can earn"
             value={money(platform.expected_margin)}
             icon={Scale}
             tone="slate"
-            helper="If everything currently listed gets paid as planned"
-            footnote="Institute total minus expert total"
+            helper="If institutes and experts both clear their payments"
+            footnote="Institute total − expert total"
           />
           <FinanceMetricCard
-            label="CalxMap’s share (already received)"
+            label="What CalxMap has earned"
             value={money(platform.realized_margin)}
             icon={Banknote}
-            helper="Based on amounts actually paid so far (including partials)"
-            footnote="Money in from institutes minus money out to experts"
+            helper="From payments already made"
+            footnote="Got from institutes − paid to experts"
           />
           <FinanceMetricCard
-            label="Still to collect from institutes"
+            label="Still to get from institutes"
             value={money(institute.outstanding)}
             icon={ArrowDownLeft}
             tone="amber"
-            helper="Invoice due minus what institutes have paid"
-            footnote={`${countLabel(institute.counts.pending || 0)} not billed yet · ${countLabel(institute.counts.invoiced || 0)} billed, unpaid`}
+            helper="Money institutes have not paid yet"
+            footnote={openBillFootnote(institute)}
           />
           <FinanceMetricCard
-            label="Still to pay to experts"
+            label="Still to pay experts"
             value={money(expert.outstanding)}
             icon={ArrowUpRight}
             tone="blue"
-            helper="Invoice due minus what has been paid out"
-            footnote={`${countLabel(expert.counts.pending || 0)} not billed yet · ${countLabel(expert.counts.invoiced || 0)} billed, unpaid`}
+            helper="Money we have not paid experts yet"
+            footnote={openBillFootnote(expert)}
           />
         </FinanceStatSection>
 
         <FinanceStatSection
           title="Money from institutes"
-          description="What institutes owe CalxMap, and what they have already paid."
+          description="What institutes should pay us, and what they already paid."
         >
           <FinanceMetricCard
-            label="Total for institutes"
+            label="Total from institutes"
             value={money(institute.pipeline)}
             icon={Banknote}
-            helper="Everything currently on the books for institutes"
-            footnote="Not billed + billed + already paid"
+            helper="All institute money on this list"
+            footnote="Not billed + waiting + already paid"
           />
           <FinanceMetricCard
             label="Not billed yet"
             value={money(institute.awaiting_invoice)}
             icon={FileText}
             tone="amber"
-            helper="Work is done / listed, but no invoice has been sent"
+            helper="No invoice sent yet"
             footnote={countLabel(institute.counts.pending || 0)}
           />
           <FinanceMetricCard
-            label="Invoice sent, waiting for payment"
+            label="Waiting for payment"
             value={money(institute.invoice_sent)}
             icon={ReceiptText}
             tone="blue"
-            helper="Remaining balance on sent invoices"
-            footnote={countLabel(institute.counts.invoiced || 0)}
+            helper="Invoice sent, payment not complete"
+            footnote={waitingFootnote(institute)}
           />
           <FinanceMetricCard
-            label="Already received"
+            label="Already paid by institutes"
             value={money(institute.settled)}
             icon={Banknote}
-            helper="Sum of paid amounts from institutes"
-            footnote={`${countLabel(institute.counts.paid || 0)} fully paid`}
+            helper="Money we have already got"
+            footnote={settledFootnote(institute)}
           />
         </FinanceStatSection>
 
         <FinanceStatSection
           title="Money to experts"
-          description="What CalxMap owes experts, and what has already been paid out."
+          description="What we should pay experts, and what we already paid."
         >
           <FinanceMetricCard
-            label="Total for experts"
+            label="Total to experts"
             value={money(expert.pipeline)}
             icon={Banknote}
             tone="blue"
-            helper="Everything currently on the books for experts"
-            footnote="Not billed + billed + already paid"
+            helper="All expert money on this list"
+            footnote="Not billed + waiting + already paid"
           />
           <FinanceMetricCard
             label="Not billed yet"
             value={money(expert.awaiting_invoice)}
             icon={FileText}
             tone="amber"
-            helper="Ready to pay, but payout invoice has not been sent"
+            helper="No payout invoice sent yet"
             footnote={countLabel(expert.counts.pending || 0)}
           />
           <FinanceMetricCard
-            label="Invoice sent, waiting to pay out"
+            label="Waiting to pay"
             value={money(expert.invoice_sent)}
             icon={ReceiptText}
             tone="blue"
-            helper="Remaining balance on sent payout invoices"
-            footnote={countLabel(expert.counts.invoiced || 0)}
+            helper="Invoice sent, payout not complete"
+            footnote={waitingFootnote(expert)}
           />
           <FinanceMetricCard
             label="Already paid to experts"
             value={money(expert.settled)}
             icon={Banknote}
-            helper="Sum of amounts paid out so far"
-            footnote={`${countLabel(expert.counts.paid || 0)} fully paid`}
+            helper="Money we have already paid out"
+            footnote={settledFootnote(expert)}
           />
         </FinanceStatSection>
       </div>
@@ -673,7 +717,8 @@ export default function SuperAdminFinancePage() {
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="invoiced">Invoiced / partial paid</SelectItem>
+                      <SelectItem value="invoiced">Invoiced</SelectItem>
+                      <SelectItem value="partial_paid">Partial paid</SelectItem>
                       <SelectItem value="paid">Paid</SelectItem>
                       <SelectItem value="cancelled">Cancelled</SelectItem>
                     </SelectContent>

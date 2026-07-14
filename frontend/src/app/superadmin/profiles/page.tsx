@@ -287,7 +287,18 @@ export default function SuperAdminProfilesPage() {
           <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
             <div className="relative w-full sm:w-80">
               <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-              <Input className="pl-9" placeholder={type === 'experts' ? 'Search any expert data' : 'Search name or email'} value={search} onChange={(e) => setSearch(e.target.value)} />
+              <Input
+                className="pl-9"
+                placeholder={
+                  type === 'experts'
+                    ? 'Search any expert data'
+                    : type === 'institutions'
+                      ? 'Search any institution data'
+                      : 'Search any student data'
+                }
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
             </div>
             <Button
               type="button"

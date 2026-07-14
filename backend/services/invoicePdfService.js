@@ -32,6 +32,7 @@ function displayPaymentStatus(payment) {
   const due = Number(payment.invoice_amount || payment.calculated_amount || 0);
   const paid = Number(payment.paid_amount || 0);
   const status = String(payment.status || 'pending').toLowerCase();
+  if (status === 'partial_paid') return 'Partial paid';
   if (status === 'invoiced' && paid > 0 && due > 0 && paid + 0.001 < due) return 'Partial paid';
   if (status === 'paid') return 'Paid';
   if (status === 'invoiced') return 'Invoiced';

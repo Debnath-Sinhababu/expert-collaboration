@@ -30,6 +30,30 @@ function toArray(value) {
   return [];
 }
 
+const FINANCE_PAYMENT_STATUSES = new Set(['pending', 'invoiced', 'partial_paid', 'paid', 'cancelled']);
+
+/** Derive canonical finance status from due vs paid (partial_paid is stored, not display-only). */
+function resolveFinancePaymentStatus({ due, paid, requestedStatus, previousStatus, hasInvoice }) {
+  const dueAmount = Math.max(0, Number(due) || 0);
+  const paidAmount = Math.max(0, Number(paid) || 0);
+  const requested = requestedStatus != null && String(requestedStatus).trim() !== ''
+    ? String(requestedStatus).trim().toLowerCase()
+    : null;
+  const previous = String(previousStatus || 'pending').toLowerCase();
+  const billed = Boolean(hasInvoice) || previous === 'invoiced' || previous === 'partial_paid';
+
+  if (requested === 'cancelled') return 'cancelled';
+  if (dueAmount > 0 && paidAmount + 0.001 >= dueAmount) return 'paid';
+  if (paidAmount > 0) return 'partial_paid';
+
+  if (requested === 'pending') return 'pending';
+  if (requested === 'invoiced' || requested === 'partial_paid') return 'invoiced';
+  if (billed) return 'invoiced';
+  return requested && FINANCE_PAYMENT_STATUSES.has(requested) && requested !== 'paid'
+    ? requested
+    : (previous === 'paid' || previous === 'cancelled' ? 'pending' : previous || 'pending');
+}
+
 function normalizeServiceError(error) {
   if (!error || error.statusCode) return error;
   const message = error.message || '';
@@ -1060,14 +1084,22 @@ class SuperAdminService {
       email_status: 'sent',
     });
 
+    const existingPaid = Number(payment.paid_amount || 0);
+    const nextStatus = resolveFinancePaymentStatus({
+      due: amount,
+      paid: existingPaid,
+      previousStatus: payment.status,
+      hasInvoice: true,
+    });
+
     const updated = await this.repository.updateFinancePayment(payment.id, {
-      status: 'invoiced',
+      status: nextStatus,
       invoice_id: invoice.id,
       invoice_amount: amount,
       notes: body.notes || payment.notes || null,
       updated_by: actorUserId || null,
     });
-    await this.logActivity(auth, 'finance.invoice_sent', { entity_type: 'finance_payment', entity_id: id, metadata: { amount, invoice_id: invoice.id } });
+    await this.logActivity(auth, 'finance.invoice_sent', { entity_type: 'finance_payment', entity_id: id, metadata: { amount, invoice_id: invoice.id, status: nextStatus } });
     return updated;
   }
 
@@ -1090,17 +1122,24 @@ class SuperAdminService {
       throw err;
     }
 
-    // Fully settled only when paid covers the due amount; otherwise keep as invoiced (partial).
     const fullyPaid = paidAmount + 0.001 >= due;
-    const nextStatus = fullyPaid ? 'paid' : 'invoiced';
+    const nextStatus = resolveFinancePaymentStatus({
+      due,
+      paid: paidAmount,
+      previousStatus: payment.status,
+      hasInvoice: Boolean(payment.invoice_id) || payment.status === 'invoiced' || payment.status === 'partial_paid',
+    });
     const invoiceAmount =
       Number(payment.invoice_amount) > 0 ? Number(payment.invoice_amount) : due;
+    const now = new Date().toISOString();
 
     const updated = await this.repository.updateFinancePayment(id, {
       status: nextStatus,
       invoice_amount: invoiceAmount,
       paid_amount: paidAmount,
-      paid_at: fullyPaid ? (body.paid_at || new Date().toISOString()) : payment.paid_at || null,
+      paid_at: fullyPaid
+        ? (body.paid_at || payment.paid_at || now)
+        : (payment.paid_at || body.paid_at || now),
       notes: body.notes || payment.notes || null,
       updated_by: actorUserId || null,
     });
@@ -1136,25 +1175,25 @@ class SuperAdminService {
     }
 
     const due = nextInvoiceAmount > 0 ? nextInvoiceAmount : Number(payment.calculated_amount || 0);
-    const fullyPaid = due > 0 && nextPaidAmount + 0.001 >= due;
-    const nextStatus = body.status
-      ? String(body.status)
-      : fullyPaid
-        ? 'paid'
-        : nextPaidAmount > 0
-          ? 'invoiced'
-          : String(payment.status || 'pending');
-    const allowedStatuses = new Set(['pending', 'invoiced', 'paid', 'cancelled']);
-    if (!allowedStatuses.has(nextStatus)) {
+    const requestedStatus = body.status != null ? String(body.status).trim().toLowerCase() : null;
+    if (requestedStatus && !FINANCE_PAYMENT_STATUSES.has(requestedStatus)) {
       const err = new Error('Invalid finance status');
       err.statusCode = 400;
       throw err;
     }
-    if (nextStatus === 'paid' && due > 0 && nextPaidAmount + 0.001 < due) {
+    if (requestedStatus === 'paid' && due > 0 && nextPaidAmount + 0.001 < due) {
       const err = new Error('Paid status requires paid amount to cover the invoice amount');
       err.statusCode = 400;
       throw err;
     }
+
+    const nextStatus = resolveFinancePaymentStatus({
+      due,
+      paid: nextPaidAmount,
+      requestedStatus,
+      previousStatus: payment.status,
+      hasInvoice: Boolean(payment.invoice_id) || payment.status === 'invoiced' || payment.status === 'partial_paid',
+    });
 
     const updated = await this.repository.updateFinancePayment(id, {
       status: nextStatus,

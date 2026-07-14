@@ -106,11 +106,23 @@ function paymentSummaryCard(label: string, record: any) {
       </div>
     )
   }
+  const due = Number(record.invoice_amount || record.calculated_amount || 0)
+  const paid = Number(record.paid_amount || 0)
+  let statusLabel = String(record.status || 'pending').replace(/_/g, ' ')
+  if (String(record.status || '').toLowerCase() === 'partial_paid') statusLabel = 'partial paid'
+  else if (
+    String(record.status || '').toLowerCase() === 'invoiced' &&
+    paid > 0 &&
+    due > 0 &&
+    paid + 0.001 < due
+  ) {
+    statusLabel = 'partial paid'
+  }
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
-        <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold capitalize text-slate-700">{record.status || 'pending'}</span>
+        <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold capitalize text-slate-700">{statusLabel}</span>
       </div>
       <div className="mt-2 grid gap-2 text-sm sm:grid-cols-3">
         <div><span className="text-slate-500">Amount</span><p className="font-semibold text-slate-950">{money(record.invoice_amount || record.calculated_amount)}</p></div>

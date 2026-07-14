@@ -1133,7 +1133,7 @@ export default function InstitutionDashboardPage() {
               <CardContent className="p-4">
                 <p className="text-sm font-medium text-[#000000]">Invoiced Amount</p>
                 <p className="text-3xl font-bold text-[#000000] my-2">Rs. {Number(financeSummary.summary.invoiced || 0).toFixed(2)}</p>
-                <p className="text-xs text-[#656565]">Awaiting payment confirmation</p>
+                <p className="text-xs text-[#656565]">Remaining on invoices (unpaid + partial)</p>
               </CardContent>
             </Card>
             <Card className="bg-white border-2 border-[#D6D6D6]">

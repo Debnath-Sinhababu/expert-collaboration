@@ -747,7 +747,7 @@ export default function ExpertDashboard() {
               <CardContent className="p-4">
                 <p className="text-sm font-medium text-[#000000]">Invoiced Payouts</p>
                 <p className="text-3xl font-bold text-[#000000] my-1">Rs. {Number(financeSummary.summary.invoiced || 0).toFixed(2)}</p>
-                <p className="text-xs text-[#656565] font-medium">Awaiting payment</p>
+                <p className="text-xs text-[#656565] font-medium">Remaining on invoices (unpaid + partial)</p>
               </CardContent>
             </Card>
             <Card className="border-2 border-[#D6D6D6] bg-white">
