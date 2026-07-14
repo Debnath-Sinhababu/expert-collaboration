@@ -662,7 +662,7 @@ class SuperAdminRepository {
       project: {
         table: 'projects',
         institutionField: 'institution_id',
-        select: 'id,title,description,type,status,created_at,institution_id,call_status,hourly_rate,total_budget,start_date,end_date,duration_hours,institutions:institution_id(id,name,email,type,city,state)',
+        select: 'id,title,description,type,status,created_at,institution_id,call_status,hourly_rate,total_budget,start_date,end_date,duration_hours,compensation_unit,unit_quantity,duration_per_unit,hours_per_day,institutions:institution_id(id,name,email,type,city,state)',
         searchFields: 'title,description',
         map: (r) => ({ ...r, requirement_type: 'project' }),
       },
@@ -861,10 +861,13 @@ class SuperAdminRepository {
     if (!projectIds.length) return {};
     const [{ data: applications, error: appError }, { data: bookings, error: bookingError }] = await Promise.all([
       this.client.from('applications').select('project_id,status').in('project_id', projectIds),
-      this.client.from('bookings').select('id,project_id,status,hours_booked').in('project_id', projectIds),
+      this.client
+        .from('bookings')
+        .select('id,project_id,status,hours_booked,expert_id,experts:expert_id(id,name,email)')
+        .in('project_id', projectIds),
     ]);
     if (appError && !tableMissing(appError)) throw appError;
-    if (bookingError && !tableMissing(bookingError)) throw bookingError;
+    if (bookingError && !tableMissing(bookingError) && !relationMissing(bookingError)) throw bookingError;
     const bookingIds = (bookings || []).map((booking) => booking.id);
     const approvedHoursByBooking = await this.approvedHoursForBookingIds(bookingIds);
     const out = Object.fromEntries(projectIds.map((id) => [id, {
@@ -875,6 +878,7 @@ class SuperAdminRepository {
       completed_bookings: 0,
       approved_hours: 0,
       target_hours: 0,
+      selected_experts: [],
     }]));
     for (const app of applications || []) {
       const item = out[app.project_id];
@@ -886,10 +890,27 @@ class SuperAdminRepository {
       const item = out[booking.project_id];
       if (!item) continue;
       item.bookings_total += 1;
+      const bookingStatus = String(booking.status || '').toLowerCase();
       if (activeStatus(booking.status)) item.running_bookings += 1;
-      if (String(booking.status).toLowerCase() === 'completed') item.completed_bookings += 1;
+      if (bookingStatus === 'completed') item.completed_bookings += 1;
       item.approved_hours += Number(approvedHoursByBooking[booking.id] || 0);
       item.target_hours += Number(booking.hours_booked || 0);
+
+      const expert = booking.experts;
+      if (
+        expert?.id
+        && !cancelledStatus(booking.status)
+        && !['rejected', 'withdrawn', 'cancelled', 'canceled'].includes(bookingStatus)
+      ) {
+        const already = item.selected_experts.some((row) => row.id === expert.id);
+        if (!already) {
+          item.selected_experts.push({
+            id: expert.id,
+            name: expert.name || null,
+            email: expert.email || null,
+          });
+        }
+      }
     }
     return out;
   }
