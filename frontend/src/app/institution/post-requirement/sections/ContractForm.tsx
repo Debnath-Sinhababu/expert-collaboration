@@ -55,6 +55,37 @@ function formatInterviewPeriodInterval(startDate: string, endDate: string) {
   return start === end ? start : `${start} to ${end}`
 }
 
+/** Labels for duration/qty + rate fields based on how the institute pays. */
+function expectedDurationLabel(unit?: CompensationUnit | ''): string {
+  if (unit === 'per_day') return 'Expected total days'
+  if (unit === 'per_month') return 'Expected total months'
+  if (unit === 'per_session') return 'Expected total sessions'
+  return 'Expected total hours'
+}
+
+function expectedDurationNoun(unit?: CompensationUnit | ''): string {
+  if (unit === 'per_day') return 'days'
+  if (unit === 'per_month') return 'months'
+  if (unit === 'per_session') return 'sessions'
+  return 'hours'
+}
+
+function payRateLabel(unit?: CompensationUnit | ''): string {
+  if (unit === 'per_day') return 'Daily rate (auto-calculated)'
+  if (unit === 'per_month') return 'Monthly rate (auto-calculated)'
+  if (unit === 'per_session') return 'Per-session rate (auto-calculated)'
+  if (unit === 'fixed_package') return 'Package rate (auto-calculated)'
+  return 'Hourly rate (auto-calculated)'
+}
+
+function payRateUnitShort(unit?: CompensationUnit | ''): string {
+  if (unit === 'per_day') return 'day'
+  if (unit === 'per_month') return 'month'
+  if (unit === 'per_session') return 'session'
+  if (unit === 'fixed_package') return 'package'
+  return 'hour'
+}
+
 const INTERVIEW_MONTHS: Record<string, string> = {
   Jan: '01', Feb: '02', Mar: '03', Apr: '04', May: '05', Jun: '06',
   Jul: '07', Aug: '08', Sep: '09', Oct: '10', Nov: '11', Dec: '12',
@@ -136,7 +167,7 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
     title: '',
     description: '',
     type: '',
-    compensation_unit: '' as CompensationUnit | '',
+    compensation_unit: 'hourly' as CompensationUnit | '',
     unit_quantity: '1',
     duration_per_unit: '',
     institution_gross_per_unit: '',
@@ -351,18 +382,10 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
   }
 
   const handleTypeChange = (type: string) => {
-    const typed = type.trim().toLowerCase()
-    const matchedOption = allProjectTypeOptions.find((option) =>
-      option.value.toLowerCase() === typed || option.label.toLowerCase() === typed
-    )
-    const defaultUnit = getDefaultCompensationUnit(matchedOption?.value || type)
-    setForm((prev) => {
-      const nextUnit = (defaultUnit || prev.compensation_unit || 'hourly') as CompensationUnit | ''
-      return {
-        ...applyCompensationUnit(nextUnit, prev),
-        type,
-      }
-    })
+    setForm((prev) => ({
+      ...applyCompensationUnit((prev.compensation_unit || 'hourly') as CompensationUnit, prev),
+      type,
+    }))
     setProjectTypeOpen(true)
   }
 
@@ -388,7 +411,7 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
       return false
     }
     if (!form.duration_per_unit || Number(form.duration_per_unit) <= 0) {
-      toast.error('Enter expected total hours')
+      toast.error(`Enter ${expectedDurationLabel(form.compensation_unit).toLowerCase()}`)
       return false
     }
     if (!form.institution_gross_total || Number(form.institution_gross_total) <= 0) {
@@ -396,7 +419,7 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
       return false
     }
     if (compensationDerived.expectedTotalHours <= 0) {
-      toast.error('Expected total hours must be greater than 0')
+      toast.error(`${expectedDurationLabel(form.compensation_unit)} must be greater than 0`)
       return false
     }
     if (compensationDerived.totalBudgetGross <= 0) {
@@ -737,16 +760,26 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
                 </SelectContent>
               </Select>
               {!requireExplicitUnit && form.compensation_unit && (
-                <p className="text-xs text-[#6A6A6A] mt-1">Default for this type — you can change it.</p>
+                <p className="text-xs text-[#6A6A6A] mt-1">Defaults to hourly — you can change it.</p>
               )}
             </div>
             <div>
-              <Label className="text-[#000000] font-medium mb-2 block">Expected total hours *</Label>
+              <Label className="text-[#000000] font-medium mb-2 block">
+                {expectedDurationLabel(form.compensation_unit)} *
+              </Label>
               <Input
                 type="number"
                 min="0.5"
                 step="0.5"
-                placeholder="40"
+                placeholder={
+                  form.compensation_unit === 'per_day'
+                    ? 'e.g. 8'
+                    : form.compensation_unit === 'per_month'
+                      ? 'e.g. 3'
+                      : form.compensation_unit === 'per_session'
+                        ? 'e.g. 5'
+                        : '40'
+                }
                 value={form.duration_per_unit}
                 onChange={(e) => setForm((prev) => ({ ...prev, duration_per_unit: e.target.value }))}
                 className="border-[#DCDCDC]"
@@ -765,11 +798,17 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
               />
             </div>
             <div>
-              <Label className="text-[#000000] font-medium mb-2 block">Hourly rate (auto-calculated)</Label>
+              <Label className="text-[#000000] font-medium mb-2 block">
+                {payRateLabel(form.compensation_unit)}
+              </Label>
               <Input
                 readOnly
-                value={compensationDerived.grossPerUnit > 0 ? `${moneyInr(compensationDerived.grossPerUnit)} / hour` : ''}
-                placeholder="Calculated from budget and hours"
+                value={
+                  compensationDerived.grossPerUnit > 0
+                    ? `${moneyInr(compensationDerived.grossPerUnit)} / ${payRateUnitShort(form.compensation_unit)}`
+                    : ''
+                }
+                placeholder={`Calculated from budget and ${expectedDurationNoun(form.compensation_unit)}`}
                 className="border-[#DCDCDC] bg-[#F8FAFC]"
               />
             </div>
@@ -778,7 +817,7 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
                 <p className="text-sm font-semibold text-[#000000] mb-3">Budget summary (auto-calculated)</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
                   <div>
-                    <p className="text-[#6A6A6A]">Expected total hours</p>
+                    <p className="text-[#6A6A6A]">{expectedDurationLabel(form.compensation_unit)}</p>
                     <p className="font-medium text-[#000000]">{compensationDerived.expectedTotalHours || '—'}</p>
                   </div>
                   <div>

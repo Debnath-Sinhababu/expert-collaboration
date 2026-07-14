@@ -50,6 +50,32 @@ import {
 type UserMeta = { role?: string; name?: string }
 type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }
 
+/** Same expert-facing rate as Apply sheet: net earn / unit + approx total. */
+function ExpertCardCompensation({ project, compact = false }: { project: any; compact?: boolean }) {
+  const pricing = projectCompensationDisplay(project)
+  const earn = Number(pricing.netPerUnitDisplay || 0)
+  const total = Number(pricing.expertNetTotal || 0)
+  if (!(earn > 0) && !(total > 0)) {
+    return (
+      <div className="text-right">
+        <div className={`${compact ? 'text-lg' : 'text-2xl'} font-bold text-[#008260]`}>—</div>
+        <div className="text-sm text-slate-500">your earn</div>
+      </div>
+    )
+  }
+  return (
+    <div className="text-right">
+      <div className={`${compact ? 'text-lg' : 'text-2xl'} font-bold text-[#008260]`}>
+        {earn > 0 ? `~${moneyInr(earn)} / ${pricing.unitShort}` : moneyInr(total)}
+      </div>
+      <div className="text-sm text-slate-500">
+        {total > 0 ? `~${moneyInr(total)} total earn` : 'your earn'}
+        {pricing.quantity > 1 ? ` · ${pricing.quantity} ${pricing.unitShort}s` : ''}
+      </div>
+    </div>
+  )
+}
+
 export default function ExpertHome() {
   type ExpertProfile = {
     id?: string
@@ -513,15 +539,9 @@ export default function ExpertHome() {
                               
                               {/* Price Section - Only show on larger screens */}
                               <div className="hidden lg:flex justify-between items-start space-y-2 flex-shrink-0">
-                                <div className="text-right flex flex-col items-end">
-                                  <div className="text-2xl font-bold text-[#008260]">
-                                    {moneyInr(projectCompensationDisplay(project).totalBudgetGross || Number(project.total_budget || 0))}
-                                  </div>
-                                  <div className="text-sm text-slate-500">
-                                    total budget
-                                  </div>
+                                <div className="flex flex-col items-end">
+                                  <ExpertCardCompensation project={project} />
                                 </div>
-                             
                               </div>
                             </div>
 
@@ -1016,15 +1036,7 @@ export default function ExpertHome() {
                       
                       {/* Price Section - Only show on larger screens */}
                       <div className="hidden lg:flex flex-col items-end space-y-2 flex-shrink-0">
-                        <div className="text-right">
-                          <div className="text-2xl font-bold text-[#008260]">
-                            {moneyInr(projectCompensationDisplay(project).totalBudgetGross || Number(project.total_budget || 0))}
-                          </div>
-                          <div className="text-sm text-slate-500">
-                            total budget
-                          </div>
-                        </div>
-                       
+                        <ExpertCardCompensation project={project} />
                       </div>
                     </div>
 
@@ -1069,9 +1081,7 @@ export default function ExpertHome() {
                         
                         {/* Price for mobile */}
                         <div className="lg:hidden flex items-center">
-                          <span className="text-lg font-bold text-[#008260]">
-                            {moneyInr(projectCompensationDisplay(project).totalBudgetGross || Number(project.total_budget || 0))}
-                          </span>
+                          <ExpertCardCompensation project={project} compact />
                         </div>
                       </div>
                       
