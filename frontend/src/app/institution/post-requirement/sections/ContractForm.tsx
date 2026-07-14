@@ -211,7 +211,7 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
   }, [form.compensation_unit, form.duration_per_unit, form.institution_gross_total])
 
   const requireExplicitUnit = !form.compensation_unit
-  const showBudgetSummary = viewer === 'super_admin'
+  const showBudgetSummary = false
   const allProjectTypeOptions = useMemo(() => {
     const baseOptions = [
       'guest_lecture',

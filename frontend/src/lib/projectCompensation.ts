@@ -430,9 +430,11 @@ export function formatNegotiationHistoryEntry(
   const amountDetails: NegotiationHistoryDetailLine[] = []
   if (audience === 'expert') {
     if (net != null) amountDetails.push({ label: 'Expert earn', value: `${moneyInr(net)} / ${unitShort}` })
-  } else {
-    if (gross != null) amountDetails.push({ label: 'Institution pays', value: `${moneyInr(gross)} / ${unitShort}` })
-    if (net != null) amountDetails.push({ label: 'Expert earn', value: `${moneyInr(net)} / ${unitShort}` })
+  } else if (gross != null) {
+    amountDetails.push({ label: 'Institution pays', value: `${moneyInr(gross)} / ${unitShort}` })
+  } else if (net != null) {
+    // Expert proposal amounts are stored as net; show as proposed rate without dual fee split.
+    amountDetails.push({ label: 'Proposed rate', value: `${moneyInr(net)} / ${unitShort}` })
   }
 
   const noteDetails: NegotiationHistoryDetailLine[] = note

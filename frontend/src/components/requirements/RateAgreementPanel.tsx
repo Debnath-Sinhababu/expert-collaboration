@@ -181,9 +181,6 @@ export function RateAgreementPanel({ application, project, role, onUpdated }: Pr
     })
   }
 
-  const derivedExpertFromInput =
-    role === 'institution' && Number(amount) > 0 ? toExpertNet(Number(amount)) : 0
-
   return (
     <div className="rounded-xl border border-[#DCDCDC] bg-white p-4 space-y-4">
       <div>
@@ -207,9 +204,6 @@ export function RateAgreementPanel({ application, project, role, onUpdated }: Pr
             <p>
               You pay <span className="font-semibold">{moneyInr(display.grossPerUnitDisplay)}</span> /{' '}
               {display.unitShort}
-            </p>
-            <p className="text-[#6A6A6A]">
-              Expert earns ~{moneyInr(display.netPerUnitDisplay)} / {display.unitShort}
             </p>
             <p className="text-[#6A6A6A]">Total budget {moneyInr(display.totalBudgetGross)}</p>
           </>
@@ -237,11 +231,7 @@ export function RateAgreementPanel({ application, project, role, onUpdated }: Pr
             <span className="block mt-1">
               {role === 'expert'
                 ? `Locked: you earn ${moneyInr(Number(application.final_net_per_unit))} / ${display.unitShort}`
-                : `Locked: institution pays ${moneyInr(Number(application.final_gross_per_unit || 0))} / ${display.unitShort}${
-                    application.final_net_per_unit != null
-                      ? ` · expert earns ${moneyInr(Number(application.final_net_per_unit))} / ${display.unitShort}`
-                      : ''
-                  }`}
+                : `Locked: you pay ${moneyInr(Number(application.final_gross_per_unit || 0))} / ${display.unitShort}`}
             </span>
           )}
           {status === 'agreed_posted' && !application.final_net_per_unit && (
@@ -303,8 +293,7 @@ export function RateAgreementPanel({ application, project, role, onUpdated }: Pr
               accepts or declines. Confirm &amp; lock stays unavailable until they respond.
             </p>
             <p className="text-sky-900/80">
-              Posted: you pay {moneyInr(display.grossPerUnitDisplay)} / {display.unitShort} (expert earns ~
-              {moneyInr(display.netPerUnitDisplay)})
+              Posted: you pay {moneyInr(display.grossPerUnitDisplay)} / {display.unitShort}
             </p>
           </div>
         )
@@ -322,13 +311,21 @@ export function RateAgreementPanel({ application, project, role, onUpdated }: Pr
           {application.rate_intent === 'agreed_posted'
             ? 'Expert accepted the posted rate at apply.'
             : application.proposed_net_per_unit
-              ? `Expert proposed earn ${moneyInr(Number(application.proposed_net_per_unit))} / ${display.unitShort}`
+              ? role === 'institution'
+                ? (
+                    <span className="block">
+                      Expert proposed a new rate. You need to pay{' '}
+                      {moneyInr(toInstitutionGrossFromNet(Number(application.proposed_net_per_unit)))} /{' '}
+                      {display.unitShort}
+                    </span>
+                  )
+                : `Expert proposed earn ${moneyInr(Number(application.proposed_net_per_unit))} / ${display.unitShort}`
               : 'Open to negotiate — no number yet.'}
           {application.institution_counter_gross_per_unit != null && (
             <span className="block mt-1">
               {role === 'expert'
                 ? `Institution counter: ${moneyInr(toExpertNet(Number(application.institution_counter_gross_per_unit)))} earn / ${display.unitShort}`
-                : `Institution counter: pay ${moneyInr(Number(application.institution_counter_gross_per_unit))} / ${display.unitShort} (~${moneyInr(toExpertNet(Number(application.institution_counter_gross_per_unit)))} earn)`}
+                : `Institution counter: pay ${moneyInr(Number(application.institution_counter_gross_per_unit))} / ${display.unitShort}`}
             </span>
           )}
           {application.rate_note && (
@@ -390,11 +387,6 @@ export function RateAgreementPanel({ application, project, role, onUpdated }: Pr
               placeholder={String(display.grossPerUnitDisplay || '')}
               className="mt-1"
             />
-            {derivedExpertFromInput > 0 && (
-              <p className="text-xs text-[#6A6A6A] mt-1">
-                Expert would earn ~{moneyInr(derivedExpertFromInput)} / {display.unitShort}
-              </p>
-            )}
           </div>
           <div>
             <Label>Message to expert (optional)</Label>
@@ -512,8 +504,8 @@ export function RateAgreementPanel({ application, project, role, onUpdated }: Pr
                   This sends a request to the expert to continue at the original posted rate of{' '}
                   <span className="font-semibold text-foreground">
                     {moneyInr(display.grossPerUnitDisplay)} / {display.unitShort}
-                  </span>{' '}
-                  (expert earns ~{moneyInr(display.netPerUnitDisplay)}).
+                  </span>
+                  .
                 </p>
                 <p>
                   Rate negotiation will pause on both sides while they decide. If they accept, you can

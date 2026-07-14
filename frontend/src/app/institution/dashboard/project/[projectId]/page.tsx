@@ -868,13 +868,6 @@ export default function InstitutionProjectDetailsPage() {
                               value: pricing.totalBudgetGross > 0 ? moneyInr(pricing.totalBudgetGross) : (project.total_budget != null ? `₹${project.total_budget}` : '—'),
                             },
                             {
-                              label: 'Expert earns (approx)',
-                              icon: <IndianRupee className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
-                              value: pricing.expertNetTotal > 0
-                                ? `${moneyInr(pricing.netPerUnitDisplay)}/${pricing.unitShort}`
-                                : '—',
-                            },
-                            {
                               label: 'Start date',
                               icon: <Calendar className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
                               value: project.start_date ? new Date(project.start_date).toLocaleDateString('en-IN') : '—',
@@ -1922,10 +1915,6 @@ export default function InstitutionProjectDetailsPage() {
                 Number(app?.final_gross_per_unit) > 0
                   ? Number(app.final_gross_per_unit)
                   : pricing.grossPerUnitDisplay
-              const net =
-                Number(app?.final_net_per_unit) > 0
-                  ? Number(app.final_net_per_unit)
-                  : pricing.netPerUnitDisplay
               const total =
                 pricing.unit === 'fixed_package' ? gross : gross * (pricing.quantity || 1)
               const overBudget = pricing.totalBudgetGross > 0 && total > pricing.totalBudgetGross * 1.001
@@ -1939,10 +1928,6 @@ export default function InstitutionProjectDetailsPage() {
                     <div className="flex justify-between">
                       <span className="text-[#6A6A6A]">You pay</span>
                       <span className="font-semibold">{moneyInr(gross)} / {pricing.unitShort}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[#6A6A6A]">Expert earns</span>
-                      <span className="font-semibold">{moneyInr(net)} / {pricing.unitShort}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-[#6A6A6A]">Total you pay</span>
