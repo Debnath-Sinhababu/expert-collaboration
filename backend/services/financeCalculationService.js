@@ -240,6 +240,11 @@ function buildPaymentRecordDraft(booking, partyType, approvedHours, options = {}
     };
   }
 
+  const unitQuantity =
+    partyType === 'institution'
+      ? Number(settlement.contract_quantity) || 0
+      : Number(settlement.delivery_quantity) || 0;
+
   return {
     booking_id: booking.id,
     project_id: booking.project_id || booking.projects?.id || null,
@@ -247,7 +252,8 @@ function buildPaymentRecordDraft(booking, partyType, approvedHours, options = {}
     institution_id: booking.institution_id || booking.institutions?.id || null,
     party_type: partyType,
     direction: partyType === 'expert' ? 'payable' : 'receivable',
-    approved_hours: roundMoney(Number(approvedHours) || 0),
+    // Stores billable qty for the pay unit (hours / days / months / 1 package) — not always clock hours.
+    approved_hours: roundMoney(unitQuantity || Number(approvedHours) || 0),
     // Column name is legacy; stores the party's locked rate per compensation unit.
     hourly_rate_snapshot: roundMoney(ratePerUnit || 0),
     calculated_amount: amount,
@@ -288,31 +294,29 @@ function attachSettlementBreakdown(record, booking) {
   if (!booking) return record;
   if (record.party_type === 'institution') {
     const contract = resolveInstitutionContractBudget(booking);
+    const storedQty = Number(record.approved_hours);
+    const qty = Number(contract.quantity) > 0 ? Number(contract.quantity) : (storedQty > 0 ? storedQty : 0);
+    const storedRate = Number(record.hourly_rate_snapshot);
+    const rate = storedRate > 0 ? storedRate : Number(contract.ratePerUnit) || 0;
     return {
       ...record,
       settlement: {
         party_type: 'institution',
         unit: contract.unit,
         unit_short: contract.unitShort,
-        contract_quantity: contract.quantity,
+        contract_quantity: qty,
         delivery_quantity: null,
-        rate_per_unit: contract.ratePerUnit,
-        expected_amount: contract.amount,
+        rate_per_unit: roundMoney(rate),
+        expected_amount: qty > 0 && rate > 0 ? roundMoney(qty * rate) : contract.amount,
         formula: contract.formula,
         source: contract.source,
       },
     };
   }
   const rates = resolveSettlementRates(booking);
-  const hoursBooked =
-    Number(booking?.hours_booked) ||
-    Number(booking?.projects?.duration_hours) ||
-    0;
-  // Delivery qty for display: prefer approved days for day/session when we only have hours on the row.
-  const deliveryQuantity =
-    rates.unit === 'per_day' || rates.unit === 'per_session' || rates.unit === 'per_month'
-      ? null
-      : Number(record.approved_hours || 0);
+  const deliveryQuantity = Number(record.approved_hours || 0);
+  const storedRate = Number(record.hourly_rate_snapshot);
+  const rate = storedRate > 0 ? storedRate : Number(rates.netPerUnit) || 0;
   return {
     ...record,
     settlement: {
@@ -321,8 +325,8 @@ function attachSettlementBreakdown(record, booking) {
       unit_short: rates.unitShort,
       contract_quantity: null,
       delivery_quantity: deliveryQuantity,
-      rate_per_unit: roundMoney(rates.netPerUnit || Number(record.hourly_rate_snapshot) || 0),
-      expected_amount: null,
+      rate_per_unit: roundMoney(rate),
+      expected_amount: deliveryQuantity > 0 && rate > 0 ? roundMoney(deliveryQuantity * rate) : null,
       formula: 'net_rate × approved_delivery_qty',
       source: 'delivery_x_net',
     },

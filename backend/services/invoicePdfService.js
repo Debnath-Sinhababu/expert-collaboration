@@ -47,27 +47,29 @@ function invoiceSettlementContext(payment, booking) {
 
   if (partyType === 'institution') {
     const contract = resolveInstitutionContractBudget(booking || { projects: payment.projects });
-    const qty = Number(contract.quantity) || 0;
+    const qty = Number(contract.quantity) > 0
+      ? Number(contract.quantity)
+      : Number(payment.approved_hours || 0);
     const rate = Number(
       payment.hourly_rate_snapshot > 0 ? payment.hourly_rate_snapshot : contract.ratePerUnit
     ) || Number(contract.ratePerUnit) || 0;
-    // Always recompute from contract math so PDF never shows a stale calculated_amount.
     const lineTotal = qty > 0 && rate > 0
       ? Math.round(rate * qty * 100) / 100
-      : Number(contract.amount) || Number(payment.calculated_amount) || 0;
+      : Number(payment.calculated_amount) || Number(contract.amount) || 0;
     const invoiceAmount =
       Number(payment.invoice_amount) > 0 ? Number(payment.invoice_amount) : lineTotal;
+    const unitShort = contract.unitShort || rates.unitShort || 'unit';
     return {
       partyType,
-      unitShort: contract.unitShort || rates.unitShort || 'unit',
-      qtyLabel: 'Contract qty',
-      rateLabel: `Gross / ${contract.unitShort || rates.unitShort || 'unit'}`,
+      unitShort,
+      qtyLabel: `Contract qty (${unitShort})`,
+      rateLabel: `Gross / ${unitShort}`,
       qty: qty > 0 ? String(qty) : '-',
       rate,
       lineTotal,
       invoiceAmount,
       budgetForProjectTable: invoiceAmount,
-      formula: `${money(rate)} × ${qty > 0 ? qty : '-'} = ${money(lineTotal)}`,
+      formula: `${money(rate)} × ${qty > 0 ? qty : '-'} ${unitShort}${qty === 1 ? '' : 's'} = ${money(lineTotal)}`,
     };
   }
 
@@ -76,17 +78,18 @@ function invoiceSettlementContext(payment, booking) {
   const lineTotal = Number(payment.calculated_amount) > 0
     ? Number(payment.calculated_amount)
     : rate * qty;
+  const unitShort = rates.unitShort || 'unit';
   return {
     partyType,
-    unitShort: rates.unitShort || 'unit',
-    qtyLabel: rates.unit === 'hourly' ? 'Approved hours' : 'Approved qty',
-    rateLabel: `Net / ${rates.unitShort || 'unit'}`,
+    unitShort,
+    qtyLabel: `Approved qty (${unitShort})`,
+    rateLabel: `Net / ${unitShort}`,
     qty: qty.toFixed(2),
     rate,
     lineTotal,
     invoiceAmount,
     budgetForProjectTable: invoiceAmount > 0 ? invoiceAmount : lineTotal,
-    formula: `${money(rate)} × ${qty.toFixed(2)} = ${money(lineTotal)}`,
+    formula: `${money(rate)} × ${qty.toFixed(2)} ${unitShort}${qty === 1 ? '' : 's'} = ${money(lineTotal)}`,
   };
 }
 

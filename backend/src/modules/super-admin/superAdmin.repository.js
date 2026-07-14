@@ -1649,7 +1649,7 @@ class SuperAdminRepository {
             institution_id: draftRow.institution_id,
             party_type: draftRow.party_type,
             direction: draftRow.direction,
-            approved_hours: draftRow.approved_hours,
+            approved_hours: existing.approved_hours,
             hourly_rate_snapshot: existing.hourly_rate_snapshot,
             calculated_amount: existing.calculated_amount,
             invoice_amount: existing.invoice_amount,

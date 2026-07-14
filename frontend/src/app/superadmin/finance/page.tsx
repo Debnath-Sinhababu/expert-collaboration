@@ -34,6 +34,8 @@ function formatDate(value?: string | null) {
 }
 
 function paymentPayUnit(row: any): string {
+  const fromSettlement = row?.settlement?.unit_short
+  if (fromSettlement) return String(fromSettlement)
   const fromBooking =
     row?.booking?.compensation_unit ||
     row?.projects?.compensation_unit ||
@@ -43,17 +45,26 @@ function paymentPayUnit(row: any): string {
   return rates.unitShort || 'unit'
 }
 
-function formatRateWithUnit(row: any): string {
-  const rate = row?.settlement?.rate_per_unit ?? row?.hourly_rate_snapshot
-  const unit =
-    row?.settlement?.unit_short ||
-    paymentPayUnit(row)
-  return `${money(rate)} / ${unit}`
+function paymentQty(row: any): number {
+  if (row?.party_type === 'institution' || row?.settlement?.party_type === 'institution') {
+    return Number(row?.settlement?.contract_quantity || row?.approved_hours || 0)
+  }
+  const delivery = Number(row?.settlement?.delivery_quantity)
+  if (delivery > 0) return delivery
+  return Number(row?.approved_hours || 0)
 }
 
-function institutionContractQty(row: any): string {
-  const qty = Number(row?.settlement?.contract_quantity)
-  return qty > 0 ? String(qty) : '—'
+function paymentRate(row: any): number {
+  const snap = Number(row?.hourly_rate_snapshot)
+  if (snap > 0) return snap
+  return Number(row?.settlement?.rate_per_unit || 0)
+}
+
+function pluralUnit(unit: string, qty: number) {
+  const u = String(unit || 'unit')
+  if (qty === 1) return u
+  if (u.endsWith('s')) return u
+  return `${u}s`
 }
 
 /** Normalize stored status for display (supports legacy invoiced + partial cash). */
@@ -162,6 +173,66 @@ function emptyParty() {
   }
 }
 
+function EditableAmountCell({
+  value,
+  disabled,
+  onSave,
+}: {
+  value: number
+  disabled?: boolean
+  onSave: (next: number) => Promise<void>
+}) {
+  const [draft, setDraft] = useState(Number(value || 0).toFixed(2))
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    setDraft(Number(value || 0).toFixed(2))
+  }, [value])
+
+  async function commit() {
+    const next = Number(draft)
+    if (!Number.isFinite(next) || next < 0) {
+      toast.error('Enter a valid amount (0 or more)')
+      setDraft(Number(value || 0).toFixed(2))
+      return
+    }
+    if (Math.abs(next - Number(value || 0)) < 0.001) {
+      setDraft(Number(value || 0).toFixed(2))
+      return
+    }
+    setSaving(true)
+    try {
+      await onSave(next)
+    } catch {
+      setDraft(Number(value || 0).toFixed(2))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Input
+      type="number"
+      min="0"
+      step="0.01"
+      className="h-8 w-[7.5rem] bg-white"
+      value={draft}
+      disabled={disabled || saving}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => { void commit() }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.currentTarget.blur()
+        }
+        if (e.key === 'Escape') {
+          setDraft(Number(value || 0).toFixed(2))
+          e.currentTarget.blur()
+        }
+      }}
+    />
+  )
+}
+
 export default function SuperAdminFinancePage() {
   const [summary, setSummary] = useState<any>({})
   const [activeTab, setActiveTab] = useState<'institution' | 'expert' | 'invoices'>('institution')
@@ -179,6 +250,7 @@ export default function SuperAdminFinancePage() {
   const [financeStatus, setFinanceStatus] = useState('pending')
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
+  const [savingRowId, setSavingRowId] = useState<string | null>(null)
 
   const partyType = activeTab === 'expert' ? 'expert' : 'institution'
 
@@ -267,30 +339,37 @@ export default function SuperAdminFinancePage() {
 
   async function saveFinanceAdjustment() {
     if (!selected) return
-    const amount = Number(invoiceAmount || 0)
-    const paid = Number(paidAmount || 0)
-    if (!Number.isFinite(amount) || amount < 0) {
-      toast.error('Invoice amount cannot be negative')
-      return
-    }
-    if (!Number.isFinite(paid) || paid < 0) {
-      toast.error('Paid amount cannot be negative')
-      return
-    }
     setSaving(true)
     try {
       const updated = await superAdminApi.updateFinancePayment(selected.id, {
-        invoice_amount: amount,
-        paid_amount: paid,
         status: financeStatus,
         notes,
       })
-      toast.success('Finance adjustment saved')
+      toast.success('Status updated')
       await refreshAfterChange(updated)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to save finance adjustment')
+      toast.error(err instanceof Error ? err.message : 'Failed to update status')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function saveRowAmount(row: any, field: 'invoice_amount' | 'paid_amount', next: number) {
+    setSavingRowId(row.id)
+    try {
+      const updated = await superAdminApi.updateFinancePayment(row.id, { [field]: next })
+      setRows((prev) => prev.map((item) => (item.id === row.id ? { ...item, ...updated } : item)))
+      if (selected?.id === row.id) {
+        await refreshAfterChange(updated)
+      } else {
+        await loadSummary()
+      }
+      toast.success(field === 'paid_amount' ? 'Paid amount saved' : 'Amount saved')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save amount')
+      throw err
+    } finally {
+      setSavingRowId(null)
     }
   }
 
@@ -516,7 +595,7 @@ export default function SuperAdminFinancePage() {
 
       <SectionCard
         title="Payment list"
-        description="Open a payment to send an invoice or mark it as paid."
+        description="Edit amount or paid amount in the table. Open Details to change status, send invoice, or save paid amount."
       >
         <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <Tabs
@@ -576,27 +655,74 @@ export default function SuperAdminFinancePage() {
                 return party?.name || '-'
               } },
               {
-                key: 'hours',
-                header: activeTab === 'institution' ? 'Contract qty' : 'Approved qty / hrs',
+                key: 'qty',
+                header: 'Qty',
                 render: (row) => {
-                  if (activeTab === 'institution') return institutionContractQty(row)
-                  return Number(row.approved_hours || 0).toFixed(2)
+                  const qty = paymentQty(row)
+                  const unit = paymentPayUnit(row)
+                  if (!(qty > 0)) return '—'
+                  return (
+                    <span className="text-sm text-slate-900">
+                      {Number(qty).toFixed(qty % 1 === 0 ? 0 : 2)}{' '}
+                      <span className="text-slate-500">{pluralUnit(unit, qty)}</span>
+                    </span>
+                  )
                 },
               },
               {
                 key: 'rate',
                 header: activeTab === 'institution' ? 'Gross rate' : 'Net rate',
-                render: (row) => formatRateWithUnit(row),
+                render: (row) => {
+                  const unit = paymentPayUnit(row)
+                  const rate = paymentRate(row)
+                  if (!(rate > 0)) return '—'
+                  return (
+                    <span className="text-sm text-slate-900">
+                      {money(rate)} <span className="text-slate-500">/ {unit}</span>
+                    </span>
+                  )
+                },
               },
               {
                 key: 'amount',
                 header: activeTab === 'institution' ? 'Institute total' : 'Amount',
-                render: (row) => money(row.invoice_amount || row.calculated_amount),
+                render: (row) => (
+                  <PermissionGate
+                    permission="finance:write"
+                    fallback={<span>{money(row.invoice_amount || row.calculated_amount)}</span>}
+                  >
+                    <EditableAmountCell
+                      value={Number(row.invoice_amount || row.calculated_amount || 0)}
+                      disabled={savingRowId === row.id}
+                      onSave={(next) => saveRowAmount(row, 'invoice_amount', next)}
+                    />
+                  </PermissionGate>
+                ),
               },
               {
                 key: 'paid',
                 header: 'Paid amount',
-                render: (row) => money(row.paid_amount),
+                render: (row) => (
+                  <PermissionGate
+                    permission="finance:write"
+                    fallback={<span>{money(row.paid_amount)}</span>}
+                  >
+                    <EditableAmountCell
+                      value={Number(row.paid_amount || 0)}
+                      disabled={savingRowId === row.id}
+                      onSave={(next) => saveRowAmount(row, 'paid_amount', next)}
+                    />
+                  </PermissionGate>
+                ),
+              },
+              {
+                key: 'left',
+                header: 'Left',
+                render: (row) => {
+                  const due = Number(row.invoice_amount || row.calculated_amount || 0)
+                  const paid = Number(row.paid_amount || 0)
+                  return money(Math.max(0, due - paid))
+                },
               },
               {
                 key: 'status',
@@ -633,12 +759,16 @@ export default function SuperAdminFinancePage() {
                 {selected.party_type === 'institution' ? (
                   <>
                     <div>
-                      <span className="text-slate-500">Contract qty</span>
-                      <p className="font-medium text-slate-950">{institutionContractQty(selected)}</p>
+                      <span className="text-slate-500">Qty ({paymentPayUnit(selected)})</span>
+                      <p className="font-medium text-slate-950">
+                        {paymentQty(selected) > 0
+                          ? `${paymentQty(selected)} ${pluralUnit(paymentPayUnit(selected), paymentQty(selected))}`
+                          : '—'}
+                      </p>
                     </div>
                     <div>
-                      <span className="text-slate-500">Gross rate</span>
-                      <p className="font-medium text-slate-950">{formatRateWithUnit(selected)}</p>
+                      <span className="text-slate-500">Gross rate / {paymentPayUnit(selected)}</span>
+                      <p className="font-medium text-slate-950">{money(paymentRate(selected))}</p>
                     </div>
                     <div className="md:col-span-2">
                       <span className="text-slate-500">Institute total (calculated)</span>
@@ -646,9 +776,9 @@ export default function SuperAdminFinancePage() {
                         {money(selected.settlement?.expected_amount ?? selected.calculated_amount)}
                       </p>
                       <p className="mt-1 text-xs text-slate-500">
-                        Formula: {selected.settlement?.formula || 'gross_rate × contract_qty'}
-                        {selected.settlement?.rate_per_unit != null && selected.settlement?.contract_quantity != null
-                          ? ` = ${money(selected.settlement.rate_per_unit)} × ${selected.settlement.contract_quantity}`
+                        Formula: gross rate × qty
+                        {paymentRate(selected) > 0 && paymentQty(selected) > 0
+                          ? ` = ${money(paymentRate(selected))} × ${paymentQty(selected)} ${pluralUnit(paymentPayUnit(selected), paymentQty(selected))}`
                           : ''}
                       </p>
                       {selected.status !== 'pending' &&
@@ -656,7 +786,7 @@ export default function SuperAdminFinancePage() {
                         Number(selected.settlement?.expected_amount || 0) ? (
                         <p className="mt-1 text-xs text-amber-700">
                           Saved invoice amount is {money(selected.invoice_amount || selected.calculated_amount)} (locked because status is {selected.status}).
-                          Contract math is {money(selected.settlement?.expected_amount)}.
+                          Qty × rate is {money(selected.settlement?.expected_amount)}.
                         </p>
                       ) : null}
                     </div>
@@ -664,18 +794,25 @@ export default function SuperAdminFinancePage() {
                 ) : (
                   <>
                     <div>
-                      <span className="text-slate-500">Approved hours</span>
-                      <p className="font-medium text-slate-950">{Number(selected.approved_hours || 0).toFixed(2)}</p>
+                      <span className="text-slate-500">Qty ({paymentPayUnit(selected)})</span>
+                      <p className="font-medium text-slate-950">
+                        {paymentQty(selected) > 0
+                          ? `${paymentQty(selected)} ${pluralUnit(paymentPayUnit(selected), paymentQty(selected))}`
+                          : '—'}
+                      </p>
                     </div>
                     <div>
-                      <span className="text-slate-500">Net rate</span>
-                      <p className="font-medium text-slate-950">{formatRateWithUnit(selected)}</p>
+                      <span className="text-slate-500">Net rate / {paymentPayUnit(selected)}</span>
+                      <p className="font-medium text-slate-950">{money(paymentRate(selected))}</p>
                     </div>
                     <div>
                       <span className="text-slate-500">Calculated amount</span>
                       <p className="font-medium text-slate-950">{money(selected.calculated_amount)}</p>
                       <p className="mt-1 text-xs text-slate-500">
-                        Formula: net_rate × approved delivery qty
+                        Formula: net rate × qty
+                        {paymentRate(selected) > 0 && paymentQty(selected) > 0
+                          ? ` = ${money(paymentRate(selected))} × ${paymentQty(selected)} ${pluralUnit(paymentPayUnit(selected), paymentQty(selected))}`
+                          : ''}
                       </p>
                     </div>
                   </>
@@ -723,7 +860,7 @@ export default function SuperAdminFinancePage() {
                       <SelectItem value="cancelled">Cancelled</SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-slate-500">Manual status for finance correction.</p>
+                  <p className="text-xs text-slate-500">Save finance edit updates status only. Edit amounts in the payment table.</p>
                 </div>
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
                   <p className="font-semibold text-slate-900">Budget check</p>
@@ -740,7 +877,12 @@ export default function SuperAdminFinancePage() {
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="financeNotes">Notes</Label>
-                  <Textarea id="financeNotes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional internal notes" />
+                  <Textarea
+                    id="financeNotes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Optional internal notes"
+                  />
                 </div>
               </div>
 
@@ -758,7 +900,7 @@ export default function SuperAdminFinancePage() {
             <Button type="button" variant="outline" onClick={() => setSelected(null)}>Close</Button>
             <PermissionGate permission="finance:write" fallback={null}>
               <Button type="button" variant="outline" onClick={saveFinanceAdjustment} disabled={saving || !selected}>
-                {saving ? 'Working...' : 'Save finance edit'}
+                {saving ? 'Working...' : 'Save status'}
               </Button>
             </PermissionGate>
             <PermissionGate permission="finance:confirm" fallback={null}>
