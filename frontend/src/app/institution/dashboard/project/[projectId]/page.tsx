@@ -40,6 +40,7 @@ import { RateIntentBadge } from '@/components/requirements/RateIntentBadge'
 import { RateAgreementPanel } from '@/components/requirements/RateAgreementPanel'
 import { PostedCompensationRate } from '@/components/requirements/PostedCompensationRate'
 import { BookingCompletionActions } from '@/components/bookings/BookingCompletionActions'
+import { BookingAgreementActions } from '@/components/bookings/BookingAgreementActions'
 import {
   isPostedRateDeclined,
   isPostedRateOfferPending,
@@ -1762,6 +1763,14 @@ export default function InstitutionProjectDetailsPage() {
                 </div>
               </DialogContent>
             </Dialog>
+
+            <BookingAgreementActions
+              booking={booking}
+              role="institution"
+              onUpdated={() => {
+                refreshSelected()
+              }}
+            />
 
             <BookingCompletionActions
               booking={booking}

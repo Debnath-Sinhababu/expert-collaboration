@@ -35,6 +35,7 @@ import { RateIntentBadge } from '@/components/requirements/RateIntentBadge'
 import { RateAgreementPanel } from '@/components/requirements/RateAgreementPanel'
 import { PostedCompensationRate } from '@/components/requirements/PostedCompensationRate'
 import { BookingCompletionActions } from '@/components/bookings/BookingCompletionActions'
+import { BookingAgreementActions } from '@/components/bookings/BookingAgreementActions'
 import { useSuperAdminAccess } from '@/components/superadmin/layout/SuperAdminAccessContext'
 import { superAdminApi } from '@/lib/superadmin/api'
 import { formatInterviewDateTime, datetimeLocalToIso } from '@/lib/datetime'
@@ -594,13 +595,22 @@ export default function SuperAdminRequirementDetailPage() {
     if (item.kind === 'booking') {
       if (requirementType !== 'project') return null
       return (
-        <BookingCompletionActions
-          booking={item.row}
-          role="institution"
-          onUpdated={async () => {
-            await loadDetail()
-          }}
-        />
+        <div className="flex flex-col gap-2 items-end">
+          <BookingAgreementActions
+            booking={item.row}
+            role="institution"
+            onUpdated={async () => {
+              await loadDetail()
+            }}
+          />
+          <BookingCompletionActions
+            booking={item.row}
+            role="institution"
+            onUpdated={async () => {
+              await loadDetail()
+            }}
+          />
+        </div>
       )
     }
     if (item.kind === 'pipeline') {

@@ -24,6 +24,7 @@ import { RateIntentBadge } from '@/components/requirements/RateIntentBadge'
 import { RateAgreementPanel } from '@/components/requirements/RateAgreementPanel'
 import { PostedCompensationRate } from '@/components/requirements/PostedCompensationRate'
 import { BookingCompletionActions } from '@/components/bookings/BookingCompletionActions'
+import { BookingAgreementActions } from '@/components/bookings/BookingAgreementActions'
 import { moneyInr, resolveBookingSettlementRates } from '@/lib/projectCompensation'
 import { 
   User, 
@@ -1176,7 +1177,8 @@ export default function ExpertDashboard() {
                             }
                           />
                         )}
-                        <div className="flex justify-end pt-3 border-t border-[#ECECEC]">
+                        <div className="flex flex-wrap justify-end gap-2 pt-3 border-t border-[#ECECEC]">
+                          <BookingAgreementActions booking={booking} role="expert" />
                           <BookingCompletionActions
                             booking={booking}
                             role="expert"
