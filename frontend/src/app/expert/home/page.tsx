@@ -40,14 +40,52 @@ import { ExpertApplicationDrawer } from '@/components/requirements/ExpertApplica
 import { institutionDisplayName } from '@/lib/privacyDisplay'
 import { ExpertTrainingAttendanceSidebar } from '@/components/training/ExpertTrainingAttendanceSidebar'
 import type { InterviewSlot } from '@/components/requirements/InterviewAvailabilitySelector'
+import { formatLongDate } from '@/lib/dateFormat'
 import {
   moneyInr,
   projectCompensationDisplay,
+  projectEngagementQuantityDisplay,
   type RateIntent,
 } from '@/lib/projectCompensation'
 
 type UserMeta = { role?: string; name?: string }
 type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }
+
+/** Same expert-facing rate as Apply sheet: net earn / unit + approx total. */
+function ExpertCardCompensation({ project, compact = false }: { project: any; compact?: boolean }) {
+  const pricing = projectCompensationDisplay(project)
+  const earn = Number(pricing.netPerUnitDisplay || 0)
+  const total = Number(pricing.expertNetTotal || 0)
+  const hoursPerDay =
+    Number(project?.hours_per_day) > 0
+      ? Number(project.hours_per_day)
+      : (pricing.unit === 'per_day' || pricing.unit === 'per_session' || pricing.unit === 'per_month') &&
+          Number(pricing.durationPerUnit) > 1
+        ? Number(pricing.durationPerUnit)
+        : 0
+  if (!(earn > 0) && !(total > 0)) {
+    return (
+      <div className="text-right">
+        <div className={`${compact ? 'text-lg' : 'text-2xl'} font-bold text-[#008260]`}>—</div>
+        <div className="text-sm text-slate-500">your earn</div>
+      </div>
+    )
+  }
+  return (
+    <div className="text-right">
+      <div className={`${compact ? 'text-lg' : 'text-2xl'} font-bold text-[#008260]`}>
+        {earn > 0 ? `~${moneyInr(earn)} / ${pricing.unitShort}` : moneyInr(total)}
+      </div>
+      <div className="text-sm text-slate-500">
+        {total > 0 ? `~${moneyInr(total)} total earn` : 'your earn'}
+        {pricing.quantity > 1 ? ` · ${pricing.quantity} ${pricing.unitShort}s` : ''}
+      </div>
+      {hoursPerDay > 0 ? (
+        <div className="text-xs text-slate-500 mt-0.5">{hoursPerDay} hrs / day</div>
+      ) : null}
+    </div>
+  )
+}
 
 export default function ExpertHome() {
   type ExpertProfile = {
@@ -78,8 +116,10 @@ export default function ExpertHome() {
     compensation_unit?: string | null
     unit_quantity?: number | null
     duration_per_unit?: number | null
+    hours_per_day?: number | null
     institution_gross_per_unit?: number | null
     institution_gross_total?: number | null
+    schedule_notes?: string | null
     interview_period_interval?: string | null
     screening_questions?: string[] | null
     domain_expertise?: string
@@ -512,15 +552,9 @@ export default function ExpertHome() {
                               
                               {/* Price Section - Only show on larger screens */}
                               <div className="hidden lg:flex justify-between items-start space-y-2 flex-shrink-0">
-                                <div className="text-right flex flex-col items-end">
-                                  <div className="text-2xl font-bold text-[#008260]">
-                                    {moneyInr(projectCompensationDisplay(project).netPerUnitDisplay)}
-                                  </div>
-                                  <div className="text-sm text-slate-500">
-                                    you earn / {projectCompensationDisplay(project).unitShort}
-                                  </div>
+                                <div className="flex flex-col items-end">
+                                  <ExpertCardCompensation project={project} />
                                 </div>
-                             
                               </div>
                             </div>
 
@@ -1015,15 +1049,7 @@ export default function ExpertHome() {
                       
                       {/* Price Section - Only show on larger screens */}
                       <div className="hidden lg:flex flex-col items-end space-y-2 flex-shrink-0">
-                        <div className="text-right">
-                          <div className="text-2xl font-bold text-[#008260]">
-                            {moneyInr(projectCompensationDisplay(project).netPerUnitDisplay)}
-                          </div>
-                          <div className="text-sm text-slate-500">
-                            you earn / {projectCompensationDisplay(project).unitShort}
-                          </div>
-                        </div>
-                       
+                        <ExpertCardCompensation project={project} />
                       </div>
                     </div>
 
@@ -1059,18 +1085,21 @@ export default function ExpertHome() {
                       <div className="flex flex-col sm:flex-row sm:items-center gap-4 text-sm text-slate-600">
                         <div className="flex items-center font-medium text-base">
                           <Clock className="h-4 w-4 mr-2 flex-shrink-0" />
-                          <span>{project.duration_hours} hours</span>
+                          <span>
+                            {projectEngagementQuantityDisplay(project).value}
+                            {Number(project.hours_per_day) > 0
+                              ? ` · ${project.hours_per_day} hrs/day`
+                              : ''}
+                          </span>
                         </div>
                         <div className="flex items-center font-medium text-base">
                           <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />
-                          <span className="truncate">{project.start_date} - {project.end_date}</span>
+                          <span className="truncate">{formatLongDate(project.start_date)} - {formatLongDate(project.end_date)}</span>
                         </div>
                         
                         {/* Price for mobile */}
                         <div className="lg:hidden flex items-center">
-                          <span className="text-lg font-bold text-[#008260]">
-                            {moneyInr(projectCompensationDisplay(project).netPerUnitDisplay)}/{projectCompensationDisplay(project).unitShort}
-                          </span>
+                          <ExpertCardCompensation project={project} compact />
                         </div>
                       </div>
                       

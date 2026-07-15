@@ -30,6 +30,30 @@ function toArray(value) {
   return [];
 }
 
+const FINANCE_PAYMENT_STATUSES = new Set(['pending', 'invoiced', 'partial_paid', 'paid', 'cancelled']);
+
+/** Derive canonical finance status from due vs paid (partial_paid is stored, not display-only). */
+function resolveFinancePaymentStatus({ due, paid, requestedStatus, previousStatus, hasInvoice }) {
+  const dueAmount = Math.max(0, Number(due) || 0);
+  const paidAmount = Math.max(0, Number(paid) || 0);
+  const requested = requestedStatus != null && String(requestedStatus).trim() !== ''
+    ? String(requestedStatus).trim().toLowerCase()
+    : null;
+  const previous = String(previousStatus || 'pending').toLowerCase();
+  const billed = Boolean(hasInvoice) || previous === 'invoiced' || previous === 'partial_paid';
+
+  if (requested === 'cancelled') return 'cancelled';
+  if (dueAmount > 0 && paidAmount + 0.001 >= dueAmount) return 'paid';
+  if (paidAmount > 0) return 'partial_paid';
+
+  if (requested === 'pending') return 'pending';
+  if (requested === 'invoiced' || requested === 'partial_paid') return 'invoiced';
+  if (billed) return 'invoiced';
+  return requested && FINANCE_PAYMENT_STATUSES.has(requested) && requested !== 'paid'
+    ? requested
+    : (previous === 'paid' || previous === 'cancelled' ? 'pending' : previous || 'pending');
+}
+
 function normalizeServiceError(error) {
   if (!error || error.statusCode) return error;
   const message = error.message || '';
@@ -936,6 +960,29 @@ class SuperAdminService {
     return updated;
   }
 
+  async updateRequirementDates(type, requirementId, body, auth = null) {
+    const requirementType = parseRequirementType(type);
+    if (requirementType !== 'project') {
+      const err = new Error('Date editing is only available for project requirements');
+      err.statusCode = 400;
+      throw err;
+    }
+    const updated = await this.repository.updateProjectRequirementDates(requirementId, body || {});
+    if (!updated) {
+      const err = new Error('Requirement not found');
+      err.statusCode = 404;
+      throw err;
+    }
+    await this.logActivity(auth, 'requirement.dates_updated', {
+      entity_type: 'project',
+      entity_id: requirementId,
+      requirement_type: requirementType,
+      requirement_id: requirementId,
+      metadata: { start_date: body?.start_date, end_date: body?.end_date },
+    });
+    return updated;
+  }
+
   async listFreelance(params) {
     return this.repository.listFreelance(params);
   }
@@ -1037,14 +1084,22 @@ class SuperAdminService {
       email_status: 'sent',
     });
 
+    const existingPaid = Number(payment.paid_amount || 0);
+    const nextStatus = resolveFinancePaymentStatus({
+      due: amount,
+      paid: existingPaid,
+      previousStatus: payment.status,
+      hasInvoice: true,
+    });
+
     const updated = await this.repository.updateFinancePayment(payment.id, {
-      status: 'invoiced',
+      status: nextStatus,
       invoice_id: invoice.id,
       invoice_amount: amount,
       notes: body.notes || payment.notes || null,
       updated_by: actorUserId || null,
     });
-    await this.logActivity(auth, 'finance.invoice_sent', { entity_type: 'finance_payment', entity_id: id, metadata: { amount, invoice_id: invoice.id } });
+    await this.logActivity(auth, 'finance.invoice_sent', { entity_type: 'finance_payment', entity_id: id, metadata: { amount, invoice_id: invoice.id, status: nextStatus } });
     return updated;
   }
 
@@ -1067,17 +1122,24 @@ class SuperAdminService {
       throw err;
     }
 
-    // Fully settled only when paid covers the due amount; otherwise keep as invoiced (partial).
     const fullyPaid = paidAmount + 0.001 >= due;
-    const nextStatus = fullyPaid ? 'paid' : 'invoiced';
+    const nextStatus = resolveFinancePaymentStatus({
+      due,
+      paid: paidAmount,
+      previousStatus: payment.status,
+      hasInvoice: Boolean(payment.invoice_id) || payment.status === 'invoiced' || payment.status === 'partial_paid',
+    });
     const invoiceAmount =
       Number(payment.invoice_amount) > 0 ? Number(payment.invoice_amount) : due;
+    const now = new Date().toISOString();
 
     const updated = await this.repository.updateFinancePayment(id, {
       status: nextStatus,
       invoice_amount: invoiceAmount,
       paid_amount: paidAmount,
-      paid_at: fullyPaid ? (body.paid_at || new Date().toISOString()) : payment.paid_at || null,
+      paid_at: fullyPaid
+        ? (body.paid_at || payment.paid_at || now)
+        : (payment.paid_at || body.paid_at || now),
       notes: body.notes || payment.notes || null,
       updated_by: actorUserId || null,
     });
@@ -1085,6 +1147,98 @@ class SuperAdminService {
       entity_type: 'finance_payment',
       entity_id: id,
       metadata: { amount: paidAmount, due: invoiceAmount, status: nextStatus },
+    });
+    return updated;
+  }
+
+  async updateFinancePaymentAdjustment(id, body, actorUserId, auth = null) {
+    const payment = await this.getFinancePayment(id);
+    const hasInvoiceAmount = Object.prototype.hasOwnProperty.call(body || {}, 'invoice_amount');
+    const hasPaidAmount = Object.prototype.hasOwnProperty.call(body || {}, 'paid_amount');
+    const hasAmounts = hasInvoiceAmount || hasPaidAmount;
+    const requestedStatus = body.status != null ? String(body.status).trim().toLowerCase() : null;
+
+    // Details modal "Save finance edit" — status (+ optional notes) only.
+    if (!hasAmounts && requestedStatus) {
+      if (!FINANCE_PAYMENT_STATUSES.has(requestedStatus)) {
+        const err = new Error('Invalid finance status');
+        err.statusCode = 400;
+        throw err;
+      }
+      const due = Number(payment.invoice_amount || payment.calculated_amount || 0);
+      const paid = Number(payment.paid_amount || 0);
+      if (requestedStatus === 'paid' && due > 0 && paid + 0.001 < due) {
+        const err = new Error('Paid status requires paid amount to cover the invoice amount');
+        err.statusCode = 400;
+        throw err;
+      }
+      if (requestedStatus === 'partial_paid' && paid <= 0) {
+        const err = new Error('Partial paid status needs a paid amount greater than zero');
+        err.statusCode = 400;
+        throw err;
+      }
+
+      const updated = await this.repository.updateFinancePayment(id, {
+        status: requestedStatus,
+        notes: body.notes != null ? body.notes : payment.notes || null,
+        updated_by: actorUserId || null,
+      });
+      await this.logActivity(auth, 'finance.payment_status_updated', {
+        entity_type: 'finance_payment',
+        entity_id: id,
+        metadata: { previous_status: payment.status, status: updated.status },
+      });
+      return updated;
+    }
+
+    // Table column edits — update invoice/paid amounts; status follows paid vs due.
+    if (!hasAmounts) {
+      const err = new Error('Nothing to update');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const currentDue = Number(payment.invoice_amount || payment.calculated_amount || 0);
+    const nextInvoiceAmount = hasInvoiceAmount ? Number(body.invoice_amount) : currentDue;
+    const nextPaidAmount = hasPaidAmount ? Number(body.paid_amount) : Number(payment.paid_amount || 0);
+
+    if (!Number.isFinite(nextInvoiceAmount) || nextInvoiceAmount < 0) {
+      const err = new Error('Invoice amount must be zero or greater');
+      err.statusCode = 400;
+      throw err;
+    }
+    if (!Number.isFinite(nextPaidAmount) || nextPaidAmount < 0) {
+      const err = new Error('Paid amount must be zero or greater');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const due = nextInvoiceAmount > 0 ? nextInvoiceAmount : Number(payment.calculated_amount || 0);
+    const nextStatus = resolveFinancePaymentStatus({
+      due,
+      paid: nextPaidAmount,
+      previousStatus: payment.status,
+      hasInvoice: Boolean(payment.invoice_id) || payment.status === 'invoiced' || payment.status === 'partial_paid',
+    });
+
+    const updated = await this.repository.updateFinancePayment(id, {
+      status: nextStatus,
+      invoice_amount: nextInvoiceAmount > 0 ? nextInvoiceAmount : Number(payment.calculated_amount || 0),
+      paid_amount: nextPaidAmount,
+      paid_at: nextPaidAmount > 0 ? (body.paid_at || payment.paid_at || new Date().toISOString()) : null,
+      notes: body.notes != null ? body.notes : payment.notes || null,
+      updated_by: actorUserId || null,
+    });
+    await this.logActivity(auth, 'finance.payment_amounts_updated', {
+      entity_type: 'finance_payment',
+      entity_id: id,
+      metadata: {
+        previous_invoice_amount: payment.invoice_amount || payment.calculated_amount || 0,
+        invoice_amount: updated.invoice_amount,
+        previous_paid_amount: payment.paid_amount || 0,
+        paid_amount: updated.paid_amount || 0,
+        status: updated.status,
+      },
     });
     return updated;
   }

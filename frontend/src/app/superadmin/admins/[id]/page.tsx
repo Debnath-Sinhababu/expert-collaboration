@@ -93,6 +93,16 @@ const ACTIVITY_COPY: Record<string, { label: string; description: string; tone: 
     description: 'Recorded payment completion for a finance record.',
     tone: 'bg-emerald-50 text-emerald-700 border-emerald-100',
   },
+  'finance.payment_status_updated': {
+    label: 'Updated finance payment status',
+    description: 'Changed status on a finance payment record.',
+    tone: 'bg-amber-50 text-amber-800 border-amber-100',
+  },
+  'finance.payment_amounts_updated': {
+    label: 'Updated finance payment amounts',
+    description: 'Changed invoice or paid amount on a finance payment row.',
+    tone: 'bg-amber-50 text-amber-800 border-amber-100',
+  },
   'finance.training_confirmed': {
     label: 'Confirmed training finance',
     description: 'Confirmed approved hours and finance amounts for a booking.',

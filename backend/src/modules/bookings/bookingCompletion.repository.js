@@ -23,6 +23,8 @@ class BookingCompletionRepository {
         completion_history,
         cancellation_note,
         cancellation_requested_at,
+        agreement_pdf_url,
+        agreement_pdf_public_id,
         projects ( id, title, type, duration_hours, institution_id )
       `
       )

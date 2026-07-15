@@ -221,6 +221,45 @@ class BookingCompletionService {
     );
   }
 
+  /**
+   * Optional agreement PDF upload — does not change booking status or gate other flows.
+   */
+  async uploadAgreementPdf({ bookingId, actor, writeClient, file }) {
+    this.#assertInstitution(actor);
+    const booking = await this.#requireBooking(bookingId);
+    this.#assertInstitutionOwns(booking, actor);
+
+    if (!file?.buffer) {
+      throw new HttpError(400, 'agreement_pdf file is required');
+    }
+
+    const ImageUploadService = require('../../../services/imageUploadService');
+    const uploaded = await ImageUploadService.uploadPDF(file.buffer, 'booking-agreements');
+    if (!uploaded?.success) {
+      throw new HttpError(500, uploaded?.error || 'Failed to upload agreement PDF');
+    }
+
+    const previousPublicId = booking.agreement_pdf_public_id;
+    const updated = await this.repo.updateBooking(
+      bookingId,
+      {
+        agreement_pdf_url: uploaded.url || null,
+        agreement_pdf_public_id: uploaded.publicId || null,
+      },
+      writeClient
+    );
+
+    if (previousPublicId && previousPublicId !== uploaded.publicId) {
+      try {
+        await ImageUploadService.deleteDocument(previousPublicId);
+      } catch (err) {
+        console.warn('Failed to delete previous agreement PDF:', err?.message || err);
+      }
+    }
+
+    return updated;
+  }
+
   async #requireBooking(bookingId) {
     const booking = await this.repo.getBooking(bookingId);
     if (!booking) throw new HttpError(404, 'Booking not found');

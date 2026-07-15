@@ -23,8 +23,36 @@ import { SectionCard } from '@/components/superadmin/common/SectionCard'
 import { StatCard } from '@/components/superadmin/common/StatCard'
 import { PaginationControls } from '@/components/superadmin/common/PaginationControls'
 import { PermissionGate } from '@/components/superadmin/common/PermissionGate'
+import { projectEngagementQuantityDisplay } from '@/lib/projectCompensation'
 
 const PAGE_SIZE = 20
+
+function requirementDurationLabel(row: any) {
+  if (row.requirement_type === 'project') {
+    return projectEngagementQuantityDisplay(row).value
+  }
+  if (row.requirement_type === 'internship') {
+    const value = Number(row.duration_value)
+    const unit = String(row.duration_unit || '').trim()
+    if (value > 0 && unit) {
+      const plural = value === 1 ? unit.replace(/s$/i, '') : /s$/i.test(unit) ? unit : `${unit}s`
+      return `${value} ${plural}`
+    }
+    return '—'
+  }
+  return '—'
+}
+
+function selectedExpertsLabel(row: any) {
+  const experts = Array.isArray(row?.metrics?.selected_experts) ? row.metrics.selected_experts : []
+  if (!experts.length) return null
+  return experts
+    .map((expert: any) => {
+      const name = expert?.name || 'Expert'
+      return expert?.email ? `${name} (${expert.email})` : name
+    })
+    .join(', ')
+}
 
 function derivedStatusLabel(status: string) {
   const labels: Record<string, string> = {
@@ -399,7 +427,7 @@ export default function SuperAdminRequirementsPage() {
                   </div>
                   <h3 className="mt-3 text-base font-semibold text-slate-950">{row.title}</h3>
                   <p className="mt-1 max-h-10 overflow-hidden text-sm text-slate-600">{row.description || row.responsibilities || 'No description'}</p>
-                  <div className="mt-3 grid gap-3 text-sm text-slate-600 md:grid-cols-3">
+                  <div className="mt-3 grid gap-3 text-sm text-slate-600 md:grid-cols-2 xl:grid-cols-3">
                     <div>
                       <p className="text-xs font-semibold uppercase text-slate-400">Institution</p>
                       <p className="mt-1 font-medium text-slate-800">{row.institutions?.name || '-'}</p>
@@ -409,12 +437,22 @@ export default function SuperAdminRequirementsPage() {
                       <p className="mt-1 font-medium text-slate-800">{row.assignment?.admin?.name || row.assignment?.admin?.email || 'Unassigned'}</p>
                     </div>
                     <div>
+                      <p className="text-xs font-semibold uppercase text-slate-400">Duration</p>
+                      <p className="mt-1 font-medium text-slate-800">{requirementDurationLabel(row)}</p>
+                    </div>
+                    <div>
                       <p className="text-xs font-semibold uppercase text-slate-400">Counts</p>
                       <p className="mt-1 font-medium text-slate-800">
                         {(row.metrics?.applications_total || 0)} applications
                         {row.metrics?.bookings_total ? `, ${row.metrics.bookings_total} bookings` : ''}
                       </p>
                     </div>
+                    {selectedExpertsLabel(row) ? (
+                      <div className="md:col-span-2">
+                        <p className="text-xs font-semibold uppercase text-slate-400">Selected expert</p>
+                        <p className="mt-1 font-medium text-slate-800 break-words">{selectedExpertsLabel(row)}</p>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
                 <div className="grid w-full gap-3 xl:w-[360px]">

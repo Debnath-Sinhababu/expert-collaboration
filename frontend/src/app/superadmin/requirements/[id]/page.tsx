@@ -35,6 +35,7 @@ import { RateIntentBadge } from '@/components/requirements/RateIntentBadge'
 import { RateAgreementPanel } from '@/components/requirements/RateAgreementPanel'
 import { PostedCompensationRate } from '@/components/requirements/PostedCompensationRate'
 import { BookingCompletionActions } from '@/components/bookings/BookingCompletionActions'
+import { BookingAgreementActions } from '@/components/bookings/BookingAgreementActions'
 import { useSuperAdminAccess } from '@/components/superadmin/layout/SuperAdminAccessContext'
 import { superAdminApi } from '@/lib/superadmin/api'
 import { formatInterviewDateTime, datetimeLocalToIso } from '@/lib/datetime'
@@ -48,6 +49,7 @@ import {
   isRateAgreed,
   moneyInr,
   projectCompensationDisplay,
+  projectEngagementQuantityDisplay,
   resolveBookingSettlementRates,
 } from '@/lib/projectCompensation'
 
@@ -105,11 +107,23 @@ function paymentSummaryCard(label: string, record: any) {
       </div>
     )
   }
+  const due = Number(record.invoice_amount || record.calculated_amount || 0)
+  const paid = Number(record.paid_amount || 0)
+  let statusLabel = String(record.status || 'pending').replace(/_/g, ' ')
+  if (String(record.status || '').toLowerCase() === 'partial_paid') statusLabel = 'partial paid'
+  else if (
+    String(record.status || '').toLowerCase() === 'invoiced' &&
+    paid > 0 &&
+    due > 0 &&
+    paid + 0.001 < due
+  ) {
+    statusLabel = 'partial paid'
+  }
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
-        <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold capitalize text-slate-700">{record.status || 'pending'}</span>
+        <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold capitalize text-slate-700">{statusLabel}</span>
       </div>
       <div className="mt-2 grid gap-2 text-sm sm:grid-cols-3">
         <div><span className="text-slate-500">Amount</span><p className="font-semibold text-slate-950">{money(record.invoice_amount || record.calculated_amount)}</p></div>
@@ -141,6 +155,9 @@ export default function SuperAdminRequirementDetailPage() {
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [workflowSaving, setWorkflowSaving] = useState(false)
+  const [dateEdits, setDateEdits] = useState({ start_date: '', end_date: '' })
+  const [dateSaving, setDateSaving] = useState(false)
+  const [bookingStatusSaving, setBookingStatusSaving] = useState<Record<string, boolean>>({})
   const [interviewDialog, setInterviewDialog] = useState<null | {
     kind: 'pipeline' | 'native'
     row: any
@@ -179,6 +196,44 @@ export default function SuperAdminRequirementDetailPage() {
   useEffect(() => {
     loadDetail()
   }, [requirementType, requirementId])
+
+  useEffect(() => {
+    const requirement = detail?.requirement
+    setDateEdits({
+      start_date: requirement?.start_date ? String(requirement.start_date).slice(0, 10) : '',
+      end_date: requirement?.end_date ? String(requirement.end_date).slice(0, 10) : '',
+    })
+  }, [detail?.requirement?.start_date, detail?.requirement?.end_date])
+
+  async function saveRequirementDates() {
+    if (!dateEdits.start_date || !dateEdits.end_date) {
+      toast.error('Start and end dates are required')
+      return
+    }
+    setDateSaving(true)
+    try {
+      await superAdminApi.updateRequirementDates(requirementType, requirementId, dateEdits)
+      toast.success('Requirement dates updated')
+      await loadDetail()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update dates')
+    } finally {
+      setDateSaving(false)
+    }
+  }
+
+  async function updateBookingStatus(booking: any, status: string) {
+    setBookingStatusSaving((current) => ({ ...current, [booking.id]: true }))
+    try {
+      await superAdminApi.updateRequirementBooking(requirementType, requirementId, booking.id, { status })
+      toast.success('Booking status updated')
+      await loadDetail()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update booking status')
+    } finally {
+      setBookingStatusSaving((current) => ({ ...current, [booking.id]: false }))
+    }
+  }
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -540,13 +595,22 @@ export default function SuperAdminRequirementDetailPage() {
     if (item.kind === 'booking') {
       if (requirementType !== 'project') return null
       return (
-        <BookingCompletionActions
-          booking={item.row}
-          role="institution"
-          onUpdated={async () => {
-            await loadDetail()
-          }}
-        />
+        <div className="flex flex-col gap-2 items-end">
+          <BookingAgreementActions
+            booking={item.row}
+            role="institution"
+            onUpdated={async () => {
+              await loadDetail()
+            }}
+          />
+          <BookingCompletionActions
+            booking={item.row}
+            role="institution"
+            onUpdated={async () => {
+              await loadDetail()
+            }}
+          />
+        </div>
       )
     }
     if (item.kind === 'pipeline') {
@@ -667,6 +731,29 @@ export default function SuperAdminRequirementDetailPage() {
           </div>
           <div className="flex shrink-0 flex-col gap-2 lg:min-w-56">
             {renderStatusActions(item)}
+            {booking ? (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <Label className="text-xs text-slate-500">Booking status</Label>
+                <Select
+                  value={booking.status || ''}
+                  onValueChange={(value) => updateBookingStatus(booking, value)}
+                  disabled={Boolean(bookingStatusSaving[booking.id])}
+                >
+                  <SelectTrigger className="mt-1 bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="confirmed">Confirmed</SelectItem>
+                    <SelectItem value="in_progress">In progress</SelectItem>
+                    <SelectItem value="completion_requested">Completion requested</SelectItem>
+                    <SelectItem value="cancellation_requested">Cancellation requested</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
           </div>
         </div>
         {booking && requirementType === 'project' ? (
@@ -747,8 +834,26 @@ export default function SuperAdminRequirementDetailPage() {
                     return (
                       <>
                         {detailValue('Pay unit', pricing.unitLabel)}
-                        {pricing.quantity > 0 ? detailValue(pricing.unit === 'per_day' ? 'Number of days' : pricing.unit === 'per_session' ? 'Number of sessions' : 'Quantity', pricing.quantity) : null}
-                        {pricing.durationPerUnit > 0 ? detailValue(pricing.unit === 'per_day' ? 'Hours per day' : 'Hours per session', `${pricing.durationPerUnit} hrs`) : null}
+                        {pricing.quantity > 0
+                          ? detailValue(
+                              pricing.unit === 'per_day'
+                                ? 'Number of days'
+                                : pricing.unit === 'per_month'
+                                  ? 'Number of months'
+                                  : pricing.unit === 'per_session'
+                                    ? 'Number of sessions'
+                                    : 'Quantity',
+                              pricing.quantity
+                            )
+                          : null}
+                        {Number(requirement.hours_per_day) > 0 ||
+                        ((pricing.unit === 'per_day' || pricing.unit === 'per_session' || pricing.unit === 'per_month') &&
+                          pricing.durationPerUnit > 1)
+                          ? detailValue(
+                              'Hours per day',
+                              `${Number(requirement.hours_per_day) > 0 ? requirement.hours_per_day : pricing.durationPerUnit} hrs`
+                            )
+                          : null}
                         {detailValue('Expert earns (approx)', pricing.netPerUnitDisplay > 0 ? `${moneyInr(pricing.netPerUnitDisplay)} / ${pricing.unitShort}` : null)}
                         {detailValue('Total budget', pricing.totalBudgetGross > 0 ? moneyInr(pricing.totalBudgetGross) : requirement.total_budget ? `Rs. ${requirement.total_budget}` : null)}
                       </>
@@ -757,7 +862,9 @@ export default function SuperAdminRequirementDetailPage() {
                 </>
               ) : (
                 <>
-                  {requirement.hourly_rate ? detailValue('Hourly', `Rs. ${requirement.hourly_rate}`) : null}
+                  {requirement.hourly_rate && projectCompensationDisplay(requirement).unit === 'hourly'
+                    ? detailValue('Hourly', `Rs. ${requirement.hourly_rate}`)
+                    : null}
                   {requirement.total_budget ? detailValue('Budget', `Rs. ${requirement.total_budget}`) : null}
                 </>
               )}
@@ -766,12 +873,48 @@ export default function SuperAdminRequirementDetailPage() {
               {requirement.start_date ? detailValue('Start Date', new Date(requirement.start_date).toLocaleDateString()) : null}
               {requirement.end_date ? detailValue('End Date', new Date(requirement.end_date).toLocaleDateString()) : null}
               {requirement.deadline ? detailValue('Deadline', new Date(requirement.deadline).toLocaleDateString()) : null}
-              {detailValue('Duration Hours', requirement.duration_hours)}
+              {requirementType === 'project'
+                ? detailValue(
+                    projectEngagementQuantityDisplay(requirement).label,
+                    projectEngagementQuantityDisplay(requirement).value
+                  )
+                : detailValue('Duration Hours', requirement.duration_hours)}
+              {Number(requirement.hours_per_day) > 0
+                ? detailValue('Hours per day', `${requirement.hours_per_day} hours`)
+                : null}
+              {requirement.schedule_notes
+                ? detailValue('Weekly schedule', requirement.schedule_notes)
+                : null}
               {detailValue('Work Mode', requirement.work_mode || requirement.workplace_type)}
               {detailValue('Engagement', requirement.engagement || requirement.employment_type)}
               {detailValue('Openings', requirement.openings)}
               {detailValue('Location', requirement.location || requirement.job_location)}
             </div>
+            {requirementType === 'project' ? (
+              <div className="mt-5 grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+                <div>
+                  <Label className="text-xs text-slate-500">Start date</Label>
+                  <Input
+                    type="date"
+                    value={dateEdits.start_date}
+                    onChange={(event) => setDateEdits((current) => ({ ...current, start_date: event.target.value }))}
+                    className="mt-1 bg-white"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-slate-500">End date</Label>
+                  <Input
+                    type="date"
+                    value={dateEdits.end_date}
+                    onChange={(event) => setDateEdits((current) => ({ ...current, end_date: event.target.value }))}
+                    className="mt-1 bg-white"
+                  />
+                </div>
+                <Button type="button" onClick={saveRequirementDates} disabled={dateSaving} className="bg-[#008260] hover:bg-[#006d51]">
+                  {dateSaving ? 'Saving...' : 'Update duration'}
+                </Button>
+              </div>
+            ) : null}
             {requirement.description || requirement.responsibilities ? (
               <p className="mt-4 whitespace-pre-wrap rounded-lg bg-slate-50 p-4 text-sm text-slate-700">
                 {requirement.description || requirement.responsibilities}

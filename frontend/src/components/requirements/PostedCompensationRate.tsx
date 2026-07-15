@@ -1,7 +1,6 @@
 'use client'
 
 import {
-  equivalentHourlyFromDisplay,
   moneyInr,
   projectCompensationDisplay,
   quantityHint,
@@ -16,7 +15,7 @@ type Props = {
   showLabel?: boolean
 }
 
-/** Posted project rate in compensation unit + optional grey hourly equivalent. */
+/** Posted project rate in compensation unit only (no equivalent hourly for day/month/session). */
 export function PostedCompensationRate({
   project,
   audience = 'institution',
@@ -26,7 +25,6 @@ export function PostedCompensationRate({
   const display = projectCompensationDisplay(project)
   const primary =
     audience === 'expert' ? display.netPerUnitDisplay : display.grossPerUnitDisplay
-  const hourly = equivalentHourlyFromDisplay(display, audience)
   const label = audience === 'expert' ? 'You earn' : 'You pay'
   const hint = quantityHint(display)
 
@@ -37,9 +35,6 @@ export function PostedCompensationRate({
         {primary > 0 ? `${moneyInr(primary)}/${display.unitShort}` : '—'}
         {hint}
       </p>
-      {hourly > 0 && display.unit !== 'hourly' && (
-        <p className="text-xs text-[#9CA3AF] mt-0.5">≈ {moneyInr(hourly)}/hr</p>
-      )}
     </div>
   )
 }

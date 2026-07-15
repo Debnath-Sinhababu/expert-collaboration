@@ -38,10 +38,12 @@ import { ShareRequirementButton } from '@/components/requirements/ShareRequireme
 import { ProjectRequirementMeta } from '@/components/requirements/ProjectRequirementMeta'
 import { ExpertApplicationDrawer } from '@/components/requirements/ExpertApplicationDrawer'
 import { projectLocationLine } from '@/lib/requirementLabels'
+import { formatLongDate } from '@/lib/dateFormat'
 import type { InterviewSlot } from '@/components/requirements/InterviewAvailabilitySelector'
 import {
   moneyInr,
   projectCompensationDisplay,
+  projectEngagementQuantityDisplay,
   type RateIntent,
 } from '@/lib/projectCompensation'
 
@@ -60,6 +62,8 @@ interface Project {
   compensation_unit?: string | null
   unit_quantity?: number | null
   duration_per_unit?: number | null
+  hours_per_day?: number | null
+  schedule_notes?: string | null
   institution_gross_per_unit?: number | null
   institution_gross_total?: number | null
   location: string
@@ -338,6 +342,7 @@ export default function ExpertProjectPage() {
   }
 
   if (!project) return null
+  const pricing = projectCompensationDisplay(project)
 
   return (
     <div className="min-h-screen bg-[#ECF2FF] overflow-x-hidden">
@@ -392,9 +397,9 @@ export default function ExpertProjectPage() {
             </div>
             <div className="flex flex-col sm:items-end gap-2 flex-shrink-0">
                   <div className="text-lg sm:text-xl md:text-[24px] font-bold text-[#008260]">
-                    {moneyInr(projectCompensationDisplay(project).netPerUnitDisplay)}/{projectCompensationDisplay(project).unitShort} earn
+                    {moneyInr(pricing.totalBudgetGross || Number(project.total_budget || 0))}
                   </div>
-                  <div className="text-sm text-[#757575]">Hourly Rate</div>
+                  <div className="text-sm text-[#757575]">Total project budget</div>
                   <ShareRequirementButton
                     path={`/requirements/contract/${project.id}`}
                     title={project.title}
@@ -488,7 +493,7 @@ export default function ExpertProjectPage() {
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-black">Starts Date</p>
-                      <p className="text-base font-medium text-black mt-1">{new Date(project.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                      <p className="text-base font-medium text-black mt-1">{formatLongDate(project.start_date)}</p>
                     </div>
                   </div>
 
@@ -499,20 +504,48 @@ export default function ExpertProjectPage() {
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-black">End Date</p>
-                      <p className="text-base font-medium text-black mt-1">{new Date(project.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                      <p className="text-base font-medium text-black mt-1">{formatLongDate(project.end_date)}</p>
                     </div>
                   </div>
 
-                  {/* Duration */}
-                  <div className="flex items-start gap-3 p-4 bg-[#E8F4F8] rounded-lg">
-                    <div className="w-12 h-12 bg-[#008260] rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Clock className="h-6 w-6 text-white" />
+                  {(() => {
+                    const engagement = projectEngagementQuantityDisplay(project)
+                    return (
+                      <div className="flex items-start gap-3 p-4 bg-[#E8F4F8] rounded-lg">
+                        <div className="w-12 h-12 bg-[#008260] rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Clock className="h-6 w-6 text-white" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-black">{engagement.label}</p>
+                          <p className="text-base font-medium text-black mt-1">{engagement.value}</p>
+                        </div>
+                      </div>
+                    )
+                  })()}
+
+                  {Number(project.hours_per_day) > 0 ? (
+                    <div className="flex items-start gap-3 p-4 bg-[#E8F4F8] rounded-lg">
+                      <div className="w-12 h-12 bg-[#008260] rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Clock className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-black">Hours per day</p>
+                        <p className="text-base font-medium text-black mt-1">{project.hours_per_day} hours</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold text-black">Duration</p>
-                      <p className="text-base font-medium text-black mt-1">{project.duration_hours} Hours</p>
+                  ) : null}
+
+                  {project.schedule_notes ? (
+                    <div className="flex items-start gap-3 p-4 bg-[#E8F4F8] rounded-lg">
+                      <div className="w-12 h-12 bg-[#008260] rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Calendar className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-black">Weekly schedule</p>
+                        <p className="text-base font-medium text-black mt-1">{project.schedule_notes}</p>
+                      </div>
                     </div>
-                  </div>
+                  ) : null}
 
                   {project.interview_period_interval ? (
                     <div className="flex items-start gap-3 rounded-lg border border-[#BFE3D8] bg-[#E8F5F1] p-4">

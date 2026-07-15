@@ -481,21 +481,20 @@ class SuperAdminRepository {
   async listProfiles(type, params = {}) {
     const { page, limit, offset, search } = params;
     const table = type === 'institutions' ? 'institutions' : type === 'students' ? 'site_students' : 'experts';
+    const hasKeywordSearch = Boolean(String(search || '').trim());
     const select = type === 'students'
-      ? 'id, name, email, phone, city, state, degree, specialization, skills, year, availability, preferred_engagement, preferred_work_mode, currently_studying, institution_id, created_at, institutions:institution_id(id, name)'
+      ? 'id, name, email, phone, city, state, degree, specialization, skills, year, availability, preferred_engagement, preferred_work_mode, currently_studying, institution_id, created_at, about, address, gender, linkedin_url, github_url, portfolio_url, institutions:institution_id(id, name)'
       : type === 'institutions'
-        ? 'id, name, email, phone, type, city, state, logo_url, is_verified, student_count, established_year, created_at'
-        : 'id, name, email, phone, city, state, domain_expertise, subskills, expert_types, expert_services, current_designation, experience_years, hourly_rate, is_verified, kyc_status, calxbook_verified, interested_in_services, service_price, course_video_url, created_at';
+        ? 'id, name, email, phone, type, city, state, logo_url, is_verified, student_count, established_year, created_at, description, website_url, address, pincode, contact_person, accreditation, country, gstin, pan, cin, industry, company_size, work_mode_preference, preferred_engagements'
+        : 'id, name, email, phone, city, state, bio, qualifications, domain_expertise, subskills, expert_types, expert_services, current_designation, experience_years, hourly_rate, is_verified, kyc_status, calxbook_verified, interested_in_services, service_price, course_video_url, created_at';
 
     let query = this.client
       .from(table)
       .select(select, { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .order('created_at', { ascending: false });
 
-    if (search) {
-      const s = `%${String(search).trim()}%`;
-      query = query.or(`name.ilike.${s},email.ilike.${s}`);
+    if (!hasKeywordSearch) {
+      query = query.range(offset, offset + limit - 1);
     }
 
     if (type === 'experts') {
@@ -562,8 +561,83 @@ class SuperAdminRepository {
       if (currentlyStudying !== undefined) query = query.eq('currently_studying', currentlyStudying);
     }
 
+    if (hasKeywordSearch) {
+      query = query.limit(1000);
+    }
+
     const { data, error, count } = await query;
     if (error) throw error;
+    if (hasKeywordSearch) {
+      const needle = String(search).trim().toLowerCase();
+      const matches = (row) => {
+        if (type === 'institutions') {
+          return [
+            row.name,
+            row.email,
+            row.phone,
+            row.type,
+            row.description,
+            row.website_url,
+            row.address,
+            row.city,
+            row.state,
+            row.country,
+            row.pincode,
+            row.contact_person,
+            row.accreditation,
+            row.gstin,
+            row.pan,
+            row.cin,
+            row.industry,
+            row.company_size,
+            row.work_mode_preference,
+            row.student_count,
+            row.established_year,
+            ...(Array.isArray(row.preferred_engagements) ? row.preferred_engagements : []),
+          ].some((value) => String(value || '').toLowerCase().includes(needle));
+        }
+        if (type === 'students') {
+          return [
+            row.name,
+            row.email,
+            row.phone,
+            row.degree,
+            row.specialization,
+            row.year,
+            row.city,
+            row.state,
+            row.address,
+            row.about,
+            row.gender,
+            row.availability,
+            row.preferred_engagement,
+            row.preferred_work_mode,
+            row.linkedin_url,
+            row.github_url,
+            row.portfolio_url,
+            row.institutions?.name,
+            ...(Array.isArray(row.skills) ? row.skills : []),
+          ].some((value) => String(value || '').toLowerCase().includes(needle));
+        }
+        return [
+          row.name,
+          row.email,
+          row.phone,
+          row.bio,
+          row.current_designation,
+          row.city,
+          row.state,
+          row.qualifications,
+          row.kyc_status,
+          ...(Array.isArray(row.domain_expertise) ? row.domain_expertise : []),
+          ...(Array.isArray(row.subskills) ? row.subskills : []),
+          ...(Array.isArray(row.expert_types) ? row.expert_types : []),
+          ...(Array.isArray(row.expert_services) ? row.expert_services : []),
+        ].some((value) => String(value || '').toLowerCase().includes(needle));
+      };
+      const filtered = (data || []).filter(matches);
+      return { data: filtered.slice(offset, offset + limit), total: filtered.length, page, limit };
+    }
     return { data: data || [], total: count || 0, page, limit };
   }
 
@@ -588,7 +662,7 @@ class SuperAdminRepository {
       project: {
         table: 'projects',
         institutionField: 'institution_id',
-        select: 'id,title,description,type,status,created_at,institution_id,call_status,hourly_rate,total_budget,start_date,end_date,duration_hours,institutions:institution_id(id,name,email,type,city,state)',
+        select: 'id,title,description,type,status,created_at,institution_id,call_status,hourly_rate,total_budget,start_date,end_date,duration_hours,compensation_unit,unit_quantity,duration_per_unit,hours_per_day,institutions:institution_id(id,name,email,type,city,state)',
         searchFields: 'title,description',
         map: (r) => ({ ...r, requirement_type: 'project' }),
       },
@@ -787,10 +861,13 @@ class SuperAdminRepository {
     if (!projectIds.length) return {};
     const [{ data: applications, error: appError }, { data: bookings, error: bookingError }] = await Promise.all([
       this.client.from('applications').select('project_id,status').in('project_id', projectIds),
-      this.client.from('bookings').select('id,project_id,status,hours_booked').in('project_id', projectIds),
+      this.client
+        .from('bookings')
+        .select('id,project_id,status,hours_booked,expert_id,experts:expert_id(id,name,email)')
+        .in('project_id', projectIds),
     ]);
     if (appError && !tableMissing(appError)) throw appError;
-    if (bookingError && !tableMissing(bookingError)) throw bookingError;
+    if (bookingError && !tableMissing(bookingError) && !relationMissing(bookingError)) throw bookingError;
     const bookingIds = (bookings || []).map((booking) => booking.id);
     const approvedHoursByBooking = await this.approvedHoursForBookingIds(bookingIds);
     const out = Object.fromEntries(projectIds.map((id) => [id, {
@@ -801,6 +878,7 @@ class SuperAdminRepository {
       completed_bookings: 0,
       approved_hours: 0,
       target_hours: 0,
+      selected_experts: [],
     }]));
     for (const app of applications || []) {
       const item = out[app.project_id];
@@ -812,10 +890,27 @@ class SuperAdminRepository {
       const item = out[booking.project_id];
       if (!item) continue;
       item.bookings_total += 1;
+      const bookingStatus = String(booking.status || '').toLowerCase();
       if (activeStatus(booking.status)) item.running_bookings += 1;
-      if (String(booking.status).toLowerCase() === 'completed') item.completed_bookings += 1;
+      if (bookingStatus === 'completed') item.completed_bookings += 1;
       item.approved_hours += Number(approvedHoursByBooking[booking.id] || 0);
       item.target_hours += Number(booking.hours_booked || 0);
+
+      const expert = booking.experts;
+      if (
+        expert?.id
+        && !cancelledStatus(booking.status)
+        && !['rejected', 'withdrawn', 'cancelled', 'canceled'].includes(bookingStatus)
+      ) {
+        const already = item.selected_experts.some((row) => row.id === expert.id);
+        if (!already) {
+          item.selected_experts.push({
+            id: expert.id,
+            name: expert.name || null,
+            email: expert.email || null,
+          });
+        }
+      }
     }
     return out;
   }
@@ -1334,6 +1429,48 @@ class SuperAdminRepository {
     return data || null;
   }
 
+  async updateProjectRequirementDates(requirementId, payload) {
+    const startDate = payload.start_date || null;
+    const endDate = payload.end_date || null;
+    if (!startDate || !endDate || String(endDate) < String(startDate)) {
+      const err = new Error('Valid start_date and end_date are required');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const { data: project, error } = await this.client
+      .from('projects')
+      .update({ start_date: startDate, end_date: endDate, updated_at: new Date().toISOString() })
+      .eq('id', requirementId)
+      .select('*')
+      .maybeSingle();
+    if (error) throw error;
+    if (!project) return null;
+
+    const { data: bookings, error: bookingFetchError } = await this.client
+      .from('bookings')
+      .select('id, actual_start_date, actual_end_date')
+      .eq('project_id', requirementId);
+    if (bookingFetchError && !tableMissing(bookingFetchError)) throw bookingFetchError;
+
+    for (const booking of bookings || []) {
+      const updates = {
+        start_date: startDate,
+        end_date: endDate,
+        updated_at: new Date().toISOString(),
+      };
+      if (booking.actual_start_date && String(booking.actual_start_date).slice(0, 10) > startDate) {
+        updates.actual_start_date = startDate;
+      }
+      if (booking.actual_end_date && String(booking.actual_end_date).slice(0, 10) < endDate) {
+        updates.actual_end_date = endDate;
+      }
+      await this.client.from('bookings').update(updates).eq('id', booking.id);
+    }
+
+    return project;
+  }
+
   async listFreelance(params) {
     const { page, limit, offset, search } = params;
     let query = this.client
@@ -1533,7 +1670,7 @@ class SuperAdminRepository {
             institution_id: draftRow.institution_id,
             party_type: draftRow.party_type,
             direction: draftRow.direction,
-            approved_hours: draftRow.approved_hours,
+            approved_hours: existing.approved_hours,
             hourly_rate_snapshot: existing.hourly_rate_snapshot,
             calculated_amount: existing.calculated_amount,
             invoice_amount: existing.invoice_amount,
@@ -1696,11 +1833,14 @@ class SuperAdminRepository {
       pipeline: 0,
       awaiting_invoice: 0,
       invoice_sent: 0,
+      invoice_unpaid: 0,
+      partial_remaining: 0,
+      partial_collected: 0,
       settled: 0,
       outstanding: 0,
       remaining: 0,
       cancelled: 0,
-      counts: { pending: 0, invoiced: 0, paid: 0, cancelled: 0, other: 0 },
+      counts: { pending: 0, invoiced: 0, partial_paid: 0, paid: 0, cancelled: 0, other: 0 },
     };
   }
 
@@ -1713,8 +1853,8 @@ class SuperAdminRepository {
       paid: 0,
       pending: 0,
       remaining: 0,
-      institute: { ...emptyParty },
-      expert: { ...emptyParty },
+      institute: { ...emptyParty, counts: { ...emptyParty.counts } },
+      expert: { ...emptyParty, counts: { ...emptyParty.counts } },
       platform: {
         expected_margin: 0,
         realized_margin: 0,
@@ -1724,6 +1864,7 @@ class SuperAdminRepository {
         institute: 'pipeline = settled + outstanding; outstanding = awaiting_invoice + invoice_sent',
         expert: 'pipeline = settled + outstanding; outstanding = awaiting_invoice + invoice_sent',
         outstanding: 'outstanding = due − paid (per open record)',
+        invoice_sent: 'invoice_sent = unpaid invoiced remaining + partial_paid remaining',
         platform_expected: 'expected_margin = institute.pipeline − expert.pipeline',
         platform_realized: 'realized_margin = institute.settled − expert.settled',
       },
@@ -1762,10 +1903,17 @@ class SuperAdminRepository {
         party.awaiting_invoice += remaining;
         party.counts.pending += 1;
       } else if (status === 'invoiced') {
+        // Fully unpaid billed invoices.
+        party.invoice_unpaid += remaining;
         party.invoice_sent += remaining;
         party.counts.invoiced += 1;
+      } else if (status === 'partial_paid') {
+        // Billed with partial collection: remaining still waits; paid cash already in settled.
+        party.partial_remaining += remaining;
+        party.partial_collected += paid;
+        party.invoice_sent += remaining;
+        party.counts.partial_paid += 1;
       } else if (status === 'paid') {
-        // Fully settled rows contribute to settled via paid; remaining should be ~0.
         party.counts.paid += 1;
         if (remaining > 0) party.invoice_sent += remaining;
       } else {
@@ -1777,7 +1925,16 @@ class SuperAdminRepository {
     for (const record of data || []) {
       const amount = Number(record.invoice_amount || record.calculated_amount || 0);
       const paidAmount = Number(record.paid_amount || 0);
-      const status = String(record.status || 'pending').toLowerCase();
+      // Treat legacy invoiced + partial cash as partial_paid for accurate summaries pre-backfill.
+      let status = String(record.status || 'pending').toLowerCase();
+      if (
+        status === 'invoiced' &&
+        paidAmount > 0 &&
+        amount > 0 &&
+        paidAmount + 0.001 < amount
+      ) {
+        status = 'partial_paid';
+      }
       const direction =
         record.direction ||
         (record.party_type === 'expert' ? 'payable' : 'receivable');
@@ -1786,7 +1943,8 @@ class SuperAdminRepository {
       // Legacy flat fields (cross-party status slice — kept for older dashboards).
       if (direction === 'receivable' && status !== 'cancelled') summary.total_receivable += amount;
       if (direction === 'payable' && status !== 'cancelled') summary.total_payable += amount;
-      if (status === 'invoiced') summary.invoiced += remaining;
+      // Open billed remaining (unpaid invoices + partial balances).
+      if (status === 'invoiced' || status === 'partial_paid') summary.invoiced += remaining;
       if (status !== 'cancelled') summary.paid += paidAmount;
       if (status === 'pending') summary.pending += remaining;
       if (status !== 'cancelled') summary.remaining += remaining;

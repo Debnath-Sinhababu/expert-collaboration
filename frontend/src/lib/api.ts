@@ -511,6 +511,14 @@ export const api = {
       const headers = await getAuthHeaders()
       return fetch(`${API_BASE_URL}/api/projects/recommended/${expertId}`, { headers }).then(res => res.json())
     },
+    getTypes: async () => {
+      const headers = await getAuthHeaders()
+      const query = new URLSearchParams({ _t: Date.now().toString() }).toString()
+      const res = await fetch(`${API_BASE_URL}/api/projects/types?${query}`, { headers })
+      const json = await res.json().catch(() => ([]))
+      if (!res.ok) throw new Error(json?.error || 'Failed to load project types')
+      return Array.isArray(json) ? json : []
+    },
     getById: async (id: string) => {
       const headers = await getAuthHeaders()
       const query = new URLSearchParams({ _t: Date.now().toString() }).toString()
@@ -727,6 +735,19 @@ export const api = {
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json?.error || 'Failed to decline cancellation')
+      return json
+    },
+    uploadAgreementPdf: async (id: string, file: File) => {
+      const headers = await getAuthHeadersForFormData()
+      const formData = new FormData()
+      formData.append('agreement_pdf', file)
+      const res = await fetch(`${API_BASE_URL}/api/bookings/${id}/agreement-pdf`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to upload agreement PDF')
       return json
     },
     delete: async (id: string) => {

@@ -1,5 +1,6 @@
 const express = require('express');
 const asyncHandler = require('../../shared/http/asyncHandler');
+const upload = require('../../../middleware/upload');
 const BookingCompletionController = require('./bookingCompletion.controller');
 
 function createBookingCompletionRouter() {
@@ -12,6 +13,11 @@ function createBookingCompletionRouter() {
   router.post('/:id/request-cancellation', asyncHandler(controller.requestCancellation));
   router.post('/:id/approve-cancellation', asyncHandler(controller.approveCancellation));
   router.post('/:id/decline-cancellation', asyncHandler(controller.declineCancellation));
+  router.post(
+    '/:id/agreement-pdf',
+    upload.single('agreement_pdf'),
+    asyncHandler(controller.uploadAgreementPdf)
+  );
 
   return router;
 }

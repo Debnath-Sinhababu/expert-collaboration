@@ -40,12 +40,14 @@ import { RateIntentBadge } from '@/components/requirements/RateIntentBadge'
 import { RateAgreementPanel } from '@/components/requirements/RateAgreementPanel'
 import { PostedCompensationRate } from '@/components/requirements/PostedCompensationRate'
 import { BookingCompletionActions } from '@/components/bookings/BookingCompletionActions'
+import { BookingAgreementActions } from '@/components/bookings/BookingAgreementActions'
 import {
   isPostedRateDeclined,
   isPostedRateOfferPending,
   isRateAgreed,
   moneyInr,
   projectCompensationDisplay,
+  projectEngagementQuantityDisplay,
   resolveBookingSettlementRates,
 } from '@/lib/projectCompensation'
 import {
@@ -79,6 +81,15 @@ import { toast } from 'sonner'
 import { RatingModal } from '@/components/RatingModal'
 import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
 import { fetchInstitutionForWorkspace } from '@/lib/institutionWorkspace'
+
+function formatExpertTypes(expert: any) {
+  const types = Array.isArray(expert?.expert_types)
+    ? expert.expert_types
+    : typeof expert?.expert_types === 'string'
+      ? expert.expert_types.split(',').map((item: string) => item.trim()).filter(Boolean)
+      : []
+  return types.length ? types.join(', ') : 'Not specified'
+}
 
 export default function InstitutionProjectDetailsPage() {
   const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
@@ -470,7 +481,7 @@ export default function InstitutionProjectDetailsPage() {
   }
 
   const handleProceedToBooking = async (applicationId: string) => {
-    const application = [...(pendingApplications || []), ...(interviewApplications || [])].find((app: any) => app.id === applicationId)
+    const application: any = [...(pendingApplications || []), ...(interviewApplications || [])].find((app: any) => app.id === applicationId)
     if (!application) {
       toast.error('Application not found')
       return
@@ -556,7 +567,7 @@ export default function InstitutionProjectDetailsPage() {
   }
 
   function openProceedToBookingConfirm(applicationId: string) {
-    const application = [...(pendingApplications || []), ...(interviewApplications || [])].find((app: any) => app.id === applicationId)
+    const application: any = [...(pendingApplications || []), ...(interviewApplications || [])].find((app: any) => app.id === applicationId)
     const name = application?.experts?.name || 'this expert'
     setConfirmAction({
       title: 'Proceed for booking?',
@@ -811,17 +822,30 @@ export default function InstitutionProjectDetailsPage() {
                               value: pricing.unitLabel,
                             },
                           ]
-                          if (pricing.unit === 'per_session' || pricing.unit === 'per_day') {
+                          if (pricing.unit === 'per_session' || pricing.unit === 'per_day' || pricing.unit === 'per_month') {
                             summaryItems.push({
-                              label: pricing.unit === 'per_day' ? 'Number of days' : 'Number of sessions',
+                              label:
+                                pricing.unit === 'per_day'
+                                  ? 'Number of days'
+                                  : pricing.unit === 'per_month'
+                                    ? 'Number of months'
+                                    : 'Number of sessions',
                               icon: <Users className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
                               value: String(pricing.quantity || '—'),
                             })
-                            summaryItems.push({
-                              label: pricing.unit === 'per_day' ? 'Hours per day' : 'Hours per session',
-                              icon: <Hourglass className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
-                              value: pricing.durationPerUnit > 0 ? `${pricing.durationPerUnit} hrs` : '—',
-                            })
+                            const hoursPerDay =
+                              Number(project.hours_per_day) > 0
+                                ? Number(project.hours_per_day)
+                                : Number(pricing.durationPerUnit) > 1
+                                  ? Number(pricing.durationPerUnit)
+                                  : 0
+                            if (hoursPerDay > 0) {
+                              summaryItems.push({
+                                label: 'Hours per day',
+                                icon: <Hourglass className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                                value: `${hoursPerDay} hrs`,
+                              })
+                            }
                           }
                           if (pricing.unit === 'fixed_package') {
                             summaryItems.push({
@@ -830,23 +854,19 @@ export default function InstitutionProjectDetailsPage() {
                               value: pricing.expectedTotalHours > 0 ? `${pricing.expectedTotalHours} hrs` : '—',
                             })
                           }
-                          summaryItems.push(
-                            {
-                              label: 'Total hours',
+                          if (pricing.unit === 'hourly') {
+                            const engagement = projectEngagementQuantityDisplay(project)
+                            summaryItems.push({
+                              label: engagement.label,
                               icon: <Hourglass className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
-                              value: pricing.expectedTotalHours > 0 ? `${pricing.expectedTotalHours} hours` : `${project.duration_hours || '—'} hours`,
-                            },
+                              value: engagement.value,
+                            })
+                          }
+                          summaryItems.push(
                             {
                               label: 'Total budget',
                               icon: <IndianRupee className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
                               value: pricing.totalBudgetGross > 0 ? moneyInr(pricing.totalBudgetGross) : (project.total_budget != null ? `₹${project.total_budget}` : '—'),
-                            },
-                            {
-                              label: 'Expert earns (approx)',
-                              icon: <IndianRupee className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
-                              value: pricing.expertNetTotal > 0
-                                ? `${moneyInr(pricing.netPerUnitDisplay)}/${pricing.unitShort}`
-                                : '—',
                             },
                             {
                               label: 'Start date',
@@ -899,7 +919,7 @@ export default function InstitutionProjectDetailsPage() {
                           }
                           if (project.schedule_notes) {
                             summaryItems.push({
-                              label: 'Schedule notes',
+                              label: 'Weekly schedule',
                               icon: <FileText className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
                               value: project.schedule_notes,
                             })
@@ -1085,6 +1105,10 @@ export default function InstitutionProjectDetailsPage() {
                               <p className="font-medium text-[#000000] text-sm">{application.experts?.completed_trainings_count || application.experts?.training_count || 0}</p>
                             </div>
                             <div>
+                              <span className="text-[#666666] font-medium text-sm">Expert Type:</span>
+                              <p className="font-medium text-[#000000] text-sm">{formatExpertTypes(application.experts)}</p>
+                            </div>
+                            <div>
                               <span className="text-[#666666] font-medium text-sm">Rate preference:</span>
                               <div className="mt-1">
                                 <RateIntentBadge
@@ -1267,6 +1291,10 @@ export default function InstitutionProjectDetailsPage() {
                         ? application.experts.domain_expertise.join(', ') 
                         : 'Not specified'}
                     </p>
+                  </div>
+                  <div>
+                    <span className="text-[#666666] font-medium text-sm">Expert Type:</span>
+                    <p className="font-medium text-[#000000] text-sm">{formatExpertTypes(application.experts)}</p>
                   </div>
                
                 </div>
@@ -1540,6 +1568,10 @@ export default function InstitutionProjectDetailsPage() {
               <span className="text-[#666666] font-medium text-sm">Expert: </span>
               <span className="text-[#000000] font-medium text-sm">{expertDisplayName(booking.experts)}</span>
             </div>
+            <div>
+              <span className="text-[#666666] font-medium text-sm">Expert Type: </span>
+              <span className="text-[#000000] font-medium text-sm">{formatExpertTypes(booking.experts)}</span>
+            </div>
             
             {/* Right Column */}
             <div>
@@ -1656,6 +1688,10 @@ export default function InstitutionProjectDetailsPage() {
                       </p>
                     </div>
                     <div>
+                      <h4 className="font-medium text-sm text-[#666666] mb-1">Expert Type</h4>
+                      <p className="text-sm text-[#000000]">{formatExpertTypes(booking.experts)}</p>
+                    </div>
+                    <div>
                       <h4 className="font-medium text-sm text-[#666666] mb-1">Agreed rate (you pay)</h4>
                       <p className="text-sm text-[#000000]">
                         {moneyInr(resolveBookingSettlementRates(booking).grossPerUnit)} / {resolveBookingSettlementRates(booking).unitShort}
@@ -1727,6 +1763,14 @@ export default function InstitutionProjectDetailsPage() {
                 </div>
               </DialogContent>
             </Dialog>
+
+            <BookingAgreementActions
+              booking={booking}
+              role="institution"
+              onUpdated={() => {
+                refreshSelected()
+              }}
+            />
 
             <BookingCompletionActions
               booking={booking}
@@ -1880,10 +1924,6 @@ export default function InstitutionProjectDetailsPage() {
                 Number(app?.final_gross_per_unit) > 0
                   ? Number(app.final_gross_per_unit)
                   : pricing.grossPerUnitDisplay
-              const net =
-                Number(app?.final_net_per_unit) > 0
-                  ? Number(app.final_net_per_unit)
-                  : pricing.netPerUnitDisplay
               const total =
                 pricing.unit === 'fixed_package' ? gross : gross * (pricing.quantity || 1)
               const overBudget = pricing.totalBudgetGross > 0 && total > pricing.totalBudgetGross * 1.001
@@ -1899,16 +1939,12 @@ export default function InstitutionProjectDetailsPage() {
                       <span className="font-semibold">{moneyInr(gross)} / {pricing.unitShort}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-[#6A6A6A]">Expert earns</span>
-                      <span className="font-semibold">{moneyInr(net)} / {pricing.unitShort}</span>
-                    </div>
-                    <div className="flex justify-between">
                       <span className="text-[#6A6A6A]">Total you pay</span>
                       <span className="font-semibold">{moneyInr(total)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-[#6A6A6A]">Hours</span>
-                      <span className="font-semibold">{pricing.expectedTotalHours || project?.duration_hours || '—'}</span>
+                      <span className="text-[#6A6A6A]">{projectEngagementQuantityDisplay(project).label}</span>
+                      <span className="font-semibold">{projectEngagementQuantityDisplay(project).value}</span>
                     </div>
                   </div>
                   {overBudget && (

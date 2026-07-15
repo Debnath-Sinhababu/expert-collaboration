@@ -112,6 +112,22 @@ class BookingCompletionController {
     }
   };
 
+  uploadAgreementPdf = async (req, res) => {
+    const bookingId = req.params.id;
+    try {
+      const { actor, writeClient } = await this.#resolveInstitutionActor(req, bookingId);
+      const updated = await this.service.uploadAgreementPdf({
+        bookingId,
+        actor,
+        writeClient,
+        file: req.file,
+      });
+      res.json(updated);
+    } catch (err) {
+      this.#sendError(res, err);
+    }
+  };
+
   async #loadBooking(bookingId) {
     const service = institutionAccess.getServiceClient();
     const { data, error } = await service
