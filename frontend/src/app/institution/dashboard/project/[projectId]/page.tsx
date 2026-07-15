@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
@@ -10,6 +10,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { DatePicker } from '@/components/ui/date-picker'
@@ -25,7 +35,26 @@ import { isTrainingProjectType } from '@/lib/trainingTypes'
 import { TrainingAttendancePanel } from '@/components/training/TrainingAttendancePanel'
 import { InterviewAvailabilitySelector } from '@/components/requirements/InterviewAvailabilitySelector'
 import type { InterviewSlot } from '@/components/requirements/InterviewAvailabilitySelector'
-import { resolveHourlyRate } from '@/lib/projectPricing'
+import { formatInterviewDateTime } from '@/lib/datetime'
+import { RateIntentBadge } from '@/components/requirements/RateIntentBadge'
+import { RateAgreementPanel } from '@/components/requirements/RateAgreementPanel'
+import { PostedCompensationRate } from '@/components/requirements/PostedCompensationRate'
+import { BookingCompletionActions } from '@/components/bookings/BookingCompletionActions'
+import { BookingAgreementActions } from '@/components/bookings/BookingAgreementActions'
+import {
+  isPostedRateDeclined,
+  isPostedRateOfferPending,
+  isRateAgreed,
+  moneyInr,
+  projectCompensationDisplay,
+  projectEngagementQuantityDisplay,
+  resolveBookingSettlementRates,
+} from '@/lib/projectCompensation'
+import {
+  formatEmploymentType,
+  formatWorkplaceType,
+  projectLocationLine,
+} from '@/lib/requirementLabels'
 import { 
   ArrowLeft,
   Building, 
@@ -43,13 +72,24 @@ import {
   BookOpen,
   FileText,
   IndianRupee,
-  Hourglass
+  Hourglass,
+  MapPin,
+  Edit,
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { RatingModal } from '@/components/RatingModal'
 import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
 import { fetchInstitutionForWorkspace } from '@/lib/institutionWorkspace'
+
+function formatExpertTypes(expert: any) {
+  const types = Array.isArray(expert?.expert_types)
+    ? expert.expert_types
+    : typeof expert?.expert_types === 'string'
+      ? expert.expert_types.split(',').map((item: string) => item.trim()).filter(Boolean)
+      : []
+  return types.length ? types.join(', ') : 'Not specified'
+}
 
 export default function InstitutionProjectDetailsPage() {
   const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
@@ -86,7 +126,14 @@ export default function InstitutionProjectDetailsPage() {
   const [selectedInterviewSlot, setSelectedInterviewSlot] = useState<InterviewSlot | null>(null)
   const [showFinalRateModal, setShowFinalRateModal] = useState(false)
   const [selectedBookingApplication, setSelectedBookingApplication] = useState<any>(null)
-  const [finalHourlyRate, setFinalHourlyRate] = useState('')
+  const [approveOverBudget, setApproveOverBudget] = useState(false)
+  const [confirmAction, setConfirmAction] = useState<null | {
+    title: string
+    description: string
+    confirmLabel: string
+    destructive?: boolean
+    onConfirm: () => void | Promise<void>
+  }>(null)
   const [bookingDateEdits, setBookingDateEdits] = useState<Record<string, { actual_start_date?: string; actual_end_date?: string }>>({})
   const [processingApplications, setProcessingApplications] = useState<Record<string, boolean>>({})
 
@@ -384,25 +431,31 @@ export default function InstitutionProjectDetailsPage() {
   const handleInterviewSubmit = async () => {
     if (!selectedApplicationId) return
 
+    if (!interviewDate) {
+      toast.error('Interview date is required')
+      return
+    }
+    if (!interviewTime) {
+      toast.error('Interview time is required')
+      return
+    }
+
     try {
       setProcessingApplications(prev => ({ ...prev, [selectedApplicationId]: true }))
-      
-      let interviewDateValue = null
-      if (interviewDate && interviewTime) {
-        const todayStart = new Date()
-        todayStart.setHours(0, 0, 0, 0)
-        const selectedStart = new Date(interviewDate)
-        selectedStart.setHours(0, 0, 0, 0)
-        if (selectedStart < todayStart) {
-          toast.error('Interview date cannot be in the past')
-          setProcessingApplications(prev => ({ ...prev, [selectedApplicationId]: false }))
-          return
-        }
-        const [hours, minutes] = interviewTime.split(':').map(Number)
-        const combinedDateTime = new Date(interviewDate)
-        combinedDateTime.setHours(hours, minutes, 0, 0)
-        interviewDateValue = combinedDateTime.toISOString()
+
+      const todayStart = new Date()
+      todayStart.setHours(0, 0, 0, 0)
+      const selectedStart = new Date(interviewDate)
+      selectedStart.setHours(0, 0, 0, 0)
+      if (selectedStart < todayStart) {
+        toast.error('Interview date cannot be in the past')
+        setProcessingApplications(prev => ({ ...prev, [selectedApplicationId]: false }))
+        return
       }
+      const [hours, minutes] = interviewTime.split(':').map(Number)
+      const combinedDateTime = new Date(interviewDate)
+      combinedDateTime.setHours(hours, minutes, 0, 0)
+      const interviewDateValue = combinedDateTime.toISOString()
 
       await api.applications.update(selectedApplicationId, {
         status: 'interview',
@@ -428,13 +481,26 @@ export default function InstitutionProjectDetailsPage() {
   }
 
   const handleProceedToBooking = async (applicationId: string) => {
-    const application = [...(pendingApplications || []), ...(interviewApplications || [])].find((app: any) => app.id === applicationId)
+    const application: any = [...(pendingApplications || []), ...(interviewApplications || [])].find((app: any) => app.id === applicationId)
     if (!application) {
       toast.error('Application not found')
       return
     }
+    const status = application.rate_status || application.rate_intent
+    if (isPostedRateDeclined(status)) {
+      toast.error('Expert declined the posted rate. Booking cannot proceed for this application.')
+      return
+    }
+    if (isPostedRateOfferPending(status)) {
+      toast.error('Waiting for the expert to respond to your posted-rate request')
+      return
+    }
+    if (!isRateAgreed(status) && application.rate_intent === 'open_to_negotiate') {
+      toast.error('Complete rate negotiation before confirming booking')
+      return
+    }
     setSelectedBookingApplication(application)
-    setFinalHourlyRate('')
+    setApproveOverBudget(false)
     setShowFinalRateModal(true)
   }
 
@@ -446,44 +512,18 @@ export default function InstitutionProjectDetailsPage() {
     try {
       setProcessingApplications(prev => ({ ...prev, [applicationId]: true }))
 
-      const resolvedAmount = resolveHourlyRate({
-        finalHourlyRate,
-        proposedRate: (application as any).proposed_rate,
-        projectHourlyRate: project?.hourly_rate,
-        fallback: 1000,
+      const result = await api.applications.confirmLock(applicationId, {
+        approve_over_budget: approveOverBudget,
       })
-
-      // Update application status to accepted
-      await api.applications.update(applicationId, {
-        status: 'accepted',
-        final_hourly_rate: finalHourlyRate ? Number(finalHourlyRate) : null,
-        reviewed_at: new Date().toISOString()
-      })
-
-      // Create booking (same logic as current accept flow)
-      const bookingData = {
-        expert_id: (application as any).expert_id,
-        institution_id: institution.id,
-        project_id: (application as any).project_id,
-        application_id: applicationId,
-        amount: resolvedAmount,
-        start_date: project.start_date
-          ? String(project.start_date).slice(0, 10)
-          : new Date().toISOString().split('T')[0],
-        end_date: project.end_date
-          ? String(project.end_date).slice(0, 10)
-          : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        hours_booked: project.duration_hours,
-        status: 'in_progress',
-        payment_status: 'pending'
+      if (result?.error) {
+        toast.error(result.error)
+        return
       }
-      
-      await api.bookings.create(bookingData)
 
       toast.success('Booking created successfully!')
       setShowFinalRateModal(false)
       setSelectedBookingApplication(null)
-      setFinalHourlyRate('')
+      setApproveOverBudget(false)
       refreshInterview()
       refreshSelected()
     } catch (error) {
@@ -513,6 +553,35 @@ export default function InstitutionProjectDetailsPage() {
     } finally {
       setProcessingApplications(prev => ({ ...prev, [applicationId]: false }))
     }
+  }
+
+  function openRejectConfirm(application: any) {
+    const name = application.experts?.name || 'this expert'
+    setConfirmAction({
+      title: 'Reject application?',
+      description: `Are you sure you want to reject ${name}?`,
+      confirmLabel: 'Reject',
+      destructive: true,
+      onConfirm: () => handleRejectApplication(application.id),
+    })
+  }
+
+  function openProceedToBookingConfirm(applicationId: string) {
+    const application: any = [...(pendingApplications || []), ...(interviewApplications || [])].find((app: any) => app.id === applicationId)
+    const name = application?.experts?.name || 'this expert'
+    setConfirmAction({
+      title: 'Proceed for booking?',
+      description: `Are you sure you want to select ${name} and proceed for booking?`,
+      confirmLabel: 'Proceed',
+      onConfirm: () => handleProceedToBooking(applicationId),
+    })
+  }
+
+  async function handleConfirmAction() {
+    if (!confirmAction) return
+    const action = confirmAction.onConfirm
+    setConfirmAction(null)
+    await action()
   }
 
   const getStatusColor = (status: string) => {
@@ -581,12 +650,22 @@ export default function InstitutionProjectDetailsPage() {
 
   const handleBookingDateUpdate = async (booking: any) => {
     const edits = bookingDateEdits[booking.id] || {}
+    const actualStart = (edits.actual_start_date || booking.actual_start_date || '').slice(0, 10) || null
+    const actualEnd = (edits.actual_end_date || booking.actual_end_date || '').slice(0, 10) || null
     try {
+      // Keep attendance window in sync: actual dates drive training, and also update booking start/end.
       await api.bookings.update(booking.id, {
-        actual_start_date: edits.actual_start_date || booking.actual_start_date || null,
-        actual_end_date: edits.actual_end_date || booking.actual_end_date || null,
+        actual_start_date: actualStart,
+        actual_end_date: actualEnd,
+        ...(actualStart ? { start_date: actualStart } : {}),
+        ...(actualEnd ? { end_date: actualEnd } : {}),
       })
-      toast.success('Project dates updated')
+      toast.success('Training dates updated')
+      setBookingDateEdits((prev) => {
+        const next = { ...prev }
+        delete next[booking.id]
+        return next
+      })
       refreshSelected()
     } catch (error) {
       console.error('Error updating project dates:', error)
@@ -716,49 +795,178 @@ export default function InstitutionProjectDetailsPage() {
                           <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
                             <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 px-3 sm:py-2 sm:px-4">{project.status}</Badge>
                             <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 px-3 sm:py-2 sm:px-4">{project.type}</Badge>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => router.push(`${basePath}/dashboard/project/${projectId}/edit`)}
+                              className="h-8 px-2.5 border-[#DCDCDC] text-[#008260] hover:bg-[#E8F5F1] hover:text-[#008260]"
+                              aria-label="Edit project"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
                           </div>
                         </div>
                         <p className="text-sm text-[#6A6A6A] mb-3">{project.description}</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 text-sm">
-                        <div className="flex items-start gap-3 min-w-0">
-    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
-      <Clock className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
-    </div>
-    <div className="min-w-0">
-      <span className="text-[#717171] text-xs">Rate:</span>
-      <p className="font-semibold text-[#008260] text-sm sm:text-base truncate">₹{project.hourly_rate}/hour</p>
-    </div>
-  </div>
-                          <div className='flex items-start gap-3 min-w-0'>
-                          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
-      <Hourglass className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
-    </div>
-                             <div className="min-w-0">
-                            <span className="text-[#717171] text-xs">Duration:</span>
-                            <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">{project.duration_hours} hours</p>
+                        {(() => {
+                          const pricing = projectCompensationDisplay(project)
+                          const location = projectLocationLine(project)
+                          const summaryItems: Array<{ label: string; value: ReactNode; icon: ReactNode }> = [
+                            {
+                              label: 'You pay',
+                              icon: <Clock className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: <PostedCompensationRate project={project} audience="institution" showLabel={false} />,
+                            },
+                            {
+                              label: 'Pay unit',
+                              icon: <Briefcase className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: pricing.unitLabel,
+                            },
+                          ]
+                          if (pricing.unit === 'per_session' || pricing.unit === 'per_day' || pricing.unit === 'per_month') {
+                            summaryItems.push({
+                              label:
+                                pricing.unit === 'per_day'
+                                  ? 'Number of days'
+                                  : pricing.unit === 'per_month'
+                                    ? 'Number of months'
+                                    : 'Number of sessions',
+                              icon: <Users className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: String(pricing.quantity || '—'),
+                            })
+                            const hoursPerDay =
+                              Number(project.hours_per_day) > 0
+                                ? Number(project.hours_per_day)
+                                : Number(pricing.durationPerUnit) > 1
+                                  ? Number(pricing.durationPerUnit)
+                                  : 0
+                            if (hoursPerDay > 0) {
+                              summaryItems.push({
+                                label: 'Hours per day',
+                                icon: <Hourglass className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                                value: `${hoursPerDay} hrs`,
+                              })
+                            }
+                          }
+                          if (pricing.unit === 'fixed_package') {
+                            summaryItems.push({
+                              label: 'Estimated hours',
+                              icon: <Hourglass className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: pricing.expectedTotalHours > 0 ? `${pricing.expectedTotalHours} hrs` : '—',
+                            })
+                          }
+                          if (pricing.unit === 'hourly') {
+                            const engagement = projectEngagementQuantityDisplay(project)
+                            summaryItems.push({
+                              label: engagement.label,
+                              icon: <Hourglass className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: engagement.value,
+                            })
+                          }
+                          summaryItems.push(
+                            {
+                              label: 'Total budget',
+                              icon: <IndianRupee className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: pricing.totalBudgetGross > 0 ? moneyInr(pricing.totalBudgetGross) : (project.total_budget != null ? `₹${project.total_budget}` : '—'),
+                            },
+                            {
+                              label: 'Start date',
+                              icon: <Calendar className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: project.start_date ? new Date(project.start_date).toLocaleDateString('en-IN') : '—',
+                            },
+                            {
+                              label: 'End date',
+                              icon: <Calendar className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: project.end_date ? new Date(project.end_date).toLocaleDateString('en-IN') : '—',
+                            },
+                            {
+                              label: 'Openings',
+                              icon: <Users className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: String(project.opening_count || project.max_applications || 1),
+                            },
+                            {
+                              label: 'Posted',
+                              icon: <Calendar className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: project.created_at ? new Date(project.created_at).toLocaleDateString('en-IN') : '—',
+                            },
+                          )
+                          if (location) {
+                            summaryItems.push({
+                              label: 'Location',
+                              icon: <MapPin className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: location,
+                            })
+                          }
+                          if (project.workplace_type) {
+                            summaryItems.push({
+                              label: 'Workplace',
+                              icon: <Building className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: formatWorkplaceType(project.workplace_type),
+                            })
+                          }
+                          if (project.employment_type) {
+                            summaryItems.push({
+                              label: 'Employment',
+                              icon: <Briefcase className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: formatEmploymentType(project.employment_type),
+                            })
+                          }
+                          if (project.interview_period_interval) {
+                            summaryItems.push({
+                              label: 'Interview period',
+                              icon: <Clock className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: project.interview_period_interval,
+                            })
+                          }
+                          if (project.schedule_notes) {
+                            summaryItems.push({
+                              label: 'Weekly schedule',
+                              icon: <FileText className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                              value: project.schedule_notes,
+                            })
+                          }
+                          if (project.domain_expertise) {
+                            const domain = Array.isArray(project.domain_expertise)
+                              ? project.domain_expertise.join(', ')
+                              : String(project.domain_expertise)
+                            if (domain.trim()) {
+                              summaryItems.push({
+                                label: 'Domain',
+                                icon: <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />,
+                                value: domain,
+                              })
+                            }
+                          }
+
+                          return (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 text-sm">
+                              {summaryItems.map((item) => (
+                                <div key={item.label} className="flex items-start gap-3 min-w-0">
+                                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+                                    {item.icon}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <span className="text-[#717171] text-xs">{item.label}:</span>
+                                    <div className="font-medium text-sm sm:text-base text-[#1D1D1D] break-words">
+                                      {item.value}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )
+                        })()}
+                        {project.subskills && project.subskills.length > 0 && (
+                          <div className="mb-4">
+                            <span className="text-sm text-slate-500">Specializations:</span>
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              {project.subskills.map((skill: string, index: number) => (
+                                <Badge key={index} variant="secondary" className="text-xs bg-slate-100 text-slate-700">
+                                  {skill}
+                                </Badge>
+                              ))}
                             </div>
                           </div>
-                          <div className='flex items-start gap-3 min-w-0'>
-                          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
-      <IndianRupee className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
-    </div> 
-                         <div className="min-w-0">
-                            <span className="text-[#717171] text-xs">Budget:</span>
-                            <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">₹{project.total_budget}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3 min-w-0">
-    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
-      <Calendar className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
-    </div>
-    <div className="min-w-0">
-      <span className="text-[#717171] text-xs">Posted:</span>
-      <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">
-       {new Date(project.created_at).toLocaleDateString()}
-      </p>
-    </div>
-  </div>
-                        </div>
+                        )}
                         {project.required_expertise && project.required_expertise.length > 0 && (
                           <div className="mb-4">
                             <span className="text-sm text-slate-500">Required Expertise:</span>
@@ -769,6 +977,16 @@ export default function InstitutionProjectDetailsPage() {
                                 </Badge>
                               ))}
                             </div>
+                          </div>
+                        )}
+                        {Array.isArray(project.screening_questions) && project.screening_questions.filter(Boolean).length > 0 && (
+                          <div className="mb-2">
+                            <span className="text-sm text-slate-500">Screening questions:</span>
+                            <ol className="list-decimal list-inside text-sm text-[#1D1D1D] mt-1 space-y-1">
+                              {project.screening_questions.filter(Boolean).map((q: string, i: number) => (
+                                <li key={i}>{q}</li>
+                              ))}
+                            </ol>
                           </div>
                         )}
                       
@@ -835,7 +1053,9 @@ export default function InstitutionProjectDetailsPage() {
                               </Avatar>
                               <div className="min-w-0">
                                 <h3 className="font-semibold text-black text-sm sm:text-base truncate">{expertDisplayName(application.experts)}</h3>
-                                <p className="text-xs sm:text-sm text-black">₹{getInstitutionRate(application.experts?.hourly_rate)}/hr</p>
+                                <p className="text-xs sm:text-sm text-black">
+                                  Original rate ₹{getInstitutionRate(application.experts?.hourly_rate)}/hr
+                                </p>
                               </div>
                             </div>
                             <Badge className='bg-[#FFF6D3] text-xs font-semibold text-[#967800] flex-shrink-0'>
@@ -885,11 +1105,33 @@ export default function InstitutionProjectDetailsPage() {
                               <p className="font-medium text-[#000000] text-sm">{application.experts?.completed_trainings_count || application.experts?.training_count || 0}</p>
                             </div>
                             <div>
-                              <span className="text-[#666666] font-medium text-sm">Proposed rate:</span>
-                              <p className="font-medium text-[#000000] text-sm">Rs {application.proposed_rate || project?.hourly_rate || 0}/hr</p>
+                              <span className="text-[#666666] font-medium text-sm">Expert Type:</span>
+                              <p className="font-medium text-[#000000] text-sm">{formatExpertTypes(application.experts)}</p>
+                            </div>
+                            <div>
+                              <span className="text-[#666666] font-medium text-sm">Rate preference:</span>
+                              <div className="mt-1">
+                                <RateIntentBadge
+                                  rateIntent={application.rate_intent}
+                                  rateStatus={application.rate_status}
+                                />
+                              </div>
                             </div>
                         
                           </div>
+
+                          {application.cover_letter ? (
+                            <div className="mb-3 rounded-lg border border-[#ECECEC] bg-[#FAFAFA] p-3">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-[#6A6A6A] mb-1">Cover letter</p>
+                              <p className="text-sm text-[#000000] whitespace-pre-wrap">{application.cover_letter}</p>
+                            </div>
+                          ) : null}
+                          {application.screening_answers ? (
+                            <div className="mb-4 rounded-lg border border-[#ECECEC] bg-[#FAFAFA] p-3">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-[#6A6A6A] mb-1">Screening answers</p>
+                              <p className="text-sm text-[#000000] whitespace-pre-wrap">{application.screening_answers}</p>
+                            </div>
+                          ) : null}
 
                           {/* Subskills */}
                           {application.experts?.subskills && application.experts.subskills.length > 0 && (
@@ -933,7 +1175,7 @@ export default function InstitutionProjectDetailsPage() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleRejectApplication(application.id)}
+                                onClick={() => openRejectConfirm(application)}
                                 disabled={processingApplications[application.id]}
                                 className="border border-[#FF0000] text-[13px] font-medium text-[#FF0000] rounded-[25px] bg-white hover:bg-white hover:text-[#FF0000] w-full sm:w-auto"
                               >
@@ -1003,7 +1245,9 @@ export default function InstitutionProjectDetailsPage() {
                     </Avatar>
                     <div className="min-w-0">
                       <h3 className="font-semibold text-black text-sm sm:text-base truncate">{expertDisplayName(application.experts)}</h3>
-                      <p className="text-xs sm:text-sm text-black">₹{getInstitutionRate(application.experts?.hourly_rate)}/hr</p>
+                      <p className="text-xs sm:text-sm text-black">
+                        Original rate ₹{getInstitutionRate(application.experts?.hourly_rate)}/hr
+                      </p>
                     </div>
                   </div>
                   <Badge className='bg-[#FFF6D3] text-xs font-semibold text-[#967800] flex-shrink-0'>
@@ -1048,6 +1292,10 @@ export default function InstitutionProjectDetailsPage() {
                         : 'Not specified'}
                     </p>
                   </div>
+                  <div>
+                    <span className="text-[#666666] font-medium text-sm">Expert Type:</span>
+                    <p className="font-medium text-[#000000] text-sm">{formatExpertTypes(application.experts)}</p>
+                  </div>
                
                 </div>
 
@@ -1067,8 +1315,40 @@ export default function InstitutionProjectDetailsPage() {
                   <div className="mb-4">
                     <span className="text-[#666666] font-medium text-sm">
                       <Calendar className="h-4 w-4 inline mr-1" />
-                      Interview scheduled: <span className='text-black'> {new Date(application.interview_date).toLocaleString()}</span>
+                      Interview scheduled: <span className='text-black'> {formatInterviewDateTime(application.interview_date)}</span>
                     </span>
+                  </div>
+                )}
+
+                                <div className="mb-4">
+                                  <RateIntentBadge
+                                    rateIntent={application.rate_intent}
+                                    rateStatus={application.rate_status}
+                                  />
+                                </div>
+                                {application.cover_letter ? (
+                                  <div className="mb-3 rounded-lg border border-[#ECECEC] bg-[#FAFAFA] p-3">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-[#6A6A6A] mb-1">Cover letter</p>
+                                    <p className="text-sm text-[#000000] whitespace-pre-wrap">{application.cover_letter}</p>
+                                  </div>
+                                ) : null}
+                                {application.screening_answers ? (
+                                  <div className="mb-4 rounded-lg border border-[#ECECEC] bg-[#FAFAFA] p-3">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-[#6A6A6A] mb-1">Screening answers</p>
+                                    <p className="text-sm text-[#000000] whitespace-pre-wrap">{application.screening_answers}</p>
+                                  </div>
+                                ) : null}
+
+                {project && (
+                  <div className="mb-4">
+                    <RateAgreementPanel
+                      application={application}
+                      project={project}
+                      role="institution"
+                      onUpdated={() => {
+                        refreshInterview()
+                      }}
+                    />
                   </div>
                 )}
                 
@@ -1080,7 +1360,7 @@ export default function InstitutionProjectDetailsPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleRejectApplication(application.id)}
+                      onClick={() => openRejectConfirm(application)}
                       disabled={processingApplications[application.id]}
                       className="border border-[#FF0000] text-[13px] font-medium text-[#FF0000] rounded-[25px] bg-white hover:bg-white hover:text-[#FF0000] w-full sm:w-auto"
                     >
@@ -1089,14 +1369,28 @@ export default function InstitutionProjectDetailsPage() {
                     </Button>
                     <Button
                       size="sm"
-                      onClick={() => handleProceedToBooking(application.id)}
-                      disabled={processingApplications[application.id]}
+                      onClick={() => openProceedToBookingConfirm(application.id)}
+                      disabled={
+                        processingApplications[application.id] ||
+                        (application.rate_intent === 'open_to_negotiate' &&
+                          !isRateAgreed(application.rate_status || application.rate_intent))
+                      }
                       className="bg-[#008260] hover:bg-[#008260] text-white hover:text-white rounded-[25px] text-[13px] w-full sm:w-auto"
                     >
                       <CheckCircle className="h-4 w-4" />
-                      {processingApplications[application.id] ? 'Processing...' : 'Proceed for Booking'}
+                      {processingApplications[application.id] ? 'Processing...' : 'Confirm & lock booking'}
                     </Button>
                   </div>
+                  {isPostedRateOfferPending(application.rate_status) && (
+                    <p className="text-xs text-sky-800 mt-2">
+                      Confirm &amp; lock is paused until the expert responds to your posted-rate request.
+                    </p>
+                  )}
+                  {isPostedRateDeclined(application.rate_status) && (
+                    <p className="text-xs text-rose-700 mt-2">
+                      Confirm &amp; lock is disabled — the expert declined proceeding at the posted rate only.
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -1150,7 +1444,9 @@ export default function InstitutionProjectDetailsPage() {
                     </Avatar>
                     <div className="min-w-0">
                       <h3 className="font-semibold text-black text-sm sm:text-base truncate">{expertDisplayName(application.experts)}</h3>
-                      <p className="text-xs sm:text-sm text-black">₹{getInstitutionRate(application.experts?.hourly_rate)}/hr</p>
+                      <p className="text-xs sm:text-sm text-black">
+                        Original rate ₹{getInstitutionRate(application.experts?.hourly_rate)}/hr
+                      </p>
                     </div>
                   </div>
                   <Badge className={`${getStatusColor(application.status)} flex-shrink-0`}>
@@ -1272,11 +1568,17 @@ export default function InstitutionProjectDetailsPage() {
               <span className="text-[#666666] font-medium text-sm">Expert: </span>
               <span className="text-[#000000] font-medium text-sm">{expertDisplayName(booking.experts)}</span>
             </div>
+            <div>
+              <span className="text-[#666666] font-medium text-sm">Expert Type: </span>
+              <span className="text-[#000000] font-medium text-sm">{formatExpertTypes(booking.experts)}</span>
+            </div>
             
             {/* Right Column */}
             <div>
-              <span className="text-[#666666] font-medium text-sm">Amount: </span>
-              <span className="text-[#000000] font-medium text-sm">₹{booking.amount}</span>
+              <span className="text-[#666666] font-medium text-sm">You pay: </span>
+              <span className="text-[#000000] font-medium text-sm">
+                {moneyInr(resolveBookingSettlementRates(booking).grossPerUnit)} / {resolveBookingSettlementRates(booking).unitShort}
+              </span>
             </div>
             
             {/* Left Column */}
@@ -1386,8 +1688,14 @@ export default function InstitutionProjectDetailsPage() {
                       </p>
                     </div>
                     <div>
-                      <h4 className="font-medium text-sm text-[#666666] mb-1">Hourly Rate</h4>
-                      <p className="text-sm text-[#000000]">₹{getInstitutionRate(booking.experts?.hourly_rate)}</p>
+                      <h4 className="font-medium text-sm text-[#666666] mb-1">Expert Type</h4>
+                      <p className="text-sm text-[#000000]">{formatExpertTypes(booking.experts)}</p>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-sm text-[#666666] mb-1">Agreed rate (you pay)</h4>
+                      <p className="text-sm text-[#000000]">
+                        {moneyInr(resolveBookingSettlementRates(booking).grossPerUnit)} / {resolveBookingSettlementRates(booking).unitShort}
+                      </p>
                     </div>
                     <div>
                       <h4 className="font-medium text-sm text-[#666666] mb-1">Experience</h4>
@@ -1456,25 +1764,26 @@ export default function InstitutionProjectDetailsPage() {
               </DialogContent>
             </Dialog>
 
-            {booking.status === 'in_progress' && (
-              <>
-                <Button
-                  size="sm"
-                  onClick={() => handleUpdateBookingStatus(booking.id, booking?.application_id, 'completed')}
-                  className="bg-[#008260] hover:bg-[#008260] text-white hover:text-white rounded-[25px] text-[13px] whitespace-nowrap px-6"
-                >
-                  Mark Completed
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleUpdateBookingStatus(booking.id, booking?.application_id, 'cancelled')}
-                  className="border border-[#FF0000] text-[13px] font-medium text-[#FF0000] rounded-[25px] bg-white hover:bg-white hover:text-[#FF0000]"
-                >
-                  Delete
-                </Button>
-              </>
-            )}
+            <BookingAgreementActions
+              booking={booking}
+              role="institution"
+              onUpdated={() => {
+                refreshSelected()
+              }}
+            />
+
+            <BookingCompletionActions
+              booking={booking}
+              role="institution"
+              onUpdated={async () => {
+                await loadProjectData()
+                refreshSelected()
+              }}
+              onApproved={(updated) => {
+                setSelectedBooking({ ...booking, ...updated, status: 'completed' })
+                setRatingModalOpen(true)
+              }}
+            />
             
             {booking.status === 'completed' && !getBookingRating(booking.id) && (
               <Button
@@ -1491,12 +1800,16 @@ export default function InstitutionProjectDetailsPage() {
         {isTrainingProjectType(project?.type) && (
           <TrainingAttendancePanel
             bookingId={booking.id}
-            startDate={booking.start_date}
-            endDate={booking.end_date}
+            startDate={booking.actual_start_date || booking.start_date}
+            endDate={booking.actual_end_date || booking.end_date}
             hoursBooked={booking.hours_booked}
             bookingStatus={booking.status}
             expectedViewerRole="institution"
-            defaultExpanded={booking.status === 'in_progress'}
+            defaultExpanded={
+              booking.status === 'in_progress' ||
+              booking.status === 'completion_requested' ||
+              booking.status === 'cancellation_requested'
+            }
           />
         )}
       </div>
@@ -1528,7 +1841,7 @@ export default function InstitutionProjectDetailsPage() {
           <DialogHeader>
             <DialogTitle>Schedule Interview</DialogTitle>
             <DialogDescription>
-              Set an interview date and time for this application (optional)
+              Set the interview date and time before moving this application to interview stage.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -1555,7 +1868,7 @@ export default function InstitutionProjectDetailsPage() {
                 />
               )}
               <div>
-                <Label>Interview Date (Optional)</Label>
+                <Label>Interview Date <span className="text-red-600">*</span></Label>
                 <DatePicker
                   value={interviewDate}
                   onChange={setInterviewDate}
@@ -1564,7 +1877,7 @@ export default function InstitutionProjectDetailsPage() {
                 />
               </div>
               <div>
-                <Label>Interview Time (Optional)</Label>
+                <Label>Interview Time <span className="text-red-600">*</span></Label>
                 <TimePicker
                   value={interviewTime}
                   onChange={setInterviewTime}
@@ -1573,7 +1886,7 @@ export default function InstitutionProjectDetailsPage() {
                 />
               </div>
               <p className="text-sm text-muted-foreground">
-                You can schedule an interview or proceed without setting a specific date and time
+                Interview date and time are required to move this application to the interview stage.
               </p>
             </div>
             <div className="flex justify-end space-x-2">
@@ -1585,7 +1898,7 @@ export default function InstitutionProjectDetailsPage() {
               </Button>
               <Button
                 onClick={handleInterviewSubmit}
-                disabled={processingApplications[selectedApplicationId || '']}
+                disabled={processingApplications[selectedApplicationId || ''] || !interviewDate || !interviewTime}
                 className="bg-[#008260] hover:bg-[#008260]"
               >
                 {processingApplications[selectedApplicationId || ''] ? 'Processing...' : 'Proceed to Interview'}
@@ -1598,43 +1911,71 @@ export default function InstitutionProjectDetailsPage() {
       <Dialog open={showFinalRateModal} onOpenChange={setShowFinalRateModal}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Confirm final hourly rate</DialogTitle>
+            <DialogTitle>Confirm & lock booking</DialogTitle>
             <DialogDescription>
-              Leave this blank to use the expert proposed rate or the project rate.
+              Review locked compensation before creating the booking.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="rounded-lg border border-[#DCDCDC] bg-[#F8FBFA] p-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-[#6A6A6A]">Project rate</span>
-                <span className="font-semibold">Rs {project?.hourly_rate || 0}/hr</span>
-              </div>
-              <div className="mt-1 flex justify-between">
-                <span className="text-[#6A6A6A]">Expert proposed</span>
-                <span className="font-semibold">Rs {selectedBookingApplication?.proposed_rate || project?.hourly_rate || 0}/hr</span>
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="finalHourlyRate">Final hourly rate (optional)</Label>
-              <Input
-                id="finalHourlyRate"
-                type="number"
-                min="1"
-                value={finalHourlyRate}
-                onChange={(event) => setFinalHourlyRate(event.target.value)}
-                placeholder="Use previous pricing"
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowFinalRateModal(false)}>Cancel</Button>
-              <Button
-                onClick={confirmProceedToBooking}
-                disabled={processingApplications[selectedBookingApplication?.id || '']}
-                className="bg-[#008260] hover:bg-[#008260]"
-              >
-                {processingApplications[selectedBookingApplication?.id || ''] ? 'Processing...' : 'Create Booking'}
-              </Button>
-            </div>
+            {(() => {
+              const pricing = projectCompensationDisplay(project)
+              const app = selectedBookingApplication
+              const gross =
+                Number(app?.final_gross_per_unit) > 0
+                  ? Number(app.final_gross_per_unit)
+                  : pricing.grossPerUnitDisplay
+              const total =
+                pricing.unit === 'fixed_package' ? gross : gross * (pricing.quantity || 1)
+              const overBudget = pricing.totalBudgetGross > 0 && total > pricing.totalBudgetGross * 1.001
+              return (
+                <>
+                  <div className="rounded-lg border border-[#DCDCDC] bg-[#F8FBFA] p-3 text-sm space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-[#6A6A6A]">Unit</span>
+                      <span className="font-semibold">{pricing.unitLabel}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#6A6A6A]">You pay</span>
+                      <span className="font-semibold">{moneyInr(gross)} / {pricing.unitShort}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#6A6A6A]">Total you pay</span>
+                      <span className="font-semibold">{moneyInr(total)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#6A6A6A]">{projectEngagementQuantityDisplay(project).label}</span>
+                      <span className="font-semibold">{projectEngagementQuantityDisplay(project).value}</span>
+                    </div>
+                  </div>
+                  {overBudget && (
+                    <label className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={approveOverBudget}
+                        onChange={(e) => setApproveOverBudget(e.target.checked)}
+                      />
+                      <span>
+                        Total exceeds posted budget ({moneyInr(pricing.totalBudgetGross)}). I approve this amount.
+                      </span>
+                    </label>
+                  )}
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setShowFinalRateModal(false)}>Back</Button>
+                    <Button
+                      onClick={confirmProceedToBooking}
+                      disabled={
+                        processingApplications[selectedBookingApplication?.id || ''] ||
+                        (overBudget && !approveOverBudget)
+                      }
+                      className="bg-[#008260] hover:bg-[#008260]"
+                    >
+                      {processingApplications[selectedBookingApplication?.id || ''] ? 'Processing...' : 'Confirm & create booking'}
+                    </Button>
+                  </div>
+                </>
+              )
+            })()}
           </div>
         </DialogContent>
       </Dialog>
@@ -1646,6 +1987,24 @@ export default function InstitutionProjectDetailsPage() {
         booking={selectedBooking}
         onRatingSubmitted={handleRatingSubmitted}
       />
+
+      <AlertDialog open={Boolean(confirmAction)} onOpenChange={(open) => !open && setConfirmAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmAction?.title}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmAction?.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmAction}
+              className={confirmAction?.destructive ? 'bg-red-600 hover:bg-red-700' : 'bg-[#008260] hover:bg-[#006d51]'}
+            >
+              {confirmAction?.confirmLabel}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

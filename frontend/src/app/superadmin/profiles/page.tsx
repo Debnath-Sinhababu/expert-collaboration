@@ -235,7 +235,7 @@ export default function SuperAdminProfilesPage() {
         { key: 'workspace', header: 'Workspace', render: (row: any) => (
           <PermissionGate permission="profiles:write" fallback={<span className="text-slate-400">No access</span>}>
             <Button asChild size="sm" className="bg-[#008260] hover:bg-[#006d51]">
-              <Link href={`/superadmin/experts/${row.id}/home`}>
+              <Link href={`/superadmin/experts/${row.id}/home`} target="_blank" rel="noopener noreferrer">
                 Open
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
@@ -253,7 +253,7 @@ export default function SuperAdminProfilesPage() {
           { key: 'workspace', header: 'Workspace', render: (row: any) => (
             <PermissionGate permission="profiles:write" fallback={<span className="text-slate-400">No access</span>}>
               <Button asChild size="sm" className="bg-[#008260] hover:bg-[#006d51]">
-                <Link href={`/superadmin/institutions/${row.id}/home`}>
+                <Link href={`/superadmin/institutions/${row.id}/home`} target="_blank" rel="noopener noreferrer">
                   Open
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
@@ -287,7 +287,18 @@ export default function SuperAdminProfilesPage() {
           <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
             <div className="relative w-full sm:w-80">
               <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-              <Input className="pl-9" placeholder="Search name or email" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <Input
+                className="pl-9"
+                placeholder={
+                  type === 'experts'
+                    ? 'Search any expert data'
+                    : type === 'institutions'
+                      ? 'Search any institution data'
+                      : 'Search any student data'
+                }
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
             </div>
             <Button
               type="button"

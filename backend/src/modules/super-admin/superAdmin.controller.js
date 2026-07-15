@@ -218,6 +218,15 @@ class SuperAdminController {
     ));
   };
 
+  updateRequirementDates = async (req, res) => {
+    res.json(await this.service.updateRequirementDates(
+      req.params.type,
+      req.params.id,
+      req.body || {},
+      req.superAdmin,
+    ));
+  };
+
   listFreelance = async (req, res) => {
     const paging = parsePage(req.query);
     res.json(await this.service.listFreelance({ ...paging, search: req.query.search || '' }));
@@ -248,6 +257,15 @@ class SuperAdminController {
 
   getFinancePayment = async (req, res) => {
     res.json(await this.service.getFinancePayment(req.params.id));
+  };
+
+  updateFinancePaymentAdjustment = async (req, res) => {
+    res.json(await this.service.updateFinancePaymentAdjustment(
+      req.params.id,
+      req.body || {},
+      req.superAdmin.user.id,
+      req.superAdmin,
+    ));
   };
 
   sendFinanceInvoice = async (req, res) => {

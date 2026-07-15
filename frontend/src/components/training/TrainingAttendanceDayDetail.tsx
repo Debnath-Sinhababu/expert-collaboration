@@ -268,16 +268,18 @@ export function TrainingAttendanceDayDetail({
 
       {(role === 'institution' || role === 'super_admin') &&
         !readOnly &&
-        day.status === 'pending_review' && (
+        (day.status === 'pending_review' || (role === 'super_admin' && day.status === 'approved')) && (
         <div className="flex flex-wrap gap-2 pt-2 border-t border-[#ECECEC]">
-          <Button
-            type="button"
-            disabled={busy}
-            onClick={onApprove}
-            className="bg-[#008260] hover:bg-[#006B4F] text-white"
-          >
-            Approve
-          </Button>
+          {day.status === 'pending_review' && (
+            <Button
+              type="button"
+              disabled={busy}
+              onClick={onApprove}
+              className="bg-[#008260] hover:bg-[#006B4F] text-white"
+            >
+              Approve
+            </Button>
+          )}
           <Button type="button" variant="outline" disabled={busy} onClick={openEdit}>
             Edit times
           </Button>

@@ -19,6 +19,13 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import NotificationBell from '@/components/NotificationBell'
 import ProfileDropdown from '@/components/ProfileDropdown'
 import Logo from '@/components/Logo'
+import { formatInterviewDateTime } from '@/lib/datetime'
+import { RateIntentBadge } from '@/components/requirements/RateIntentBadge'
+import { RateAgreementPanel } from '@/components/requirements/RateAgreementPanel'
+import { PostedCompensationRate } from '@/components/requirements/PostedCompensationRate'
+import { BookingCompletionActions } from '@/components/bookings/BookingCompletionActions'
+import { BookingAgreementActions } from '@/components/bookings/BookingAgreementActions'
+import { moneyInr, resolveBookingSettlementRates } from '@/lib/projectCompensation'
 import { 
   User, 
   Briefcase, 
@@ -78,6 +85,7 @@ export default function ExpertDashboard() {
     project_id: string
     projects?: { title?: string; description?: string }
     proposed_rate?: number
+    cover_letter?: string | null
     applied_at?: string
     expert_id?: string
   }
@@ -433,54 +441,73 @@ export default function ExpertDashboard() {
   }
 
   const calculateAnalytics = useCallback(() => {
-    if (!pagedBookings || !pagedPendingApplications || !pagedInterviewApplications || !pagedRejectedApplications) return
+    if (!pagedBookings) return
 
-    // Calculate total earnings from completed bookings
-    const completedBookings = pagedBookings.filter((booking: any) => booking.status === 'completed')
-    const totalEarnings = completedBookings.reduce((sum: number, booking: any) => sum + (booking.amount || 0), 0)
-    
-    // Calculate total hours worked
-    const totalHoursWorked = completedBookings.reduce((sum: number, booking: any) => sum + (booking.hours_booked || 0), 0)
-    
-    // Calculate average project value
-    const averageProjectValue = completedBookings.length > 0 ? totalEarnings / completedBookings.length : 0
-    
-    // Calculate success rate (accepted applications / total applications)
-    const totalApplications = (pagedPendingApplications?.length || 0) + 
-                             (pagedInterviewApplications?.length || 0) + 
-                             (pagedRejectedApplications?.length || 0) + 
-                             completedBookings.length
-    const acceptedApplications = completedBookings.length
-    const successRate = totalApplications > 0 ? (acceptedApplications / totalApplications) * 100 : 0
-    
-    // Calculate monthly earnings (last 30 days)
+    // Prefer API booking counts for completed; use paged rows only for earnings estimates from locked net.
+    const completedFromPage = (pagedBookings || []).filter((booking: any) => booking.status === 'completed')
+    const totalEarnings = completedFromPage.reduce((sum: number, booking: any) => {
+      const rates = resolveBookingSettlementRates(booking)
+      // Expert earnings use locked net × unit_quantity (or 1) — not institution gross amount.
+      const qty = Number(booking.unit_quantity) > 0 ? Number(booking.unit_quantity) : 1
+      return sum + rates.netPerUnit * (rates.unit === 'fixed_package' ? 1 : qty)
+    }, 0)
+
+    const totalHoursWorked = completedFromPage.reduce(
+      (sum: number, booking: any) => sum + (Number(booking.hours_booked) || 0),
+      0
+    )
+
+    const completedCount = Number(bookingCounts.completed) || completedFromPage.length
+    const averageProjectValue = completedFromPage.length > 0 ? totalEarnings / completedFromPage.length : 0
+
+    const totalApplications =
+      Number(applicationCounts.pending || 0) +
+      Number(applicationCounts.interview || 0) +
+      Number(applicationCounts.accepted || 0) +
+      Number(applicationCounts.rejected || 0)
+    const acceptedApplications = Number(applicationCounts.accepted || 0) + completedCount
+    const successRate = totalApplications > 0 ? (Number(applicationCounts.accepted || 0) / totalApplications) * 100 : 0
+
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-    const monthlyBookings = completedBookings.filter((booking: any) => 
-      new Date(booking.created_at || booking.start_date) >= thirtyDaysAgo
+    const monthlyBookings = completedFromPage.filter(
+      (booking: any) => new Date(booking.created_at || booking.start_date) >= thirtyDaysAgo
     )
-    const monthlyEarnings = monthlyBookings.reduce((sum: number, booking: any) => sum + (booking.amount || 0), 0)
-    
-    // Calculate weekly applications (last 7 days)
+    const monthlyEarnings = monthlyBookings.reduce((sum: number, booking: any) => {
+      const rates = resolveBookingSettlementRates(booking)
+      const qty = Number(booking.unit_quantity) > 0 ? Number(booking.unit_quantity) : 1
+      return sum + rates.netPerUnit * (rates.unit === 'fixed_package' ? 1 : qty)
+    }, 0)
+
     const sevenDaysAgo = new Date()
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
     const weeklyApplications = [
       ...(pagedPendingApplications || []),
       ...(pagedInterviewApplications || []),
-      ...(pagedRejectedApplications || [])
+      ...(pagedRejectedApplications || []),
     ].filter((app: any) => new Date(app.applied_at || app.created_at) >= sevenDaysAgo).length
 
     setAnalytics({
       totalEarnings,
-      completedBookings: completedBookings.length,
+      completedBookings: completedCount,
       totalHoursWorked,
       averageProjectValue,
       successRate,
-      responseTime: 0, // This would need to be calculated from application timestamps
+      responseTime: 0,
       monthlyEarnings,
-      weeklyApplications
+      weeklyApplications,
     })
-  }, [pagedBookings, pagedPendingApplications, pagedInterviewApplications, pagedRejectedApplications])
+  }, [
+    pagedBookings,
+    pagedPendingApplications,
+    pagedInterviewApplications,
+    pagedRejectedApplications,
+    bookingCounts.completed,
+    applicationCounts.pending,
+    applicationCounts.interview,
+    applicationCounts.accepted,
+    applicationCounts.rejected,
+  ])
 
   // Update analytics when data changes
   useEffect(() => {
@@ -488,7 +515,13 @@ export default function ExpertDashboard() {
   }, [calculateAnalytics])
 
   const expertAggregate = computeExpertRating()
-  const runningStatuses = new Set(['in_progress', 'pending', 'confirmed'])
+  const runningStatuses = new Set([
+    'in_progress',
+    'pending',
+    'confirmed',
+    'completion_requested',
+    'cancellation_requested',
+  ])
   const sortedPagedBookings = [...(pagedBookings || [])].sort((a: any, b: any) => {
     const aRunning = runningStatuses.has(a.status) ? 0 : 1
     const bRunning = runningStatuses.has(b.status) ? 0 : 1
@@ -550,7 +583,7 @@ export default function ExpertDashboard() {
               <p className="mt-2 text-sm text-[#6A6A6A] sm:text-base">Track applications, running projects, attendance, and earnings.</p>
             </div>
             <div className="rounded-xl bg-[#E8F5F1] px-4 py-3 text-left sm:text-right">
-              <p className="text-xs font-medium text-[#6A6A6A]">Running project</p>
+              <p className="text-xs font-medium text-[#6A6A6A]">Active bookings</p>
               <p className="text-2xl font-bold text-[#008260]">{bookingCounts.in_progress || 0}</p>
             </div>
           </div>
@@ -562,13 +595,18 @@ export default function ExpertDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-[#000000]">Total Applications</p>
-                  <p className="text-3xl font-bold text-[#000000] my-1">{applicationCounts.pending + applicationCounts.interview + applicationCounts.rejected + analytics.completedBookings}</p>
+                  <p className="text-3xl font-bold text-[#000000] my-1">
+                    {Number(applicationCounts.pending || 0) +
+                      Number(applicationCounts.interview || 0) +
+                      Number(applicationCounts.accepted || 0) +
+                      Number(applicationCounts.rejected || 0)}
+                  </p>
                   <div className="flex space-x-2 text-xs text-[#656565] font-medium my-2">
                     <span>{applicationCounts.pending} pending</span>
                     <span>•</span>
                     <span>{applicationCounts.interview} interview</span>
                     <span>•</span>
-                    <span>{analytics.completedBookings} completed</span>
+                    <span>{applicationCounts.accepted || 0} accepted</span>
                   </div>
                 </div>
                 <div className="p-3 bg-[#ECF2FF] rounded-full">
@@ -683,7 +721,7 @@ export default function ExpertDashboard() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#000000]">Running project</p>
+                  <p className="text-sm font-medium text-[#000000]">Active bookings</p>
                   <p className="text-2xl font-bold text-[#000000] my-1">{bookingCounts.in_progress || 0}</p>
                   <p className="text-xs text-slate-500">
                     {bookingCounts.completed || 0} completed 
@@ -710,7 +748,7 @@ export default function ExpertDashboard() {
               <CardContent className="p-4">
                 <p className="text-sm font-medium text-[#000000]">Invoiced Payouts</p>
                 <p className="text-3xl font-bold text-[#000000] my-1">Rs. {Number(financeSummary.summary.invoiced || 0).toFixed(2)}</p>
-                <p className="text-xs text-[#656565] font-medium">Awaiting payment</p>
+                <p className="text-xs text-[#656565] font-medium">Remaining on invoices (unpaid + partial)</p>
               </CardContent>
             </Card>
             <Card className="border-2 border-[#D6D6D6] bg-white">
@@ -791,14 +829,25 @@ export default function ExpertDashboard() {
                           </Badge>
                         </div>
                         <p className="text-xs sm:text-sm text-[#6A6A6A] mb-3 line-clamp-2">{application.projects?.description || 'Project description'}</p>
+                        {application.cover_letter ? (
+                          <div className="mb-3 rounded-lg border border-[#E8E8E8] bg-[#FAFAFA] p-3">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-[#717171] mb-1">Your cover letter</p>
+                            <p className="text-sm text-[#1D1D1D] whitespace-pre-wrap line-clamp-4">{application.cover_letter}</p>
+                          </div>
+                        ) : null}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 text-sm">
                           <div className="flex items-start gap-2 sm:gap-3 min-w-0">
                             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
                               <Clock className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
                             </div>
                             <div className="min-w-0">
-                              <span className="text-[#717171] text-xs">Rate:</span>
-                              <p className="font-semibold text-[#008260] text-sm sm:text-base truncate">₹{application.proposed_rate || application.projects?.hourly_rate}/hrs</p>
+                              <span className="text-[#717171] text-xs">Rate preference:</span>
+                              <div className="mt-1">
+                                <RateIntentBadge
+                                  rateIntent={application.rate_intent}
+                                  rateStatus={application.rate_status}
+                                />
+                              </div>
                             </div>
                           </div>
                           <div className="flex items-start gap-2 sm:gap-3 min-w-0">
@@ -806,8 +855,13 @@ export default function ExpertDashboard() {
                               <IndianRupee className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
                             </div>
                             <div className="min-w-0">
-                              <span className="text-[#717171] text-xs">Budget:</span>
-                              <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">₹{application.projects?.total_budget || 'N/A'}</p>
+                              <span className="text-[#717171] text-xs">You earn (posted):</span>
+                              <PostedCompensationRate
+                                project={application.projects}
+                                audience="expert"
+                                showLabel={false}
+                                className="font-medium text-sm sm:text-base text-[#1D1D1D]"
+                              />
                             </div>
                           </div>
                         </div>
@@ -874,6 +928,13 @@ export default function ExpertDashboard() {
                         </div>
                         <p className="text-xs sm:text-sm text-[#6A6A6A] mb-3 line-clamp-2">{application.projects?.description || 'Project description'}</p>
                         
+                        {application.cover_letter ? (
+                          <div className="mb-3 rounded-lg border border-[#E8E8E8] bg-[#FAFAFA] p-3">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-[#717171] mb-1">Your cover letter</p>
+                            <p className="text-sm text-[#1D1D1D] whitespace-pre-wrap line-clamp-4">{application.cover_letter}</p>
+                          </div>
+                        ) : null}
+
                         {/* Interview Date Highlight */}
                         {application.interview_date && (
                           <div className="border-l-4 border-[#008260] bg-[#F8F8F8] rounded-r-lg p-2 sm:p-3 mb-3">
@@ -883,13 +944,7 @@ export default function ExpertDashboard() {
                                 <span className="text-xs font-semibold text-[#008260]">Interview Scheduled:</span>
                               </div>
                               <span className="text-xs sm:text-sm font-bold text-[#000000] break-words">
-                                {new Date(application.interview_date).toLocaleDateString('en-US', { 
-                                  month: 'short', 
-                                  day: 'numeric', 
-                                  year: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
+                                {formatInterviewDateTime(application.interview_date)}
                               </span>
                             </div>
                           </div>
@@ -901,8 +956,13 @@ export default function ExpertDashboard() {
                               <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-[#008260]" />
                             </div>
                             <div className="min-w-0">
-                              <div className="text-[#717171] text-xs">Rate</div>
-                              <div className="font-semibold text-[#008260] text-sm sm:text-base truncate">₹{application.proposed_rate}/hrs</div>
+                              <div className="text-[#717171] text-xs">Rate preference</div>
+                              <div className="mt-1">
+                                <RateIntentBadge
+                                  rateIntent={application.rate_intent}
+                                  rateStatus={application.rate_status}
+                                />
+                              </div>
                             </div>
                           </div>
                           <div className="flex items-start gap-2 sm:gap-3 min-w-0">
@@ -910,11 +970,26 @@ export default function ExpertDashboard() {
                               <IndianRupee className="w-4 h-4 sm:w-5 sm:h-5 text-[#008260]" />
                             </div>
                             <div className="min-w-0">
-                              <div className="text-[#717171] text-xs">Budget</div>
-                              <div className="font-semibold text-[#000000] text-sm sm:text-base truncate">₹{application.projects?.total_budget || 'N/A'}</div>
+                              <div className="text-[#717171] text-xs">You earn (posted)</div>
+                              <PostedCompensationRate
+                                project={application.projects}
+                                audience="expert"
+                                showLabel={false}
+                                className="font-semibold text-[#000000] text-sm sm:text-base"
+                              />
                             </div>
                           </div>
                         </div>
+                        {application.projects && (
+                          <div className="mb-4">
+                            <RateAgreementPanel
+                              application={application}
+                              project={application.projects}
+                              role="expert"
+                              onUpdated={() => refreshInterviewApplications()}
+                            />
+                          </div>
+                        )}
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3">
                           <Badge className="capitalize bg-[#E8F4F8] hover:bg-[#E8F4F8] text-[#008260] border border-[#008260] rounded-full text-xs font-semibold py-1.5 px-3 self-start">
                             Interview
@@ -980,9 +1055,20 @@ export default function ExpertDashboard() {
                             </Badge>
                           </div>
                           <p className="text-xs sm:text-sm text-slate-600 mb-2 break-words line-clamp-2">{application.projects?.description || 'Project description'}</p>
+                          {application.cover_letter ? (
+                            <div className="mb-3 rounded-lg border border-[#E8E8E8] bg-[#FAFAFA] p-3">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-[#717171] mb-1">Your cover letter</p>
+                              <p className="text-sm text-[#1D1D1D] whitespace-pre-wrap line-clamp-4">{application.cover_letter}</p>
+                            </div>
+                          ) : null}
                           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs sm:text-sm text-slate-500">
                             <span>Applied: {new Date(application.applied_at || Date.now()).toLocaleDateString()}</span>
-                            <span className="font-medium text-slate-700">Proposed Rate: ₹{application.proposed_rate}</span>
+                            <PostedCompensationRate
+                              project={application.projects}
+                              audience="expert"
+                              showLabel={false}
+                              className="font-medium text-slate-700 text-xs sm:text-sm"
+                            />
                           </div>
                         </div>
                       ))}
@@ -1042,8 +1128,10 @@ export default function ExpertDashboard() {
                               <IndianRupee className="w-4 h-4 sm:w-5 sm:h-5 text-[#008260]" />
                             </div>
                             <div className="min-w-0">
-                              <div className="text-[#717171] text-xs">Amount</div>
-                              <div className="font-semibold text-[#008260] text-sm sm:text-base truncate">₹{booking.amount}</div>
+                              <div className="text-[#717171] text-xs">You earn (agreed)</div>
+                              <div className="font-semibold text-[#008260] text-sm sm:text-base truncate">
+                                {moneyInr(resolveBookingSettlementRates(booking).netPerUnit)} / {resolveBookingSettlementRates(booking).unitShort}
+                              </div>
                             </div>
                           </div>
                           <div className="flex items-start gap-2 sm:gap-3 min-w-0">
@@ -1077,72 +1165,27 @@ export default function ExpertDashboard() {
                         {isTrainingBooking(booking) && (
                           <TrainingAttendancePanel
                             bookingId={booking.id}
-                            startDate={booking.start_date}
-                            endDate={booking.end_date}
+                            startDate={booking.actual_start_date || booking.start_date}
+                            endDate={booking.actual_end_date || booking.end_date}
                             hoursBooked={booking.hours_booked}
                             bookingStatus={booking.status}
                             expectedViewerRole="expert"
-                            defaultExpanded={booking.status === 'in_progress'}
+                            defaultExpanded={
+                              booking.status === 'in_progress' ||
+                              booking.status === 'completion_requested' ||
+                              booking.status === 'cancellation_requested'
+                            }
                           />
                         )}
-                        <div className="flex justify-end pt-3 border-t border-[#ECECEC]">
-                          {booking.status === 'in_progress' && (
-                            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                              <Button
-                                size="sm"
-                                className="bg-[#008260] hover:bg-[#006D51] rounded-3xl text-white font-medium w-full sm:w-auto"
-                                onClick={async () => {
-                                  try {
-                                    await api.bookings.update(booking.id, { status: 'completed' })
-                                    await refreshBookings()
-                                  } catch (e) {
-                                    console.error('Failed to mark booking complete', e)
-                                    setError('Failed to mark project complete')
-                                  }
-                                }}
-                              >
-                                <CheckCircle className="h-4 w-4 mr-1" />
-                                Mark Complete
-                              </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className='bg-[#FFF2F2] rounded-3xl border border-[#9B0000] text-[#9B0000] font-medium hover:bg-[#FFE5E5] w-full sm:w-auto'
-                                >
-                                  <XCircle className="h-4 w-4 mr-1" />
-                                  Cancel Booking
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Cancel Booking</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to cancel this booking? This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>No, Keep Booking</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    className="bg-[#9B0000] hover:bg-[#7A0000]"
-                                    onClick={async () => {
-                                      try {
-                                        await api.bookings.delete(booking.id)
-                                        await refreshBookings()
-                                      } catch (e) {
-                                        console.error('Failed to cancel booking', e)
-                                        setError('Failed to cancel booking')
-                                      }
-                                    }}
-                                  >
-                                    Yes, Cancel Booking
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                            </div>
-                          )}
+                        <div className="flex flex-wrap justify-end gap-2 pt-3 border-t border-[#ECECEC]">
+                          <BookingAgreementActions booking={booking} role="expert" />
+                          <BookingCompletionActions
+                            booking={booking}
+                            role="expert"
+                            onUpdated={async () => {
+                              await refreshBookings()
+                            }}
+                          />
                         </div>
                       </div>
                     ))}

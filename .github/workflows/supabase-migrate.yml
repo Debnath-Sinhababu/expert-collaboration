@@ -1,0 +1,102 @@
+name: supabase-migrate
+
+on:
+  # Auto-run migrations when migration files change on release branches.
+  push:
+    branches:
+      - STAGING-REL-1   # QA
+      - main              # Production
+    paths:
+      - "supabase/migrations/**"
+
+  # Manual override (e.g. re-run a failed migration).
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - qa
+          - production
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Resolve target environment
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TARGET="${{ github.event.inputs.environment }}"
+          elif [ "${{ github.ref_name }}" = "STAGING-REL-1" ]; then
+            TARGET="qa"
+          elif [ "${{ github.ref_name }}" = "main" ]; then
+            TARGET="production"
+          else
+            echo "Unsupported branch: ${{ github.ref_name }}"
+            exit 1
+          fi
+          echo "TARGET_ENV=${TARGET}" >> "$GITHUB_ENV"
+          echo "Resolved target environment: ${TARGET} (branch: ${{ github.ref_name }})"
+
+      # Pass DB URL directly from secrets at step level (avoid GITHUB_ENV corruption).
+      - name: Validate QA secret
+        if: env.TARGET_ENV == 'qa'
+        env:
+          DB_URL: ${{ secrets.SUPABASE_QA_DB_URL }}
+        run: |
+          if [ -z "${DB_URL}" ]; then
+            echo "SUPABASE_QA_DB_URL is empty."
+            exit 1
+          fi
+          HOST="$(echo "${DB_URL}" | sed -E 's|^postgresql://[^@]+@([^:/]+).*|\1|')"
+          echo "QA DB host: ${HOST}"
+
+      - name: Validate Production secret
+        if: env.TARGET_ENV == 'production'
+        env:
+          DB_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
+        run: |
+          if [ -z "${DB_URL}" ]; then
+            echo "SUPABASE_PROD_DB_URL is empty."
+            exit 1
+          fi
+          HOST="$(echo "${DB_URL}" | sed -E 's|^postgresql://[^@]+@([^:/]+).*|\1|')"
+          echo "Production DB host: ${HOST}"
+
+      - name: List migration status (QA)
+        if: env.TARGET_ENV == 'qa'
+        env:
+          DB_URL: ${{ secrets.SUPABASE_QA_DB_URL }}
+        run: supabase migration list --db-url "$DB_URL"
+
+      - name: List migration status (Production)
+        if: env.TARGET_ENV == 'production'
+        env:
+          DB_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
+        run: supabase migration list --db-url "$DB_URL"
+
+      - name: Apply pending migrations (QA)
+        if: env.TARGET_ENV == 'qa'
+        env:
+          DB_URL: ${{ secrets.SUPABASE_QA_DB_URL }}
+        run: |
+          echo "Applying migrations to qa (branch: ${{ github.ref_name }})..."
+          supabase db push --db-url "$DB_URL"
+
+      - name: Apply pending migrations (Production)
+        if: env.TARGET_ENV == 'production'
+        env:
+          DB_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
+        run: |
+          echo "Applying migrations to production (branch: ${{ github.ref_name }})..."
+          supabase db push --db-url "$DB_URL"

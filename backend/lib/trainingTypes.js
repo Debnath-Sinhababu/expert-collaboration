@@ -10,10 +10,11 @@ const TRAINING_PROJECT_TYPES = [
 ];
 
 function isTrainingProjectType(type) {
-  return TRAINING_PROJECT_TYPES.includes(type);
+  const value = String(type || '').trim();
+  return Boolean(value);
 }
 
-const ACTIVE_BOOKING_STATUSES = ['confirmed', 'in_progress'];
+const ACTIVE_BOOKING_STATUSES = ['confirmed', 'in_progress', 'completion_requested', 'cancellation_requested'];
 const READ_ONLY_BOOKING_STATUSES = ['completed', 'cancelled'];
 
 module.exports = {

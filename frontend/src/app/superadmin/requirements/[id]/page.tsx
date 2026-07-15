@@ -18,13 +18,40 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { SectionCard } from '@/components/superadmin/common/SectionCard'
 import { StatCard } from '@/components/superadmin/common/StatCard'
 import { TrainingAttendancePanel } from '@/components/training/TrainingAttendancePanel'
+import { RateIntentBadge } from '@/components/requirements/RateIntentBadge'
+import { RateAgreementPanel } from '@/components/requirements/RateAgreementPanel'
+import { PostedCompensationRate } from '@/components/requirements/PostedCompensationRate'
+import { BookingCompletionActions } from '@/components/bookings/BookingCompletionActions'
+import { BookingAgreementActions } from '@/components/bookings/BookingAgreementActions'
 import { useSuperAdminAccess } from '@/components/superadmin/layout/SuperAdminAccessContext'
 import { superAdminApi } from '@/lib/superadmin/api'
+import { formatInterviewDateTime, datetimeLocalToIso } from '@/lib/datetime'
 import { canAccessAny } from '@/lib/superadmin/permissions'
 import type { SuperAdminPermission } from '@/lib/superadmin/types'
+import { getInstitutionRate } from '@/lib/utils'
+import { setSuperAdminActingInstitutionId } from '@/lib/superAdminActing'
+import {
+  isPostedRateDeclined,
+  isPostedRateOfferPending,
+  isRateAgreed,
+  moneyInr,
+  projectCompensationDisplay,
+  projectEngagementQuantityDisplay,
+  resolveBookingSettlementRates,
+} from '@/lib/projectCompensation'
 
 const STAGES = [
   { value: 'pending', label: 'Pending' },
@@ -43,6 +70,15 @@ function stageLabel(value: string) {
   if (value === 'interview_scheduled') return 'Interview'
   if (value === 'completed') return 'Completed'
   return STAGES.find((stage) => stage.value === value)?.label || value
+}
+
+function isRejectedApplicationStatus(status?: string | null) {
+  const value = String(status || '').toLowerCase()
+  return value === 'rejected' || value === 'rejected_corporate'
+}
+
+function isRejectedPipelineStage(stage?: string | null) {
+  return String(stage || '').toLowerCase() === 'rejected'
 }
 
 function operationsStateLabel(value?: string | null) {
@@ -71,11 +107,23 @@ function paymentSummaryCard(label: string, record: any) {
       </div>
     )
   }
+  const due = Number(record.invoice_amount || record.calculated_amount || 0)
+  const paid = Number(record.paid_amount || 0)
+  let statusLabel = String(record.status || 'pending').replace(/_/g, ' ')
+  if (String(record.status || '').toLowerCase() === 'partial_paid') statusLabel = 'partial paid'
+  else if (
+    String(record.status || '').toLowerCase() === 'invoiced' &&
+    paid > 0 &&
+    due > 0 &&
+    paid + 0.001 < due
+  ) {
+    statusLabel = 'partial paid'
+  }
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
-        <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold capitalize text-slate-700">{record.status || 'pending'}</span>
+        <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold capitalize text-slate-700">{statusLabel}</span>
       </div>
       <div className="mt-2 grid gap-2 text-sm sm:grid-cols-3">
         <div><span className="text-slate-500">Amount</span><p className="font-semibold text-slate-950">{money(record.invoice_amount || record.calculated_amount)}</p></div>
@@ -107,10 +155,20 @@ export default function SuperAdminRequirementDetailPage() {
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [workflowSaving, setWorkflowSaving] = useState(false)
+  const [dateEdits, setDateEdits] = useState({ start_date: '', end_date: '' })
+  const [dateSaving, setDateSaving] = useState(false)
+  const [bookingStatusSaving, setBookingStatusSaving] = useState<Record<string, boolean>>({})
   const [interviewDialog, setInterviewDialog] = useState<null | {
     kind: 'pipeline' | 'native'
     row: any
     value: string
+  }>(null)
+  const [confirmActionDialog, setConfirmActionDialog] = useState<null | {
+    title: string
+    description: string
+    confirmLabel: string
+    destructive?: boolean
+    onConfirm: () => Promise<void>
   }>(null)
 
   const decoded = decodeURIComponent(params.id)
@@ -124,6 +182,8 @@ export default function SuperAdminRequirementDetailPage() {
     setError('')
     try {
       const res = await superAdminApi.requirementDetail(requirementType, requirementId)
+      const institutionId = res?.requirement?.institution_id || res?.institution?.id || null
+      if (institutionId) setSuperAdminActingInstitutionId(String(institutionId))
       setDetail(res)
     } catch (err) {
       setDetail(null)
@@ -136,6 +196,44 @@ export default function SuperAdminRequirementDetailPage() {
   useEffect(() => {
     loadDetail()
   }, [requirementType, requirementId])
+
+  useEffect(() => {
+    const requirement = detail?.requirement
+    setDateEdits({
+      start_date: requirement?.start_date ? String(requirement.start_date).slice(0, 10) : '',
+      end_date: requirement?.end_date ? String(requirement.end_date).slice(0, 10) : '',
+    })
+  }, [detail?.requirement?.start_date, detail?.requirement?.end_date])
+
+  async function saveRequirementDates() {
+    if (!dateEdits.start_date || !dateEdits.end_date) {
+      toast.error('Start and end dates are required')
+      return
+    }
+    setDateSaving(true)
+    try {
+      await superAdminApi.updateRequirementDates(requirementType, requirementId, dateEdits)
+      toast.success('Requirement dates updated')
+      await loadDetail()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update dates')
+    } finally {
+      setDateSaving(false)
+    }
+  }
+
+  async function updateBookingStatus(booking: any, status: string) {
+    setBookingStatusSaving((current) => ({ ...current, [booking.id]: true }))
+    try {
+      await superAdminApi.updateRequirementBooking(requirementType, requirementId, booking.id, { status })
+      toast.success('Booking status updated')
+      await loadDetail()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update booking status')
+    } finally {
+      setBookingStatusSaving((current) => ({ ...current, [booking.id]: false }))
+    }
+  }
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -156,13 +254,17 @@ export default function SuperAdminRequirementDetailPage() {
       toast.error('Select an expert')
       return
     }
+    if (stage === 'interview_scheduled' && !interviewAt?.trim()) {
+      toast.error('Interview date and time are required')
+      return
+    }
     setSaving(true)
     try {
       const created = await superAdminApi.addRequirementExpert(requirementId, {
         expert_id: expertId,
         requirement_type: requirementType,
         stage,
-        interview_scheduled_at: interviewAt || null,
+        interview_scheduled_at: stage === 'interview_scheduled' ? datetimeLocalToIso(interviewAt) : null,
         notes,
       })
       if (!created?.id) {
@@ -206,7 +308,7 @@ export default function SuperAdminRequirementDetailPage() {
         status,
         interview_scheduled_at: interviewValue || null,
       })
-      toast.success('Application updated')
+      toast.success(status === 'accepted' ? 'Booking confirmed and locked' : 'Application updated')
       await loadDetail()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update application')
@@ -215,57 +317,204 @@ export default function SuperAdminRequirementDetailPage() {
     }
   }
 
-  async function updateBooking(row: any, status: string) {
-    setWorkflowSaving(true)
-    try {
-      await superAdminApi.updateRequirementBooking(requirementType, requirementId, row.id, { status })
-      toast.success('Booking updated')
-      await loadDetail()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to update booking')
-    } finally {
-      setWorkflowSaving(false)
-    }
-  }
-
   async function confirmInterview() {
     if (!interviewDialog) return
+    if (!interviewDialog.value?.trim()) {
+      toast.error('Interview date and time are required')
+      return
+    }
+    const interviewValue = datetimeLocalToIso(interviewDialog.value)
+    if (!interviewValue) {
+      toast.error('Enter a valid interview date and time')
+      return
+    }
     const current = interviewDialog
     setInterviewDialog(null)
     if (current.kind === 'pipeline') {
-      await runCandidateAction(current.row, 'schedule_interview', current.value || null)
+      await runCandidateAction(current.row, 'schedule_interview', interviewValue)
       return
     }
-    await updateNativeApplication(current.row, 'interview', current.value || null)
+    await updateNativeApplication(current.row, 'interview', interviewValue)
   }
 
-  function nativeActions(row: any) {
+  function getRowPersonName(row: any) {
+    return row.experts?.name || row.site_students?.name || 'this candidate'
+  }
+
+  function openConfirmAction(options: {
+    title: string
+    description: string
+    confirmLabel: string
+    destructive?: boolean
+    onConfirm: () => Promise<void>
+  }) {
+    setConfirmActionDialog(options)
+  }
+
+  async function handleConfirmAction() {
+    if (!confirmActionDialog) return
+    const action = confirmActionDialog.onConfirm
+    setConfirmActionDialog(null)
+    await action()
+  }
+
+  function confirmSelectNative(row: any, status: string, label = 'Select') {
+    const name = getRowPersonName(row)
+    if (requirementType === 'project' && status === 'accepted') {
+      const rateStatus = row.rate_status || row.rate_intent
+      if (isPostedRateDeclined(rateStatus)) {
+        toast.error('Expert declined the posted rate. Booking cannot proceed for this application.')
+        return
+      }
+      if (isPostedRateOfferPending(rateStatus)) {
+        toast.error('Waiting for the expert to respond to the posted-rate request')
+        return
+      }
+      if (!isRateAgreed(rateStatus) && row.rate_intent === 'open_to_negotiate') {
+        toast.error('Complete rate negotiation before confirming booking')
+        return
+      }
+      const pricing = projectCompensationDisplay(requirement || {})
+      const gross =
+        Number(row.final_gross_per_unit) > 0
+          ? Number(row.final_gross_per_unit)
+          : pricing.grossPerUnitDisplay
+      const net =
+        Number(row.final_net_per_unit) > 0
+          ? Number(row.final_net_per_unit)
+          : pricing.netPerUnitDisplay
+      openConfirmAction({
+        title: 'Confirm & lock booking?',
+        description: `Lock booking for ${name} at institute pays ${moneyInr(gross)} / ${pricing.unitShort} and expert earns ${moneyInr(net)} / ${pricing.unitShort}.`,
+        confirmLabel: 'Confirm & lock',
+        onConfirm: () => updateNativeApplication(row, 'accepted'),
+      })
+      return
+    }
+    openConfirmAction({
+      title: `${label} candidate?`,
+      description: `Are you sure you want to ${label.toLowerCase()} ${name}?`,
+      confirmLabel: label,
+      onConfirm: () => updateNativeApplication(row, status),
+    })
+  }
+
+  function confirmRejectNative(row: any, status: string) {
+    const name = getRowPersonName(row)
+    openConfirmAction({
+      title: 'Reject candidate?',
+      description: `Are you sure you want to reject ${name}? This action can be reversed by moving them back to pending.`,
+      confirmLabel: 'Reject',
+      destructive: true,
+      onConfirm: () => updateNativeApplication(row, status),
+    })
+  }
+
+  function confirmSelectPipeline(row: any) {
+    const name = getRowPersonName(row)
+    openConfirmAction({
+      title: 'Select candidate?',
+      description: `Are you sure you want to select ${name}?`,
+      confirmLabel: 'Select',
+      onConfirm: () => runCandidateAction(row, 'select'),
+    })
+  }
+
+  function confirmRejectPipeline(row: any) {
+    const name = getRowPersonName(row)
+    openConfirmAction({
+      title: 'Reject candidate?',
+      description: `Are you sure you want to reject ${name}?`,
+      confirmLabel: 'Reject',
+      destructive: true,
+      onConfirm: () => runCandidateAction(row, 'reject'),
+    })
+  }
+
+  const tabActionVisibility = {
+    hideInterview: activeStage === 'interview',
+    hideSelect: activeStage === 'selected',
+    // Once an application leaves pending, it cannot be moved back.
+    hidePending: true,
+    hideReject: activeStage === 'rejected',
+  }
+
+  function nativeActions(row: any, options?: {
+    hideInterview?: boolean
+    hideSelect?: boolean
+    hidePending?: boolean
+    hideReject?: boolean
+  }) {
     if (!canManagePipeline) return null
+    const visibility = { ...tabActionVisibility, ...options }
     if (requirementType === 'project') {
+      const rateStatus = row.rate_status || row.rate_intent
+      const lockDisabled =
+        (row.rate_intent === 'open_to_negotiate' && !isRateAgreed(rateStatus)) ||
+        isPostedRateOfferPending(rateStatus) ||
+        isPostedRateDeclined(rateStatus)
       return (
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => setInterviewDialog({ kind: 'native', row, value: toDatetimeLocal(row.interview_date) })}>Interview</Button>
-          <Button type="button" size="sm" className="bg-[#008260] hover:bg-[#006d51]" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'accepted')}>Select</Button>
-          <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'pending')}>Pending</Button>
-          <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'rejected')}>Reject</Button>
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap gap-2">
+            {!visibility.hideInterview ? (
+              <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => setInterviewDialog({ kind: 'native', row, value: toDatetimeLocal(row.interview_date) })}>Interview</Button>
+            ) : null}
+            {!visibility.hideSelect ? (
+              <Button
+                type="button"
+                size="sm"
+                className="bg-[#008260] hover:bg-[#006d51]"
+                disabled={workflowSaving || lockDisabled}
+                onClick={() => confirmSelectNative(row, 'accepted')}
+              >
+                Confirm & lock
+              </Button>
+            ) : null}
+            {!visibility.hidePending ? (
+              <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'pending')}>Pending</Button>
+            ) : null}
+            {!visibility.hideReject ? (
+              <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" disabled={workflowSaving} onClick={() => confirmRejectNative(row, 'rejected')}>Reject</Button>
+            ) : null}
+          </div>
+          {isPostedRateOfferPending(rateStatus) ? (
+            <p className="text-xs text-sky-800">Confirm &amp; lock is paused until the expert responds to the posted-rate request.</p>
+          ) : null}
+          {isPostedRateDeclined(rateStatus) ? (
+            <p className="text-xs text-rose-700">Confirm &amp; lock is disabled — the expert declined proceeding at the posted rate only.</p>
+          ) : null}
         </div>
       )
     }
     if (requirementType === 'internship') {
       return (
         <div className="flex flex-wrap gap-2">
-          <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => setInterviewDialog({ kind: 'native', row, value: toDatetimeLocal(row.interview_scheduled_at) })}>Interview</Button>
-          <Button type="button" size="sm" className="bg-[#008260] hover:bg-[#006d51]" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'shortlisted_corporate')}>Shortlist</Button>
-          <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'pending')}>Pending</Button>
-          <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'rejected_corporate')}>Reject</Button>
+          {!visibility.hideInterview ? (
+            <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => setInterviewDialog({ kind: 'native', row, value: toDatetimeLocal(row.interview_scheduled_at) })}>Interview</Button>
+          ) : null}
+          {!visibility.hideSelect ? (
+            <Button type="button" size="sm" className="bg-[#008260] hover:bg-[#006d51]" disabled={workflowSaving} onClick={() => confirmSelectNative(row, 'shortlisted_corporate', 'Shortlist')}>Shortlist</Button>
+          ) : null}
+          {!visibility.hidePending ? (
+            <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'pending')}>Pending</Button>
+          ) : null}
+          {!visibility.hideReject ? (
+            <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" disabled={workflowSaving} onClick={() => confirmRejectNative(row, 'rejected_corporate')}>Reject</Button>
+          ) : null}
         </div>
       )
     }
     return (
       <div className="flex flex-wrap gap-2">
-        <Button type="button" size="sm" className="bg-[#008260] hover:bg-[#006d51]" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'shortlisted')}>Shortlist</Button>
-        <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'pending')}>Pending</Button>
-        <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'rejected')}>Reject</Button>
+        {!visibility.hideSelect ? (
+          <Button type="button" size="sm" className="bg-[#008260] hover:bg-[#006d51]" disabled={workflowSaving} onClick={() => confirmSelectNative(row, 'shortlisted', 'Shortlist')}>Shortlist</Button>
+        ) : null}
+        {!visibility.hidePending ? (
+          <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => updateNativeApplication(row, 'pending')}>Pending</Button>
+        ) : null}
+        {!visibility.hideReject ? (
+          <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" disabled={workflowSaving} onClick={() => confirmRejectNative(row, 'rejected')}>Reject</Button>
+        ) : null}
       </div>
     )
   }
@@ -344,28 +593,42 @@ export default function SuperAdminRequirementDetailPage() {
   function renderStatusActions(item: any) {
     if (!canManagePipeline) return null
     if (item.kind === 'booking') {
+      if (requirementType !== 'project') return null
       return (
-        <div className="flex flex-wrap gap-2">
-          {item.row.status !== 'completed' ? (
-            <Button type="button" size="sm" className="bg-[#008260] hover:bg-[#006d51]" disabled={workflowSaving} onClick={() => updateBooking(item.row, 'completed')}>Mark completed</Button>
-          ) : null}
-          {item.row.status !== 'cancelled' ? (
-            <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" disabled={workflowSaving} onClick={() => updateBooking(item.row, 'cancelled')}>Cancel</Button>
-          ) : null}
+        <div className="flex flex-col gap-2 items-end">
+          <BookingAgreementActions
+            booking={item.row}
+            role="institution"
+            onUpdated={async () => {
+              await loadDetail()
+            }}
+          />
+          <BookingCompletionActions
+            booking={item.row}
+            role="institution"
+            onUpdated={async () => {
+              await loadDetail()
+            }}
+          />
         </div>
       )
     }
     if (item.kind === 'pipeline') {
+      const hideInterview = tabActionVisibility.hideInterview || item.row.stage === 'interview_scheduled'
       return (
         <div className="flex flex-wrap gap-2">
           {item.row.stage === 'added' ? (
             <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => runCandidateAction(item.row, 'notify')}>Notify</Button>
           ) : null}
-          {item.row.stage !== 'interview_scheduled' ? (
+          {!hideInterview ? (
             <Button type="button" size="sm" variant="outline" disabled={workflowSaving} onClick={() => setInterviewDialog({ kind: 'pipeline', row: item.row, value: toDatetimeLocal(item.row.interview_scheduled_at) })}>Interview</Button>
           ) : null}
-          <Button type="button" size="sm" className="bg-[#008260] hover:bg-[#006d51]" disabled={workflowSaving} onClick={() => runCandidateAction(item.row, 'select')}>Select</Button>
-          <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" disabled={workflowSaving} onClick={() => runCandidateAction(item.row, 'reject')}>Reject</Button>
+          {!tabActionVisibility.hideSelect ? (
+            <Button type="button" size="sm" className="bg-[#008260] hover:bg-[#006d51]" disabled={workflowSaving} onClick={() => confirmSelectPipeline(item.row)}>Select</Button>
+          ) : null}
+          {!tabActionVisibility.hideReject ? (
+            <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" disabled={workflowSaving} onClick={() => confirmRejectPipeline(item.row)}>Reject</Button>
+          ) : null}
         </div>
       )
     }
@@ -375,7 +638,16 @@ export default function SuperAdminRequirementDetailPage() {
   function renderStatusCard(item: any) {
     const person = getItemPerson(item)
     const booking = item.kind === 'booking' ? item.row : null
+    const application = item.kind === 'application' ? item.row : null
     const title = person?.name || item.row.expert_id || item.row.student_id || 'Unknown'
+    const settlement = booking
+      ? resolveBookingSettlementRates({
+          ...booking,
+          projects: booking.projects || requirement,
+        })
+      : null
+    const showProjectRateUi = requirementType === 'project' && Boolean(application?.experts || booking?.experts)
+
     return (
       <div key={`${item.kind}-${item.row.id}`} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -387,17 +659,69 @@ export default function SuperAdminRequirementDetailPage() {
             </div>
             <p className="mt-1 text-sm text-slate-600">{person?.email || person?.phone || '-'}</p>
             {person?.bio ? <p className="mt-3 line-clamp-2 text-sm text-slate-700">{person.bio}</p> : null}
+            {showProjectRateUi && application ? (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <p className="text-sm text-slate-700">
+                  Original rate ₹{getInstitutionRate(person?.hourly_rate)}/hr
+                </p>
+                <RateIntentBadge rateIntent={application.rate_intent} rateStatus={application.rate_status} />
+              </div>
+            ) : null}
+            {application?.cover_letter ? (
+              <div className="mt-3 rounded-lg border border-slate-100 bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Cover letter</p>
+                <p className="mt-1 whitespace-pre-wrap text-sm text-slate-800">{application.cover_letter}</p>
+              </div>
+            ) : null}
+            {application?.screening_answers ? (
+              <div className="mt-3 rounded-lg border border-slate-100 bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Screening answers</p>
+                <p className="mt-1 whitespace-pre-wrap text-sm text-slate-800">{application.screening_answers}</p>
+              </div>
+            ) : null}
             <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-              <div><span className="text-slate-500">Rate</span><p className="font-medium text-slate-950">{person?.hourly_rate ? `Rs. ${person.hourly_rate}/hr` : '-'}</p></div>
+              {booking && settlement ? (
+                <>
+                  <div>
+                    <span className="text-slate-500">Institute pays</span>
+                    <p className="font-medium text-slate-950">
+                      {moneyInr(settlement.grossPerUnit)} / {settlement.unitShort}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Expert earns</span>
+                    <p className="font-medium text-slate-950">
+                      {moneyInr(settlement.netPerUnit)} / {settlement.unitShort}
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <div>
+                  <span className="text-slate-500">Original rate</span>
+                  <p className="font-medium text-slate-950">
+                    {person?.hourly_rate != null ? `₹${getInstitutionRate(person.hourly_rate)}/hr` : '-'}
+                  </p>
+                </div>
+              )}
               <div><span className="text-slate-500">Experience</span><p className="font-medium text-slate-950">{person?.experience_years != null ? `${person.experience_years} years` : '-'}</p></div>
               <div><span className="text-slate-500">Domain</span><p className="font-medium text-slate-950">{Array.isArray(person?.domain_expertise) ? person.domain_expertise.join(', ') : person?.domain_expertise || '-'}</p></div>
-              <div><span className="text-slate-500">Interview</span><p className="font-medium text-slate-950">{formatDate(item.row.interview_date || item.row.interview_scheduled_at)}</p></div>
+              <div><span className="text-slate-500">Interview</span><p className="font-medium text-slate-950">{formatInterviewDateTime(item.row.interview_date || item.row.interview_scheduled_at)}</p></div>
               {booking ? <div><span className="text-slate-500">Booked Hours</span><p className="font-medium text-slate-950">{booking.hours_booked || 0}</p></div> : null}
               {booking ? <div><span className="text-slate-500">Approved Hours</span><p className="font-medium text-slate-950">{booking.approved_hours || 0}</p></div> : null}
               {booking ? <div><span className="text-slate-500">Payment</span><p className="font-medium text-slate-950">{booking.payment_status || '-'}</p></div> : null}
               {booking ? <div><span className="text-slate-500">Dates</span><p className="font-medium text-slate-950">{booking.start_date || '-'} to {booking.end_date || '-'}</p></div> : null}
             </div>
             {person?.subskills?.length ? <p className="mt-3 text-sm text-slate-600"><span className="font-medium text-slate-800">Skills:</span> {person.subskills.join(', ')}</p> : null}
+            {requirementType === 'project' && application && requirement && activeStage === 'interview' ? (
+              <div className="mt-4">
+                <RateAgreementPanel
+                  application={application}
+                  project={requirement}
+                  role="institution"
+                  onUpdated={() => loadDetail()}
+                />
+              </div>
+            ) : null}
             {booking ? (
               <div className="mt-4 grid gap-3 lg:grid-cols-2">
                 {paymentSummaryCard('Expert payable', booking.finance_summary?.expert)}
@@ -407,18 +731,45 @@ export default function SuperAdminRequirementDetailPage() {
           </div>
           <div className="flex shrink-0 flex-col gap-2 lg:min-w-56">
             {renderStatusActions(item)}
+            {booking ? (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <Label className="text-xs text-slate-500">Booking status</Label>
+                <Select
+                  value={booking.status || ''}
+                  onValueChange={(value) => updateBookingStatus(booking, value)}
+                  disabled={Boolean(bookingStatusSaving[booking.id])}
+                >
+                  <SelectTrigger className="mt-1 bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="confirmed">Confirmed</SelectItem>
+                    <SelectItem value="in_progress">In progress</SelectItem>
+                    <SelectItem value="completion_requested">Completion requested</SelectItem>
+                    <SelectItem value="cancellation_requested">Cancellation requested</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
           </div>
         </div>
         {booking && requirementType === 'project' ? (
           <div className="mt-4 border-t border-slate-100 pt-4">
             <TrainingAttendancePanel
               bookingId={booking.id}
-              startDate={booking.start_date}
-              endDate={booking.end_date}
+              startDate={booking.actual_start_date || booking.start_date}
+              endDate={booking.actual_end_date || booking.end_date}
               hoursBooked={booking.hours_booked}
               bookingStatus={booking.status}
               expectedViewerRole="institution"
-              defaultExpanded={booking.status === 'in_progress'}
+              defaultExpanded={
+                booking.status === 'in_progress' ||
+                booking.status === 'completion_requested' ||
+                booking.status === 'cancellation_requested'
+              }
             />
           </div>
         ) : null}
@@ -446,14 +797,16 @@ export default function SuperAdminRequirementDetailPage() {
 
       {!loading && !error && requirement ? (
         <>
-          <div className="grid gap-4 md:grid-cols-4 xl:grid-cols-7">
-            <StatCard label="Pending" value={pendingRows.length} />
-            <StatCard label="Interview" value={interviewRows.length} tone="blue" />
-            <StatCard label="Selected" value={selectedRows.length} tone="green" />
-            <StatCard label="Rejected" value={rejectedRows.length} tone="amber" />
-            <StatCard label="Applications" value={counts.applications_total || 0} tone="amber" />
-            <StatCard label="Bookings" value={counts.bookings_total || 0} tone="blue" />
-            <StatCard label="Approved Hours" value={counts.approved_hours || 0} tone="green" />
+          <div className="-mx-1 overflow-x-auto pb-1">
+            <div className="flex w-max min-w-full gap-4 px-1">
+              <div className="w-[11.5rem] shrink-0"><StatCard label="Pending" value={pendingRows.length} /></div>
+              <div className="w-[11.5rem] shrink-0"><StatCard label="Interview" value={interviewRows.length} tone="blue" /></div>
+              <div className="w-[11.5rem] shrink-0"><StatCard label="Selected" value={selectedRows.length} tone="green" /></div>
+              <div className="w-[11.5rem] shrink-0"><StatCard label="Rejected" value={rejectedRows.length} tone="amber" /></div>
+              <div className="w-[11.5rem] shrink-0"><StatCard label="Applications" value={counts.applications_total || 0} tone="amber" /></div>
+              <div className="w-[11.5rem] shrink-0"><StatCard label="Bookings" value={counts.bookings_total || 0} tone="blue" /></div>
+              <div className="w-[11.5rem] shrink-0"><StatCard label="Approved Hours" value={counts.approved_hours || 0} tone="green" /></div>
+            </div>
           </div>
 
           <SectionCard title={requirement.title || 'Requirement'} description={`${requirement.requirement_type} requirement`}>
@@ -470,19 +823,98 @@ export default function SuperAdminRequirementDetailPage() {
               {detailValue('Required Expertise', Array.isArray(requirement.required_expertise) ? requirement.required_expertise.join(', ') : requirement.required_expertise)}
               {detailValue('Skills', Array.isArray(requirement.skills_required || requirement.required_skills) ? (requirement.skills_required || requirement.required_skills).join(', ') : requirement.skills_required || requirement.required_skills)}
               {detailValue('Subskills', Array.isArray(requirement.subskills) ? requirement.subskills.join(', ') : requirement.subskills)}
-              {requirement.hourly_rate ? detailValue('Hourly', `Rs. ${requirement.hourly_rate}`) : null}
-              {requirement.total_budget ? detailValue('Budget', `Rs. ${requirement.total_budget}`) : null}
+              {requirementType === 'project' ? (
+                <>
+                  <div>
+                    <span className="font-medium text-slate-950">Institute pays:</span>{' '}
+                    <PostedCompensationRate project={requirement} audience="institution" showLabel={false} />
+                  </div>
+                  {(() => {
+                    const pricing = projectCompensationDisplay(requirement)
+                    return (
+                      <>
+                        {detailValue('Pay unit', pricing.unitLabel)}
+                        {pricing.quantity > 0
+                          ? detailValue(
+                              pricing.unit === 'per_day'
+                                ? 'Number of days'
+                                : pricing.unit === 'per_month'
+                                  ? 'Number of months'
+                                  : pricing.unit === 'per_session'
+                                    ? 'Number of sessions'
+                                    : 'Quantity',
+                              pricing.quantity
+                            )
+                          : null}
+                        {Number(requirement.hours_per_day) > 0 ||
+                        ((pricing.unit === 'per_day' || pricing.unit === 'per_session' || pricing.unit === 'per_month') &&
+                          pricing.durationPerUnit > 1)
+                          ? detailValue(
+                              'Hours per day',
+                              `${Number(requirement.hours_per_day) > 0 ? requirement.hours_per_day : pricing.durationPerUnit} hrs`
+                            )
+                          : null}
+                        {detailValue('Expert earns (approx)', pricing.netPerUnitDisplay > 0 ? `${moneyInr(pricing.netPerUnitDisplay)} / ${pricing.unitShort}` : null)}
+                        {detailValue('Total budget', pricing.totalBudgetGross > 0 ? moneyInr(pricing.totalBudgetGross) : requirement.total_budget ? `Rs. ${requirement.total_budget}` : null)}
+                      </>
+                    )
+                  })()}
+                </>
+              ) : (
+                <>
+                  {requirement.hourly_rate && projectCompensationDisplay(requirement).unit === 'hourly'
+                    ? detailValue('Hourly', `Rs. ${requirement.hourly_rate}`)
+                    : null}
+                  {requirement.total_budget ? detailValue('Budget', `Rs. ${requirement.total_budget}`) : null}
+                </>
+              )}
               {requirement.budget_min || requirement.budget_max ? detailValue('Budget', [requirement.budget_min, requirement.budget_max].filter(Boolean).join(' - ')) : null}
               {requirement.stipend_min || requirement.stipend_max ? detailValue('Stipend', [requirement.stipend_min, requirement.stipend_max].filter(Boolean).join(' - ')) : null}
               {requirement.start_date ? detailValue('Start Date', new Date(requirement.start_date).toLocaleDateString()) : null}
               {requirement.end_date ? detailValue('End Date', new Date(requirement.end_date).toLocaleDateString()) : null}
               {requirement.deadline ? detailValue('Deadline', new Date(requirement.deadline).toLocaleDateString()) : null}
-              {detailValue('Duration Hours', requirement.duration_hours)}
+              {requirementType === 'project'
+                ? detailValue(
+                    projectEngagementQuantityDisplay(requirement).label,
+                    projectEngagementQuantityDisplay(requirement).value
+                  )
+                : detailValue('Duration Hours', requirement.duration_hours)}
+              {Number(requirement.hours_per_day) > 0
+                ? detailValue('Hours per day', `${requirement.hours_per_day} hours`)
+                : null}
+              {requirement.schedule_notes
+                ? detailValue('Weekly schedule', requirement.schedule_notes)
+                : null}
               {detailValue('Work Mode', requirement.work_mode || requirement.workplace_type)}
               {detailValue('Engagement', requirement.engagement || requirement.employment_type)}
               {detailValue('Openings', requirement.openings)}
               {detailValue('Location', requirement.location || requirement.job_location)}
             </div>
+            {requirementType === 'project' ? (
+              <div className="mt-5 grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+                <div>
+                  <Label className="text-xs text-slate-500">Start date</Label>
+                  <Input
+                    type="date"
+                    value={dateEdits.start_date}
+                    onChange={(event) => setDateEdits((current) => ({ ...current, start_date: event.target.value }))}
+                    className="mt-1 bg-white"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-slate-500">End date</Label>
+                  <Input
+                    type="date"
+                    value={dateEdits.end_date}
+                    onChange={(event) => setDateEdits((current) => ({ ...current, end_date: event.target.value }))}
+                    className="mt-1 bg-white"
+                  />
+                </div>
+                <Button type="button" onClick={saveRequirementDates} disabled={dateSaving} className="bg-[#008260] hover:bg-[#006d51]">
+                  {dateSaving ? 'Saving...' : 'Update duration'}
+                </Button>
+              </div>
+            ) : null}
             {requirement.description || requirement.responsibilities ? (
               <p className="mt-4 whitespace-pre-wrap rounded-lg bg-slate-50 p-4 text-sm text-slate-700">
                 {requirement.description || requirement.responsibilities}
@@ -564,8 +996,8 @@ export default function SuperAdminRequirementDetailPage() {
                 </div>
                 {stage === 'interview_scheduled' ? (
                   <div className="space-y-2">
-                    <Label htmlFor="interviewAt">Interview time</Label>
-                    <Input id="interviewAt" type="datetime-local" value={interviewAt} onChange={(e) => setInterviewAt(e.target.value)} />
+                    <Label htmlFor="interviewAt">Interview date and time <span className="text-red-600">*</span></Label>
+                    <Input id="interviewAt" type="datetime-local" value={interviewAt} onChange={(e) => setInterviewAt(e.target.value)} required />
                   </div>
                 ) : null}
                 <div className="space-y-2 lg:col-span-2">
@@ -573,7 +1005,11 @@ export default function SuperAdminRequirementDetailPage() {
                   <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
                 </div>
                 <div className="lg:col-span-2">
-                  <Button type="submit" className="bg-[#008260] hover:bg-[#006d51]" disabled={saving}>
+                  <Button
+                    type="submit"
+                    className="bg-[#008260] hover:bg-[#006d51]"
+                    disabled={saving || (stage === 'interview_scheduled' && !interviewAt?.trim())}
+                  >
                     {saving ? 'Saving...' : stage === 'interview_scheduled' ? 'Schedule interview' : 'Add and notify'}
                   </Button>
                 </div>
@@ -615,22 +1051,47 @@ export default function SuperAdminRequirementDetailPage() {
             <DialogTitle>Schedule Interview</DialogTitle>
           </DialogHeader>
           <div className="space-y-2">
-            <Label htmlFor="workflowInterviewAt">Interview date and time</Label>
+            <Label htmlFor="workflowInterviewAt">Interview date and time <span className="text-red-600">*</span></Label>
             <Input
               id="workflowInterviewAt"
               type="datetime-local"
               value={interviewDialog?.value || ''}
               onChange={(e) => setInterviewDialog((current) => current ? { ...current, value: e.target.value } : current)}
+              required
             />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setInterviewDialog(null)} disabled={workflowSaving}>Cancel</Button>
-            <Button type="button" className="bg-[#008260] hover:bg-[#006d51]" onClick={confirmInterview} disabled={workflowSaving}>
+            <Button
+              type="button"
+              className="bg-[#008260] hover:bg-[#006d51]"
+              onClick={confirmInterview}
+              disabled={workflowSaving || !interviewDialog?.value?.trim()}
+            >
               {workflowSaving ? 'Saving...' : 'Save interview'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={Boolean(confirmActionDialog)} onOpenChange={(open) => !open && setConfirmActionDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmActionDialog?.title}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmActionDialog?.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={workflowSaving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmAction}
+              disabled={workflowSaving}
+              className={confirmActionDialog?.destructive ? 'bg-red-600 hover:bg-red-700' : 'bg-[#008260] hover:bg-[#006d51]'}
+            >
+              {workflowSaving ? 'Processing...' : confirmActionDialog?.confirmLabel}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

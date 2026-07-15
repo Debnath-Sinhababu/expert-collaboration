@@ -6,13 +6,13 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Calculate the marked-up rate for institutions (30% markup)
- * @param originalRate - The original expert hourly rate
- * @returns The rate with 30% markup (rounded to nearest integer)
+ * Institution-facing rate from an expert's profile/asking rate.
+ * Expert profile rate = what they want to earn (NET).
+ * Institution sees GROSS: net / 0.70 (platform keeps 30% of gross).
  */
 export function getInstitutionRate(originalRate: number | null | undefined): number {
   if (!originalRate || originalRate <= 0) return 0
-  return Math.round(originalRate * 1.30)
+  return Math.round(Number(originalRate) / 0.7)
 }
 
 export function isCommonEmailProvider(email: string): boolean {

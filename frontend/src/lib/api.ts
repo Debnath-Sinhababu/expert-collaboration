@@ -129,8 +129,10 @@ export const api = {
       limit?: number; 
       search?: string; 
       subskill_search?: string;
-      domain_expertise?: string; 
-      min_hourly_rate?: number; 
+      domain_expertise?: string;
+      expert_type?: string;
+      expert_service?: string;
+      min_hourly_rate?: number;
       max_hourly_rate?: number;
       state?: string;
       is_verified?: boolean;
@@ -509,6 +511,14 @@ export const api = {
       const headers = await getAuthHeaders()
       return fetch(`${API_BASE_URL}/api/projects/recommended/${expertId}`, { headers }).then(res => res.json())
     },
+    getTypes: async () => {
+      const headers = await getAuthHeaders()
+      const query = new URLSearchParams({ _t: Date.now().toString() }).toString()
+      const res = await fetch(`${API_BASE_URL}/api/projects/types?${query}`, { headers })
+      const json = await res.json().catch(() => ([]))
+      if (!res.ok) throw new Error(json?.error || 'Failed to load project types')
+      return Array.isArray(json) ? json : []
+    },
     getById: async (id: string) => {
       const headers = await getAuthHeaders()
       const query = new URLSearchParams({ _t: Date.now().toString() }).toString()
@@ -539,27 +549,31 @@ export const api = {
     },
     update: async (id: string, data: any) => {
       const headers = await getAuthHeaders()
+      const isFormData = typeof FormData !== 'undefined' && data instanceof FormData
       const response = await fetch(`${API_BASE_URL}/api/projects/${id}`, {
         method: 'PUT',
-        headers,
-        body: JSON.stringify(data)
+        headers: isFormData
+          ? {
+              Authorization: headers.Authorization || '',
+              ...(headers['X-Acting-Institution-Id']
+                ? { 'X-Acting-Institution-Id': headers['X-Acting-Institution-Id'] }
+                : {})
+            }
+          : headers,
+        body: isFormData ? data : JSON.stringify(data)
       })
-      
-      if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`)
-      }
-      
-      const responseText = await response.text()
-      if (!responseText) {
-        return { success: true }
-      }
-      
+
+      const text = await response.text().catch(() => '')
+      let json: any = {}
       try {
-        return JSON.parse(responseText)
-      } catch (parseError) {
-        return { success: true }
+        json = text ? JSON.parse(text) : {}
+      } catch {
+        json = {}
       }
+      if (!response.ok) {
+        throw new Error(json?.error || text || `HTTP error! status: ${response.status}`)
+      }
+      return Object.keys(json).length ? json : { success: true }
     }
   },
 
@@ -592,6 +606,22 @@ export const api = {
       const headers = await getAuthHeaders()
       return fetch(`${API_BASE_URL}/api/applications/${id}`, {
         method: 'PUT',
+        headers,
+        body: JSON.stringify(data)
+      }).then(res => res.json())
+    },
+    updateRate: async (id: string, data: any) => {
+      const headers = await getAuthHeaders()
+      return fetch(`${API_BASE_URL}/api/applications/${id}/rate`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(data)
+      }).then(res => res.json())
+    },
+    confirmLock: async (id: string, data: any = {}) => {
+      const headers = await getAuthHeaders()
+      return fetch(`${API_BASE_URL}/api/applications/${id}/confirm-lock`, {
+        method: 'POST',
         headers,
         body: JSON.stringify(data)
       }).then(res => res.json())
@@ -635,6 +665,90 @@ export const api = {
         headers,
         body: JSON.stringify(data)
       }).then(res => res.json())
+    },
+    requestCompletion: async (id: string, data?: { note?: string | null; acknowledge_low_attendance?: boolean }) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/bookings/${id}/request-completion`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data || {})
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        const err: any = new Error(json?.error || 'Failed to request completion')
+        err.status = res.status
+        err.payload = json
+        throw err
+      }
+      return json
+    },
+    approveCompletion: async (id: string, data?: { note?: string | null }) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/bookings/${id}/approve-completion`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data || {})
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to approve completion')
+      return json
+    },
+    declineCompletion: async (id: string, data?: { note?: string | null }) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/bookings/${id}/decline-completion`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data || {})
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to decline completion')
+      return json
+    },
+    requestCancellation: async (id: string, data?: { note?: string | null }) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/bookings/${id}/request-cancellation`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data || {})
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to request cancellation')
+      return json
+    },
+    approveCancellation: async (id: string, data?: { note?: string | null }) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/bookings/${id}/approve-cancellation`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data || {})
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to approve cancellation')
+      return json
+    },
+    declineCancellation: async (id: string, data?: { note?: string | null }) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/bookings/${id}/decline-cancellation`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data || {})
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to decline cancellation')
+      return json
+    },
+    uploadAgreementPdf: async (id: string, file: File) => {
+      const headers = await getAuthHeadersForFormData()
+      const formData = new FormData()
+      formData.append('agreement_pdf', file)
+      const res = await fetch(`${API_BASE_URL}/api/bookings/${id}/agreement-pdf`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to upload agreement PDF')
+      return json
     },
     delete: async (id: string) => {
       const headers = await getAuthHeaders()
