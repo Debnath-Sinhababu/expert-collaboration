@@ -5338,6 +5338,7 @@ app.get('/api/bookings', async (req, res) => {
           compensation_unit,
           unit_quantity,
           duration_per_unit,
+          hours_per_day,
           institution_gross_per_unit,
           institution_gross_total,
           required_expertise,

@@ -236,11 +236,14 @@ export default function InstitutionDashboardPage() {
             expert_id: expert.id,
             project_id: selectedProjectId,
             institution_id: institution?.id,
-            amount: projectDetails.hourly_rate,
+            amount: projectDetails.institution_gross_per_unit || projectDetails.hourly_rate,
             hours_booked: projectDetails.duration_hours,
             start_date: new Date().toISOString().split('T')[0],
             end_date: projectDetails.end_date,
-            status: 'in_progress'
+            status: 'in_progress',
+            compensation_unit: projectDetails.compensation_unit || 'hourly',
+            unit_quantity: projectDetails.unit_quantity || projectDetails.duration_hours || null,
+            final_gross_per_unit: projectDetails.institution_gross_per_unit || projectDetails.hourly_rate || null,
           }
 
           await api.bookings.create(bookingData)

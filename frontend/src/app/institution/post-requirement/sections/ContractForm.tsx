@@ -552,12 +552,15 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
             expert_id: expert.id,
             project_id: selectedProjectId,
             institution_id: institution.id,
-            amount: projectDetails.hourly_rate,
+            amount: projectDetails.institution_gross_per_unit || projectDetails.hourly_rate,
             start_date: new Date().toISOString().split('T')[0],
             end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
             hours_booked: projectDetails.duration_hours,
             status: 'in_progress',
-            payment_status: 'pending'
+            payment_status: 'pending',
+            compensation_unit: projectDetails.compensation_unit || 'hourly',
+            unit_quantity: projectDetails.unit_quantity || projectDetails.duration_hours || null,
+            final_gross_per_unit: projectDetails.institution_gross_per_unit || projectDetails.hourly_rate || null,
           }
           await api.bookings.create(bookingData)
           

@@ -48,6 +48,7 @@ import {
   moneyInr,
   projectCompensationDisplay,
   projectEngagementQuantityDisplay,
+  bookingEngagementQuantityDisplay,
   resolveBookingSettlementRates,
 } from '@/lib/projectCompensation'
 import {
@@ -1578,6 +1579,14 @@ export default function InstitutionProjectDetailsPage() {
               <span className="text-[#666666] font-medium text-sm">You pay: </span>
               <span className="text-[#000000] font-medium text-sm">
                 {moneyInr(resolveBookingSettlementRates(booking).grossPerUnit)} / {resolveBookingSettlementRates(booking).unitShort}
+              </span>
+            </div>
+            <div>
+              <span className="text-[#666666] font-medium text-sm">
+                {bookingEngagementQuantityDisplay(booking).label}:{' '}
+              </span>
+              <span className="text-[#000000] font-medium text-sm">
+                {bookingEngagementQuantityDisplay(booking).value}
               </span>
             </div>
             

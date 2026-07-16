@@ -1141,7 +1141,7 @@ class SuperAdminRepository {
     if (type !== 'project') return [];
     const { data, error } = await this.client
       .from('bookings')
-      .select('*, experts(id,name,email,phone,photo_url,bio,city,state,domain_expertise,subskills,qualifications,hourly_rate,experience_years,rating,total_ratings,is_verified,kyc_status), institutions(id,name,email), projects(id,title,compensation_unit,institution_gross_per_unit,institution_gross_total,unit_quantity,duration_per_unit,hourly_rate,total_budget,duration_hours)')
+      .select('*, experts(id,name,email,phone,photo_url,bio,city,state,domain_expertise,subskills,qualifications,hourly_rate,experience_years,rating,total_ratings,is_verified,kyc_status), institutions(id,name,email), projects(id,title,compensation_unit,institution_gross_per_unit,institution_gross_total,unit_quantity,duration_per_unit,hours_per_day,hourly_rate,total_budget,duration_hours)')
       .eq('project_id', id)
       .order('created_at', { ascending: false });
     if (error) {
