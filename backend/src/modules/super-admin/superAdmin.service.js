@@ -950,12 +950,32 @@ class SuperAdminService {
       err.statusCode = 404;
       throw err;
     }
+    const changed = updated._changed || { status: body?.status };
+    const before = updated._before || null;
+    delete updated._changed;
+    delete updated._before;
     await this.logActivity(auth, 'requirement.booking_updated', {
       entity_type: 'booking',
       entity_id: bookingId,
       requirement_type: requirementType,
       requirement_id: requirementId,
-      metadata: { status: body?.status },
+      metadata: {
+        changed,
+        before: before
+          ? {
+              status: before.status,
+              final_gross_per_unit: before.final_gross_per_unit,
+              final_net_per_unit: before.final_net_per_unit,
+              hours_booked: before.hours_booked,
+              unit_quantity: before.unit_quantity,
+              start_date: before.start_date,
+              end_date: before.end_date,
+              actual_start_date: before.actual_start_date,
+              actual_end_date: before.actual_end_date,
+            }
+          : null,
+        note: body?.note || null,
+      },
     });
     return updated;
   }

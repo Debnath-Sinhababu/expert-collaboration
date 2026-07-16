@@ -1408,25 +1408,154 @@ class SuperAdminRepository {
   }
 
   async updateRequirementBooking(requirementId, bookingId, payload) {
-    const allowed = ['pending', 'confirmed', 'in_progress', 'completion_requested', 'cancellation_requested', 'completed', 'cancelled'];
-    const status = String(payload.status || '').trim();
-    if (!allowed.includes(status)) {
-      const err = new Error('Invalid booking status');
+    const { toExpertNet } = require('../../shared/compensation');
+    const body = payload || {};
+
+    const { data: existing, error: fetchError } = await this.client
+      .from('bookings')
+      .select('id, application_id, project_id, status, final_gross_per_unit, final_net_per_unit, amount, hours_booked, unit_quantity, compensation_unit, start_date, end_date, actual_start_date, actual_end_date')
+      .eq('id', bookingId)
+      .eq('project_id', requirementId)
+      .maybeSingle();
+    if (fetchError) {
+      if (tableMissing(fetchError) || relationMissing(fetchError)) return null;
+      throw fetchError;
+    }
+    if (!existing) return null;
+
+    const updates = { updated_at: new Date().toISOString() };
+    const changed = {};
+
+    if (body.status !== undefined && body.status !== null && String(body.status).trim() !== '') {
+      const allowed = ['pending', 'confirmed', 'in_progress', 'completion_requested', 'cancellation_requested', 'completed', 'cancelled'];
+      const status = String(body.status).trim();
+      if (!allowed.includes(status)) {
+        const err = new Error('Invalid booking status');
+        err.statusCode = 400;
+        throw err;
+      }
+      updates.status = status;
+      changed.status = status;
+    }
+
+    const hasGross = body.final_gross_per_unit !== undefined && body.final_gross_per_unit !== null && body.final_gross_per_unit !== '';
+    if (hasGross) {
+      const gross = Number(body.final_gross_per_unit);
+      if (!Number.isFinite(gross) || gross <= 0) {
+        const err = new Error('final_gross_per_unit must be a positive number');
+        err.statusCode = 400;
+        throw err;
+      }
+      const net = toExpertNet(gross);
+      updates.final_gross_per_unit = gross;
+      updates.final_net_per_unit = net;
+      updates.amount = gross;
+      changed.final_gross_per_unit = gross;
+      changed.final_net_per_unit = net;
+      changed.amount = gross;
+    }
+
+    if (body.hours_booked !== undefined && body.hours_booked !== null && body.hours_booked !== '') {
+      const hours = Number(body.hours_booked);
+      if (!Number.isFinite(hours) || hours < 0) {
+        const err = new Error('hours_booked must be 0 or greater');
+        err.statusCode = 400;
+        throw err;
+      }
+      updates.hours_booked = hours;
+      changed.hours_booked = hours;
+    }
+
+    if (body.unit_quantity !== undefined && body.unit_quantity !== null && body.unit_quantity !== '') {
+      const qty = Number(body.unit_quantity);
+      if (!Number.isFinite(qty) || qty <= 0) {
+        const err = new Error('unit_quantity must be a positive number');
+        err.statusCode = 400;
+        throw err;
+      }
+      updates.unit_quantity = qty;
+      changed.unit_quantity = qty;
+    }
+
+    const dateFields = ['start_date', 'end_date', 'actual_start_date', 'actual_end_date'];
+    for (const field of dateFields) {
+      if (body[field] === undefined) continue;
+      if (body[field] === null || body[field] === '') {
+        updates[field] = null;
+        changed[field] = null;
+        continue;
+      }
+      const dateValue = String(body[field]).slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+        const err = new Error(`${field} must be YYYY-MM-DD`);
+        err.statusCode = 400;
+        throw err;
+      }
+      updates[field] = dateValue;
+      changed[field] = dateValue;
+    }
+
+    const start = updates.start_date !== undefined ? updates.start_date : existing.start_date;
+    const end = updates.end_date !== undefined ? updates.end_date : existing.end_date;
+    if (start && end && String(end) < String(start)) {
+      const err = new Error('end_date must be on or after start_date');
       err.statusCode = 400;
       throw err;
     }
+    const actualStart = updates.actual_start_date !== undefined ? updates.actual_start_date : existing.actual_start_date;
+    const actualEnd = updates.actual_end_date !== undefined ? updates.actual_end_date : existing.actual_end_date;
+    if (actualStart && actualEnd && String(actualEnd) < String(actualStart)) {
+      const err = new Error('actual_end_date must be on or after actual_start_date');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    if (Object.keys(changed).length === 0) {
+      const err = new Error('No booking fields to update');
+      err.statusCode = 400;
+      throw err;
+    }
+
     const { data, error } = await this.client
       .from('bookings')
-      .update({ status, updated_at: new Date().toISOString() })
+      .update(updates)
       .eq('id', bookingId)
       .eq('project_id', requirementId)
-      .select('*, experts(id,name,email,phone,photo_url,bio,city,state,domain_expertise,subskills,qualifications,hourly_rate,experience_years,rating,total_ratings,is_verified,kyc_status), institutions(id,name,email)')
+      .select('*, experts(id,name,email,phone,photo_url,bio,city,state,domain_expertise,subskills,qualifications,hourly_rate,experience_years,rating,total_ratings,is_verified,kyc_status), institutions(id,name,email), projects(id,title,compensation_unit,institution_gross_per_unit,institution_gross_total,unit_quantity,duration_per_unit,hourly_rate,total_budget,duration_hours)')
       .maybeSingle();
     if (error) {
       if (tableMissing(error) || relationMissing(error)) return null;
       throw error;
     }
-    return data || null;
+
+    // Keep linked application locked rates in sync so fallbacks don't show stale values.
+    if (
+      existing.application_id &&
+      (changed.final_gross_per_unit !== undefined ||
+        changed.final_net_per_unit !== undefined ||
+        changed.unit_quantity !== undefined)
+    ) {
+      const appPatch = { updated_at: new Date().toISOString() };
+      if (changed.final_gross_per_unit !== undefined) {
+        appPatch.final_gross_per_unit = changed.final_gross_per_unit;
+        appPatch.final_net_per_unit = changed.final_net_per_unit;
+        appPatch.final_hourly_rate =
+          String(existing.compensation_unit || '') === 'hourly' ? changed.final_gross_per_unit : null;
+        appPatch.proposed_rate = changed.final_gross_per_unit;
+      }
+      if (changed.unit_quantity !== undefined) {
+        appPatch.unit_quantity = changed.unit_quantity;
+      }
+      const { error: appError } = await this.client
+        .from('applications')
+        .update(appPatch)
+        .eq('id', existing.application_id);
+      if (appError && !tableMissing(appError) && !relationMissing(appError)) {
+        console.warn('Failed to mirror booking edits onto application:', appError.message || appError);
+      }
+    }
+
+    return { ...(data || null), _changed: changed, _before: existing };
   }
 
   async updateProjectRequirementDates(requirementId, payload) {

@@ -20,8 +20,8 @@ const superAdminAuth = require('./auth/superAdminAuth');
 const { ensureAuthUserForProfile, authLoginMeta } = require('./auth/profileAuthService');
 const {
   confirmEmailByToken,
-  confirmPasswordReset,
-  createOrRefreshAuthUser,
+  confirmPasswordReset, 
+  createOrRefreshAuthUser, 
   requestPasswordReset,
 } = require('./services/authEmailService');
 const privacyMask = require('./privacyMask');
