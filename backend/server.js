@@ -1852,7 +1852,14 @@ app.get('/api/projects', async (req, res) => {
     if (type) query = query.eq('type', type);
     if (min_hourly_rate) query = query.gte('hourly_rate', parseFloat(min_hourly_rate));
     if (max_hourly_rate) query = query.lte('hourly_rate', parseFloat(max_hourly_rate));
-    if (status) query = query.eq('status', status);
+    if (status === 'running') {
+      // Active projects: anything not completed / closed / cancelled
+      query = query.not('status', 'in', '(completed,closed,cancelled)');
+    } else if (status === 'closed_group') {
+      query = query.in('status', ['completed', 'closed', 'cancelled']);
+    } else if (status) {
+      query = query.eq('status', status);
+    }
     if (institution_id) query = query.eq('institution_id', institution_id);
     
     // Similar projects filters

@@ -89,6 +89,8 @@ export default function InstitutionDashboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
   const [selectedExpert, setSelectedExpert] = useState<any>(null)
   const [showProjectForm, setShowProjectForm] = useState(false)
   const [projectForm, setProjectForm] = useState({
@@ -372,6 +374,11 @@ export default function InstitutionDashboardPage() {
 
 
   // Paginated projects owned by the institution
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
   const {
     data: pagedProjects,
     loading: projectsLoading,
@@ -381,9 +388,16 @@ export default function InstitutionDashboardPage() {
   } = usePagination(
     async (page: number) => {
       if (!institution?.id) return []
-      return await api.projects.getAll({ page, limit: 10, institution_id: institution?.id })
+      const params: Record<string, any> = {
+        page,
+        limit: 10,
+        institution_id: institution.id,
+      }
+      if (debouncedSearch) params.search = debouncedSearch
+      if (statusFilter && statusFilter !== 'all') params.status = statusFilter
+      return await api.projects.getAll(params)
     },
-    [institution?.id]
+    [institution?.id, debouncedSearch, statusFilter]
   )
 
   useEffect(() => {
@@ -604,7 +618,9 @@ export default function InstitutionDashboardPage() {
 
   const runningProjects = projects.filter((project: any) => !['completed', 'closed', 'cancelled'].includes(project.status))
   const closedProjects = projects.filter((project: any) => ['completed', 'closed', 'cancelled'].includes(project.status))
-  const orderedProjects = [...runningProjects, ...closedProjects]
+  const showGroupedSections = statusFilter === 'all' && !debouncedSearch
+  const orderedProjects = showGroupedSections ? [...runningProjects, ...closedProjects] : projects
+  const hasActiveProjectFilters = Boolean(debouncedSearch) || statusFilter !== 'all'
   const totalProjectsDisplay = projectCounts.total > 0 ? projectCounts.total : projects.length
   const openProjectsDisplay =
     projectCounts.total > 0
@@ -1155,16 +1171,71 @@ export default function InstitutionDashboardPage() {
             <CardHeader>
               <CardTitle className="text-lg font-semibold text-[#000000]">My Projects</CardTitle>
               <CardDescription className="text-[#000000] font-normal text-base !-mt-[2px]">
-                Running projects are shown first, followed by closed and completed projects.
+                Search and filter your requirements. Running projects appear first when viewing all.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {projects.length === 0 ? (
+              <div className="mb-4 grid grid-cols-1 gap-3 rounded-xl border border-[#DCDCDC] bg-[#FAFAFA] p-3 sm:grid-cols-[1fr_220px_auto]">
+                <div>
+                  <Label htmlFor="project-search" className="text-xs text-[#656565]">Search</Label>
+                  <div className="relative mt-1">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <Input
+                      id="project-search"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Search by title or description..."
+                      className="border-[#DCDCDC] bg-white pl-10"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs text-[#656565]">Status</Label>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="mt-1 border-[#DCDCDC] bg-white">
+                      <SelectValue placeholder="All statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All statuses</SelectItem>
+                      <SelectItem value="running">Running</SelectItem>
+                      <SelectItem value="open">Open</SelectItem>
+                      <SelectItem value="in_progress">In progress</SelectItem>
+                      <SelectItem value="closed">Closed</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                      <SelectItem value="closed_group">Ended (closed / completed)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full border-[#DCDCDC] bg-white"
+                    disabled={!hasActiveProjectFilters}
+                    onClick={() => {
+                      setSearchTerm('')
+                      setDebouncedSearch('')
+                      setStatusFilter('all')
+                    }}
+                  >
+                    <Filter className="mr-2 h-4 w-4" />
+                    Clear
+                  </Button>
+                </div>
+              </div>
+
+              {projects.length === 0 && !projectsLoading ? (
                 <div className="text-center py-8">
                   <Briefcase className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                  <p className="text-slate-600">No projects posted yet</p>
-                  <p className="text-sm text-slate-500">Create your first project to find experts</p>
-                
+                  <p className="text-slate-600">
+                    {hasActiveProjectFilters ? 'No projects match your filters' : 'No projects posted yet'}
+                  </p>
+                  <p className="text-sm text-slate-500">
+                    {hasActiveProjectFilters
+                      ? 'Try a different search or status filter'
+                      : 'Create your first project to find experts'}
+                  </p>
                 </div>
                 ) : (
                   <div className="space-y-4">
@@ -1184,10 +1255,10 @@ export default function InstitutionDashboardPage() {
                     </div>
                     {orderedProjects.map((project: any, index: number) => (
                       <div key={`${project.id}-section`}>
-                        {index === 0 && runningProjects.length > 0 && (
+                        {showGroupedSections && index === 0 && runningProjects.length > 0 && (
                           <h3 className="text-sm font-semibold text-[#008260]">Running projects</h3>
                         )}
-                        {index === runningProjects.length && closedProjects.length > 0 && (
+                        {showGroupedSections && index === runningProjects.length && closedProjects.length > 0 && (
                           <h3 className="text-sm font-semibold text-[#6A6A6A]">Closed projects</h3>
                         )}
                         <div 
