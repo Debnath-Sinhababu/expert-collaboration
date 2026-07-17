@@ -328,11 +328,12 @@ export default function SuperAdminRequirementsPage() {
               <TabsTrigger value="freelance">Freelance</TabsTrigger>
             </TabsList>
           </Tabs>
-          <div className="grid gap-3 lg:grid-cols-[1fr_180px_180px_220px_320px]">
-            <div className="relative">
+          <div className="grid gap-3">
+            <div className="relative w-full min-w-0">
               <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-              <Input className="pl-9" placeholder="Search title, description, or responsibilities" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <Input className="pl-9" placeholder="Search requirement name or institution" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Select value={status} onValueChange={setStatus}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -404,6 +405,7 @@ export default function SuperAdminRequirementsPage() {
                   ))}
                 </div>
               ) : null}
+            </div>
             </div>
           </div>
         </div>

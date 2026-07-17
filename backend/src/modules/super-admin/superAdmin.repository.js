@@ -713,6 +713,17 @@ class SuperAdminRepository {
     const rows = [];
     let total = 0;
 
+    // Match institution name as well as requirement title/description fields.
+    let institutionIdsMatchingSearch = [];
+    if (needle) {
+      const { data: matchingInstitutions, error: institutionSearchError } = await this.client
+        .from('institutions')
+        .select('id')
+        .ilike('name', `%${needle}%`);
+      if (institutionSearchError && !tableMissing(institutionSearchError)) throw institutionSearchError;
+      institutionIdsMatchingSearch = (matchingInstitutions || []).map((row) => row.id).filter(Boolean);
+    }
+
     for (const kind of kinds) {
       const cfg = queryConfig[kind];
       if (!cfg) continue;
@@ -734,10 +745,13 @@ class SuperAdminRepository {
         dataQuery = dataQuery.eq(cfg.institutionField, institutionId);
       }
       if (needle) {
-        const filter = cfg.searchFields
+        const fieldFilters = cfg.searchFields
           .split(',')
-          .map((field) => `${field}.ilike.%${needle}%`)
-          .join(',');
+          .map((field) => `${field}.ilike.%${needle}%`);
+        if (institutionIdsMatchingSearch.length > 0) {
+          fieldFilters.push(`${cfg.institutionField}.in.(${institutionIdsMatchingSearch.join(',')})`);
+        }
+        const filter = fieldFilters.join(',');
         countQuery = countQuery.or(filter);
         dataQuery = dataQuery.or(filter);
       }
