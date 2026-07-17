@@ -90,7 +90,13 @@ export default function InstitutionDashboardPage() {
     accepted: 0,
     rejected: 0,
   })
-  const [projectCounts, setProjectCounts] = useState({ total: 0, open: 0 })
+  const [projectCounts, setProjectCounts] = useState({
+    total: 0,
+    open: 0,
+    running: 0,
+    completed: 0,
+    closed: 0,
+  })
   const [financeSummary, setFinanceSummary] = useState<any>(null)
   const [ratings, setRatings] = useState<any[]>([])
   const [allRatings, setAllRatings] = useState<any[]>([])
@@ -337,10 +343,10 @@ export default function InstitutionDashboardPage() {
         .catch(() => setFinanceSummary(null))
       
       // Initial light calls (experts list is paginated below). Lists are fed by paginated hooks
-      const [bookingCountsResponse, applicationCountsResponse, projectsCountResponse] = await Promise.all([
+      const [bookingCountsResponse, applicationCountsResponse, projectCountsResponse] = await Promise.all([
         api.bookings.getCounts({ institution_id: institutionsResponse.id }),
         api.applications.getCounts({ institution_id: institutionsResponse.id }).catch(() => null),
-        api.projects.getAll({ institution_id: institutionsResponse.id, page: 1, limit: 1 }).catch(() => null),
+        api.projects.getCounts({ institution_id: institutionsResponse.id }).catch(() => null),
       ])
     
       
@@ -355,14 +361,14 @@ export default function InstitutionDashboardPage() {
       if (applicationCountsResponse && !applicationCountsResponse.error) {
         setApplicationCounts(applicationCountsResponse)
       }
-      // Prefer exact total if API returns count metadata; fallback later from paged projects
-      const totalFromMeta =
-        Number(projectsCountResponse?.total) ||
-        Number(projectsCountResponse?.count) ||
-        Number(projectsCountResponse?.pagination?.total) ||
-        0
-      if (totalFromMeta > 0) {
-        setProjectCounts((prev) => ({ ...prev, total: totalFromMeta }))
+      if (projectCountsResponse && !projectCountsResponse.error) {
+        setProjectCounts({
+          total: Number(projectCountsResponse.total) || 0,
+          open: Number(projectCountsResponse.open) || 0,
+          running: Number(projectCountsResponse.running) || 0,
+          completed: Number(projectCountsResponse.completed) || 0,
+          closed: Number(projectCountsResponse.closed) || 0,
+        })
       }
       
 
@@ -402,7 +408,11 @@ export default function InstitutionDashboardPage() {
         institution_id: institution.id,
       }
       if (debouncedSearch) params.search = debouncedSearch
-      if (statusFilter && statusFilter !== 'all') params.status = statusFilter
+      if (statusFilter === 'active_bookings') {
+        params.has_active_bookings = true
+      } else if (statusFilter && statusFilter !== 'all') {
+        params.status = statusFilter
+      }
       return await api.projects.getAll(params)
     },
     [institution?.id, debouncedSearch, statusFilter]
@@ -610,6 +620,21 @@ export default function InstitutionDashboardPage() {
       console.log('Project closed successfully:', result)
       toast.success('Project closed successfully!')
       refreshProjects()
+      if (institution?.id) {
+        api.projects.getCounts({ institution_id: institution.id })
+          .then((counts) => {
+            if (counts && !counts.error) {
+              setProjectCounts({
+                total: Number(counts.total) || 0,
+                open: Number(counts.open) || 0,
+                running: Number(counts.running) || 0,
+                completed: Number(counts.completed) || 0,
+                closed: Number(counts.closed) || 0,
+              })
+            }
+          })
+          .catch(() => {})
+      }
       setError('')
       setShowCloseConfirm(false)
       setProjectToClose(null)
@@ -627,6 +652,8 @@ export default function InstitutionDashboardPage() {
   const closedProjects = projects.filter((project: any) => isEndedProjectStatus(project.status))
   const openProjects = projects.filter((project: any) => normalizeProjectStatus(project.status) === 'open')
   const liveRunningProjects = projects.filter((project: any) => normalizeProjectStatus(project.status) === 'running')
+  const completedProjects = projects.filter((project: any) => normalizeProjectStatus(project.status) === 'completed')
+  const closedOnlyProjects = projects.filter((project: any) => normalizeProjectStatus(project.status) === 'closed')
   const showGroupedSections = statusFilter === 'all' && !debouncedSearch
   const orderedProjects = showGroupedSections
     ? [...openProjects, ...liveRunningProjects, ...closedProjects]
@@ -634,9 +661,13 @@ export default function InstitutionDashboardPage() {
   const hasActiveProjectFilters = Boolean(debouncedSearch) || statusFilter !== 'all'
   const totalProjectsDisplay = projectCounts.total > 0 ? projectCounts.total : projects.length
   const openProjectsDisplay =
-    projectCounts.total > 0
-      ? projectCounts.open || openProjects.length
-      : openProjects.length
+    projectCounts.total > 0 ? projectCounts.open : openProjects.length
+  const runningProjectsDisplay =
+    projectCounts.total > 0 ? projectCounts.running : liveRunningProjects.length
+  const completedProjectsDisplay =
+    projectCounts.total > 0 ? projectCounts.completed : completedProjects.length
+  const closedProjectsDisplay =
+    projectCounts.total > 0 ? projectCounts.closed : closedOnlyProjects.length
   const totalApplicationsDisplay =
     applicationCounts.total > 0
       ? applicationCounts.total
@@ -1150,6 +1181,68 @@ export default function InstitutionDashboardPage() {
           </Card> */}
         </div>
 
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+          <Card className="bg-white border-2 border-[#D6D6D6]">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-[#000000]">Open</p>
+                  <p className="text-3xl font-bold text-[#000000] my-2">{openProjectsDisplay}</p>
+                  <p className="text-xs text-[#656565]">projects</p>
+                </div>
+                <div className="p-3 bg-[#ECF2FF] rounded-full">
+                  <Briefcase className="h-8 w-8 text-[#008260]" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white border-2 border-[#D6D6D6]">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-[#000000]">Running</p>
+                  <p className="text-3xl font-bold text-[#000000] my-2">{runningProjectsDisplay}</p>
+                  <p className="text-xs text-[#656565]">live projects</p>
+                </div>
+                <div className="p-3 bg-[#ECF2FF] rounded-full">
+                  <Hourglass className="h-8 w-8 text-[#008260]" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white border-2 border-[#D6D6D6]">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-[#000000]">Completed</p>
+                  <p className="text-3xl font-bold text-[#000000] my-2">{completedProjectsDisplay}</p>
+                  <p className="text-xs text-[#656565]">projects</p>
+                </div>
+                <div className="p-3 bg-[#ECF2FF] rounded-full">
+                  <CheckCircle className="h-8 w-8 text-[#008260]" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white border-2 border-[#D6D6D6]">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-[#000000]">Closed</p>
+                  <p className="text-3xl font-bold text-[#000000] my-2">{closedProjectsDisplay}</p>
+                  <p className="text-xs text-[#656565]">projects</p>
+                </div>
+                <div className="p-3 bg-[#ECF2FF] rounded-full">
+                  <XCircle className="h-8 w-8 text-[#008260]" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {financeSummary?.summary ? (
           <div className="grid md:grid-cols-3 gap-6 mb-8">
             <Card className="bg-white border-2 border-[#D6D6D6]">
@@ -1211,6 +1304,7 @@ export default function InstitutionDashboardPage() {
                       {PROJECT_STATUSES.map((value) => (
                         <SelectItem key={value} value={value}>{PROJECT_STATUS_LABELS[value]}</SelectItem>
                       ))}
+                      <SelectItem value="active_bookings">Active bookings</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1246,18 +1340,22 @@ export default function InstitutionDashboardPage() {
                 </div>
                 ) : (
                   <div className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       <div className="rounded-lg border border-[#DCDCDC] p-3">
                         <p className="text-xs text-[#656565]">Open</p>
-                        <p className="text-xl font-bold text-[#000000]">{openProjects.length}</p>
+                        <p className="text-xl font-bold text-[#000000]">{openProjectsDisplay}</p>
                       </div>
                       <div className="rounded-lg border border-[#DCDCDC] p-3">
                         <p className="text-xs text-[#656565]">Running</p>
-                        <p className="text-xl font-bold text-[#000000]">{liveRunningProjects.length}</p>
+                        <p className="text-xl font-bold text-[#000000]">{runningProjectsDisplay}</p>
                       </div>
                       <div className="rounded-lg border border-[#DCDCDC] p-3">
-                        <p className="text-xs text-[#656565]">Ended</p>
-                        <p className="text-xl font-bold text-[#000000]">{closedProjects.length}</p>
+                        <p className="text-xs text-[#656565]">Completed</p>
+                        <p className="text-xl font-bold text-[#000000]">{completedProjectsDisplay}</p>
+                      </div>
+                      <div className="rounded-lg border border-[#DCDCDC] p-3">
+                        <p className="text-xs text-[#656565]">Closed</p>
+                        <p className="text-xl font-bold text-[#000000]">{closedProjectsDisplay}</p>
                       </div>
                     </div>
                     {orderedProjects.map((project: any, index: number) => (
@@ -1325,7 +1423,18 @@ export default function InstitutionDashboardPage() {
                             <div className="min-w-0">
                               <span className="text-[#717171] text-xs">Applications:</span>
                               <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">
-                                {project.applicationCounts?.total}
+                                {project.applicationCounts?.total ?? 0}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-2.5 sm:gap-3">
+                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+                              <UserCheck className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[#717171] text-xs">Active bookings:</span>
+                              <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">
+                                {project.bookingCounts?.active ?? 0}
                               </p>
                             </div>
                           </div>
@@ -1352,7 +1461,6 @@ export default function InstitutionDashboardPage() {
                               variant="outline" 
                               className="flex-1 sm:flex-none bg-[#ECF2FF] rounded-[25px] text-[#1D1D1D] font-medium text-[13px]"
                               onClick={() => handleViewApplications(project)}
-                              disabled={!project.applicationCounts?.total}
                             >
                               <Eye className="h-4 w-4" />
                               View Applications ({project.applicationCounts?.pending || 0})

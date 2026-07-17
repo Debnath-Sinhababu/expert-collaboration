@@ -495,6 +495,7 @@ export const api = {
       min_hourly_rate?: number; 
       max_hourly_rate?: number;
       status?: string;
+      has_active_bookings?: boolean;
       institution_id?: string;
       expert_id?: string; // Add expert_id to filter out projects they've already applied to
       domain_expertise?: string; // For similar projects
@@ -518,6 +519,17 @@ export const api = {
       const json = await res.json().catch(() => ([]))
       if (!res.ok) throw new Error(json?.error || 'Failed to load project types')
       return Array.isArray(json) ? json : []
+    },
+    getCounts: async (params?: { institution_id: string }) => {
+      const headers = await getAuthHeaders()
+      const query = new URLSearchParams({
+        ...(params || {}),
+        _t: Date.now().toString(),
+      } as any).toString()
+      const res = await fetch(`${API_BASE_URL}/api/projects/counts?${query}`, { headers })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to load project counts')
+      return json
     },
     getById: async (id: string) => {
       const headers = await getAuthHeaders()

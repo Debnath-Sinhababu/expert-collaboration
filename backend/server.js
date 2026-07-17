@@ -31,8 +31,13 @@ const {
   assertCanonicalProjectStatus,
   applyProjectStatusListFilter,
   maybeSyncProjectStatuses,
+  normalizeProjectStatus,
   syncProjectStatusesDue,
 } = require('./src/shared/projectStatus');
+const {
+  ACTIVE_BOOKING_STATUSES_FOR_STATS,
+  isActiveBookingStatus,
+} = require('./src/shared/compensation');
 
 console.log('Environment variables loaded:');
 console.log('UPSTASH_REDIS_REST_URL:', process.env.UPSTASH_REDIS_REST_URL ? 'Set' : 'Not set');
@@ -1825,6 +1830,7 @@ app.get('/api/projects', async (req, res) => {
       min_hourly_rate = '', 
       max_hourly_rate = '',
       status = '',
+      has_active_bookings = '',
       institution_id = '',
       expert_id = '', // used for filtering out applied projects
       domain_expertise = '', // new parameter for similar projects
@@ -1874,6 +1880,35 @@ app.get('/api/projects', async (req, res) => {
       query = applyProjectStatusListFilter(query, status);
     }
     if (institution_id) query = query.eq('institution_id', institution_id);
+
+    const wantsActiveBookingsFilter =
+      has_active_bookings === 'true' ||
+      has_active_bookings === true ||
+      String(has_active_bookings).toLowerCase() === '1';
+    if (wantsActiveBookingsFilter) {
+      const serviceClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+      let activeBookingQuery = serviceClient
+        .from('bookings')
+        .select('project_id')
+        .in('status', ACTIVE_BOOKING_STATUSES_FOR_STATS);
+      if (institution_id) {
+        activeBookingQuery = activeBookingQuery.eq('institution_id', institution_id);
+      }
+      const { data: activeBookingRows, error: activeBookingError } = await activeBookingQuery;
+      if (activeBookingError) throw activeBookingError;
+      const projectIdsWithActiveBookings = [
+        ...new Set((activeBookingRows || []).map((row) => row.project_id).filter(Boolean)),
+      ];
+      if (projectIdsWithActiveBookings.length === 0) {
+        console.log('Projects query result: 0 projects returned (no active bookings match)');
+        const { role: emptyRole } = await superAdminAuth.getUserRoleFromRequest(req);
+        return res.json(privacyMask.maskProjectsList([], emptyRole));
+      }
+      query = query.in('id', projectIdsWithActiveBookings);
+    }
     
     // Similar projects filters
     if (domain_expertise) {
@@ -1951,6 +1986,29 @@ app.get('/api/projects', async (req, res) => {
           project.applicationCounts = projectCounts[project.id] || { total: 0, pending: 0 };
         });
       }
+
+      const { data: bookingRows, error: bookingCountsError } = await supabase
+        .from('bookings')
+        .select('project_id, status')
+        .in('project_id', projectIds);
+
+      if (bookingCountsError) {
+        console.log('Error fetching booking counts:', bookingCountsError);
+      } else {
+        const projectBookingCounts = {};
+        (bookingRows || []).forEach((booking) => {
+          if (!projectBookingCounts[booking.project_id]) {
+            projectBookingCounts[booking.project_id] = { total: 0, active: 0 };
+          }
+          projectBookingCounts[booking.project_id].total++;
+          if (isActiveBookingStatus(booking.status)) {
+            projectBookingCounts[booking.project_id].active++;
+          }
+        });
+        data.forEach((project) => {
+          project.bookingCounts = projectBookingCounts[project.id] || { total: 0, active: 0 };
+        });
+      }
     }
 
     console.log(`Projects query result: ${data?.length || 0} projects returned`);
@@ -2011,6 +2069,50 @@ app.get('/api/projects/types', async (_req, res) => {
     res.json(options);
   } catch (error) {
     console.error('GET project types error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Project status counts for institution dashboard stats
+app.get('/api/projects/counts', async (req, res) => {
+  try {
+    const { institution_id } = req.query;
+    if (!institution_id) {
+      return res.status(400).json({ error: 'institution_id is required' });
+    }
+
+    const access = await institutionAccess.resolveInstitutionAccess(req, String(institution_id));
+    if (!access) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const queryClient = institutionAccess.getWriteClientForInstitution(access);
+    const { data, error } = await queryClient
+      .from('projects')
+      .select('status')
+      .eq('institution_id', institution_id);
+
+    if (error) throw error;
+
+    const counts = {
+      total: data?.length || 0,
+      open: 0,
+      running: 0,
+      completed: 0,
+      closed: 0,
+    };
+
+    (data || []).forEach((row) => {
+      const status = normalizeProjectStatus(row.status);
+      if (status === 'open') counts.open++;
+      else if (status === 'running') counts.running++;
+      else if (status === 'completed') counts.completed++;
+      else if (status === 'closed') counts.closed++;
+    });
+
+    res.json(counts);
+  } catch (error) {
+    console.error('GET project counts error:', error);
     res.status(500).json({ error: error.message });
   }
 });
