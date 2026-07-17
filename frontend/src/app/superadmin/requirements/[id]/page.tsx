@@ -33,6 +33,7 @@ import { StatCard } from '@/components/superadmin/common/StatCard'
 import { TrainingAttendancePanel } from '@/components/training/TrainingAttendancePanel'
 import { RateIntentBadge } from '@/components/requirements/RateIntentBadge'
 import { RateAgreementPanel } from '@/components/requirements/RateAgreementPanel'
+import { ProjectEditRequestPanel } from '@/components/requirements/ProjectEditRequestPanel'
 import { PostedCompensationRate } from '@/components/requirements/PostedCompensationRate'
 import { BookingCompletionActions } from '@/components/bookings/BookingCompletionActions'
 import { BookingAgreementActions } from '@/components/bookings/BookingAgreementActions'
@@ -50,8 +51,15 @@ import {
   moneyInr,
   projectCompensationDisplay,
   projectEngagementQuantityDisplay,
+  bookingEngagementQuantityDisplay,
   resolveBookingSettlementRates,
+  toExpertNet,
 } from '@/lib/projectCompensation'
+import {
+  PROJECT_STATUSES,
+  PROJECT_STATUS_LABELS,
+  normalizeProjectStatus,
+} from '@/lib/projectStatus'
 
 const STAGES = [
   { value: 'pending', label: 'Pending' },
@@ -79,15 +87,6 @@ function isRejectedApplicationStatus(status?: string | null) {
 
 function isRejectedPipelineStage(stage?: string | null) {
   return String(stage || '').toLowerCase() === 'rejected'
-}
-
-function operationsStateLabel(value?: string | null) {
-  if (value === 'running') return 'Running / live'
-  if (value === 'pending') return 'Pending start'
-  if (value === 'completed') return 'Completed'
-  if (value === 'closed_incomplete') return 'Closed incomplete'
-  if (value === 'closed') return 'Closed'
-  return value || '-'
 }
 
 function formatDate(value?: string | null) {
@@ -158,6 +157,21 @@ export default function SuperAdminRequirementDetailPage() {
   const [dateEdits, setDateEdits] = useState({ start_date: '', end_date: '' })
   const [dateSaving, setDateSaving] = useState(false)
   const [bookingStatusSaving, setBookingStatusSaving] = useState<Record<string, boolean>>({})
+  const [requirementStatusSaving, setRequirementStatusSaving] = useState(false)
+  const [bookingEditOpen, setBookingEditOpen] = useState(false)
+  const [bookingEditSaving, setBookingEditSaving] = useState(false)
+  const [bookingEditTarget, setBookingEditTarget] = useState<any | null>(null)
+  const [bookingEditForm, setBookingEditForm] = useState({
+    total_budget: '',
+    final_gross_per_unit: '',
+    hours_booked: '',
+    unit_quantity: '',
+    start_date: '',
+    end_date: '',
+    actual_start_date: '',
+    actual_end_date: '',
+    note: '',
+  })
   const [interviewDialog, setInterviewDialog] = useState<null | {
     kind: 'pipeline' | 'native'
     row: any
@@ -232,6 +246,213 @@ export default function SuperAdminRequirementDetailPage() {
       toast.error(err instanceof Error ? err.message : 'Failed to update booking status')
     } finally {
       setBookingStatusSaving((current) => ({ ...current, [booking.id]: false }))
+    }
+  }
+
+  async function updateRequirementStatus(status: string) {
+    setRequirementStatusSaving(true)
+    try {
+      await superAdminApi.updateRequirementStatus(requirementType, requirementId, { status })
+      toast.success('Requirement status updated')
+      await loadDetail()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update requirement status')
+    } finally {
+      setRequirementStatusSaving(false)
+    }
+  }
+
+  async function reviewProjectEdit(action: 'approve' | 'reject', reviewNote?: string) {
+    const requestId = detail?.pendingEditRequest?.id
+    if (!requestId) return
+    await superAdminApi.reviewProjectEditRequest(requirementType, requirementId, requestId, {
+      action,
+      review_note: reviewNote,
+    })
+    toast.success(action === 'approve' ? 'Institution edits approved and applied' : 'Institution edits rejected')
+    await loadDetail()
+  }
+
+  function openBookingEdit(booking: any) {
+    const settlement = resolveBookingSettlementRates({
+      ...booking,
+      projects: booking.projects || detail?.requirement,
+    })
+    const engagement = bookingEngagementQuantityDisplay({
+      ...booking,
+      projects: booking.projects || detail?.requirement,
+    })
+    const qty =
+      booking.unit_quantity != null && Number(booking.unit_quantity) > 0
+        ? Number(booking.unit_quantity)
+        : engagement.quantity > 0
+          ? engagement.quantity
+          : 0
+    const gross = Number(settlement.grossPerUnit || booking.final_gross_per_unit || booking.amount || 0)
+    const totalBudget =
+      settlement.unit === 'fixed_package'
+        ? gross
+        : qty > 0 && gross > 0
+          ? Math.round(gross * qty * 100) / 100
+          : 0
+    setBookingEditTarget(booking)
+    setBookingEditForm({
+      total_budget: totalBudget > 0 ? String(totalBudget) : '',
+      final_gross_per_unit: gross > 0 ? String(gross) : '',
+      hours_booked: booking.hours_booked != null ? String(booking.hours_booked) : '',
+      unit_quantity: qty > 0 ? String(qty) : '',
+      start_date: booking.start_date ? String(booking.start_date).slice(0, 10) : '',
+      end_date: booking.end_date ? String(booking.end_date).slice(0, 10) : '',
+      actual_start_date: booking.actual_start_date ? String(booking.actual_start_date).slice(0, 10) : '',
+      actual_end_date: booking.actual_end_date ? String(booking.actual_end_date).slice(0, 10) : '',
+      note: '',
+    })
+    setBookingEditOpen(true)
+  }
+
+  function bookingEditUnitMeta() {
+    if (!bookingEditTarget) {
+      return { unit: 'hourly' as const, unitShort: 'hour', hoursPerDay: 0 }
+    }
+    const settlement = resolveBookingSettlementRates({
+      ...bookingEditTarget,
+      projects: bookingEditTarget.projects || detail?.requirement,
+    })
+    const project = bookingEditTarget.projects || detail?.requirement
+    const hoursPerDay =
+      Number(project?.hours_per_day) > 0
+        ? Number(project.hours_per_day)
+        : Number(project?.duration_per_unit) > 0 &&
+            (settlement.unit === 'per_day' || settlement.unit === 'per_session' || settlement.unit === 'per_month')
+          ? Number(project.duration_per_unit)
+          : 0
+    return { unit: settlement.unit, unitShort: settlement.unitShort, hoursPerDay }
+  }
+
+  function syncBookingEditHours(qty: number, prevHours: string, hoursPerDay: number, unit: string) {
+    if (unit === 'hourly' && qty > 0) return String(qty)
+    if ((unit === 'per_day' || unit === 'per_session' || unit === 'per_month') && qty > 0 && hoursPerDay > 0) {
+      return String(Math.round(qty * hoursPerDay * 100) / 100)
+    }
+    return prevHours
+  }
+
+  function onBookingEditBudgetChange(value: string) {
+    const { unit, hoursPerDay } = bookingEditUnitMeta()
+    setBookingEditForm((prev) => {
+      const qty = Number(prev.unit_quantity)
+      const budget = Number(value)
+      const nextRate =
+        unit === 'fixed_package'
+          ? Number.isFinite(budget) && budget > 0
+            ? String(Math.round(budget * 100) / 100)
+            : prev.final_gross_per_unit
+          : Number.isFinite(budget) && budget > 0 && Number.isFinite(qty) && qty > 0
+            ? String(Math.round((budget / qty) * 100) / 100)
+            : prev.final_gross_per_unit
+      return {
+        ...prev,
+        total_budget: value,
+        final_gross_per_unit: nextRate,
+        hours_booked: syncBookingEditHours(qty, prev.hours_booked, hoursPerDay, unit),
+      }
+    })
+  }
+
+  function onBookingEditQuantityChange(value: string) {
+    const { unit, hoursPerDay } = bookingEditUnitMeta()
+    setBookingEditForm((prev) => {
+      const qty = Number(value)
+      const budget = Number(prev.total_budget)
+      const nextRate =
+        unit === 'fixed_package'
+          ? prev.final_gross_per_unit
+          : Number.isFinite(budget) && budget > 0 && Number.isFinite(qty) && qty > 0
+            ? String(Math.round((budget / qty) * 100) / 100)
+            : prev.final_gross_per_unit
+      return {
+        ...prev,
+        unit_quantity: value,
+        final_gross_per_unit: nextRate,
+        hours_booked: syncBookingEditHours(qty, prev.hours_booked, hoursPerDay, unit),
+      }
+    })
+  }
+
+  function onBookingEditRateChange(value: string) {
+    const { unit, hoursPerDay } = bookingEditUnitMeta()
+    setBookingEditForm((prev) => {
+      const rate = Number(value)
+      const qty = Number(prev.unit_quantity)
+      const nextBudget =
+        unit === 'fixed_package'
+          ? Number.isFinite(rate) && rate > 0
+            ? String(Math.round(rate * 100) / 100)
+            : prev.total_budget
+          : Number.isFinite(rate) && rate > 0 && Number.isFinite(qty) && qty > 0
+            ? String(Math.round(rate * qty * 100) / 100)
+            : prev.total_budget
+      return {
+        ...prev,
+        final_gross_per_unit: value,
+        total_budget: nextBudget,
+        hours_booked: syncBookingEditHours(qty, prev.hours_booked, hoursPerDay, unit),
+      }
+    })
+  }
+
+  async function saveBookingEdit() {
+    if (!bookingEditTarget) return
+    const gross = Number(bookingEditForm.final_gross_per_unit)
+    if (!Number.isFinite(gross) || gross <= 0) {
+      toast.error('Institute pay rate must be a positive number')
+      return
+    }
+    const qty = Number(bookingEditForm.unit_quantity)
+    if (bookingEditForm.unit_quantity !== '' && (!Number.isFinite(qty) || qty <= 0)) {
+      toast.error('Quantity must be a positive number')
+      return
+    }
+    if (bookingEditForm.start_date && bookingEditForm.end_date && bookingEditForm.end_date < bookingEditForm.start_date) {
+      toast.error('End date must be on or after start date')
+      return
+    }
+    if (
+      bookingEditForm.actual_start_date &&
+      bookingEditForm.actual_end_date &&
+      bookingEditForm.actual_end_date < bookingEditForm.actual_start_date
+    ) {
+      toast.error('Actual end date must be on or after actual start date')
+      return
+    }
+
+    const payload: Record<string, unknown> = {
+      final_gross_per_unit: gross,
+      hours_booked: bookingEditForm.hours_booked === '' ? undefined : Number(bookingEditForm.hours_booked),
+      unit_quantity: bookingEditForm.unit_quantity === '' ? undefined : Number(bookingEditForm.unit_quantity),
+      start_date: bookingEditForm.start_date || null,
+      end_date: bookingEditForm.end_date || null,
+      actual_start_date: bookingEditForm.actual_start_date || null,
+      actual_end_date: bookingEditForm.actual_end_date || null,
+      note: bookingEditForm.note.trim() || null,
+    }
+
+    setBookingEditSaving(true)
+    try {
+      await superAdminApi.updateRequirementBooking(
+        requirementType,
+        requirementId,
+        bookingEditTarget.id,
+        payload
+      )
+      toast.success('Booking details updated')
+      setBookingEditOpen(false)
+      setBookingEditTarget(null)
+      await loadDetail()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update booking')
+    } finally {
+      setBookingEditSaving(false)
     }
   }
 
@@ -533,6 +754,7 @@ export default function SuperAdminRequirementDetailPage() {
   const counts = detail?.counts || {}
   const reports = detail?.reports || []
   const assignment = detail?.assignment || requirement?.assignment
+  const pendingEditRequest = detail?.pendingEditRequest || null
   const managePermissions: SuperAdminPermission[] = requirementType === 'freelance'
     ? ['requirements:candidates', 'freelance:write']
     : requirementType === 'internship'
@@ -706,7 +928,18 @@ export default function SuperAdminRequirementDetailPage() {
               <div><span className="text-slate-500">Experience</span><p className="font-medium text-slate-950">{person?.experience_years != null ? `${person.experience_years} years` : '-'}</p></div>
               <div><span className="text-slate-500">Domain</span><p className="font-medium text-slate-950">{Array.isArray(person?.domain_expertise) ? person.domain_expertise.join(', ') : person?.domain_expertise || '-'}</p></div>
               <div><span className="text-slate-500">Interview</span><p className="font-medium text-slate-950">{formatInterviewDateTime(item.row.interview_date || item.row.interview_scheduled_at)}</p></div>
-              {booking ? <div><span className="text-slate-500">Booked Hours</span><p className="font-medium text-slate-950">{booking.hours_booked || 0}</p></div> : null}
+              {booking ? (() => {
+                const engagement = bookingEngagementQuantityDisplay({
+                  ...booking,
+                  projects: booking.projects || requirement,
+                })
+                return (
+                  <div>
+                    <span className="text-slate-500">{engagement.label}</span>
+                    <p className="font-medium text-slate-950">{engagement.value}</p>
+                  </div>
+                )
+              })() : null}
               {booking ? <div><span className="text-slate-500">Approved Hours</span><p className="font-medium text-slate-950">{booking.approved_hours || 0}</p></div> : null}
               {booking ? <div><span className="text-slate-500">Payment</span><p className="font-medium text-slate-950">{booking.payment_status || '-'}</p></div> : null}
               {booking ? <div><span className="text-slate-500">Dates</span><p className="font-medium text-slate-950">{booking.start_date || '-'} to {booking.end_date || '-'}</p></div> : null}
@@ -732,26 +965,39 @@ export default function SuperAdminRequirementDetailPage() {
           <div className="flex shrink-0 flex-col gap-2 lg:min-w-56">
             {renderStatusActions(item)}
             {booking ? (
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <Label className="text-xs text-slate-500">Booking status</Label>
-                <Select
-                  value={booking.status || ''}
-                  onValueChange={(value) => updateBookingStatus(booking, value)}
-                  disabled={Boolean(bookingStatusSaving[booking.id])}
-                >
-                  <SelectTrigger className="mt-1 bg-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="confirmed">Confirmed</SelectItem>
-                    <SelectItem value="in_progress">In progress</SelectItem>
-                    <SelectItem value="completion_requested">Completion requested</SelectItem>
-                    <SelectItem value="cancellation_requested">Cancellation requested</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3">
+                <div>
+                  <Label className="text-xs text-slate-500">Booking status</Label>
+                  <Select
+                    value={booking.status || ''}
+                    onValueChange={(value) => updateBookingStatus(booking, value)}
+                    disabled={Boolean(bookingStatusSaving[booking.id])}
+                  >
+                    <SelectTrigger className="mt-1 bg-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="confirmed">Confirmed</SelectItem>
+                      <SelectItem value="in_progress">In progress</SelectItem>
+                      <SelectItem value="completion_requested">Completion requested</SelectItem>
+                      <SelectItem value="cancellation_requested">Cancellation requested</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {canManagePipeline ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => openBookingEdit(booking)}
+                  >
+                    Edit booking details
+                  </Button>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -809,12 +1055,42 @@ export default function SuperAdminRequirementDetailPage() {
             </div>
           </div>
 
+          {requirementType === 'project' && pendingEditRequest ? (
+            <ProjectEditRequestPanel
+              editRequest={pendingEditRequest}
+              canReview={canManagePipeline}
+              onReview={reviewProjectEdit}
+            />
+          ) : null}
+
           <SectionCard title={requirement.title || 'Requirement'} description={`${requirement.requirement_type} requirement`}>
             <div className="grid gap-4 text-sm md:grid-cols-3">
               {detailValue('Institution', institution?.name || '-')}
               {detailValue('Institution Email', institution?.email)}
-              {detailValue('Status', requirement.status || requirement.call_status || '-')}
-              {detailValue('Operations State', operationsStateLabel(requirement.derived_status))}
+              {requirementType === 'project' ? (
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-slate-500">Status</p>
+                  <Select
+                    value={String(normalizeProjectStatus(requirement.status) || 'open')}
+                    onValueChange={updateRequirementStatus}
+                    disabled={!canManagePipeline || requirementStatusSaving}
+                  >
+                    <SelectTrigger className="mt-1 bg-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PROJECT_STATUSES.map((value) => (
+                        <SelectItem key={value} value={value}>{PROJECT_STATUS_LABELS[value]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Independent of booking status. Auto: open→running on start date, →completed after end date. Closed stays closed.
+                  </p>
+                </div>
+              ) : (
+                detailValue('Status', requirement.status || requirement.call_status || '-')
+              )}
               {detailValue('Progress', requirement.progress_label || 'Unknown')}
               {detailValue('Assigned Admin', assignment?.admin?.name || assignment?.admin?.email || 'Unassigned')}
               {detailValue('Created', formatDate(requirement.created_at))}
@@ -831,21 +1107,11 @@ export default function SuperAdminRequirementDetailPage() {
                   </div>
                   {(() => {
                     const pricing = projectCompensationDisplay(requirement)
+                    const engagement = projectEngagementQuantityDisplay(requirement)
                     return (
                       <>
                         {detailValue('Pay unit', pricing.unitLabel)}
-                        {pricing.quantity > 0
-                          ? detailValue(
-                              pricing.unit === 'per_day'
-                                ? 'Number of days'
-                                : pricing.unit === 'per_month'
-                                  ? 'Number of months'
-                                  : pricing.unit === 'per_session'
-                                    ? 'Number of sessions'
-                                    : 'Quantity',
-                              pricing.quantity
-                            )
-                          : null}
+                        {engagement.quantity > 0 ? detailValue(engagement.label, engagement.value) : null}
                         {Number(requirement.hours_per_day) > 0 ||
                         ((pricing.unit === 'per_day' || pricing.unit === 'per_session' || pricing.unit === 'per_month') &&
                           pricing.durationPerUnit > 1)
@@ -873,15 +1139,7 @@ export default function SuperAdminRequirementDetailPage() {
               {requirement.start_date ? detailValue('Start Date', new Date(requirement.start_date).toLocaleDateString()) : null}
               {requirement.end_date ? detailValue('End Date', new Date(requirement.end_date).toLocaleDateString()) : null}
               {requirement.deadline ? detailValue('Deadline', new Date(requirement.deadline).toLocaleDateString()) : null}
-              {requirementType === 'project'
-                ? detailValue(
-                    projectEngagementQuantityDisplay(requirement).label,
-                    projectEngagementQuantityDisplay(requirement).value
-                  )
-                : detailValue('Duration Hours', requirement.duration_hours)}
-              {Number(requirement.hours_per_day) > 0
-                ? detailValue('Hours per day', `${requirement.hours_per_day} hours`)
-                : null}
+              {requirementType !== 'project' ? detailValue('Duration Hours', requirement.duration_hours) : null}
               {requirement.schedule_notes
                 ? detailValue('Weekly schedule', requirement.schedule_notes)
                 : null}
@@ -889,6 +1147,23 @@ export default function SuperAdminRequirementDetailPage() {
               {detailValue('Engagement', requirement.engagement || requirement.employment_type)}
               {detailValue('Openings', requirement.openings)}
               {detailValue('Location', requirement.location || requirement.job_location)}
+              {requirementType === 'project' ? (
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-slate-500">Requirement PDF</p>
+                  {requirement.requirement_pdf_url ? (
+                    <a
+                      href={requirement.requirement_pdf_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1 inline-flex text-sm font-medium text-[#008260] hover:underline"
+                    >
+                      View requirement PDF
+                    </a>
+                  ) : (
+                    <p className="mt-1 text-sm text-slate-500">Not uploaded</p>
+                  )}
+                </div>
+              ) : null}
             </div>
             {requirementType === 'project' ? (
               <div className="mt-5 grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
@@ -1069,6 +1344,163 @@ export default function SuperAdminRequirementDetailPage() {
               disabled={workflowSaving || !interviewDialog?.value?.trim()}
             >
               {workflowSaving ? 'Saving...' : 'Save interview'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={bookingEditOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setBookingEditOpen(false)
+            setBookingEditTarget(null)
+          }
+        }}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto bg-white sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit booking details</DialogTitle>
+          </DialogHeader>
+          {bookingEditTarget ? (
+            <div className="space-y-4 text-sm">
+              <p className="text-slate-600">
+                Updates apply to this booking only. Expert and institution dashboards will show the new values.
+                Finance/invoices are not auto-updated.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <Label>
+                    {bookingEditUnitMeta().unit === 'hourly'
+                      ? 'Duration (hours)'
+                      : bookingEditUnitMeta().unit === 'fixed_package'
+                        ? 'Quantity'
+                        : `Quantity (${bookingEditUnitMeta().unitShort}s)`}
+                  </Label>
+                  <Input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    className="mt-1"
+                    value={bookingEditForm.unit_quantity}
+                    onChange={(e) => onBookingEditQuantityChange(e.target.value)}
+                    disabled={bookingEditUnitMeta().unit === 'fixed_package'}
+                  />
+                </div>
+                <div>
+                  <Label>Total budget (Rs.)</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    step="0.01"
+                    className="mt-1"
+                    value={bookingEditForm.total_budget}
+                    onChange={(e) => onBookingEditBudgetChange(e.target.value)}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <Label>Institute pays (gross / {bookingEditUnitMeta().unitShort})</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    step="0.01"
+                    className="mt-1"
+                    value={bookingEditForm.final_gross_per_unit}
+                    onChange={(e) => onBookingEditRateChange(e.target.value)}
+                  />
+                  <p className="mt-1 text-xs text-slate-500">
+                    Auto-calculated from total budget ÷ quantity. You can still override it.
+                    Expert earns (auto){' '}
+                    {moneyInr(toExpertNet(Number(bookingEditForm.final_gross_per_unit) || 0))} /{' '}
+                    {bookingEditUnitMeta().unitShort}
+                  </p>
+                </div>
+                <div className="sm:col-span-2">
+                  <Label>Total effort hours (attendance)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className="mt-1"
+                    value={bookingEditForm.hours_booked}
+                    onChange={(e) => setBookingEditForm((prev) => ({ ...prev, hours_booked: e.target.value }))}
+                  />
+                  <p className="mt-1 text-xs text-slate-500">
+                    Used for attendance / completion. For per-day this is usually days × hours/day.
+                  </p>
+                </div>
+                <div>
+                  <Label>Start date</Label>
+                  <Input
+                    type="date"
+                    className="mt-1"
+                    value={bookingEditForm.start_date}
+                    onChange={(e) => setBookingEditForm((prev) => ({ ...prev, start_date: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label>End date</Label>
+                  <Input
+                    type="date"
+                    className="mt-1"
+                    value={bookingEditForm.end_date}
+                    onChange={(e) => setBookingEditForm((prev) => ({ ...prev, end_date: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label>Actual start date</Label>
+                  <Input
+                    type="date"
+                    className="mt-1"
+                    value={bookingEditForm.actual_start_date}
+                    onChange={(e) =>
+                      setBookingEditForm((prev) => ({ ...prev, actual_start_date: e.target.value }))
+                    }
+                  />
+                </div>
+                <div>
+                  <Label>Actual end date</Label>
+                  <Input
+                    type="date"
+                    className="mt-1"
+                    value={bookingEditForm.actual_end_date}
+                    onChange={(e) =>
+                      setBookingEditForm((prev) => ({ ...prev, actual_end_date: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <Label>Reason / note (optional)</Label>
+                  <Textarea
+                    className="mt-1"
+                    rows={2}
+                    value={bookingEditForm.note}
+                    onChange={(e) => setBookingEditForm((prev) => ({ ...prev, note: e.target.value }))}
+                    placeholder="Why is this booking being corrected?"
+                  />
+                </div>
+              </div>
+            </div>
+          ) : null}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={bookingEditSaving}
+              onClick={() => {
+                setBookingEditOpen(false)
+                setBookingEditTarget(null)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="bg-[#008260] hover:bg-[#006d51]"
+              disabled={bookingEditSaving || !bookingEditTarget}
+              onClick={saveBookingEdit}
+            >
+              {bookingEditSaving ? 'Saving…' : 'Save booking'}
             </Button>
           </DialogFooter>
         </DialogContent>

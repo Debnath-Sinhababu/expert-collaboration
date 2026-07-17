@@ -220,9 +220,11 @@ function AttendanceActionCard({ booking, basePath }: { booking: TrainingBooking;
         <div className="rounded-md bg-[#F7FAFF] p-2">
           <div className="flex items-center gap-1 text-[#6A6A6A]">
             <Clock className="h-3.5 w-3.5" />
-            Hours
+            Planned effort
           </div>
-          <p className="mt-1 font-semibold text-[#000000]">{booking.hours_booked || project?.duration_hours || 'N/A'} hrs</p>
+          <p className="mt-1 font-semibold text-[#000000]">
+            {booking.hours_booked || project?.duration_hours || 'N/A'} hrs
+          </p>
         </div>
       </div>
 

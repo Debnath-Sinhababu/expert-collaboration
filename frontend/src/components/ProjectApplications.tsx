@@ -109,24 +109,10 @@ export default function ProjectApplications({ projectId, projectTitle, onClose, 
         reviewed_at: new Date().toISOString()
       })
       
-      // If accepting, create a booking
       if (action === 'accept') {
-        const application = applications.find(app => app.id === applicationId)
-        if (application) {
-          const bookingData = {
-            expert_id: application.expert_id,
-            institution_id: institutionId,
-            project_id: application.project_id,
-            application_id: applicationId,
-            amount: application.proposed_rate || 1000,
-            start_date: new Date().toISOString().split('T')[0],
-            end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 days from now
-            hours_booked: 1,
-            status: 'in_progress',
-            payment_status: 'pending'
-          }
-          
-          await api.bookings.create(bookingData)
+        const result = await api.applications.confirmLock(applicationId, {})
+        if (result?.error) {
+          throw new Error(result.error)
         }
       }
       

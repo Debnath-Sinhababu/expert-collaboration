@@ -24,6 +24,14 @@ import Logo from '@/components/Logo'
 import { getInstitutionRate } from '@/lib/utils'
 import { PostedCompensationRate } from '@/components/requirements/PostedCompensationRate'
 import { projectEngagementQuantityDisplay } from '@/lib/projectCompensation'
+import {
+  PROJECT_STATUSES,
+  PROJECT_STATUS_LABELS,
+  isActiveProjectStatus,
+  isEndedProjectStatus,
+  normalizeProjectStatus,
+  projectStatusLabel,
+} from '@/lib/projectStatus'
 import { 
   Building, 
   Plus, 
@@ -82,13 +90,21 @@ export default function InstitutionDashboardPage() {
     accepted: 0,
     rejected: 0,
   })
-  const [projectCounts, setProjectCounts] = useState({ total: 0, open: 0 })
+  const [projectCounts, setProjectCounts] = useState({
+    total: 0,
+    open: 0,
+    running: 0,
+    completed: 0,
+    closed: 0,
+  })
   const [financeSummary, setFinanceSummary] = useState<any>(null)
   const [ratings, setRatings] = useState<any[]>([])
   const [allRatings, setAllRatings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
   const [selectedExpert, setSelectedExpert] = useState<any>(null)
   const [showProjectForm, setShowProjectForm] = useState(false)
   const [projectForm, setProjectForm] = useState({
@@ -236,11 +252,14 @@ export default function InstitutionDashboardPage() {
             expert_id: expert.id,
             project_id: selectedProjectId,
             institution_id: institution?.id,
-            amount: projectDetails.hourly_rate,
+            amount: projectDetails.institution_gross_per_unit || projectDetails.hourly_rate,
             hours_booked: projectDetails.duration_hours,
             start_date: new Date().toISOString().split('T')[0],
             end_date: projectDetails.end_date,
-            status: 'in_progress'
+            status: 'in_progress',
+            compensation_unit: projectDetails.compensation_unit || 'hourly',
+            unit_quantity: projectDetails.unit_quantity || projectDetails.duration_hours || null,
+            final_gross_per_unit: projectDetails.institution_gross_per_unit || projectDetails.hourly_rate || null,
           }
 
           await api.bookings.create(bookingData)
@@ -324,10 +343,10 @@ export default function InstitutionDashboardPage() {
         .catch(() => setFinanceSummary(null))
       
       // Initial light calls (experts list is paginated below). Lists are fed by paginated hooks
-      const [bookingCountsResponse, applicationCountsResponse, projectsCountResponse] = await Promise.all([
+      const [bookingCountsResponse, applicationCountsResponse, projectCountsResponse] = await Promise.all([
         api.bookings.getCounts({ institution_id: institutionsResponse.id }),
         api.applications.getCounts({ institution_id: institutionsResponse.id }).catch(() => null),
-        api.projects.getAll({ institution_id: institutionsResponse.id, page: 1, limit: 1 }).catch(() => null),
+        api.projects.getCounts({ institution_id: institutionsResponse.id }).catch(() => null),
       ])
     
       
@@ -342,14 +361,14 @@ export default function InstitutionDashboardPage() {
       if (applicationCountsResponse && !applicationCountsResponse.error) {
         setApplicationCounts(applicationCountsResponse)
       }
-      // Prefer exact total if API returns count metadata; fallback later from paged projects
-      const totalFromMeta =
-        Number(projectsCountResponse?.total) ||
-        Number(projectsCountResponse?.count) ||
-        Number(projectsCountResponse?.pagination?.total) ||
-        0
-      if (totalFromMeta > 0) {
-        setProjectCounts((prev) => ({ ...prev, total: totalFromMeta }))
+      if (projectCountsResponse && !projectCountsResponse.error) {
+        setProjectCounts({
+          total: Number(projectCountsResponse.total) || 0,
+          open: Number(projectCountsResponse.open) || 0,
+          running: Number(projectCountsResponse.running) || 0,
+          completed: Number(projectCountsResponse.completed) || 0,
+          closed: Number(projectCountsResponse.closed) || 0,
+        })
       }
       
 
@@ -369,6 +388,11 @@ export default function InstitutionDashboardPage() {
 
 
   // Paginated projects owned by the institution
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
   const {
     data: pagedProjects,
     loading: projectsLoading,
@@ -378,9 +402,20 @@ export default function InstitutionDashboardPage() {
   } = usePagination(
     async (page: number) => {
       if (!institution?.id) return []
-      return await api.projects.getAll({ page, limit: 10, institution_id: institution?.id })
+      const params: Record<string, any> = {
+        page,
+        limit: 10,
+        institution_id: institution.id,
+      }
+      if (debouncedSearch) params.search = debouncedSearch
+      if (statusFilter === 'active_bookings') {
+        params.has_active_bookings = true
+      } else if (statusFilter && statusFilter !== 'all') {
+        params.status = statusFilter
+      }
+      return await api.projects.getAll(params)
     },
-    [institution?.id]
+    [institution?.id, debouncedSearch, statusFilter]
   )
 
   useEffect(() => {
@@ -585,6 +620,21 @@ export default function InstitutionDashboardPage() {
       console.log('Project closed successfully:', result)
       toast.success('Project closed successfully!')
       refreshProjects()
+      if (institution?.id) {
+        api.projects.getCounts({ institution_id: institution.id })
+          .then((counts) => {
+            if (counts && !counts.error) {
+              setProjectCounts({
+                total: Number(counts.total) || 0,
+                open: Number(counts.open) || 0,
+                running: Number(counts.running) || 0,
+                completed: Number(counts.completed) || 0,
+                closed: Number(counts.closed) || 0,
+              })
+            }
+          })
+          .catch(() => {})
+      }
       setError('')
       setShowCloseConfirm(false)
       setProjectToClose(null)
@@ -599,14 +649,25 @@ export default function InstitutionDashboardPage() {
   // Load ratings when institution is available
 // Only depend on institution ID
 
-  const runningProjects = projects.filter((project: any) => !['completed', 'closed', 'cancelled'].includes(project.status))
-  const closedProjects = projects.filter((project: any) => ['completed', 'closed', 'cancelled'].includes(project.status))
-  const orderedProjects = [...runningProjects, ...closedProjects]
+  const closedProjects = projects.filter((project: any) => isEndedProjectStatus(project.status))
+  const openProjects = projects.filter((project: any) => normalizeProjectStatus(project.status) === 'open')
+  const liveRunningProjects = projects.filter((project: any) => normalizeProjectStatus(project.status) === 'running')
+  const completedProjects = projects.filter((project: any) => normalizeProjectStatus(project.status) === 'completed')
+  const closedOnlyProjects = projects.filter((project: any) => normalizeProjectStatus(project.status) === 'closed')
+  const showGroupedSections = statusFilter === 'all' && !debouncedSearch
+  const orderedProjects = showGroupedSections
+    ? [...openProjects, ...liveRunningProjects, ...closedProjects]
+    : projects
+  const hasActiveProjectFilters = Boolean(debouncedSearch) || statusFilter !== 'all'
   const totalProjectsDisplay = projectCounts.total > 0 ? projectCounts.total : projects.length
   const openProjectsDisplay =
-    projectCounts.total > 0
-      ? projectCounts.open || runningProjects.length
-      : projects.filter((p) => p.status === 'open').length
+    projectCounts.total > 0 ? projectCounts.open : openProjects.length
+  const runningProjectsDisplay =
+    projectCounts.total > 0 ? projectCounts.running : liveRunningProjects.length
+  const completedProjectsDisplay =
+    projectCounts.total > 0 ? projectCounts.completed : completedProjects.length
+  const closedProjectsDisplay =
+    projectCounts.total > 0 ? projectCounts.closed : closedOnlyProjects.length
   const totalApplicationsDisplay =
     applicationCounts.total > 0
       ? applicationCounts.total
@@ -1120,6 +1181,68 @@ export default function InstitutionDashboardPage() {
           </Card> */}
         </div>
 
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+          <Card className="bg-white border-2 border-[#D6D6D6]">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-[#000000]">Open</p>
+                  <p className="text-3xl font-bold text-[#000000] my-2">{openProjectsDisplay}</p>
+                  <p className="text-xs text-[#656565]">projects</p>
+                </div>
+                <div className="p-3 bg-[#ECF2FF] rounded-full">
+                  <Briefcase className="h-8 w-8 text-[#008260]" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white border-2 border-[#D6D6D6]">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-[#000000]">Running</p>
+                  <p className="text-3xl font-bold text-[#000000] my-2">{runningProjectsDisplay}</p>
+                  <p className="text-xs text-[#656565]">live projects</p>
+                </div>
+                <div className="p-3 bg-[#ECF2FF] rounded-full">
+                  <Hourglass className="h-8 w-8 text-[#008260]" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white border-2 border-[#D6D6D6]">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-[#000000]">Completed</p>
+                  <p className="text-3xl font-bold text-[#000000] my-2">{completedProjectsDisplay}</p>
+                  <p className="text-xs text-[#656565]">projects</p>
+                </div>
+                <div className="p-3 bg-[#ECF2FF] rounded-full">
+                  <CheckCircle className="h-8 w-8 text-[#008260]" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white border-2 border-[#D6D6D6]">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-[#000000]">Closed</p>
+                  <p className="text-3xl font-bold text-[#000000] my-2">{closedProjectsDisplay}</p>
+                  <p className="text-xs text-[#656565]">projects</p>
+                </div>
+                <div className="p-3 bg-[#ECF2FF] rounded-full">
+                  <XCircle className="h-8 w-8 text-[#008260]" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {financeSummary?.summary ? (
           <div className="grid md:grid-cols-3 gap-6 mb-8">
             <Card className="bg-white border-2 border-[#D6D6D6]">
@@ -1152,40 +1275,99 @@ export default function InstitutionDashboardPage() {
             <CardHeader>
               <CardTitle className="text-lg font-semibold text-[#000000]">My Projects</CardTitle>
               <CardDescription className="text-[#000000] font-normal text-base !-mt-[2px]">
-                Running projects are shown first, followed by closed and completed projects.
+                Search and filter by status: Open, Running, Completed, Closed.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {projects.length === 0 ? (
+              <div className="mb-4 grid grid-cols-1 gap-3 rounded-xl border border-[#DCDCDC] bg-[#FAFAFA] p-3 sm:grid-cols-[1fr_220px_auto]">
+                <div>
+                  <Label htmlFor="project-search" className="text-xs text-[#656565]">Search</Label>
+                  <div className="relative mt-1">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <Input
+                      id="project-search"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Search by title or description..."
+                      className="border-[#DCDCDC] bg-white pl-10"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs text-[#656565]">Status</Label>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="mt-1 border-[#DCDCDC] bg-white">
+                      <SelectValue placeholder="All statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All statuses</SelectItem>
+                      {PROJECT_STATUSES.map((value) => (
+                        <SelectItem key={value} value={value}>{PROJECT_STATUS_LABELS[value]}</SelectItem>
+                      ))}
+                      <SelectItem value="active_bookings">Active bookings</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full border-[#DCDCDC] bg-white"
+                    disabled={!hasActiveProjectFilters}
+                    onClick={() => {
+                      setSearchTerm('')
+                      setDebouncedSearch('')
+                      setStatusFilter('all')
+                    }}
+                  >
+                    <Filter className="mr-2 h-4 w-4" />
+                    Clear
+                  </Button>
+                </div>
+              </div>
+
+              {projects.length === 0 && !projectsLoading ? (
                 <div className="text-center py-8">
                   <Briefcase className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                  <p className="text-slate-600">No projects posted yet</p>
-                  <p className="text-sm text-slate-500">Create your first project to find experts</p>
-                
+                  <p className="text-slate-600">
+                    {hasActiveProjectFilters ? 'No projects match your filters' : 'No projects posted yet'}
+                  </p>
+                  <p className="text-sm text-slate-500">
+                    {hasActiveProjectFilters
+                      ? 'Try a different search or status filter'
+                      : 'Create your first project to find experts'}
+                  </p>
                 </div>
                 ) : (
                   <div className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       <div className="rounded-lg border border-[#DCDCDC] p-3">
-                        <p className="text-xs text-[#656565]">Running projects</p>
-                        <p className="text-xl font-bold text-[#000000]">{runningProjects.length}</p>
+                        <p className="text-xs text-[#656565]">Open</p>
+                        <p className="text-xl font-bold text-[#000000]">{openProjectsDisplay}</p>
                       </div>
                       <div className="rounded-lg border border-[#DCDCDC] p-3">
-                        <p className="text-xs text-[#656565]">Closed projects</p>
-                        <p className="text-xl font-bold text-[#000000]">{closedProjects.length}</p>
+                        <p className="text-xs text-[#656565]">Running</p>
+                        <p className="text-xl font-bold text-[#000000]">{runningProjectsDisplay}</p>
                       </div>
                       <div className="rounded-lg border border-[#DCDCDC] p-3">
-                        <p className="text-xs text-[#656565]">Pending applications</p>
-                        <p className="text-xl font-bold text-[#000000]">{pendingApplicationsDisplay}</p>
+                        <p className="text-xs text-[#656565]">Completed</p>
+                        <p className="text-xl font-bold text-[#000000]">{completedProjectsDisplay}</p>
+                      </div>
+                      <div className="rounded-lg border border-[#DCDCDC] p-3">
+                        <p className="text-xs text-[#656565]">Closed</p>
+                        <p className="text-xl font-bold text-[#000000]">{closedProjectsDisplay}</p>
                       </div>
                     </div>
                     {orderedProjects.map((project: any, index: number) => (
                       <div key={`${project.id}-section`}>
-                        {index === 0 && runningProjects.length > 0 && (
-                          <h3 className="text-sm font-semibold text-[#008260]">Running projects</h3>
+                        {showGroupedSections && index === 0 && openProjects.length > 0 && (
+                          <h3 className="text-sm font-semibold text-[#008260]">Open</h3>
                         )}
-                        {index === runningProjects.length && closedProjects.length > 0 && (
-                          <h3 className="text-sm font-semibold text-[#6A6A6A]">Closed projects</h3>
+                        {showGroupedSections && index === openProjects.length && liveRunningProjects.length > 0 && (
+                          <h3 className="text-sm font-semibold text-[#1D4ED8]">Running</h3>
+                        )}
+                        {showGroupedSections && index === openProjects.length + liveRunningProjects.length && closedProjects.length > 0 && (
+                          <h3 className="text-sm font-semibold text-[#6A6A6A]">Ended</h3>
                         )}
                         <div 
                           key={project.id} 
@@ -1194,7 +1376,7 @@ export default function InstitutionDashboardPage() {
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                           <h3 className="font-bold text-base sm:text-lg text-[#000000]">{project.title}</h3>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 px-3 sm:py-2 sm:px-4">{project.status}</Badge>
+                            <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 px-3 sm:py-2 sm:px-4">{projectStatusLabel(project.status)}</Badge>
                             <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 px-3 sm:py-2 sm:px-4">{project.type}</Badge>
                           </div>
                         </div>
@@ -1241,7 +1423,18 @@ export default function InstitutionDashboardPage() {
                             <div className="min-w-0">
                               <span className="text-[#717171] text-xs">Applications:</span>
                               <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">
-                                {project.applicationCounts?.total}
+                                {project.applicationCounts?.total ?? 0}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-2.5 sm:gap-3">
+                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+                              <UserCheck className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[#717171] text-xs">Active bookings:</span>
+                              <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">
+                                {project.bookingCounts?.active ?? 0}
                               </p>
                             </div>
                           </div>
@@ -1268,7 +1461,6 @@ export default function InstitutionDashboardPage() {
                               variant="outline" 
                               className="flex-1 sm:flex-none bg-[#ECF2FF] rounded-[25px] text-[#1D1D1D] font-medium text-[13px]"
                               onClick={() => handleViewApplications(project)}
-                              disabled={!project.applicationCounts?.total}
                             >
                               <Eye className="h-4 w-4" />
                               View Applications ({project.applicationCounts?.pending || 0})
@@ -1282,7 +1474,7 @@ export default function InstitutionDashboardPage() {
                               <Edit className="h-4 w-4" />
                               Edit
                             </Button>
-                            {project.status === 'open' && (
+                            {isActiveProjectStatus(project.status) && (
                               <Button size="sm" variant="outline" onClick={() => handleCloseProjectClick(project.id)} className="flex-1 sm:flex-none bg-[#9B0000] hover:bg-[#9B0000] rounded-[25px] text-white hover:text-white font-semibold text-[13px]">
                                 <XCircle className="h-4 w-4" />
                                 Close

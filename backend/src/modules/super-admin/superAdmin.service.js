@@ -950,12 +950,32 @@ class SuperAdminService {
       err.statusCode = 404;
       throw err;
     }
+    const changed = updated._changed || { status: body?.status };
+    const before = updated._before || null;
+    delete updated._changed;
+    delete updated._before;
     await this.logActivity(auth, 'requirement.booking_updated', {
       entity_type: 'booking',
       entity_id: bookingId,
       requirement_type: requirementType,
       requirement_id: requirementId,
-      metadata: { status: body?.status },
+      metadata: {
+        changed,
+        before: before
+          ? {
+              status: before.status,
+              final_gross_per_unit: before.final_gross_per_unit,
+              final_net_per_unit: before.final_net_per_unit,
+              hours_booked: before.hours_booked,
+              unit_quantity: before.unit_quantity,
+              start_date: before.start_date,
+              end_date: before.end_date,
+              actual_start_date: before.actual_start_date,
+              actual_end_date: before.actual_end_date,
+            }
+          : null,
+        note: body?.note || null,
+      },
     });
     return updated;
   }
@@ -978,9 +998,72 @@ class SuperAdminService {
       entity_id: requirementId,
       requirement_type: requirementType,
       requirement_id: requirementId,
-      metadata: { start_date: body?.start_date, end_date: body?.end_date },
+      metadata: { start_date: body?.start_date, end_date: body?.end_date, status: updated.status },
     });
     return updated;
+  }
+
+  async updateRequirementStatus(type, requirementId, body, auth = null) {
+    const requirementType = parseRequirementType(type);
+    if (requirementType !== 'project') {
+      const err = new Error('Status editing is only available for project requirements');
+      err.statusCode = 400;
+      throw err;
+    }
+    const updated = await this.repository.updateProjectRequirementStatus(requirementId, body?.status);
+    if (!updated) {
+      const err = new Error('Requirement not found');
+      err.statusCode = 404;
+      throw err;
+    }
+    await this.logActivity(auth, 'requirement.status_updated', {
+      entity_type: 'project',
+      entity_id: requirementId,
+      requirement_type: requirementType,
+      requirement_id: requirementId,
+      metadata: {
+        before: updated._before,
+        after: updated.status,
+        changed: Boolean(updated._changed),
+      },
+    });
+    const { _changed, _before, ...row } = updated;
+    return row;
+  }
+
+  async reviewProjectEditRequest(type, requirementId, requestId, body, auth = null) {
+    const requirementType = parseRequirementType(type);
+    if (requirementType !== 'project') {
+      const err = new Error('Edit review is only available for project requirements');
+      err.statusCode = 400;
+      throw err;
+    }
+    const action = String(body?.action || '').toLowerCase();
+    if (!['approve', 'reject'].includes(action)) {
+      const err = new Error('Action must be approve or reject');
+      err.statusCode = 400;
+      throw err;
+    }
+    const result = await this.repository.reviewProjectEditRequest(requestId, action, {
+      reviewNote: body?.review_note || body?.reviewNote || '',
+      adminRecordId: auth?.admin?.id || auth?.adminId || null,
+    });
+    if (result?.request?.project_id && String(result.request.project_id) !== String(requirementId)) {
+      const err = new Error('Edit request does not belong to this requirement');
+      err.statusCode = 400;
+      throw err;
+    }
+    await this.logActivity(auth, action === 'approve' ? 'requirement.edit_approved' : 'requirement.edit_rejected', {
+      entity_type: 'project',
+      entity_id: requirementId,
+      requirement_type: requirementType,
+      requirement_id: requirementId,
+      metadata: {
+        edit_request_id: requestId,
+        review_note: body?.review_note || body?.reviewNote || null,
+      },
+    });
+    return result;
   }
 
   async listFreelance(params) {
