@@ -16,6 +16,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { SectionCard } from '@/components/superadmin/common/SectionCard'
 import { DataTable } from '@/components/superadmin/common/DataTable'
 import { PermissionGate } from '@/components/superadmin/common/PermissionGate'
@@ -176,20 +186,31 @@ function emptyParty() {
 function EditableAmountCell({
   value,
   disabled,
+  label,
+  partyLabel,
+  partyName,
   onSave,
 }: {
   value: number
   disabled?: boolean
+  label: string
+  partyLabel: string
+  partyName: string
   onSave: (next: number) => Promise<void>
 }) {
   const [draft, setDraft] = useState(Number(value || 0).toFixed(2))
   const [saving, setSaving] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [pending, setPending] = useState<number | null>(null)
 
   useEffect(() => {
-    setDraft(Number(value || 0).toFixed(2))
-  }, [value])
+    if (!confirmOpen) {
+      setDraft(Number(value || 0).toFixed(2))
+    }
+  }, [value, confirmOpen])
 
-  async function commit() {
+  function requestCommit() {
+    if (confirmOpen || saving) return
     const next = Number(draft)
     if (!Number.isFinite(next) || next < 0) {
       toast.error('Enter a valid amount (0 or more)')
@@ -200,36 +221,103 @@ function EditableAmountCell({
       setDraft(Number(value || 0).toFixed(2))
       return
     }
+    setPending(next)
+    setConfirmOpen(true)
+  }
+
+  function cancelConfirm() {
+    if (saving) return
+    setDraft(Number(value || 0).toFixed(2))
+    setPending(null)
+    setConfirmOpen(false)
+  }
+
+  async function confirmSave() {
+    if (pending == null) return
     setSaving(true)
     try {
-      await onSave(next)
+      await onSave(pending)
+      setConfirmOpen(false)
+      setPending(null)
     } catch {
       setDraft(Number(value || 0).toFixed(2))
+      setConfirmOpen(false)
+      setPending(null)
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <Input
-      type="number"
-      min="0"
-      step="0.01"
-      className="h-8 w-[7.5rem] bg-white"
-      value={draft}
-      disabled={disabled || saving}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={() => { void commit() }}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          e.currentTarget.blur()
-        }
-        if (e.key === 'Escape') {
-          setDraft(Number(value || 0).toFixed(2))
-          e.currentTarget.blur()
-        }
-      }}
-    />
+    <>
+      <Input
+        type="number"
+        min="0"
+        step="0.01"
+        className="h-8 w-[7.5rem] bg-white"
+        value={draft}
+        disabled={disabled || saving}
+        onChange={(e) => setDraft(e.target.value)}
+        onWheel={(e) => e.currentTarget.blur()}
+        onBlur={() => { requestCommit() }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            e.currentTarget.blur()
+          }
+          if (e.key === 'Escape') {
+            setDraft(Number(value || 0).toFixed(2))
+            e.currentTarget.blur()
+          }
+        }}
+      />
+      <AlertDialog
+        open={confirmOpen}
+        onOpenChange={(open) => {
+          if (!open) cancelConfirm()
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm amount update</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm text-muted-foreground">
+                <p>
+                  You are about to update{' '}
+                  <span className="font-medium text-foreground">{label}</span> for{' '}
+                  <span className="font-medium text-foreground">{partyLabel}</span>{' '}
+                  <span className="font-semibold text-foreground">{partyName || '—'}</span>.
+                </p>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2 text-slate-800">
+                  <div className="flex justify-between gap-4">
+                    <span className="text-slate-500">Current</span>
+                    <span className="font-semibold">{money(value)}</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-slate-500">New</span>
+                    <span className="font-semibold text-[#008260]">{money(pending)}</span>
+                  </div>
+                </div>
+                <p>Do you want to save this change?</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={saving} onClick={cancelConfirm}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={saving}
+              className="bg-[#008260] hover:bg-[#006d51]"
+              onClick={(e) => {
+                e.preventDefault()
+                void confirmSave()
+              }}
+            >
+              {saving ? 'Saving…' : 'Confirm update'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }
 
@@ -656,7 +744,7 @@ export default function SuperAdminFinancePage() {
               } },
               {
                 key: 'qty',
-                header: 'Qty',
+                header: activeTab === 'expert' ? 'Approved Qty' : 'Qty',
                 render: (row) => {
                   const qty = paymentQty(row)
                   const unit = paymentPayUnit(row)
@@ -692,6 +780,9 @@ export default function SuperAdminFinancePage() {
                     fallback={<span>{money(row.invoice_amount || row.calculated_amount)}</span>}
                   >
                     <EditableAmountCell
+                      label={activeTab === 'institution' ? 'Institute total' : 'Amount'}
+                      partyLabel={activeTab === 'expert' ? 'expert' : 'institute'}
+                      partyName={(activeTab === 'expert' ? row.experts?.name : row.institutions?.name) || '-'}
                       value={Number(row.invoice_amount || row.calculated_amount || 0)}
                       disabled={savingRowId === row.id}
                       onSave={(next) => saveRowAmount(row, 'invoice_amount', next)}
@@ -708,6 +799,9 @@ export default function SuperAdminFinancePage() {
                     fallback={<span>{money(row.paid_amount)}</span>}
                   >
                     <EditableAmountCell
+                      label="Paid amount"
+                      partyLabel={activeTab === 'expert' ? 'expert' : 'institute'}
+                      partyName={(activeTab === 'expert' ? row.experts?.name : row.institutions?.name) || '-'}
                       value={Number(row.paid_amount || 0)}
                       disabled={savingRowId === row.id}
                       onSave={(next) => saveRowAmount(row, 'paid_amount', next)}
@@ -794,7 +888,7 @@ export default function SuperAdminFinancePage() {
                 ) : (
                   <>
                     <div>
-                      <span className="text-slate-500">Qty ({paymentPayUnit(selected)})</span>
+                      <span className="text-slate-500">Approved Qty ({paymentPayUnit(selected)})</span>
                       <p className="font-medium text-slate-950">
                         {paymentQty(selected) > 0
                           ? `${paymentQty(selected)} ${pluralUnit(paymentPayUnit(selected), paymentQty(selected))}`
@@ -809,7 +903,7 @@ export default function SuperAdminFinancePage() {
                       <span className="text-slate-500">Calculated amount</span>
                       <p className="font-medium text-slate-950">{money(selected.calculated_amount)}</p>
                       <p className="mt-1 text-xs text-slate-500">
-                        Formula: net rate × qty
+                        Formula: net rate × approved qty
                         {paymentRate(selected) > 0 && paymentQty(selected) > 0
                           ? ` = ${money(paymentRate(selected))} × ${paymentQty(selected)} ${pluralUnit(paymentPayUnit(selected), paymentQty(selected))}`
                           : ''}

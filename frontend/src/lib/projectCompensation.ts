@@ -336,6 +336,44 @@ export function projectEngagementQuantityDisplay(project?: ProjectCompensationLi
   }
 }
 
+/**
+ * Booking-card engagement display.
+ * Prefer locked booking unit + quantity; fall back to project.
+ * `hours_booked` is total effort hours (attendance) — used for hourly/package fallback only.
+ */
+export function bookingEngagementQuantityDisplay(
+  booking?: {
+    compensation_unit?: string | null
+    unit_quantity?: number | string | null
+    hours_booked?: number | string | null
+    projects?: ProjectCompensationLike | null
+    project?: ProjectCompensationLike | null
+  } | null
+): ReturnType<typeof projectEngagementQuantityDisplay> {
+  const project = booking?.projects || booking?.project || null
+  const unit =
+    (booking?.compensation_unit as CompensationUnit) ||
+    (project?.compensation_unit as CompensationUnit) ||
+    'hourly'
+  const bookingQty = Number(booking?.unit_quantity)
+  const hoursBooked = Number(booking?.hours_booked)
+
+  const merged: ProjectCompensationLike = {
+    ...(project || {}),
+    compensation_unit: unit,
+    unit_quantity:
+      Number.isFinite(bookingQty) && bookingQty > 0
+        ? bookingQty
+        : unit === 'hourly' && hoursBooked > 0
+          ? hoursBooked
+          : project?.unit_quantity,
+    duration_hours:
+      hoursBooked > 0 ? hoursBooked : project?.duration_hours,
+  }
+
+  return projectEngagementQuantityDisplay(merged)
+}
+
 export const RATE_INTENTS = ['agreed_posted', 'open_to_negotiate'] as const
 export type RateIntent = (typeof RATE_INTENTS)[number]
 

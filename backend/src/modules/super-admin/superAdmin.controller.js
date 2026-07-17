@@ -227,6 +227,25 @@ class SuperAdminController {
     ));
   };
 
+  updateRequirementStatus = async (req, res) => {
+    res.json(await this.service.updateRequirementStatus(
+      req.params.type,
+      req.params.id,
+      req.body || {},
+      req.superAdmin,
+    ));
+  };
+
+  reviewProjectEditRequest = async (req, res) => {
+    res.json(await this.service.reviewProjectEditRequest(
+      req.params.type,
+      req.params.id,
+      req.params.requestId,
+      req.body || {},
+      req.superAdmin,
+    ));
+  };
+
   listFreelance = async (req, res) => {
     const paging = parsePage(req.query);
     res.json(await this.service.listFreelance({ ...paging, search: req.query.search || '' }));

@@ -509,11 +509,14 @@ export default function InstitutionHomePage() {
             expert_id: expert.id,
             project_id: selectedProjectId,
             institution_id: institution?.id,
-            amount: projectDetails.hourly_rate,
+            amount: projectDetails.institution_gross_per_unit || projectDetails.hourly_rate,
             start_date: new Date().toISOString().split('T')[0],
             end_date: projectDetails.end_date,
             status: 'in_progress',
-            hours_booked: projectDetails.duration_hours
+            hours_booked: projectDetails.duration_hours,
+            compensation_unit: projectDetails.compensation_unit || 'hourly',
+            unit_quantity: projectDetails.unit_quantity || projectDetails.duration_hours || null,
+            final_gross_per_unit: projectDetails.institution_gross_per_unit || projectDetails.hourly_rate || null,
           }
 
           await api.bookings.create(bookingData)
@@ -2289,11 +2292,14 @@ export default function InstitutionHomePage() {
                         expert_id: quickSelectExpert.id,
                         project_id: quickSelectedProjectId,
                         institution_id: institution.id,
-                        amount: projectDetails.hourly_rate,
+                        amount: projectDetails.institution_gross_per_unit || projectDetails.hourly_rate,
                         start_date: new Date().toISOString().split('T')[0],
                         end_date: projectDetails.end_date,
                         status: 'in_progress',
-                        hours_booked: projectDetails.duration_hours
+                        hours_booked: projectDetails.duration_hours,
+                        compensation_unit: projectDetails.compensation_unit || 'hourly',
+                        unit_quantity: projectDetails.unit_quantity || projectDetails.duration_hours || null,
+                        final_gross_per_unit: projectDetails.institution_gross_per_unit || projectDetails.hourly_rate || null,
                       }
                       // Check if booking already exists for this expert and project
                       const existingQuick = await api.bookings.getAll({ expert_id: quickSelectExpert.id, project_id: quickSelectedProjectId, page: 1, limit: 1 })

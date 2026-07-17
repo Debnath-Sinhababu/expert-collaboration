@@ -24,6 +24,7 @@ import { StatCard } from '@/components/superadmin/common/StatCard'
 import { PaginationControls } from '@/components/superadmin/common/PaginationControls'
 import { PermissionGate } from '@/components/superadmin/common/PermissionGate'
 import { projectEngagementQuantityDisplay } from '@/lib/projectCompensation'
+import { PROJECT_STATUSES, PROJECT_STATUS_LABELS, normalizeProjectStatus, projectStatusLabel } from '@/lib/projectStatus'
 
 const PAGE_SIZE = 20
 
@@ -55,22 +56,19 @@ function selectedExpertsLabel(row: any) {
 }
 
 function derivedStatusLabel(status: string) {
-  const labels: Record<string, string> = {
-    running: 'Running / live',
-    pending: 'Pending start',
-    completed: 'Completed',
-    closed_incomplete: 'Closed incomplete',
-    closed: 'Closed',
-  }
-  return labels[status] || status || 'Pending'
+  const normalized = normalizeProjectStatus(status)
+  if (normalized === 'pending') return PROJECT_STATUS_LABELS.open
+  if (normalized === 'closed_incomplete') return PROJECT_STATUS_LABELS.closed
+  return projectStatusLabel(normalized)
 }
 
 function derivedStatusClass(status: string) {
-  if (status === 'running') return 'bg-sky-50 text-sky-700'
-  if (status === 'completed') return 'bg-emerald-50 text-emerald-700'
-  if (status === 'closed_incomplete') return 'bg-rose-50 text-rose-700'
-  if (status === 'closed') return 'bg-slate-100 text-slate-700'
-  return 'bg-amber-50 text-amber-700'
+  const normalized = normalizeProjectStatus(status)
+  if (normalized === 'running') return 'bg-sky-50 text-sky-700'
+  if (normalized === 'completed') return 'bg-emerald-50 text-emerald-700'
+  if (normalized === 'closed' || normalized === 'closed_incomplete') return 'bg-slate-100 text-slate-700'
+  if (normalized === 'open' || normalized === 'pending') return 'bg-amber-50 text-amber-700'
+  return 'bg-slate-100 text-slate-700'
 }
 
 export default function SuperAdminRequirementsPage() {
@@ -330,11 +328,12 @@ export default function SuperAdminRequirementsPage() {
               <TabsTrigger value="freelance">Freelance</TabsTrigger>
             </TabsList>
           </Tabs>
-          <div className="grid gap-3 lg:grid-cols-[1fr_180px_180px_220px_320px]">
-            <div className="relative">
+          <div className="grid gap-3">
+            <div className="relative w-full min-w-0">
               <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-              <Input className="pl-9" placeholder="Search title, description, or responsibilities" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <Input className="pl-9" placeholder="Search requirement name or institution" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Select value={status} onValueChange={setStatus}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -348,12 +347,10 @@ export default function SuperAdminRequirementsPage() {
             <Select value={derivedStatus} onValueChange={setDerivedStatus}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All states</SelectItem>
-                <SelectItem value="running">Running / live</SelectItem>
-                <SelectItem value="pending">Pending start</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="closed_incomplete">Closed incomplete</SelectItem>
-                <SelectItem value="closed">Closed aggregate</SelectItem>
+                <SelectItem value="all">All project statuses</SelectItem>
+                {PROJECT_STATUSES.map((value) => (
+                  <SelectItem key={value} value={value}>{PROJECT_STATUS_LABELS[value]}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Select value={assignedAdminId} onValueChange={setAssignedAdminId}>
@@ -409,6 +406,7 @@ export default function SuperAdminRequirementsPage() {
                 </div>
               ) : null}
             </div>
+            </div>
           </div>
         </div>
         {loading ? <p className="mb-3 text-sm text-slate-600">Loading requirements...</p> : null}
@@ -420,10 +418,9 @@ export default function SuperAdminRequirementsPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold capitalize text-slate-700">{row.requirement_type}</span>
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${derivedStatusClass(row.derived_status)}`}>
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${derivedStatusClass(row.derived_status || row.status)}`}>
                       {derivedStatusLabel(row.derived_status || row.status)}
                     </span>
-                    <span className="text-xs text-slate-500">{row.status || row.call_status || 'open'}</span>
                   </div>
                   <h3 className="mt-3 text-base font-semibold text-slate-950">{row.title}</h3>
                   <p className="mt-1 max-h-10 overflow-hidden text-sm text-slate-600">{row.description || row.responsibilities || 'No description'}</p>

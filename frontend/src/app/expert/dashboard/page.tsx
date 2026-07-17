@@ -25,7 +25,7 @@ import { RateAgreementPanel } from '@/components/requirements/RateAgreementPanel
 import { PostedCompensationRate } from '@/components/requirements/PostedCompensationRate'
 import { BookingCompletionActions } from '@/components/bookings/BookingCompletionActions'
 import { BookingAgreementActions } from '@/components/bookings/BookingAgreementActions'
-import { moneyInr, resolveBookingSettlementRates } from '@/lib/projectCompensation'
+import { moneyInr, resolveBookingSettlementRates, bookingEngagementQuantityDisplay } from '@/lib/projectCompensation'
 import { 
   User, 
   Briefcase, 
@@ -1139,8 +1139,12 @@ export default function ExpertDashboard() {
                               <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-[#008260]" />
                             </div>
                             <div className="min-w-0">
-                              <div className="text-[#717171] text-xs">Hours Booked</div>
-                              <div className="font-semibold text-[#000000] text-sm sm:text-base truncate">{booking.hours_booked} hrs</div>
+                              <div className="text-[#717171] text-xs">
+                                {bookingEngagementQuantityDisplay(booking).label}
+                              </div>
+                              <div className="font-semibold text-[#000000] text-sm sm:text-base truncate">
+                                {bookingEngagementQuantityDisplay(booking).value}
+                              </div>
                             </div>
                           </div>
                           <div className="flex items-start gap-2 sm:gap-3 min-w-0">

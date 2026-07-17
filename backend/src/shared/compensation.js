@@ -115,11 +115,13 @@ function projectPostedRates(project) {
       : grossPerUnit * quantity;
 
   const durationHours =
-    Number(project?.duration_hours) > 0
-      ? Number(project.duration_hours)
-      : isUnitPay && quantity > 0 && (hoursPerDay > 0 || durationPerUnit > 0)
-        ? quantity * (hoursPerDay > 0 ? hoursPerDay : durationPerUnit)
-        : null;
+    isUnitPay && quantity > 0 && (hoursPerDay > 0 || durationPerUnit > 0)
+      ? quantity * (hoursPerDay > 0 ? hoursPerDay : durationPerUnit)
+      : Number(project?.duration_hours) > 0
+        ? Number(project.duration_hours)
+        : unit === 'hourly' && quantity > 0
+          ? quantity
+          : null;
 
   return {
     unit,

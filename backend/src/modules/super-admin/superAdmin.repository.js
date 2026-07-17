@@ -8,6 +8,15 @@ const {
   roundMoney,
 } = require('../../../services/financeCalculationService');
 const { isActiveBookingStatus } = require('../../shared/compensation');
+const {
+  PROJECT_STATUSES,
+  normalizeProjectStatus,
+  assertCanonicalProjectStatus,
+  computeAutoProjectStatus,
+  maybeSyncProjectStatuses,
+  projectStatusLabel,
+} = require('../../shared/projectStatus');
+const projectEditRequestService = require('../../../services/projectEditRequestService');
 
 function tableMissing(error) {
   return error && (error.code === '42P01' || /relation .* does not exist/i.test(error.message || ''));
@@ -158,11 +167,14 @@ class SuperAdminRepository {
   summarizeRequirementRows(rows = []) {
     return rows.reduce((summary, row) => {
       summary.total += 1;
-      const status = row.derived_status || 'pending';
-      summary[status] = (summary[status] || 0) + 1;
-      if (status === 'completed' || status === 'closed_incomplete') summary.closed += 1;
+      const status = normalizeProjectStatus(row.derived_status || row.status || 'open');
+      const key = PROJECT_STATUSES.includes(status) ? status : 'open';
+      summary[key] = (summary[key] || 0) + 1;
+      // Legacy aliases used by older admin overview cards
+      if (key === 'open') summary.pending = (summary.pending || 0) + 1;
+      if (key === 'closed') summary.closed_incomplete = (summary.closed_incomplete || 0) + 1;
       return summary;
-    }, { total: 0, running: 0, pending: 0, completed: 0, closed_incomplete: 0, closed: 0 });
+    }, { total: 0, open: 0, running: 0, pending: 0, completed: 0, closed_incomplete: 0, closed: 0 });
   }
 
   async fetchRequirementRowsForStats(type) {
@@ -653,6 +665,12 @@ class SuperAdminRepository {
   }
 
   async listRequirements({ page, limit, offset, type = 'all', search = '', status = 'all', derived_status = '', institution_id = '', assigned_admin_id = '' }) {
+    try {
+      await maybeSyncProjectStatuses(this.client);
+    } catch (syncErr) {
+      console.warn('[projectStatus] listRequirements sync skipped:', syncErr?.message || syncErr);
+    }
+
     const boundedEnd = type === 'all' ? offset + limit - 1 : offset + limit - 1;
     const boundedStart = type === 'all' ? 0 : offset;
     const needle = String(search || '').trim();
@@ -695,6 +713,17 @@ class SuperAdminRepository {
     const rows = [];
     let total = 0;
 
+    // Match institution name as well as requirement title/description fields.
+    let institutionIdsMatchingSearch = [];
+    if (needle) {
+      const { data: matchingInstitutions, error: institutionSearchError } = await this.client
+        .from('institutions')
+        .select('id')
+        .ilike('name', `%${needle}%`);
+      if (institutionSearchError && !tableMissing(institutionSearchError)) throw institutionSearchError;
+      institutionIdsMatchingSearch = (matchingInstitutions || []).map((row) => row.id).filter(Boolean);
+    }
+
     for (const kind of kinds) {
       const cfg = queryConfig[kind];
       if (!cfg) continue;
@@ -716,10 +745,13 @@ class SuperAdminRepository {
         dataQuery = dataQuery.eq(cfg.institutionField, institutionId);
       }
       if (needle) {
-        const filter = cfg.searchFields
+        const fieldFilters = cfg.searchFields
           .split(',')
-          .map((field) => `${field}.ilike.%${needle}%`)
-          .join(',');
+          .map((field) => `${field}.ilike.%${needle}%`);
+        if (institutionIdsMatchingSearch.length > 0) {
+          fieldFilters.push(`${cfg.institutionField}.in.(${institutionIdsMatchingSearch.join(',')})`);
+        }
+        const filter = fieldFilters.join(',');
         countQuery = countQuery.or(filter);
         dataQuery = dataQuery.or(filter);
       }
@@ -734,11 +766,23 @@ class SuperAdminRepository {
     const enrichedRows = await this.enrichRequirementRows(rows);
     let filteredRows = enrichedRows;
     if (derived_status) {
-      filteredRows = filteredRows.filter((row) => (
-        derived_status === 'closed'
-          ? ['completed', 'closed_incomplete'].includes(row.derived_status)
-          : row.derived_status === derived_status
-      ));
+      const wanted = String(derived_status).toLowerCase().trim();
+      filteredRows = filteredRows.filter((row) => {
+        const current = normalizeProjectStatus(row.derived_status || row.status);
+        if (wanted === 'closed_aggregate' || wanted === 'closed_group') {
+          return current === 'completed' || current === 'closed';
+        }
+        if (wanted === 'closed_incomplete' || wanted === 'pending') {
+          // Legacy admin filter aliases
+          if (wanted === 'pending') return current === 'open';
+          return current === 'closed';
+        }
+        if (wanted === 'closed') {
+          // Exact closed only (not completed). Aggregate uses closed_aggregate.
+          return current === 'closed';
+        }
+        return current === normalizeProjectStatus(wanted);
+      });
     }
     if (assigned_admin_id) {
       filteredRows = filteredRows.filter((row) => {
@@ -782,8 +826,12 @@ class SuperAdminRepository {
           ? internshipMetrics[row.id] || {}
           : freelanceMetrics[row.id] || {};
       const derived = this.deriveRequirementState(row, metrics);
+      const normalizedStatus = row.requirement_type === 'project'
+        ? normalizeProjectStatus(row.status)
+        : row.status;
       return {
         ...row,
+        status: normalizedStatus,
         assignment,
         derived_status: derived.status,
         progress_percent: derived.progressPercent,
@@ -794,20 +842,33 @@ class SuperAdminRepository {
   }
 
   deriveRequirementState(row, metrics = {}) {
+    // Project/requirement status is stored & canonical. Booking status stays independent.
+    if (row.requirement_type === 'project') {
+      const status = normalizeProjectStatus(row.status);
+      const target = Number(metrics.target_hours || row.duration_hours || 0);
+      const progress = status === 'completed'
+        ? 100
+        : target > 0
+          ? roundPercent((Number(metrics.approved_hours || 0) / target) * 100)
+          : null;
+      return {
+        status: PROJECT_STATUSES.includes(status) ? status : normalizeProjectStatus(status),
+        progressPercent: progress,
+        progressLabel:
+          status === 'completed'
+            ? 'Completed'
+            : progress == null
+              ? projectStatusLabel(status)
+              : `${progress}%`,
+      };
+    }
+
     const status = row.status || row.call_status;
     if (String(status || '').toLowerCase() === 'completed' || metrics.completed_count > 0 || metrics.completed_bookings > 0) {
       return { status: 'completed', progressPercent: 100, progressLabel: 'Completed' };
     }
     if (cancelledStatus(status)) {
-      return { status: 'closed_incomplete', progressPercent: 0, progressLabel: 'Closed incomplete' };
-    }
-    if (row.requirement_type === 'project') {
-      if ((metrics.running_bookings || 0) > 0 || (metrics.accepted_applications || 0) > 0) {
-        const target = Number(metrics.target_hours || row.duration_hours || 0);
-        const progress = target > 0 ? roundPercent((Number(metrics.approved_hours || 0) / target) * 100) : null;
-        return { status: 'running', progressPercent: progress, progressLabel: progress == null ? 'Unknown' : `${progress}%` };
-      }
-      return { status: 'pending', progressPercent: 0, progressLabel: 'Not started' };
+      return { status: 'closed', progressPercent: 0, progressLabel: 'Closed' };
     }
     if (row.requirement_type === 'internship') {
       if ((metrics.shortlisted_count || 0) > 0 || activeStatus(status)) {
@@ -815,13 +876,13 @@ class SuperAdminRepository {
         const progress = dateProgress(row.start_date || row.created_at, end);
         return { status: 'running', progressPercent: progress, progressLabel: progress == null ? 'Unknown' : `${progress}%` };
       }
-      return { status: 'pending', progressPercent: 0, progressLabel: 'Not started' };
+      return { status: 'open', progressPercent: 0, progressLabel: 'Open' };
     }
     if ((metrics.shortlisted_count || 0) > 0 || activeStatus(status)) {
       const progress = dateProgress(row.created_at, row.deadline);
       return { status: 'running', progressPercent: progress, progressLabel: progress == null ? 'Unknown' : `${progress}%` };
     }
-    return { status: 'pending', progressPercent: 0, progressLabel: 'Not started' };
+    return { status: 'open', progressPercent: 0, progressLabel: 'Open' };
   }
 
   async getActiveAssignmentsForRows(rows = []) {
@@ -957,6 +1018,14 @@ class SuperAdminRepository {
   }
 
   async getRequirementDetail(type, id) {
+    if (type === 'project') {
+      try {
+        await maybeSyncProjectStatuses(this.client, { force: true, cooldownMs: 0 });
+      } catch (syncErr) {
+        console.warn('[projectStatus] detail sync skipped:', syncErr?.message || syncErr);
+      }
+    }
+
     const configs = {
       project: {
         table: 'projects',
@@ -997,12 +1066,13 @@ class SuperAdminRepository {
     }
     if (!data) return null;
 
-    const [pipeline, nativeApplications, bookings, assignment, reports] = await Promise.all([
+    const [pipeline, nativeApplications, bookings, assignment, reports, pendingEditRequest] = await Promise.all([
       this.listRequirementExperts(type, id),
       this.listNativeRequirementApplications(type, id),
       this.listRequirementBookings(type, id),
       this.getActiveAssignment(type, id),
       this.listRequirementReports(type, id, { page: 1, limit: 10, offset: 0 }),
+      type === 'project' ? projectEditRequestService.getPendingEditRequest(id, this.client) : Promise.resolve(null),
     ]);
     const attendanceSummary = this.buildAttendanceSummary(bookings);
     const enriched = (await this.enrichRequirementRows([cfg.map(data)]))[0] || cfg.map(data);
@@ -1016,8 +1086,19 @@ class SuperAdminRepository {
       nativeApplications,
       bookings,
       attendanceSummary,
+      pendingEditRequest: pendingEditRequest || null,
       counts: this.buildRequirementCounts(pipeline, nativeApplications, bookings, attendanceSummary),
     };
+  }
+
+  async reviewProjectEditRequest(requestId, action, { reviewNote = '', adminRecordId = null } = {}) {
+    return projectEditRequestService.reviewEditRequest({
+      requestId,
+      action,
+      reviewNote,
+      adminRecordId,
+      client: this.client,
+    });
   }
 
   async getActiveAssignment(type, id) {
@@ -1141,7 +1222,7 @@ class SuperAdminRepository {
     if (type !== 'project') return [];
     const { data, error } = await this.client
       .from('bookings')
-      .select('*, experts(id,name,email,phone,photo_url,bio,city,state,domain_expertise,subskills,qualifications,hourly_rate,experience_years,rating,total_ratings,is_verified,kyc_status), institutions(id,name,email), projects(id,title,compensation_unit,institution_gross_per_unit,institution_gross_total,unit_quantity,duration_per_unit,hourly_rate,total_budget,duration_hours)')
+      .select('*, experts(id,name,email,phone,photo_url,bio,city,state,domain_expertise,subskills,qualifications,hourly_rate,experience_years,rating,total_ratings,is_verified,kyc_status), institutions(id,name,email), projects(id,title,compensation_unit,institution_gross_per_unit,institution_gross_total,unit_quantity,duration_per_unit,hours_per_day,hourly_rate,total_budget,duration_hours)')
       .eq('project_id', id)
       .order('created_at', { ascending: false });
     if (error) {
@@ -1408,25 +1489,154 @@ class SuperAdminRepository {
   }
 
   async updateRequirementBooking(requirementId, bookingId, payload) {
-    const allowed = ['pending', 'confirmed', 'in_progress', 'completion_requested', 'cancellation_requested', 'completed', 'cancelled'];
-    const status = String(payload.status || '').trim();
-    if (!allowed.includes(status)) {
-      const err = new Error('Invalid booking status');
+    const { toExpertNet } = require('../../shared/compensation');
+    const body = payload || {};
+
+    const { data: existing, error: fetchError } = await this.client
+      .from('bookings')
+      .select('id, application_id, project_id, status, final_gross_per_unit, final_net_per_unit, amount, hours_booked, unit_quantity, compensation_unit, start_date, end_date, actual_start_date, actual_end_date')
+      .eq('id', bookingId)
+      .eq('project_id', requirementId)
+      .maybeSingle();
+    if (fetchError) {
+      if (tableMissing(fetchError) || relationMissing(fetchError)) return null;
+      throw fetchError;
+    }
+    if (!existing) return null;
+
+    const updates = { updated_at: new Date().toISOString() };
+    const changed = {};
+
+    if (body.status !== undefined && body.status !== null && String(body.status).trim() !== '') {
+      const allowed = ['pending', 'confirmed', 'in_progress', 'completion_requested', 'cancellation_requested', 'completed', 'cancelled'];
+      const status = String(body.status).trim();
+      if (!allowed.includes(status)) {
+        const err = new Error('Invalid booking status');
+        err.statusCode = 400;
+        throw err;
+      }
+      updates.status = status;
+      changed.status = status;
+    }
+
+    const hasGross = body.final_gross_per_unit !== undefined && body.final_gross_per_unit !== null && body.final_gross_per_unit !== '';
+    if (hasGross) {
+      const gross = Number(body.final_gross_per_unit);
+      if (!Number.isFinite(gross) || gross <= 0) {
+        const err = new Error('final_gross_per_unit must be a positive number');
+        err.statusCode = 400;
+        throw err;
+      }
+      const net = toExpertNet(gross);
+      updates.final_gross_per_unit = gross;
+      updates.final_net_per_unit = net;
+      updates.amount = gross;
+      changed.final_gross_per_unit = gross;
+      changed.final_net_per_unit = net;
+      changed.amount = gross;
+    }
+
+    if (body.hours_booked !== undefined && body.hours_booked !== null && body.hours_booked !== '') {
+      const hours = Number(body.hours_booked);
+      if (!Number.isFinite(hours) || hours < 0) {
+        const err = new Error('hours_booked must be 0 or greater');
+        err.statusCode = 400;
+        throw err;
+      }
+      updates.hours_booked = hours;
+      changed.hours_booked = hours;
+    }
+
+    if (body.unit_quantity !== undefined && body.unit_quantity !== null && body.unit_quantity !== '') {
+      const qty = Number(body.unit_quantity);
+      if (!Number.isFinite(qty) || qty <= 0) {
+        const err = new Error('unit_quantity must be a positive number');
+        err.statusCode = 400;
+        throw err;
+      }
+      updates.unit_quantity = qty;
+      changed.unit_quantity = qty;
+    }
+
+    const dateFields = ['start_date', 'end_date', 'actual_start_date', 'actual_end_date'];
+    for (const field of dateFields) {
+      if (body[field] === undefined) continue;
+      if (body[field] === null || body[field] === '') {
+        updates[field] = null;
+        changed[field] = null;
+        continue;
+      }
+      const dateValue = String(body[field]).slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+        const err = new Error(`${field} must be YYYY-MM-DD`);
+        err.statusCode = 400;
+        throw err;
+      }
+      updates[field] = dateValue;
+      changed[field] = dateValue;
+    }
+
+    const start = updates.start_date !== undefined ? updates.start_date : existing.start_date;
+    const end = updates.end_date !== undefined ? updates.end_date : existing.end_date;
+    if (start && end && String(end) < String(start)) {
+      const err = new Error('end_date must be on or after start_date');
       err.statusCode = 400;
       throw err;
     }
+    const actualStart = updates.actual_start_date !== undefined ? updates.actual_start_date : existing.actual_start_date;
+    const actualEnd = updates.actual_end_date !== undefined ? updates.actual_end_date : existing.actual_end_date;
+    if (actualStart && actualEnd && String(actualEnd) < String(actualStart)) {
+      const err = new Error('actual_end_date must be on or after actual_start_date');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    if (Object.keys(changed).length === 0) {
+      const err = new Error('No booking fields to update');
+      err.statusCode = 400;
+      throw err;
+    }
+
     const { data, error } = await this.client
       .from('bookings')
-      .update({ status, updated_at: new Date().toISOString() })
+      .update(updates)
       .eq('id', bookingId)
       .eq('project_id', requirementId)
-      .select('*, experts(id,name,email,phone,photo_url,bio,city,state,domain_expertise,subskills,qualifications,hourly_rate,experience_years,rating,total_ratings,is_verified,kyc_status), institutions(id,name,email)')
+      .select('*, experts(id,name,email,phone,photo_url,bio,city,state,domain_expertise,subskills,qualifications,hourly_rate,experience_years,rating,total_ratings,is_verified,kyc_status), institutions(id,name,email), projects(id,title,compensation_unit,institution_gross_per_unit,institution_gross_total,unit_quantity,duration_per_unit,hourly_rate,total_budget,duration_hours)')
       .maybeSingle();
     if (error) {
       if (tableMissing(error) || relationMissing(error)) return null;
       throw error;
     }
-    return data || null;
+
+    // Keep linked application locked rates in sync so fallbacks don't show stale values.
+    if (
+      existing.application_id &&
+      (changed.final_gross_per_unit !== undefined ||
+        changed.final_net_per_unit !== undefined ||
+        changed.unit_quantity !== undefined)
+    ) {
+      const appPatch = { updated_at: new Date().toISOString() };
+      if (changed.final_gross_per_unit !== undefined) {
+        appPatch.final_gross_per_unit = changed.final_gross_per_unit;
+        appPatch.final_net_per_unit = changed.final_net_per_unit;
+        appPatch.final_hourly_rate =
+          String(existing.compensation_unit || '') === 'hourly' ? changed.final_gross_per_unit : null;
+        appPatch.proposed_rate = changed.final_gross_per_unit;
+      }
+      if (changed.unit_quantity !== undefined) {
+        appPatch.unit_quantity = changed.unit_quantity;
+      }
+      const { error: appError } = await this.client
+        .from('applications')
+        .update(appPatch)
+        .eq('id', existing.application_id);
+      if (appError && !tableMissing(appError) && !relationMissing(appError)) {
+        console.warn('Failed to mirror booking edits onto application:', appError.message || appError);
+      }
+    }
+
+    return { ...(data || null), _changed: changed, _before: existing };
   }
 
   async updateProjectRequirementDates(requirementId, payload) {
@@ -1438,9 +1648,28 @@ class SuperAdminRepository {
       throw err;
     }
 
+    const { data: existing, error: existingError } = await this.client
+      .from('projects')
+      .select('id, status, start_date, end_date')
+      .eq('id', requirementId)
+      .maybeSingle();
+    if (existingError) throw existingError;
+    if (!existing) return null;
+
+    const nextStatus = computeAutoProjectStatus({
+      status: existing.status,
+      start_date: startDate,
+      end_date: endDate,
+    });
+
     const { data: project, error } = await this.client
       .from('projects')
-      .update({ start_date: startDate, end_date: endDate, updated_at: new Date().toISOString() })
+      .update({
+        start_date: startDate,
+        end_date: endDate,
+        status: nextStatus,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', requirementId)
       .select('*')
       .maybeSingle();
@@ -1469,6 +1698,31 @@ class SuperAdminRepository {
     }
 
     return project;
+  }
+
+  async updateProjectRequirementStatus(requirementId, status) {
+    const nextStatus = assertCanonicalProjectStatus(status);
+    const { data: existing, error: existingError } = await this.client
+      .from('projects')
+      .select('id, status, title')
+      .eq('id', requirementId)
+      .maybeSingle();
+    if (existingError) throw existingError;
+    if (!existing) return null;
+
+    const before = normalizeProjectStatus(existing.status);
+    if (before === nextStatus) {
+      return { ...existing, status: nextStatus, _changed: false, _before: before };
+    }
+
+    const { data, error } = await this.client
+      .from('projects')
+      .update({ status: nextStatus, updated_at: new Date().toISOString() })
+      .eq('id', requirementId)
+      .select('*')
+      .maybeSingle();
+    if (error) throw error;
+    return { ...(data || null), _changed: true, _before: before };
   }
 
   async listFreelance(params) {
