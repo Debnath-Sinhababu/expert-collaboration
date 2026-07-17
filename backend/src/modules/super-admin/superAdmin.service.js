@@ -1031,6 +1031,41 @@ class SuperAdminService {
     return row;
   }
 
+  async reviewProjectEditRequest(type, requirementId, requestId, body, auth = null) {
+    const requirementType = parseRequirementType(type);
+    if (requirementType !== 'project') {
+      const err = new Error('Edit review is only available for project requirements');
+      err.statusCode = 400;
+      throw err;
+    }
+    const action = String(body?.action || '').toLowerCase();
+    if (!['approve', 'reject'].includes(action)) {
+      const err = new Error('Action must be approve or reject');
+      err.statusCode = 400;
+      throw err;
+    }
+    const result = await this.repository.reviewProjectEditRequest(requestId, action, {
+      reviewNote: body?.review_note || body?.reviewNote || '',
+      adminRecordId: auth?.admin?.id || auth?.adminId || null,
+    });
+    if (result?.request?.project_id && String(result.request.project_id) !== String(requirementId)) {
+      const err = new Error('Edit request does not belong to this requirement');
+      err.statusCode = 400;
+      throw err;
+    }
+    await this.logActivity(auth, action === 'approve' ? 'requirement.edit_approved' : 'requirement.edit_rejected', {
+      entity_type: 'project',
+      entity_id: requirementId,
+      requirement_type: requirementType,
+      requirement_id: requirementId,
+      metadata: {
+        edit_request_id: requestId,
+        review_note: body?.review_note || body?.reviewNote || null,
+      },
+    });
+    return result;
+  }
+
   async listFreelance(params) {
     return this.repository.listFreelance(params);
   }

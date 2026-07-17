@@ -573,7 +573,18 @@ export const api = {
       if (!response.ok) {
         throw new Error(json?.error || text || `HTTP error! status: ${response.status}`)
       }
+      if (response.status === 202) {
+        return { pendingApproval: true, ...json }
+      }
       return Object.keys(json).length ? json : { success: true }
+    },
+    getEditRequest: async (id: string) => {
+      const headers = await getAuthHeaders()
+      const query = new URLSearchParams({ _t: Date.now().toString() }).toString()
+      const res = await fetch(`${API_BASE_URL}/api/projects/${id}/edit-request?${query}`, { headers })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to load edit request')
+      return json
     }
   },
 

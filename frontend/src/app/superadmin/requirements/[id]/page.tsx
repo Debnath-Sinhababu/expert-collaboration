@@ -33,6 +33,7 @@ import { StatCard } from '@/components/superadmin/common/StatCard'
 import { TrainingAttendancePanel } from '@/components/training/TrainingAttendancePanel'
 import { RateIntentBadge } from '@/components/requirements/RateIntentBadge'
 import { RateAgreementPanel } from '@/components/requirements/RateAgreementPanel'
+import { ProjectEditRequestPanel } from '@/components/requirements/ProjectEditRequestPanel'
 import { PostedCompensationRate } from '@/components/requirements/PostedCompensationRate'
 import { BookingCompletionActions } from '@/components/bookings/BookingCompletionActions'
 import { BookingAgreementActions } from '@/components/bookings/BookingAgreementActions'
@@ -259,6 +260,17 @@ export default function SuperAdminRequirementDetailPage() {
     } finally {
       setRequirementStatusSaving(false)
     }
+  }
+
+  async function reviewProjectEdit(action: 'approve' | 'reject', reviewNote?: string) {
+    const requestId = detail?.pendingEditRequest?.id
+    if (!requestId) return
+    await superAdminApi.reviewProjectEditRequest(requirementType, requirementId, requestId, {
+      action,
+      review_note: reviewNote,
+    })
+    toast.success(action === 'approve' ? 'Institution edits approved and applied' : 'Institution edits rejected')
+    await loadDetail()
   }
 
   function openBookingEdit(booking: any) {
@@ -742,6 +754,7 @@ export default function SuperAdminRequirementDetailPage() {
   const counts = detail?.counts || {}
   const reports = detail?.reports || []
   const assignment = detail?.assignment || requirement?.assignment
+  const pendingEditRequest = detail?.pendingEditRequest || null
   const managePermissions: SuperAdminPermission[] = requirementType === 'freelance'
     ? ['requirements:candidates', 'freelance:write']
     : requirementType === 'internship'
@@ -1041,6 +1054,14 @@ export default function SuperAdminRequirementDetailPage() {
               <div className="w-[11.5rem] shrink-0"><StatCard label="Approved Hours" value={counts.approved_hours || 0} tone="green" /></div>
             </div>
           </div>
+
+          {requirementType === 'project' && pendingEditRequest ? (
+            <ProjectEditRequestPanel
+              editRequest={pendingEditRequest}
+              canReview={canManagePipeline}
+              onReview={reviewProjectEdit}
+            />
+          ) : null}
 
           <SectionCard title={requirement.title || 'Requirement'} description={`${requirement.requirement_type} requirement`}>
             <div className="grid gap-4 text-sm md:grid-cols-3">

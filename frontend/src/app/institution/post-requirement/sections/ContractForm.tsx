@@ -22,6 +22,7 @@ import { ChevronDown } from 'lucide-react'
 import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
 import { fetchInstitutionForWorkspace } from '@/lib/institutionWorkspace'
 import { ScreeningQuestionsEditor } from '@/components/requirements/ScreeningQuestionsEditor'
+import { ProjectEditPendingBanner } from '@/components/requirements/ProjectEditPendingBanner'
 import { EMPLOYMENT_TYPE_OPTIONS, WORKPLACE_TYPE_OPTIONS } from '@/lib/requirementLabels'
 import { expertDisplayName } from '@/lib/privacyDisplay'
 import { ExpertAvailabilityTrigger } from '@/components/expert/ExpertAvailabilityTrigger'
@@ -152,6 +153,9 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
   const [selectedSubskills, setSelectedSubskills] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [existingRequirementPdfUrl, setExistingRequirementPdfUrl] = useState<string | null>(null)
+  const [pendingEditRequest, setPendingEditRequest] = useState<any | null>(null)
+  const [projectHasBookings, setProjectHasBookings] = useState(false)
+  const [requiresEditApproval, setRequiresEditApproval] = useState(false)
   
   // Expert selection modal state
   const [showExpertSelectionModal, setShowExpertSelectionModal] = useState(false)
@@ -406,6 +410,23 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
         setSelectedSubskills(subskills)
         setAvailableSubskills(mergedSubskills)
         setExistingRequirementPdfUrl(project.requirement_pdf_url || null)
+
+        if (isEdit && projectId) {
+          try {
+            const editMeta = await api.projects.getEditRequest(projectId)
+            if (!cancelled) {
+              setPendingEditRequest(editMeta?.pending || null)
+              setProjectHasBookings(Boolean(editMeta?.hasBookings))
+              setRequiresEditApproval(Boolean(editMeta?.requiresApproval))
+            }
+          } catch {
+            if (!cancelled) {
+              setPendingEditRequest(null)
+              setProjectHasBookings(false)
+              setRequiresEditApproval(false)
+            }
+          }
+        }
         setRequirementPdf(null)
         setRequirementPdfError(null)
       } catch (e: any) {
@@ -722,7 +743,13 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
       }
 
       if (isEdit && projectId) {
-        await api.projects.update(projectId, formData)
+        const result = await api.projects.update(projectId, formData)
+        if (result?.pendingApproval) {
+          setPendingEditRequest(result.editRequest || { status: 'pending', created_at: new Date().toISOString() })
+          toast.success('Changes submitted for admin approval')
+          router.push(`${basePath}/dashboard`)
+          return
+        }
         toast.success('Requirement updated successfully!')
         router.push(`${basePath}/dashboard`)
         return
@@ -753,12 +780,17 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
   return (
     <div>
       {error && <Alert variant="destructive" className="mb-4"><AlertDescription>{error}</AlertDescription></Alert>}
+      {isEdit && pendingEditRequest?.status === 'pending' ? (
+        <ProjectEditPendingBanner submittedAt={pendingEditRequest.created_at} className="mb-4" />
+      ) : null}
       <h2 className="text-2xl font-bold text-[#000000] mb-1">
         {isEdit ? 'Edit Contract Requirement' : 'Create a Contract Requirement'}
       </h2>
       <p className="text-[#6A6A6A] mb-6">
         {isEdit
-          ? 'Update the requirement details. Experts already notified will keep their existing applications.'
+          ? requiresEditApproval
+            ? 'Updates to booked projects are sent to admin for approval before they go live.'
+            : 'Update the requirement details. Experts already notified will keep their existing applications.'
           : 'Fill in the details to post a new requirement for experts'}
       </p>
 

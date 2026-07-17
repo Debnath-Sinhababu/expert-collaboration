@@ -171,6 +171,11 @@ export const superAdminApi = {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),
+  reviewProjectEditRequest: (type: string, id: string, requestId: string, body: { action: 'approve' | 'reject'; review_note?: string }) =>
+    request<any>(`/api/superadmin/requirements/${encodeURIComponent(type)}/${encodeURIComponent(id)}/edit-requests/${encodeURIComponent(requestId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
   assignRequirement: (type: string, id: string, body: { admin_id: string; notes?: string }) =>
     request<any>(`/api/superadmin/requirements/${encodeURIComponent(type)}/${encodeURIComponent(id)}/assignment`, {
       method: 'POST',

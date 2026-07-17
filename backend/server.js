@@ -26,6 +26,7 @@ const {
 } = require('./services/authEmailService');
 const privacyMask = require('./privacyMask');
 const financeDashboardService = new FinanceDashboardService();
+const projectEditRequestService = require('./services/projectEditRequestService');
 const {
   assertCanonicalProjectStatus,
   applyProjectStatusListFilter,
@@ -2270,6 +2271,10 @@ app.put('/api/projects/:id', (req, res, next) => {
     if (updateBody.status !== undefined && updateBody.status !== null && updateBody.status !== '') {
       updateBody.status = assertCanonicalProjectStatus(updateBody.status);
     }
+    // Institution workspace cannot change lifecycle status via edit form.
+    if (projectEditRequestService.shouldRequireInstitutionEditApproval(access)) {
+      delete updateBody.status;
+    }
 
     const requirementPdfFile = req.files?.requirement_pdf?.[0];
     if (requirementPdfFile) {
@@ -2294,6 +2299,32 @@ app.put('/api/projects/:id', (req, res, next) => {
       }
     }
 
+    if (projectEditRequestService.shouldRequireInstitutionEditApproval(access)) {
+      const needsApproval = await projectEditRequestService.projectHasBookings(req.params.id, service);
+      if (needsApproval) {
+        const { data: currentProject, error: currentErr } = await service
+          .from('projects')
+          .select('*')
+          .eq('id', req.params.id)
+          .maybeSingle();
+        if (currentErr) throw currentErr;
+
+        const editRequest = await projectEditRequestService.queueInstitutionProjectEdit({
+          projectId: req.params.id,
+          institutionId: projectRow.institution_id,
+          proposedPayload: updateBody,
+          previousSnapshot: projectEditRequestService.pickProjectSnapshot(currentProject || {}),
+          client: service,
+        });
+
+        return res.status(202).json({
+          pendingApproval: true,
+          message: 'Changes submitted for admin approval. This project has bookings, so edits are reviewed before going live.',
+          editRequest,
+        });
+      }
+    }
+
     const { data, error } = await supabaseClient
       .from('projects')
       .update(updateBody)
@@ -2309,6 +2340,31 @@ app.put('/api/projects/:id', (req, res, next) => {
     }
 
     res.json(data[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/projects/:id/edit-request', async (req, res) => {
+  try {
+    const service = institutionAccess.getServiceClient();
+    const { data: projectRow, error: projErr } = await service
+      .from('projects')
+      .select('id, institution_id')
+      .eq('id', req.params.id)
+      .maybeSingle();
+    if (projErr) throw projErr;
+    if (!projectRow) return res.status(404).json({ error: 'Project not found' });
+
+    const access = await institutionAccess.resolveInstitutionAccess(req, projectRow.institution_id);
+    if (!access) return res.status(403).json({ error: 'Unauthorized' });
+
+    const pending = await projectEditRequestService.getPendingEditRequest(req.params.id, service);
+    res.json({
+      pending: pending || null,
+      hasBookings: await projectEditRequestService.projectHasBookings(req.params.id, service),
+      requiresApproval: await projectEditRequestService.projectHasBookings(req.params.id, service),
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

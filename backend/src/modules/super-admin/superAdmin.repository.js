@@ -16,6 +16,7 @@ const {
   maybeSyncProjectStatuses,
   projectStatusLabel,
 } = require('../../shared/projectStatus');
+const projectEditRequestService = require('../../../services/projectEditRequestService');
 
 function tableMissing(error) {
   return error && (error.code === '42P01' || /relation .* does not exist/i.test(error.message || ''));
@@ -1051,12 +1052,13 @@ class SuperAdminRepository {
     }
     if (!data) return null;
 
-    const [pipeline, nativeApplications, bookings, assignment, reports] = await Promise.all([
+    const [pipeline, nativeApplications, bookings, assignment, reports, pendingEditRequest] = await Promise.all([
       this.listRequirementExperts(type, id),
       this.listNativeRequirementApplications(type, id),
       this.listRequirementBookings(type, id),
       this.getActiveAssignment(type, id),
       this.listRequirementReports(type, id, { page: 1, limit: 10, offset: 0 }),
+      type === 'project' ? projectEditRequestService.getPendingEditRequest(id, this.client) : Promise.resolve(null),
     ]);
     const attendanceSummary = this.buildAttendanceSummary(bookings);
     const enriched = (await this.enrichRequirementRows([cfg.map(data)]))[0] || cfg.map(data);
@@ -1070,8 +1072,19 @@ class SuperAdminRepository {
       nativeApplications,
       bookings,
       attendanceSummary,
+      pendingEditRequest: pendingEditRequest || null,
       counts: this.buildRequirementCounts(pipeline, nativeApplications, bookings, attendanceSummary),
     };
+  }
+
+  async reviewProjectEditRequest(requestId, action, { reviewNote = '', adminRecordId = null } = {}) {
+    return projectEditRequestService.reviewEditRequest({
+      requestId,
+      action,
+      reviewNote,
+      adminRecordId,
+      client: this.client,
+    });
   }
 
   async getActiveAssignment(type, id) {
