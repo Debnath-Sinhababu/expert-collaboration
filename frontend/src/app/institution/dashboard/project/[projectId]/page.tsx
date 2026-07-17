@@ -51,6 +51,7 @@ import {
   bookingEngagementQuantityDisplay,
   resolveBookingSettlementRates,
 } from '@/lib/projectCompensation'
+import { projectStatusLabel } from '@/lib/projectStatus'
 import {
   formatEmploymentType,
   formatWorkplaceType,
@@ -794,7 +795,7 @@ export default function InstitutionProjectDetailsPage() {
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3 min-w-0">
                           <h3 className="font-bold text-base sm:text-lg text-[#000000] truncate pr-2">{project.title}</h3>
                           <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
-                            <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 px-3 sm:py-2 sm:px-4">{project.status}</Badge>
+                            <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 px-3 sm:py-2 sm:px-4">{projectStatusLabel(project.status)}</Badge>
                             <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 px-3 sm:py-2 sm:px-4">{project.type}</Badge>
                             <Button
                               size="sm"

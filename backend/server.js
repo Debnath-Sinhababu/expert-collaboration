@@ -26,6 +26,12 @@ const {
 } = require('./services/authEmailService');
 const privacyMask = require('./privacyMask');
 const financeDashboardService = new FinanceDashboardService();
+const {
+  assertCanonicalProjectStatus,
+  applyProjectStatusListFilter,
+  maybeSyncProjectStatuses,
+  syncProjectStatusesDue,
+} = require('./src/shared/projectStatus');
 
 console.log('Environment variables loaded:');
 console.log('UPSTASH_REDIS_REST_URL:', process.env.UPSTASH_REDIS_REST_URL ? 'Set' : 'Not set');
@@ -1827,6 +1833,17 @@ app.get('/api/projects', async (req, res) => {
     const offset = (parseInt(page) - 1) * parseInt(limit);
     console.log(`Pagination: page=${page}, limit=${limit}, offset=${offset}`);
 
+    // Forward-only date transitions (open→running, open|running→completed). Cooldown avoids per-request load.
+    try {
+      const serviceClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+      await maybeSyncProjectStatuses(serviceClient);
+    } catch (syncErr) {
+      console.warn('Project status sync skipped:', syncErr?.message || syncErr);
+    }
+
     // Start building base query
     let query = supabase
       .from('projects')
@@ -1852,13 +1869,8 @@ app.get('/api/projects', async (req, res) => {
     if (type) query = query.eq('type', type);
     if (min_hourly_rate) query = query.gte('hourly_rate', parseFloat(min_hourly_rate));
     if (max_hourly_rate) query = query.lte('hourly_rate', parseFloat(max_hourly_rate));
-    if (status === 'running') {
-      // Active projects: anything not completed / closed / cancelled
-      query = query.not('status', 'in', '(completed,closed,cancelled)');
-    } else if (status === 'closed_group') {
-      query = query.in('status', ['completed', 'closed', 'cancelled']);
-    } else if (status) {
-      query = query.eq('status', status);
+    if (status) {
+      query = applyProjectStatusListFilter(query, status);
     }
     if (institution_id) query = query.eq('institution_id', institution_id);
     
@@ -2254,6 +2266,10 @@ app.put('/api/projects/:id', (req, res, next) => {
     delete updateBody.interview_period_start_date;
     delete updateBody.interview_period_end_date;
     delete updateBody.institution_id;
+
+    if (updateBody.status !== undefined && updateBody.status !== null && updateBody.status !== '') {
+      updateBody.status = assertCanonicalProjectStatus(updateBody.status);
+    }
 
     const requirementPdfFile = req.files?.requirement_pdf?.[0];
     if (requirementPdfFile) {
@@ -6959,6 +6975,25 @@ socketService.initialize(server);
 // Start notification queue processor
 notificationService.startQueueProcessor();
 
+// Periodic project status sync (date-based open→running / →completed). Independent of bookings.
+function runProjectStatusSync(reason = 'interval') {
+  try {
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+    syncProjectStatusesDue(serviceClient)
+      .then((result) => {
+        if (result.runningUpdated || result.completedUpdated) {
+          console.log(`[projectStatus] ${reason}:`, result);
+        }
+      })
+      .catch((err) => console.warn(`[projectStatus] ${reason} failed:`, err?.message || err));
+  } catch (err) {
+    console.warn(`[projectStatus] ${reason} setup failed:`, err?.message || err);
+  }
+}
+
 // Start server
 server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
@@ -6969,6 +7004,8 @@ server.listen(PORT, () => {
   console.log('- EMAIL_APP_PASSWORD:', process.env.EMAIL_APP_PASSWORD ? 'Set' : 'Not set');
   console.log('- UPSTASH_REDIS_REST_URL:', process.env.UPSTASH_REDIS_REST_URL ? 'Set' : 'Not set');
   console.log('- UPSTASH_REDIS_REST_TOKEN:', process.env.UPSTASH_REDIS_REST_TOKEN ? 'Set' : 'Not set');
+  runProjectStatusSync('startup');
+  setInterval(() => runProjectStatusSync('hourly'), 60 * 60 * 1000);
 });
 
 module.exports = app;

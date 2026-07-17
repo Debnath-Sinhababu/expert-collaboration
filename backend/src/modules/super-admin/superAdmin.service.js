@@ -998,9 +998,37 @@ class SuperAdminService {
       entity_id: requirementId,
       requirement_type: requirementType,
       requirement_id: requirementId,
-      metadata: { start_date: body?.start_date, end_date: body?.end_date },
+      metadata: { start_date: body?.start_date, end_date: body?.end_date, status: updated.status },
     });
     return updated;
+  }
+
+  async updateRequirementStatus(type, requirementId, body, auth = null) {
+    const requirementType = parseRequirementType(type);
+    if (requirementType !== 'project') {
+      const err = new Error('Status editing is only available for project requirements');
+      err.statusCode = 400;
+      throw err;
+    }
+    const updated = await this.repository.updateProjectRequirementStatus(requirementId, body?.status);
+    if (!updated) {
+      const err = new Error('Requirement not found');
+      err.statusCode = 404;
+      throw err;
+    }
+    await this.logActivity(auth, 'requirement.status_updated', {
+      entity_type: 'project',
+      entity_id: requirementId,
+      requirement_type: requirementType,
+      requirement_id: requirementId,
+      metadata: {
+        before: updated._before,
+        after: updated.status,
+        changed: Boolean(updated._changed),
+      },
+    });
+    const { _changed, _before, ...row } = updated;
+    return row;
   }
 
   async listFreelance(params) {

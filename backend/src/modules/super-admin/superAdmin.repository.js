@@ -8,6 +8,14 @@ const {
   roundMoney,
 } = require('../../../services/financeCalculationService');
 const { isActiveBookingStatus } = require('../../shared/compensation');
+const {
+  PROJECT_STATUSES,
+  normalizeProjectStatus,
+  assertCanonicalProjectStatus,
+  computeAutoProjectStatus,
+  maybeSyncProjectStatuses,
+  projectStatusLabel,
+} = require('../../shared/projectStatus');
 
 function tableMissing(error) {
   return error && (error.code === '42P01' || /relation .* does not exist/i.test(error.message || ''));
@@ -158,11 +166,14 @@ class SuperAdminRepository {
   summarizeRequirementRows(rows = []) {
     return rows.reduce((summary, row) => {
       summary.total += 1;
-      const status = row.derived_status || 'pending';
-      summary[status] = (summary[status] || 0) + 1;
-      if (status === 'completed' || status === 'closed_incomplete') summary.closed += 1;
+      const status = normalizeProjectStatus(row.derived_status || row.status || 'open');
+      const key = PROJECT_STATUSES.includes(status) ? status : 'open';
+      summary[key] = (summary[key] || 0) + 1;
+      // Legacy aliases used by older admin overview cards
+      if (key === 'open') summary.pending = (summary.pending || 0) + 1;
+      if (key === 'closed') summary.closed_incomplete = (summary.closed_incomplete || 0) + 1;
       return summary;
-    }, { total: 0, running: 0, pending: 0, completed: 0, closed_incomplete: 0, closed: 0 });
+    }, { total: 0, open: 0, running: 0, pending: 0, completed: 0, closed_incomplete: 0, closed: 0 });
   }
 
   async fetchRequirementRowsForStats(type) {
@@ -653,6 +664,12 @@ class SuperAdminRepository {
   }
 
   async listRequirements({ page, limit, offset, type = 'all', search = '', status = 'all', derived_status = '', institution_id = '', assigned_admin_id = '' }) {
+    try {
+      await maybeSyncProjectStatuses(this.client);
+    } catch (syncErr) {
+      console.warn('[projectStatus] listRequirements sync skipped:', syncErr?.message || syncErr);
+    }
+
     const boundedEnd = type === 'all' ? offset + limit - 1 : offset + limit - 1;
     const boundedStart = type === 'all' ? 0 : offset;
     const needle = String(search || '').trim();
@@ -734,11 +751,23 @@ class SuperAdminRepository {
     const enrichedRows = await this.enrichRequirementRows(rows);
     let filteredRows = enrichedRows;
     if (derived_status) {
-      filteredRows = filteredRows.filter((row) => (
-        derived_status === 'closed'
-          ? ['completed', 'closed_incomplete'].includes(row.derived_status)
-          : row.derived_status === derived_status
-      ));
+      const wanted = String(derived_status).toLowerCase().trim();
+      filteredRows = filteredRows.filter((row) => {
+        const current = normalizeProjectStatus(row.derived_status || row.status);
+        if (wanted === 'closed_aggregate' || wanted === 'closed_group') {
+          return current === 'completed' || current === 'closed';
+        }
+        if (wanted === 'closed_incomplete' || wanted === 'pending') {
+          // Legacy admin filter aliases
+          if (wanted === 'pending') return current === 'open';
+          return current === 'closed';
+        }
+        if (wanted === 'closed') {
+          // Exact closed only (not completed). Aggregate uses closed_aggregate.
+          return current === 'closed';
+        }
+        return current === normalizeProjectStatus(wanted);
+      });
     }
     if (assigned_admin_id) {
       filteredRows = filteredRows.filter((row) => {
@@ -782,8 +811,12 @@ class SuperAdminRepository {
           ? internshipMetrics[row.id] || {}
           : freelanceMetrics[row.id] || {};
       const derived = this.deriveRequirementState(row, metrics);
+      const normalizedStatus = row.requirement_type === 'project'
+        ? normalizeProjectStatus(row.status)
+        : row.status;
       return {
         ...row,
+        status: normalizedStatus,
         assignment,
         derived_status: derived.status,
         progress_percent: derived.progressPercent,
@@ -794,20 +827,33 @@ class SuperAdminRepository {
   }
 
   deriveRequirementState(row, metrics = {}) {
+    // Project/requirement status is stored & canonical. Booking status stays independent.
+    if (row.requirement_type === 'project') {
+      const status = normalizeProjectStatus(row.status);
+      const target = Number(metrics.target_hours || row.duration_hours || 0);
+      const progress = status === 'completed'
+        ? 100
+        : target > 0
+          ? roundPercent((Number(metrics.approved_hours || 0) / target) * 100)
+          : null;
+      return {
+        status: PROJECT_STATUSES.includes(status) ? status : normalizeProjectStatus(status),
+        progressPercent: progress,
+        progressLabel:
+          status === 'completed'
+            ? 'Completed'
+            : progress == null
+              ? projectStatusLabel(status)
+              : `${progress}%`,
+      };
+    }
+
     const status = row.status || row.call_status;
     if (String(status || '').toLowerCase() === 'completed' || metrics.completed_count > 0 || metrics.completed_bookings > 0) {
       return { status: 'completed', progressPercent: 100, progressLabel: 'Completed' };
     }
     if (cancelledStatus(status)) {
-      return { status: 'closed_incomplete', progressPercent: 0, progressLabel: 'Closed incomplete' };
-    }
-    if (row.requirement_type === 'project') {
-      if ((metrics.running_bookings || 0) > 0 || (metrics.accepted_applications || 0) > 0) {
-        const target = Number(metrics.target_hours || row.duration_hours || 0);
-        const progress = target > 0 ? roundPercent((Number(metrics.approved_hours || 0) / target) * 100) : null;
-        return { status: 'running', progressPercent: progress, progressLabel: progress == null ? 'Unknown' : `${progress}%` };
-      }
-      return { status: 'pending', progressPercent: 0, progressLabel: 'Not started' };
+      return { status: 'closed', progressPercent: 0, progressLabel: 'Closed' };
     }
     if (row.requirement_type === 'internship') {
       if ((metrics.shortlisted_count || 0) > 0 || activeStatus(status)) {
@@ -815,13 +861,13 @@ class SuperAdminRepository {
         const progress = dateProgress(row.start_date || row.created_at, end);
         return { status: 'running', progressPercent: progress, progressLabel: progress == null ? 'Unknown' : `${progress}%` };
       }
-      return { status: 'pending', progressPercent: 0, progressLabel: 'Not started' };
+      return { status: 'open', progressPercent: 0, progressLabel: 'Open' };
     }
     if ((metrics.shortlisted_count || 0) > 0 || activeStatus(status)) {
       const progress = dateProgress(row.created_at, row.deadline);
       return { status: 'running', progressPercent: progress, progressLabel: progress == null ? 'Unknown' : `${progress}%` };
     }
-    return { status: 'pending', progressPercent: 0, progressLabel: 'Not started' };
+    return { status: 'open', progressPercent: 0, progressLabel: 'Open' };
   }
 
   async getActiveAssignmentsForRows(rows = []) {
@@ -957,6 +1003,14 @@ class SuperAdminRepository {
   }
 
   async getRequirementDetail(type, id) {
+    if (type === 'project') {
+      try {
+        await maybeSyncProjectStatuses(this.client, { force: true, cooldownMs: 0 });
+      } catch (syncErr) {
+        console.warn('[projectStatus] detail sync skipped:', syncErr?.message || syncErr);
+      }
+    }
+
     const configs = {
       project: {
         table: 'projects',
@@ -1567,9 +1621,28 @@ class SuperAdminRepository {
       throw err;
     }
 
+    const { data: existing, error: existingError } = await this.client
+      .from('projects')
+      .select('id, status, start_date, end_date')
+      .eq('id', requirementId)
+      .maybeSingle();
+    if (existingError) throw existingError;
+    if (!existing) return null;
+
+    const nextStatus = computeAutoProjectStatus({
+      status: existing.status,
+      start_date: startDate,
+      end_date: endDate,
+    });
+
     const { data: project, error } = await this.client
       .from('projects')
-      .update({ start_date: startDate, end_date: endDate, updated_at: new Date().toISOString() })
+      .update({
+        start_date: startDate,
+        end_date: endDate,
+        status: nextStatus,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', requirementId)
       .select('*')
       .maybeSingle();
@@ -1598,6 +1671,31 @@ class SuperAdminRepository {
     }
 
     return project;
+  }
+
+  async updateProjectRequirementStatus(requirementId, status) {
+    const nextStatus = assertCanonicalProjectStatus(status);
+    const { data: existing, error: existingError } = await this.client
+      .from('projects')
+      .select('id, status, title')
+      .eq('id', requirementId)
+      .maybeSingle();
+    if (existingError) throw existingError;
+    if (!existing) return null;
+
+    const before = normalizeProjectStatus(existing.status);
+    if (before === nextStatus) {
+      return { ...existing, status: nextStatus, _changed: false, _before: before };
+    }
+
+    const { data, error } = await this.client
+      .from('projects')
+      .update({ status: nextStatus, updated_at: new Date().toISOString() })
+      .eq('id', requirementId)
+      .select('*')
+      .maybeSingle();
+    if (error) throw error;
+    return { ...(data || null), _changed: true, _before: before };
   }
 
   async listFreelance(params) {

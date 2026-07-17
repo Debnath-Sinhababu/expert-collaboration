@@ -24,6 +24,14 @@ import Logo from '@/components/Logo'
 import { getInstitutionRate } from '@/lib/utils'
 import { PostedCompensationRate } from '@/components/requirements/PostedCompensationRate'
 import { projectEngagementQuantityDisplay } from '@/lib/projectCompensation'
+import {
+  PROJECT_STATUSES,
+  PROJECT_STATUS_LABELS,
+  isActiveProjectStatus,
+  isEndedProjectStatus,
+  normalizeProjectStatus,
+  projectStatusLabel,
+} from '@/lib/projectStatus'
 import { 
   Building, 
   Plus, 
@@ -616,16 +624,19 @@ export default function InstitutionDashboardPage() {
   // Load ratings when institution is available
 // Only depend on institution ID
 
-  const runningProjects = projects.filter((project: any) => !['completed', 'closed', 'cancelled'].includes(project.status))
-  const closedProjects = projects.filter((project: any) => ['completed', 'closed', 'cancelled'].includes(project.status))
+  const closedProjects = projects.filter((project: any) => isEndedProjectStatus(project.status))
+  const openProjects = projects.filter((project: any) => normalizeProjectStatus(project.status) === 'open')
+  const liveRunningProjects = projects.filter((project: any) => normalizeProjectStatus(project.status) === 'running')
   const showGroupedSections = statusFilter === 'all' && !debouncedSearch
-  const orderedProjects = showGroupedSections ? [...runningProjects, ...closedProjects] : projects
+  const orderedProjects = showGroupedSections
+    ? [...openProjects, ...liveRunningProjects, ...closedProjects]
+    : projects
   const hasActiveProjectFilters = Boolean(debouncedSearch) || statusFilter !== 'all'
   const totalProjectsDisplay = projectCounts.total > 0 ? projectCounts.total : projects.length
   const openProjectsDisplay =
     projectCounts.total > 0
-      ? projectCounts.open || runningProjects.length
-      : projects.filter((p) => p.status === 'open').length
+      ? projectCounts.open || openProjects.length
+      : openProjects.length
   const totalApplicationsDisplay =
     applicationCounts.total > 0
       ? applicationCounts.total
@@ -1171,7 +1182,7 @@ export default function InstitutionDashboardPage() {
             <CardHeader>
               <CardTitle className="text-lg font-semibold text-[#000000]">My Projects</CardTitle>
               <CardDescription className="text-[#000000] font-normal text-base !-mt-[2px]">
-                Search and filter your requirements. Running projects appear first when viewing all.
+                Search and filter by status: Open, Running, Completed, Closed.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -1197,13 +1208,9 @@ export default function InstitutionDashboardPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All statuses</SelectItem>
-                      <SelectItem value="running">Running</SelectItem>
-                      <SelectItem value="open">Open</SelectItem>
-                      <SelectItem value="in_progress">In progress</SelectItem>
-                      <SelectItem value="closed">Closed</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
-                      <SelectItem value="closed_group">Ended (closed / completed)</SelectItem>
+                      {PROJECT_STATUSES.map((value) => (
+                        <SelectItem key={value} value={value}>{PROJECT_STATUS_LABELS[value]}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1241,25 +1248,28 @@ export default function InstitutionDashboardPage() {
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div className="rounded-lg border border-[#DCDCDC] p-3">
-                        <p className="text-xs text-[#656565]">Running projects</p>
-                        <p className="text-xl font-bold text-[#000000]">{runningProjects.length}</p>
+                        <p className="text-xs text-[#656565]">Open</p>
+                        <p className="text-xl font-bold text-[#000000]">{openProjects.length}</p>
                       </div>
                       <div className="rounded-lg border border-[#DCDCDC] p-3">
-                        <p className="text-xs text-[#656565]">Closed projects</p>
+                        <p className="text-xs text-[#656565]">Running</p>
+                        <p className="text-xl font-bold text-[#000000]">{liveRunningProjects.length}</p>
+                      </div>
+                      <div className="rounded-lg border border-[#DCDCDC] p-3">
+                        <p className="text-xs text-[#656565]">Ended</p>
                         <p className="text-xl font-bold text-[#000000]">{closedProjects.length}</p>
-                      </div>
-                      <div className="rounded-lg border border-[#DCDCDC] p-3">
-                        <p className="text-xs text-[#656565]">Pending applications</p>
-                        <p className="text-xl font-bold text-[#000000]">{pendingApplicationsDisplay}</p>
                       </div>
                     </div>
                     {orderedProjects.map((project: any, index: number) => (
                       <div key={`${project.id}-section`}>
-                        {showGroupedSections && index === 0 && runningProjects.length > 0 && (
-                          <h3 className="text-sm font-semibold text-[#008260]">Running projects</h3>
+                        {showGroupedSections && index === 0 && openProjects.length > 0 && (
+                          <h3 className="text-sm font-semibold text-[#008260]">Open</h3>
                         )}
-                        {showGroupedSections && index === runningProjects.length && closedProjects.length > 0 && (
-                          <h3 className="text-sm font-semibold text-[#6A6A6A]">Closed projects</h3>
+                        {showGroupedSections && index === openProjects.length && liveRunningProjects.length > 0 && (
+                          <h3 className="text-sm font-semibold text-[#1D4ED8]">Running</h3>
+                        )}
+                        {showGroupedSections && index === openProjects.length + liveRunningProjects.length && closedProjects.length > 0 && (
+                          <h3 className="text-sm font-semibold text-[#6A6A6A]">Ended</h3>
                         )}
                         <div 
                           key={project.id} 
@@ -1268,7 +1278,7 @@ export default function InstitutionDashboardPage() {
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                           <h3 className="font-bold text-base sm:text-lg text-[#000000]">{project.title}</h3>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 px-3 sm:py-2 sm:px-4">{project.status}</Badge>
+                            <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 px-3 sm:py-2 sm:px-4">{projectStatusLabel(project.status)}</Badge>
                             <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 px-3 sm:py-2 sm:px-4">{project.type}</Badge>
                           </div>
                         </div>
@@ -1356,7 +1366,7 @@ export default function InstitutionDashboardPage() {
                               <Edit className="h-4 w-4" />
                               Edit
                             </Button>
-                            {project.status === 'open' && (
+                            {isActiveProjectStatus(project.status) && (
                               <Button size="sm" variant="outline" onClick={() => handleCloseProjectClick(project.id)} className="flex-1 sm:flex-none bg-[#9B0000] hover:bg-[#9B0000] rounded-[25px] text-white hover:text-white font-semibold text-[13px]">
                                 <XCircle className="h-4 w-4" />
                                 Close

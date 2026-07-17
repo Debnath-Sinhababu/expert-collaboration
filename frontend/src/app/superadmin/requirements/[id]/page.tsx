@@ -54,6 +54,11 @@ import {
   resolveBookingSettlementRates,
   toExpertNet,
 } from '@/lib/projectCompensation'
+import {
+  PROJECT_STATUSES,
+  PROJECT_STATUS_LABELS,
+  normalizeProjectStatus,
+} from '@/lib/projectStatus'
 
 const STAGES = [
   { value: 'pending', label: 'Pending' },
@@ -81,15 +86,6 @@ function isRejectedApplicationStatus(status?: string | null) {
 
 function isRejectedPipelineStage(stage?: string | null) {
   return String(stage || '').toLowerCase() === 'rejected'
-}
-
-function operationsStateLabel(value?: string | null) {
-  if (value === 'running') return 'Running / live'
-  if (value === 'pending') return 'Pending start'
-  if (value === 'completed') return 'Completed'
-  if (value === 'closed_incomplete') return 'Closed incomplete'
-  if (value === 'closed') return 'Closed'
-  return value || '-'
 }
 
 function formatDate(value?: string | null) {
@@ -160,6 +156,7 @@ export default function SuperAdminRequirementDetailPage() {
   const [dateEdits, setDateEdits] = useState({ start_date: '', end_date: '' })
   const [dateSaving, setDateSaving] = useState(false)
   const [bookingStatusSaving, setBookingStatusSaving] = useState<Record<string, boolean>>({})
+  const [requirementStatusSaving, setRequirementStatusSaving] = useState(false)
   const [bookingEditOpen, setBookingEditOpen] = useState(false)
   const [bookingEditSaving, setBookingEditSaving] = useState(false)
   const [bookingEditTarget, setBookingEditTarget] = useState<any | null>(null)
@@ -248,6 +245,19 @@ export default function SuperAdminRequirementDetailPage() {
       toast.error(err instanceof Error ? err.message : 'Failed to update booking status')
     } finally {
       setBookingStatusSaving((current) => ({ ...current, [booking.id]: false }))
+    }
+  }
+
+  async function updateRequirementStatus(status: string) {
+    setRequirementStatusSaving(true)
+    try {
+      await superAdminApi.updateRequirementStatus(requirementType, requirementId, { status })
+      toast.success('Requirement status updated')
+      await loadDetail()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update requirement status')
+    } finally {
+      setRequirementStatusSaving(false)
     }
   }
 
@@ -1036,8 +1046,30 @@ export default function SuperAdminRequirementDetailPage() {
             <div className="grid gap-4 text-sm md:grid-cols-3">
               {detailValue('Institution', institution?.name || '-')}
               {detailValue('Institution Email', institution?.email)}
-              {detailValue('Status', requirement.status || requirement.call_status || '-')}
-              {detailValue('Operations State', operationsStateLabel(requirement.derived_status))}
+              {requirementType === 'project' ? (
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-slate-500">Status</p>
+                  <Select
+                    value={String(normalizeProjectStatus(requirement.status) || 'open')}
+                    onValueChange={updateRequirementStatus}
+                    disabled={!canManagePipeline || requirementStatusSaving}
+                  >
+                    <SelectTrigger className="mt-1 bg-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PROJECT_STATUSES.map((value) => (
+                        <SelectItem key={value} value={value}>{PROJECT_STATUS_LABELS[value]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Independent of booking status. Auto: open→running on start date, →completed after end date. Closed stays closed.
+                  </p>
+                </div>
+              ) : (
+                detailValue('Status', requirement.status || requirement.call_status || '-')
+              )}
               {detailValue('Progress', requirement.progress_label || 'Unknown')}
               {detailValue('Assigned Admin', assignment?.admin?.name || assignment?.admin?.email || 'Unassigned')}
               {detailValue('Created', formatDate(requirement.created_at))}
@@ -1094,6 +1126,23 @@ export default function SuperAdminRequirementDetailPage() {
               {detailValue('Engagement', requirement.engagement || requirement.employment_type)}
               {detailValue('Openings', requirement.openings)}
               {detailValue('Location', requirement.location || requirement.job_location)}
+              {requirementType === 'project' ? (
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-slate-500">Requirement PDF</p>
+                  {requirement.requirement_pdf_url ? (
+                    <a
+                      href={requirement.requirement_pdf_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1 inline-flex text-sm font-medium text-[#008260] hover:underline"
+                    >
+                      View requirement PDF
+                    </a>
+                  ) : (
+                    <p className="mt-1 text-sm text-slate-500">Not uploaded</p>
+                  )}
+                </div>
+              ) : null}
             </div>
             {requirementType === 'project' ? (
               <div className="mt-5 grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 md:grid-cols-[1fr_1fr_auto] md:items-end">

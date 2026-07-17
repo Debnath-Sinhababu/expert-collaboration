@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { SectionCard } from '@/components/superadmin/common/SectionCard'
 import { StatCard } from '@/components/superadmin/common/StatCard'
 import { superAdminApi } from '@/lib/superadmin/api'
+import { projectStatusLabel } from '@/lib/projectStatus'
 
 export default function MySuperAdminRequirementsPage() {
   const [rows, setRows] = useState<any[]>([])
@@ -59,15 +60,18 @@ export default function MySuperAdminRequirementsPage() {
     }
   }
 
-  const running = rows.filter((row) => row.requirement?.derived_status === 'running').length
-  const pending = rows.filter((row) => row.requirement?.derived_status === 'pending').length
+  const running = rows.filter((row) => row.requirement?.derived_status === 'running' || row.requirement?.status === 'running').length
+  const open = rows.filter((row) => {
+    const status = row.requirement?.derived_status || row.requirement?.status
+    return status === 'open' || status === 'pending'
+  }).length
 
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-3">
         <StatCard label="Assigned To Me" value={rows.length} icon={ListChecks} helper="Active owned requirements" />
         <StatCard label="Running" value={running} icon={ArrowRight} tone="blue" helper="Live work" />
-        <StatCard label="Pending" value={pending} icon={FileUp} tone="amber" helper="Not started yet" />
+        <StatCard label="Open" value={open} icon={FileUp} tone="amber" helper="Open for applications" />
       </div>
 
       <SectionCard title="My Requirements" description="Requirements assigned to your admin account. Upload daily reports from here.">
@@ -79,7 +83,9 @@ export default function MySuperAdminRequirementsPage() {
                 <div>
                   <div className="flex flex-wrap gap-2">
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold capitalize text-slate-700">{row.requirement_type}</span>
-                    <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold capitalize text-[#008260]">{row.requirement?.derived_status || 'pending'}</span>
+                    <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold capitalize text-[#008260]">
+                      {projectStatusLabel(row.requirement?.derived_status || row.requirement?.status)}
+                    </span>
                   </div>
                   <h3 className="mt-3 font-semibold text-slate-950">{row.requirement?.title || row.requirement_id}</h3>
                   <p className="mt-1 text-sm text-slate-600">{row.requirement?.institutions?.name || row.requirementDetail?.institution?.name || 'Institution unavailable'}</p>

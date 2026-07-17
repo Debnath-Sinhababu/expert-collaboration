@@ -11,15 +11,10 @@ import { SectionCard } from '@/components/superadmin/common/SectionCard'
 import { StatCard } from '@/components/superadmin/common/StatCard'
 import { DataTable } from '@/components/superadmin/common/DataTable'
 import { superAdminApi } from '@/lib/superadmin/api'
+import { projectStatusLabel } from '@/lib/projectStatus'
 
 function statusLabel(status: string) {
-  const labels: Record<string, string> = {
-    running: 'Running / live',
-    pending: 'Pending start',
-    completed: 'Completed',
-    closed_incomplete: 'Closed incomplete',
-  }
-  return labels[status] || status || '-'
+  return projectStatusLabel(status)
 }
 
 function MiniBars({ data }: { data: any[] }) {
@@ -79,9 +74,9 @@ export default function OverviewCategoryPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard label="Total" value={summary.total} icon={BriefcaseBusiness} />
         <StatCard label="Running" value={summary.running} icon={PlayCircle} tone="blue" />
-        <StatCard label="Pending" value={summary.pending} icon={Clock3} tone="amber" />
+        <StatCard label="Open" value={summary.open || summary.pending} icon={Clock3} tone="amber" />
         <StatCard label="Completed" value={summary.completed} icon={CheckCircle2} tone="green" />
-        <StatCard label="Closed Incomplete" value={summary.closed_incomplete} icon={BriefcaseBusiness} tone="slate" />
+        <StatCard label="Closed" value={summary.closed || summary.closed_incomplete} icon={BriefcaseBusiness} tone="slate" />
       </div>
 
       <SectionCard title="Trend" description={`${period} requirement creation trend.`} eyebrow="Graph">
