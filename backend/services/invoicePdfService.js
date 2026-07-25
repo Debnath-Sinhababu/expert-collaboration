@@ -88,6 +88,7 @@ function invoiceSettlementContext(payment, booking) {
       rate,
       lineTotal: base,
       baseAmount: taxes.base_amount,
+      applyTds: true,
       tdsAmount: taxes.tds_amount,
       tdsRate: taxes.tds_rate,
       gstAmount: taxes.gst_amount,
@@ -105,7 +106,8 @@ function invoiceSettlementContext(payment, booking) {
   const base = qty > 0 && rate > 0
     ? Math.round(qty * rate * 100) / 100
     : 0;
-  const taxes = applyInvoiceTaxes(base, 'expert');
+  const applyTds = Boolean(payment.apply_tds);
+  const taxes = applyInvoiceTaxes(base, 'expert', { applyTds });
   const computedTotal = taxes.total_amount;
   const invoiceAmount =
     Number(payment.invoice_amount) > 0 ? Number(payment.invoice_amount) : computedTotal;
@@ -124,8 +126,9 @@ function invoiceSettlementContext(payment, booking) {
     rate,
     lineTotal: base,
     baseAmount: taxes.base_amount,
-    tdsAmount: 0,
-    tdsRate: 0,
+    applyTds: taxes.apply_tds,
+    tdsAmount: taxes.tds_amount,
+    tdsRate: taxes.tds_rate,
     gstAmount: taxes.gst_amount,
     gstRate: taxes.gst_rate,
     computedTotal,

@@ -39,6 +39,15 @@ function money(value: unknown) {
   return `Rs. ${Number(value || 0).toFixed(2)}`
 }
 
+/** Local preview for expert TDS on/off (mirrors backend applyInvoiceTaxes). */
+function expertTaxPreview(baseAmount: unknown, applyTds: boolean) {
+  const base = Math.round(Number(baseAmount || 0) * 100) / 100
+  const tds = applyTds ? Math.round(base * 0.1 * 100) / 100 : 0
+  const gst = Math.round(base * 0.18 * 100) / 100
+  const total = Math.round((base + tds + gst) * 100) / 100
+  return { base, tds, gst, total }
+}
+
 function formatDate(value?: string | null) {
   return value ? new Date(value).toLocaleString() : '-'
 }
@@ -437,6 +446,23 @@ export default function SuperAdminFinancePage() {
       await refreshAfterChange(updated)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update status')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function toggleExpertTds(nextApplyTds: boolean) {
+    if (!selected || selected.party_type !== 'expert') return
+    setSaving(true)
+    try {
+      const updated = await superAdminApi.updateFinancePayment(selected.id, {
+        apply_tds: nextApplyTds,
+        notes,
+      })
+      toast.success(nextApplyTds ? 'TDS applied to expert payout' : 'TDS removed from expert payout')
+      await refreshAfterChange(updated)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update TDS')
     } finally {
       setSaving(false)
     }
@@ -907,21 +933,46 @@ export default function SuperAdminFinancePage() {
                       <p className="font-medium text-slate-950">{money(paymentRate(selected))}</p>
                     </div>
                     <div className="md:col-span-2 rounded-lg border border-slate-200 bg-white p-3">
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Payout bifurcation</p>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <span className="text-slate-500">Base (net × qty)</span>
-                        <span className="text-right font-medium text-slate-950">{money(selected.settlement?.base_amount ?? selected.settlement?.tax?.base_amount)}</span>
-                        <span className="text-slate-500">GST (18%)</span>
-                        <span className="text-right font-medium text-slate-950">{money(selected.settlement?.gst_amount ?? selected.settlement?.tax?.gst_amount)}</span>
-                        <span className="font-semibold text-slate-700">Payout total</span>
-                        <span className="text-right font-semibold text-[#008260]">{money(selected.settlement?.expected_amount ?? selected.calculated_amount)}</span>
-                      </div>
-                      <p className="mt-2 text-xs text-slate-500">
-                        Formula: base + GST 18%
-                        {paymentRate(selected) > 0 && paymentQty(selected) > 0
-                          ? ` · base = ${money(paymentRate(selected))} × ${paymentQty(selected)} ${pluralUnit(paymentPayUnit(selected), paymentQty(selected))}`
-                          : ''}
-                      </p>
+                      {(() => {
+                        const base = Number(
+                          selected.settlement?.base_amount ??
+                            selected.settlement?.tax?.base_amount ??
+                            0
+                        )
+                        const tdsOn = Boolean(selected.apply_tds)
+                        const active = expertTaxPreview(base, tdsOn)
+                        return (
+                          <>
+                            <div className="mb-3 flex items-center justify-between gap-3">
+                              <p className="text-sm font-medium text-slate-900">
+                                {tdsOn ? 'TDS (10%) included' : 'TDS (10%) not included'}
+                              </p>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant={tdsOn ? 'outline' : 'default'}
+                                disabled={saving}
+                                className={tdsOn ? '' : 'bg-[#008260] hover:bg-[#006B4F]'}
+                                onClick={() => void toggleExpertTds(!tdsOn)}
+                              >
+                                {tdsOn ? 'Remove TDS' : 'Add TDS'}
+                              </Button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              <span className="text-slate-500">Base (net × qty)</span>
+                              <span className="text-right font-medium text-slate-950">{money(active.base)}</span>
+                              <span className={tdsOn ? 'text-slate-500' : 'text-slate-400'}>TDS (10%)</span>
+                              <span className={`text-right font-medium ${tdsOn ? 'text-slate-950' : 'text-slate-400'}`}>
+                                {tdsOn ? money(active.tds) : '—'}
+                              </span>
+                              <span className="text-slate-500">GST (18%)</span>
+                              <span className="text-right font-medium text-slate-950">{money(active.gst)}</span>
+                              <span className="font-semibold text-slate-700">Payout total</span>
+                              <span className="text-right font-semibold text-[#008260]">{money(active.total)}</span>
+                            </div>
+                          </>
+                        )
+                      })()}
                     </div>
                   </>
                 )}
@@ -941,7 +992,9 @@ export default function SuperAdminFinancePage() {
                   <Input id="invoiceAmount" type="number" min="0" step="0.01" value={invoiceAmount} onChange={(e) => setInvoiceAmount(e.target.value)} />
                   <p className="text-xs text-slate-500">
                     Amount on the invoice / payout statement. Default includes taxes
-                    ({selected.party_type === 'institution' ? 'base + TDS 10% + GST 18%' : 'base + GST 18%'}).
+                    ({selected.party_type === 'institution' || selected.apply_tds
+                      ? 'base + TDS 10% + GST 18%'
+                      : 'base + GST 18%'}).
                     Contract base remains {money(selected.settlement?.base_amount ?? selected.settlement?.tax?.base_amount)}.
                   </p>
                 </div>
@@ -977,7 +1030,7 @@ export default function SuperAdminFinancePage() {
                   <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
                     <span className="text-slate-500">Base</span>
                     <span className="text-right font-medium text-slate-950">{money(selected.settlement?.base_amount ?? selected.settlement?.tax?.base_amount)}</span>
-                    {selected.party_type === 'institution' ? (
+                    {selected.party_type === 'institution' || selected.apply_tds ? (
                       <>
                         <span className="text-slate-500">TDS (10%)</span>
                         <span className="text-right font-medium text-slate-950">{money(selected.settlement?.tds_amount ?? selected.settlement?.tax?.tds_amount)}</span>

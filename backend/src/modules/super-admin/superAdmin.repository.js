@@ -1914,6 +1914,7 @@ class SuperAdminRepository {
         const existing = existingByBooking[booking.id]?.[partyType];
         const draft = buildPaymentRecordDraft(booking, partyType, approvedHours, {
           approvedDays: metrics.approvedDays || 0,
+          applyTds: partyType === 'institution' ? true : Boolean(existing?.apply_tds),
         });
         const { settlement: _settlement, ...draftRow } = draft;
         if (existing && existing.status !== 'pending') {
@@ -1928,6 +1929,7 @@ class SuperAdminRepository {
             hourly_rate_snapshot: existing.hourly_rate_snapshot,
             calculated_amount: existing.calculated_amount,
             invoice_amount: existing.invoice_amount,
+            apply_tds: partyType === 'institution' ? true : Boolean(existing.apply_tds),
             status: existing.status,
             invoice_id: existing.invoice_id || null,
             paid_amount: existing.paid_amount || 0,
@@ -1940,6 +1942,7 @@ class SuperAdminRepository {
         }
         upserts.push({
           ...draftRow,
+          apply_tds: draftRow.apply_tds === true,
           status: existing?.status || 'pending',
           invoice_id: existing?.invoice_id || null,
           paid_amount: existing?.paid_amount || 0,
