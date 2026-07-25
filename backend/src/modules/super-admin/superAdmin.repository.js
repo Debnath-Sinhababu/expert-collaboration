@@ -1648,28 +1648,47 @@ class SuperAdminRepository {
       throw err;
     }
 
-    const { data: existing, error: existingError } = await this.client
-      .from('projects')
-      .select('id, status, start_date, end_date')
-      .eq('id', requirementId)
-      .maybeSingle();
-    if (existingError) throw existingError;
+    let existing = null;
+    {
+      const { data, error } = await this.client
+        .from('projects')
+        .select('id, status, start_date, end_date, status_managed_by_admin')
+        .eq('id', requirementId)
+        .maybeSingle();
+      if (error && String(error.message || '').includes('status_managed_by_admin')) {
+        const legacy = await this.client
+          .from('projects')
+          .select('id, status, start_date, end_date')
+          .eq('id', requirementId)
+          .maybeSingle();
+        if (legacy.error) throw legacy.error;
+        existing = legacy.data ? { ...legacy.data, status_managed_by_admin: false } : null;
+      } else if (error) {
+        throw error;
+      } else {
+        existing = data;
+      }
+    }
     if (!existing) return null;
 
-    const nextStatus = computeAutoProjectStatus({
-      status: existing.status,
+    const managedByAdmin = Boolean(existing.status_managed_by_admin);
+    const patch = {
       start_date: startDate,
       end_date: endDate,
-    });
+      updated_at: new Date().toISOString(),
+    };
+    // Preserve admin-chosen status; only auto-derive when not locked by admin.
+    if (!managedByAdmin) {
+      patch.status = computeAutoProjectStatus({
+        status: existing.status,
+        start_date: startDate,
+        end_date: endDate,
+      });
+    }
 
     const { data: project, error } = await this.client
       .from('projects')
-      .update({
-        start_date: startDate,
-        end_date: endDate,
-        status: nextStatus,
-        updated_at: new Date().toISOString(),
-      })
+      .update(patch)
       .eq('id', requirementId)
       .select('*')
       .maybeSingle();
@@ -1712,16 +1731,48 @@ class SuperAdminRepository {
 
     const before = normalizeProjectStatus(existing.status);
     if (before === nextStatus) {
-      return { ...existing, status: nextStatus, _changed: false, _before: before };
+      // Still lock admin control so auto-sync cannot flip this project later.
+      const { data: locked, error: lockError } = await this.client
+        .from('projects')
+        .update({
+          status: nextStatus,
+          status_managed_by_admin: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', requirementId)
+        .select('*')
+        .maybeSingle();
+      if (lockError && String(lockError.message || '').includes('status_managed_by_admin')) {
+        return { ...existing, status: nextStatus, _changed: false, _before: before };
+      }
+      if (lockError) throw lockError;
+      return { ...(locked || existing), status: nextStatus, _changed: false, _before: before };
     }
 
     const { data, error } = await this.client
       .from('projects')
-      .update({ status: nextStatus, updated_at: new Date().toISOString() })
+      .update({
+        status: nextStatus,
+        status_managed_by_admin: true,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', requirementId)
       .select('*')
       .maybeSingle();
-    if (error) throw error;
+    if (error) {
+      // Pre-migration fallback: still allow status change without the lock column.
+      if (String(error.message || '').includes('status_managed_by_admin')) {
+        const { data: fallback, error: fallbackError } = await this.client
+          .from('projects')
+          .update({ status: nextStatus, updated_at: new Date().toISOString() })
+          .eq('id', requirementId)
+          .select('*')
+          .maybeSingle();
+        if (fallbackError) throw fallbackError;
+        return { ...(fallback || null), _changed: true, _before: before };
+      }
+      throw error;
+    }
     return { ...(data || null), _changed: true, _before: before };
   }
 

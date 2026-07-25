@@ -115,17 +115,35 @@ async function syncProjectStatusesDue(client, { today = todayISODate(), nowIso =
   let runningUpdated = 0;
   let completedUpdated = 0;
 
-  // Past end date → completed (never touch closed/completed)
+  // Past end date → completed (never touch closed/completed, or admin-locked rows)
   {
-    const { data, error } = await client
+    let query = client
       .from('projects')
       .update({ status: 'completed', updated_at: nowIso })
       .in('status', ['open', 'running', 'in_progress', 'ongoing', 'active'])
       .not('end_date', 'is', null)
       .lt('end_date', todayStr)
       .select('id');
+    // Prefer skipping admin-managed rows; if column missing (pre-migration), fall through without filter.
+    query = query.eq('status_managed_by_admin', false);
+    const { data, error } = await query;
     if (error) {
-      console.warn('[projectStatus] completed sync failed:', error.message || error);
+      if (String(error.message || '').includes('status_managed_by_admin')) {
+        const fallback = await client
+          .from('projects')
+          .update({ status: 'completed', updated_at: nowIso })
+          .in('status', ['open', 'running', 'in_progress', 'ongoing', 'active'])
+          .not('end_date', 'is', null)
+          .lt('end_date', todayStr)
+          .select('id');
+        if (fallback.error) {
+          console.warn('[projectStatus] completed sync failed:', fallback.error.message || fallback.error);
+        } else {
+          completedUpdated = Array.isArray(fallback.data) ? fallback.data.length : 0;
+        }
+      } else {
+        console.warn('[projectStatus] completed sync failed:', error.message || error);
+      }
     } else {
       completedUpdated = Array.isArray(data) ? data.length : 0;
     }
@@ -133,16 +151,34 @@ async function syncProjectStatusesDue(client, { today = todayISODate(), nowIso =
 
   // Start day reached → running (still within / without end)
   {
-    const { data, error } = await client
+    let query = client
       .from('projects')
       .update({ status: 'running', updated_at: nowIso })
       .in('status', ['open', 'in_progress', 'ongoing', 'active'])
       .not('start_date', 'is', null)
       .lte('start_date', todayStr)
       .or(`end_date.is.null,end_date.gte.${todayStr}`)
+      .eq('status_managed_by_admin', false)
       .select('id');
+    const { data, error } = await query;
     if (error) {
-      console.warn('[projectStatus] running sync failed:', error.message || error);
+      if (String(error.message || '').includes('status_managed_by_admin')) {
+        const fallback = await client
+          .from('projects')
+          .update({ status: 'running', updated_at: nowIso })
+          .in('status', ['open', 'in_progress', 'ongoing', 'active'])
+          .not('start_date', 'is', null)
+          .lte('start_date', todayStr)
+          .or(`end_date.is.null,end_date.gte.${todayStr}`)
+          .select('id');
+        if (fallback.error) {
+          console.warn('[projectStatus] running sync failed:', fallback.error.message || fallback.error);
+        } else {
+          runningUpdated = Array.isArray(fallback.data) ? fallback.data.length : 0;
+        }
+      } else {
+        console.warn('[projectStatus] running sync failed:', error.message || error);
+      }
     } else {
       runningUpdated = Array.isArray(data) ? data.length : 0;
     }
