@@ -864,15 +864,22 @@ export default function SuperAdminFinancePage() {
                       <span className="text-slate-500">Gross rate / {paymentPayUnit(selected)}</span>
                       <p className="font-medium text-slate-950">{money(paymentRate(selected))}</p>
                     </div>
-                    <div className="md:col-span-2">
-                      <span className="text-slate-500">Institute total (calculated)</span>
-                      <p className="font-medium text-slate-950">
-                        {money(selected.settlement?.expected_amount ?? selected.calculated_amount)}
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        Formula: gross rate × qty
+                    <div className="md:col-span-2 rounded-lg border border-slate-200 bg-white p-3">
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Invoice bifurcation</p>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <span className="text-slate-500">Base (gross × qty)</span>
+                        <span className="text-right font-medium text-slate-950">{money(selected.settlement?.base_amount ?? selected.settlement?.tax?.base_amount)}</span>
+                        <span className="text-slate-500">TDS (10%)</span>
+                        <span className="text-right font-medium text-slate-950">{money(selected.settlement?.tds_amount ?? selected.settlement?.tax?.tds_amount)}</span>
+                        <span className="text-slate-500">GST (18%)</span>
+                        <span className="text-right font-medium text-slate-950">{money(selected.settlement?.gst_amount ?? selected.settlement?.tax?.gst_amount)}</span>
+                        <span className="font-semibold text-slate-700">Invoice total</span>
+                        <span className="text-right font-semibold text-[#008260]">{money(selected.settlement?.expected_amount ?? selected.calculated_amount)}</span>
+                      </div>
+                      <p className="mt-2 text-xs text-slate-500">
+                        Formula: base + TDS 10% + GST 18%
                         {paymentRate(selected) > 0 && paymentQty(selected) > 0
-                          ? ` = ${money(paymentRate(selected))} × ${paymentQty(selected)} ${pluralUnit(paymentPayUnit(selected), paymentQty(selected))}`
+                          ? ` · base = ${money(paymentRate(selected))} × ${paymentQty(selected)} ${pluralUnit(paymentPayUnit(selected), paymentQty(selected))}`
                           : ''}
                       </p>
                       {selected.status !== 'pending' &&
@@ -880,7 +887,7 @@ export default function SuperAdminFinancePage() {
                         Number(selected.settlement?.expected_amount || 0) ? (
                         <p className="mt-1 text-xs text-amber-700">
                           Saved invoice amount is {money(selected.invoice_amount || selected.calculated_amount)} (locked because status is {selected.status}).
-                          Qty × rate is {money(selected.settlement?.expected_amount)}.
+                          Calculated total is {money(selected.settlement?.expected_amount)}.
                         </p>
                       ) : null}
                     </div>
@@ -899,13 +906,20 @@ export default function SuperAdminFinancePage() {
                       <span className="text-slate-500">Net rate / {paymentPayUnit(selected)}</span>
                       <p className="font-medium text-slate-950">{money(paymentRate(selected))}</p>
                     </div>
-                    <div>
-                      <span className="text-slate-500">Calculated amount</span>
-                      <p className="font-medium text-slate-950">{money(selected.calculated_amount)}</p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        Formula: net rate × approved qty
+                    <div className="md:col-span-2 rounded-lg border border-slate-200 bg-white p-3">
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Payout bifurcation</p>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <span className="text-slate-500">Base (net × qty)</span>
+                        <span className="text-right font-medium text-slate-950">{money(selected.settlement?.base_amount ?? selected.settlement?.tax?.base_amount)}</span>
+                        <span className="text-slate-500">GST (18%)</span>
+                        <span className="text-right font-medium text-slate-950">{money(selected.settlement?.gst_amount ?? selected.settlement?.tax?.gst_amount)}</span>
+                        <span className="font-semibold text-slate-700">Payout total</span>
+                        <span className="text-right font-semibold text-[#008260]">{money(selected.settlement?.expected_amount ?? selected.calculated_amount)}</span>
+                      </div>
+                      <p className="mt-2 text-xs text-slate-500">
+                        Formula: base + GST 18%
                         {paymentRate(selected) > 0 && paymentQty(selected) > 0
-                          ? ` = ${money(paymentRate(selected))} × ${paymentQty(selected)} ${pluralUnit(paymentPayUnit(selected), paymentQty(selected))}`
+                          ? ` · base = ${money(paymentRate(selected))} × ${paymentQty(selected)} ${pluralUnit(paymentPayUnit(selected), paymentQty(selected))}`
                           : ''}
                       </p>
                     </div>
@@ -926,7 +940,9 @@ export default function SuperAdminFinancePage() {
                   <Label htmlFor="invoiceAmount">Invoice amount</Label>
                   <Input id="invoiceAmount" type="number" min="0" step="0.01" value={invoiceAmount} onChange={(e) => setInvoiceAmount(e.target.value)} />
                   <p className="text-xs text-slate-500">
-                    Amount on the invoice / payout statement. Contract math remains {money(selected.settlement?.expected_amount ?? selected.calculated_amount)}.
+                    Amount on the invoice / payout statement. Default includes taxes
+                    ({selected.party_type === 'institution' ? 'base + TDS 10% + GST 18%' : 'base + GST 18%'}).
+                    Contract base remains {money(selected.settlement?.base_amount ?? selected.settlement?.tax?.base_amount)}.
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -959,7 +975,17 @@ export default function SuperAdminFinancePage() {
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
                   <p className="font-semibold text-slate-900">Budget check</p>
                   <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-                    <span className="text-slate-500">Calculated</span>
+                    <span className="text-slate-500">Base</span>
+                    <span className="text-right font-medium text-slate-950">{money(selected.settlement?.base_amount ?? selected.settlement?.tax?.base_amount)}</span>
+                    {selected.party_type === 'institution' ? (
+                      <>
+                        <span className="text-slate-500">TDS (10%)</span>
+                        <span className="text-right font-medium text-slate-950">{money(selected.settlement?.tds_amount ?? selected.settlement?.tax?.tds_amount)}</span>
+                      </>
+                    ) : null}
+                    <span className="text-slate-500">GST (18%)</span>
+                    <span className="text-right font-medium text-slate-950">{money(selected.settlement?.gst_amount ?? selected.settlement?.tax?.gst_amount)}</span>
+                    <span className="text-slate-500">Calculated total</span>
                     <span className="text-right font-medium text-slate-950">{money(selected.settlement?.expected_amount ?? selected.calculated_amount)}</span>
                     <span className="text-slate-500">Invoice / statement</span>
                     <span className="text-right font-medium text-slate-950">{money(invoiceAmount)}</span>
