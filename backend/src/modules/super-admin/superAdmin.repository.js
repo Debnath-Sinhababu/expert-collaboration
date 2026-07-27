@@ -258,6 +258,9 @@ class SuperAdminRepository {
   mapRunningProjectBooking(booking, attendanceDays = []) {
     const approvedHours = approvedHoursFromDays(attendanceDays);
     const approvedDays = approvedDaysFromDays(attendanceDays);
+    const pendingDays = attendanceDays.filter((day) => String(day.status || '').toLowerCase() === 'pending_review').length;
+    const openDays = attendanceDays.filter((day) => String(day.status || '').toLowerCase() === 'open').length;
+    const disputedDays = attendanceDays.filter((day) => String(day.status || '').toLowerCase() === 'disputed').length;
     const targetHours = runningWorkTargetHours(booking);
     const percent = completionPercent(approvedHours, targetHours);
     const project = booking.projects || null;
@@ -270,6 +273,9 @@ class SuperAdminRepository {
       hours_booked: targetHours || null,
       approved_hours: approvedHours,
       approved_days: approvedDays,
+      pending_days: pendingDays,
+      open_days: openDays,
+      disputed_days: disputedDays,
       completion_percent: percent,
       project,
       expert: booking.experts || null,
