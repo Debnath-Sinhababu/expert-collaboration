@@ -169,6 +169,18 @@ class SuperAdminController {
     res.json(await this.service.getOverviewCategory(req.params.category, req.query.period || 'monthly'));
   };
 
+  listRunningProjectBookings = async (req, res) => {
+    res.json(await this.service.listRunningProjectBookings(parsePage(req.query)));
+  };
+
+  getRunningProjectBookingDetail = async (req, res) => {
+    res.json(await this.service.getRunningProjectBookingDetail(req.params.bookingId, {
+      ...parsePage(req.query),
+      date_from: req.query.date_from || '',
+      date_to: req.query.date_to || '',
+    }));
+  };
+
   exportOverview = async (req, res) => {
     const result = await this.service.exportOverview({
       date_from: req.query.date_from || '',

@@ -73,6 +73,10 @@ export const superAdminApi = {
   overviewStats: () => request<any>('/api/superadmin/overview/stats'),
   overviewCategory: (category: 'projects' | 'internships' | 'freelance', params?: { period?: string }) =>
     request<any>(`/api/superadmin/overview/${category}?${query({ ...(params || {}), _t: Date.now() })}`),
+  runningProjects: (params?: { page?: number; limit?: number }) =>
+    request<PaginatedResponse<any>>(`/api/superadmin/overview/running-projects?${query({ ...(params || {}), _t: Date.now() })}`),
+  runningProjectDetail: (bookingId: string, params?: { page?: number; limit?: number; date_from?: string; date_to?: string }) =>
+    request<any>(`/api/superadmin/overview/running-projects/${encodeURIComponent(bookingId)}?${query({ ...(params || {}), _t: Date.now() })}`),
   exportOverview: async (params?: { date_from?: string; date_to?: string; month?: string; year?: string }) => {
     const blob = await requestBlob(`/api/superadmin/overview/export?${query({ ...(params || {}), _t: Date.now() })}`)
     downloadBlob(blob, 'calxmap-business-overview.xlsx')

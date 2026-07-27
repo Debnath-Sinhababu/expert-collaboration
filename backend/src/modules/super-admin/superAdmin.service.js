@@ -695,6 +695,20 @@ class SuperAdminService {
     return this.repository.getOverviewCategory(category, period);
   }
 
+  async listRunningProjectBookings(params) {
+    return this.repository.listRunningProjectBookings(params);
+  }
+
+  async getRunningProjectBookingDetail(bookingId, params) {
+    const detail = await this.repository.getRunningProjectBookingDetail(bookingId, params);
+    if (!detail) {
+      const err = new Error('Running project booking not found');
+      err.statusCode = 404;
+      throw err;
+    }
+    return detail;
+  }
+
   async exportOverview(params, auth) {
     await this.ensureExportAllowed(auth);
     const normalizedParams = { ...(params || {}) };

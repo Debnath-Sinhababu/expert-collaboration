@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Activity, Banknote, BriefcaseBusiness, Building2, Download, GraduationCap, ListChecks, TrendingUp, Users } from 'lucide-react'
+import { Activity, ArrowRight, Banknote, BriefcaseBusiness, Building2, Download, GraduationCap, ListChecks, PlayCircle, TrendingUp, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -139,6 +139,41 @@ export default function SuperAdminOverviewPage() {
             )
           })}
         </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Running Projects"
+        description="Review active project bookings, expert completion, and attendance from the overview workflow."
+        eyebrow="Project attendance"
+        action={
+          <Button asChild className="bg-[#008260] hover:bg-[#006d51]">
+            <Link href="/superadmin/overview/running-projects">
+              Open running projects
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+        }
+      >
+        <Link
+          href="/superadmin/overview/running-projects"
+          className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4 transition hover:border-[#008260]/40 hover:bg-white hover:shadow-sm sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white text-[#008260] shadow-sm">
+              <PlayCircle className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-950">Active expert work</p>
+              <p className="mt-1 max-w-2xl text-sm text-slate-600">
+                Open a dedicated view for running project cards and each expert&apos;s attendance history with range filters.
+              </p>
+            </div>
+          </div>
+          <div className="text-left sm:text-right">
+            <p className="text-2xl font-bold text-slate-950">{statusValue(stats, 'running')}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">running requirements</p>
+          </div>
+        </Link>
       </SectionCard>
     </div>
   )
