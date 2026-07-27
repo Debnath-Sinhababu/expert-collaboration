@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { SectionCard } from '@/components/superadmin/common/SectionCard'
 import { StatCard } from '@/components/superadmin/common/StatCard'
+import { PermissionGate } from '@/components/superadmin/common/PermissionGate'
 import { superAdminApi } from '@/lib/superadmin/api'
 
 function statusValue(stats: any, key: string) {
@@ -64,12 +65,14 @@ export default function SuperAdminOverviewPage() {
             <p className="mt-2 max-w-2xl text-sm text-slate-600">
               Track requirement health, profile growth, attendance review, and finance readiness from one place.
             </p>
-            <Button asChild className="mt-4 bg-[#008260] hover:bg-[#006d51]">
-              <Link href="/superadmin/overview/running-projects">
-                <CalendarDays className="mr-2 h-4 w-4" />
-                Attendance
-              </Link>
-            </Button>
+            <PermissionGate permission="requirements:write">
+              <Button asChild className="mt-4 bg-[#008260] hover:bg-[#006d51]">
+                <Link href="/superadmin/overview/running-projects">
+                  <CalendarDays className="mr-2 h-4 w-4" />
+                  Attendance
+                </Link>
+              </Button>
+            </PermissionGate>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[140px_140px_120px_120px_auto]">
             <div className="space-y-1">
