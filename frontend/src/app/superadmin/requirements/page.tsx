@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Activity, ArrowRight, BriefcaseBusiness, CalendarDays, GraduationCap, Handshake, ListFilter, Plus, Search, UserRound, X } from 'lucide-react'
+import { ArrowRight, BriefcaseBusiness, CalendarDays, GraduationCap, Handshake, ListFilter, Plus, Search, UserRound, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -306,41 +306,6 @@ export default function SuperAdminRequirementsPage() {
         <StatCard label="Freelance" value={rows.filter((r) => r.requirement_type === 'freelance').length} icon={Handshake} tone="violet" helper="Current page" />
         <StatCard label="Completed" value={rows.filter((r) => r.derived_status === 'completed').length} icon={ListFilter} tone="green" helper="Current page" />
       </div>
-
-      <SectionCard
-        title="Running Projects"
-        description="Review active project experts and attendance from the requirements workflow."
-        eyebrow="Attendance review"
-        action={
-          <Button asChild className="bg-[#008260] hover:bg-[#006d51]">
-            <Link href="/superadmin/requirements/running-projects">
-              Open running projects
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
-        }
-      >
-        <Link
-          href="/superadmin/requirements/running-projects"
-          className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4 transition hover:border-[#008260]/40 hover:bg-white hover:shadow-sm sm:flex-row sm:items-center sm:justify-between"
-        >
-          <div className="flex items-start gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white text-[#008260] shadow-sm">
-              <Activity className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-slate-950">Active expert attendance</p>
-              <p className="mt-1 max-w-2xl text-sm text-slate-600">
-                See running project experts, completion, attendance entries, and approval actions without leaving the requirements area.
-              </p>
-            </div>
-          </div>
-          <div className="text-left sm:text-right">
-            <p className="text-2xl font-bold text-slate-950">{rows.filter((r) => r.derived_status === 'running').length}</p>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">running on this page</p>
-          </div>
-        </Link>
-      </SectionCard>
 
       <SectionCard
         title="Requirements"

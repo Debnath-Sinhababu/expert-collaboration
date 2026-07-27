@@ -302,7 +302,7 @@ class SuperAdminRepository {
     };
   }
 
-  async listRunningProjectBookings({ page, limit, offset }) {
+  async listRunningProjectBookings({ page, limit, offset, search = '', attendance_status = '' }) {
     try {
       await maybeSyncProjectStatuses(this.client, { force: true, cooldownMs: 0 });
     } catch (syncErr) {
@@ -359,6 +359,9 @@ class SuperAdminRepository {
         existing.approved_hours = Math.round((existing.approved_hours + Number(card.approved_hours || 0)) * 100) / 100;
         existing.hours_booked = Math.round((existing.hours_booked + Number(card.hours_booked || 0)) * 100) / 100;
         existing.approved_days += Number(card.approved_days || 0);
+        existing.pending_days += Number(card.pending_days || 0);
+        existing.open_days += Number(card.open_days || 0);
+        existing.disputed_days += Number(card.disputed_days || 0);
         existing.completion_percent = completionPercent(existing.approved_hours, existing.hours_booked);
       } else {
         groupedByProject.set(projectId, {
@@ -371,6 +374,9 @@ class SuperAdminRepository {
           approved_hours: Number(card.approved_hours || 0),
           hours_booked: Number(card.hours_booked || 0),
           approved_days: Number(card.approved_days || 0),
+          pending_days: Number(card.pending_days || 0),
+          open_days: Number(card.open_days || 0),
+          disputed_days: Number(card.disputed_days || 0),
           completion_percent: card.completion_percent,
           experts_count: 1,
           updated_at: card.updated_at,
@@ -379,7 +385,27 @@ class SuperAdminRepository {
       }
     }
 
+    const searchTerm = String(search || '').trim().toLowerCase();
+    const attendanceStatus = String(attendance_status || '').trim().toLowerCase();
     const groupedProjectRows = [...groupedByProject.values()]
+      .filter((row) => {
+        if (!searchTerm) return true;
+        const expertText = (row.bookings || [])
+          .map((booking) => `${booking.expert?.name || ''} ${booking.expert?.email || ''}`)
+          .join(' ');
+        return [
+          row.project?.title,
+          row.institution?.name,
+          row.institution?.email,
+          expertText,
+        ].some((value) => String(value || '').toLowerCase().includes(searchTerm));
+      })
+      .filter((row) => {
+        if (!attendanceStatus || attendanceStatus === 'all') return true;
+        if (attendanceStatus === 'pending') return Number(row.pending_days || 0) > 0;
+        if (attendanceStatus === 'disputed') return Number(row.disputed_days || 0) > 0;
+        return true;
+      })
       .sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0));
     return {
       data: groupedProjectRows.slice(offset, offset + limit),

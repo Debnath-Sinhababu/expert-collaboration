@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Activity, Banknote, BriefcaseBusiness, Building2, Download, GraduationCap, ListChecks, TrendingUp, Users } from 'lucide-react'
+import { Activity, Banknote, BriefcaseBusiness, Building2, CalendarDays, Download, GraduationCap, ListChecks, TrendingUp, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -64,6 +64,12 @@ export default function SuperAdminOverviewPage() {
             <p className="mt-2 max-w-2xl text-sm text-slate-600">
               Track requirement health, profile growth, attendance review, and finance readiness from one place.
             </p>
+            <Button asChild className="mt-4 bg-[#008260] hover:bg-[#006d51]">
+              <Link href="/superadmin/overview/running-projects">
+                <CalendarDays className="mr-2 h-4 w-4" />
+                Attendance
+              </Link>
+            </Button>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[140px_140px_120px_120px_auto]">
             <div className="space-y-1">
@@ -140,6 +146,7 @@ export default function SuperAdminOverviewPage() {
           })}
         </div>
       </SectionCard>
+
     </div>
   )
 }

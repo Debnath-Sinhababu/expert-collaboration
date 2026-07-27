@@ -1,28 +1,25 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { type FormEvent, useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft,
-  BriefcaseBusiness,
   CalendarDays,
   ChevronDown,
   ChevronRight,
-  Clock3,
   ExternalLink,
-  FileText,
   Filter,
   MoreHorizontal,
-  UserRound,
   X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Drawer } from '@/components/ui/drawer'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SectionCard } from '@/components/superadmin/common/SectionCard'
-import { StatCard } from '@/components/superadmin/common/StatCard'
 import { superAdminApi } from '@/lib/superadmin/api'
 import { api } from '@/lib/api'
 import { projectStatusLabel } from '@/lib/projectStatus'
@@ -104,10 +101,13 @@ export default function RunningProjectsPage() {
   const [loadingProjects, setLoadingProjects] = useState(true)
   const [expandedProjectId, setExpandedProjectId] = useState('')
   const [expandedBookingId, setExpandedBookingId] = useState('')
+  const [attendanceDrawerOpen, setAttendanceDrawerOpen] = useState(false)
   const [attendanceDetail, setAttendanceDetail] = useState<any>(null)
   const [attendanceLoading, setAttendanceLoading] = useState(false)
   const [projectRefreshKey, setProjectRefreshKey] = useState(0)
   const [attendancePage, setAttendancePage] = useState(1)
+  const [projectFilters, setProjectFilters] = useState({ search: '', attendance_status: 'all' })
+  const [appliedProjectFilters, setAppliedProjectFilters] = useState({ search: '', attendance_status: 'all' })
   const [filters, setFilters] = useState({ date_from: '', date_to: '' })
   const [appliedFilters, setAppliedFilters] = useState({ date_from: '', date_to: '' })
   const [refreshKey, setRefreshKey] = useState(0)
@@ -117,14 +117,19 @@ export default function RunningProjectsPage() {
 
   useEffect(() => {
     setLoadingProjects(true)
-    superAdminApi.runningProjects({ page, limit: PROJECT_PAGE_LIMIT })
+    superAdminApi.runningProjects({
+      page,
+      limit: PROJECT_PAGE_LIMIT,
+      search: appliedProjectFilters.search,
+      attendance_status: appliedProjectFilters.attendance_status,
+    })
       .then((res) => {
         setRows(res.data || [])
         setTotal(res.total || 0)
       })
       .catch((err) => toast.error(err instanceof Error ? err.message : 'Failed to load running projects'))
       .finally(() => setLoadingProjects(false))
-  }, [page, projectRefreshKey])
+  }, [page, projectRefreshKey, appliedProjectFilters])
 
   useEffect(() => {
     if (!expandedBookingId) return
@@ -139,26 +144,45 @@ export default function RunningProjectsPage() {
       .finally(() => setAttendanceLoading(false))
   }, [expandedBookingId, attendancePage, appliedFilters, refreshKey])
 
-  const totalApprovedHours = rows.reduce((sum, row) => sum + Number(row.approved_hours || 0), 0)
-  const totalExperts = rows.reduce((sum, row) => sum + Number(row.experts_count || row.bookings?.length || 0), 0)
-  const totalPendingAttendance = rows.reduce(
-    (sum, row) => sum + (row.bookings || []).reduce((inner: number, booking: any) => inner + Number(booking.pending_days || 0), 0),
-    0,
-  )
+  const selectedProjectRow = rows.find((row) => (row.bookings || []).some((booking: any) => booking.id === expandedBookingId))
+  const selectedBooking = selectedProjectRow?.bookings?.find((booking: any) => booking.id === expandedBookingId) || null
+
+  function applyProjectFilters(event?: FormEvent) {
+    event?.preventDefault()
+    setPage(1)
+    setExpandedProjectId('')
+    setAppliedProjectFilters({
+      search: projectFilters.search.trim(),
+      attendance_status: projectFilters.attendance_status,
+    })
+  }
+
+  function clearProjectFilters() {
+    const empty = { search: '', attendance_status: 'all' }
+    setProjectFilters(empty)
+    setAppliedProjectFilters(empty)
+    setPage(1)
+    setExpandedProjectId('')
+  }
 
   function toggleProject(projectId: string) {
     setExpandedProjectId((current) => (current === projectId ? '' : projectId))
-    setExpandedBookingId('')
-    setAttendanceDetail(null)
   }
 
-  function showAttendance(bookingId: string) {
-    const next = expandedBookingId === bookingId ? '' : bookingId
-    setExpandedBookingId(next)
-    setAttendanceDetail(null)
-    setAttendancePage(1)
-    setFilters({ date_from: '', date_to: '' })
-    setAppliedFilters({ date_from: '', date_to: '' })
+  function openAttendance(bookingId: string) {
+    if (expandedBookingId !== bookingId) {
+      setExpandedBookingId(bookingId)
+      setAttendanceDetail(null)
+      setAttendancePage(1)
+      setFilters({ date_from: '', date_to: '' })
+      setAppliedFilters({ date_from: '', date_to: '' })
+    }
+    setAttendanceDrawerOpen(true)
+  }
+
+  function handleAttendanceDrawerOpenChange(open: boolean) {
+    setAttendanceDrawerOpen(open)
+    if (!open) setEditingDay(null)
   }
 
   function applyFilters() {
@@ -228,7 +252,7 @@ export default function RunningProjectsPage() {
           <div>
             <p className="text-sm font-semibold text-slate-950">Attendance for {booking.expert?.name || 'expert'}</p>
             <p className="mt-1 text-xs text-slate-500">
-              {appliedFilters.date_from || 'All start'} - {appliedFilters.date_to || 'All end'} · {rangeSummary.totalHoursApproved ?? 0} approved hours · {rangeSummary.daysApproved ?? 0} approved days
+              {appliedFilters.date_from || 'All start'} - {appliedFilters.date_to || 'All end'} / {rangeSummary.totalHoursApproved ?? 0} approved hours / {rangeSummary.daysApproved ?? 0} approved days
             </p>
           </div>
           <Popover>
@@ -366,20 +390,49 @@ export default function RunningProjectsPage() {
     <div className="space-y-6">
       <div>
         <Button asChild variant="ghost" className="mb-2 px-0 text-slate-600">
-          <Link href="/superadmin/requirements"><ArrowLeft className="mr-2 h-4 w-4" />Back to requirements</Link>
+          <Link href="/superadmin/overview"><ArrowLeft className="mr-2 h-4 w-4" />Back to overview</Link>
         </Button>
         <h1 className="text-2xl font-bold text-slate-950">Running Projects</h1>
         <p className="mt-1 text-sm text-slate-600">Project, institution, expert, and attendance review in one place.</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Visible Projects" value={rows.length} icon={BriefcaseBusiness} helper={`Total ${total}`} />
-        <StatCard label="Experts" value={totalExperts} icon={UserRound} tone="amber" helper="Current page" />
-        <StatCard label="Approved Hours" value={Math.round(totalApprovedHours * 100) / 100} icon={Clock3} tone="green" helper="Current page" />
-        <StatCard label="Pending Attendance" value={totalPendingAttendance} icon={CalendarDays} tone="blue" helper="Current page" />
-      </div>
+      <SectionCard title="Project Work" description="Expand a project, then open an expert attendance drawer when review is needed.">
+        <form onSubmit={applyProjectFilters} className="mb-4 flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 lg:flex-row lg:items-end">
+          <div className="min-w-0 flex-1 space-y-1">
+            <Label className="text-xs">Search</Label>
+            <Input
+              value={projectFilters.search}
+              onChange={(event) => setProjectFilters((current) => ({ ...current, search: event.target.value }))}
+              placeholder="Project, institution, expert, or email"
+            />
+          </div>
+          <div className="space-y-1 lg:w-52">
+            <Label className="text-xs">Attendance status</Label>
+            <Select
+              value={projectFilters.attendance_status}
+              onValueChange={(value) => setProjectFilters((current) => ({ ...current, attendance_status: value }))}
+            >
+              <SelectTrigger className="bg-white">
+                <SelectValue placeholder="All attendance" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All attendance</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="disputed">Disputed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex gap-2">
+            <Button type="submit" className="bg-[#008260] hover:bg-[#006d51]">
+              <Filter className="mr-2 h-4 w-4" />
+              Filter
+            </Button>
+            <Button type="button" variant="outline" onClick={clearProjectFilters}>
+              Clear
+            </Button>
+          </div>
+        </form>
 
-      <SectionCard title="Project Work" description="Expand a project, then expand one expert to load attendance.">
         {loadingProjects ? (
           <div className="text-sm text-slate-600">Loading running projects...</div>
         ) : rows.length ? (
@@ -402,11 +455,13 @@ export default function RunningProjectsPage() {
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-[#008260]">{statusLabel(row.project?.status)}</span>
                           <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-700">{row.experts_count || row.bookings?.length || 0} experts</span>
+                          <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">{row.pending_days || 0} pending</span>
+                          <span className="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-800">{row.disputed_days || 0} disputed</span>
                         </div>
                         <button type="button" onClick={() => toggleProject(row.id)} className="mt-2 block max-w-full truncate text-left text-base font-semibold text-slate-950 hover:text-[#008260]">
                           {row.project?.title || 'Project'}
                         </button>
-                        <p className="mt-1 text-sm text-slate-600">{row.institution?.name || 'Institution unavailable'} · {dateLabel(row.start_date)} - {dateLabel(row.end_date)}</p>
+                        <p className="mt-1 text-sm text-slate-600">{row.institution?.name || 'Institution unavailable'} / {dateLabel(row.start_date)} - {dateLabel(row.end_date)}</p>
                       </div>
                     </div>
                     <div className="grid gap-3 sm:grid-cols-[160px_150px_auto] sm:items-center">
@@ -429,80 +484,33 @@ export default function RunningProjectsPage() {
 
                   {projectOpen ? (
                     <div className="border-t border-slate-200 p-4">
-                      <div className="grid gap-3">
+                      <div className="divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white">
                         {(row.bookings || []).map((booking: any) => (
-                          <div key={booking.id} className="rounded-lg border border-slate-200 bg-white">
-                            <div className="p-4">
-                              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                                <div className="flex min-w-0 items-start gap-3">
-                                  {booking.expert?.photo_url ? (
-                                    <img src={booking.expert.photo_url} alt="" className="h-11 w-11 shrink-0 rounded-lg object-cover" />
-                                  ) : (
-                                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-[#008260]">
-                                      <UserRound className="h-5 w-5" />
-                                    </div>
-                                  )}
-                                  <div className="min-w-0">
-                                    <p className="truncate text-sm font-semibold text-slate-950">{booking.expert?.name || 'Expert unavailable'}</p>
-                                    <p className="truncate text-xs text-slate-500">{booking.expert?.email || '-'}</p>
-                                    <div className="mt-2 flex flex-wrap gap-2">
-                                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold capitalize text-slate-700">
-                                        {String(booking.status || '-').replace(/_/g, ' ')}
-                                      </span>
-                                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                                        {booking.approved_hours || 0} / {booking.hours_booked || 0}h
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant={expandedBookingId === booking.id ? 'outline' : 'default'}
-                                  className={expandedBookingId === booking.id ? 'shrink-0 gap-2' : 'shrink-0 gap-2 bg-[#008260] hover:bg-[#006d51]'}
-                                  onClick={() => showAttendance(booking.id)}
-                                  aria-expanded={expandedBookingId === booking.id}
-                                  aria-label={`${expandedBookingId === booking.id ? 'Collapse' : 'Open'} attendance for ${booking.expert?.name || 'expert'}`}
-                                >
-                                  <CalendarDays className="h-4 w-4" />
-                                  <span>Attendance</span>
-                                  {Number(booking.pending_days || 0) > 0 ? (
-                                    <span className={expandedBookingId === booking.id ? 'rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700' : 'rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-semibold text-white'}>
-                                      {booking.pending_days}
-                                    </span>
-                                  ) : null}
-                                  {expandedBookingId === booking.id ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                                </Button>
-                              </div>
-
-                              <div className="mt-4 grid gap-3 md:grid-cols-[minmax(180px,240px)_1fr]">
-                                <CompletionBar value={booking.completion_percent} />
-                                <div className="grid gap-2 sm:grid-cols-4">
-                                  <div className="rounded-lg bg-slate-50 px-3 py-2">
-                                    <p className="text-xs text-slate-500">Approved</p>
-                                    <p className="font-semibold text-[#008260]">{booking.approved_days || 0}</p>
-                                  </div>
-                                  <div className="rounded-lg bg-slate-50 px-3 py-2">
-                                    <p className="text-xs text-slate-500">Pending</p>
-                                    <p className="font-semibold text-amber-700">{booking.pending_days || 0}</p>
-                                  </div>
-                                  <div className="rounded-lg bg-slate-50 px-3 py-2">
-                                    <p className="text-xs text-slate-500">Open</p>
-                                    <p className="font-semibold text-sky-700">{booking.open_days || 0}</p>
-                                  </div>
-                                  <div className="rounded-lg bg-slate-50 px-3 py-2">
-                                    <p className="text-xs text-slate-500">Disputed</p>
-                                    <p className="font-semibold text-rose-700">{booking.disputed_days || 0}</p>
-                                  </div>
-                                </div>
-                              </div>
+                          <div key={booking.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-slate-950">{booking.expert?.name || 'Expert unavailable'}</p>
+                              <p className="truncate text-xs text-slate-500">{booking.expert?.email || '-'}</p>
                             </div>
-
-                            {expandedBookingId === booking.id ? (
-                              <div className="border-t border-slate-200 bg-slate-50 p-4">
-                                <AttendancePanel booking={booking} />
-                              </div>
-                            ) : null}
+                            <div className="flex shrink-0 items-center gap-3">
+                              <span className="min-w-12 text-right text-sm font-semibold text-slate-950">
+                                {percentValue(booking.completion_percent) == null ? '-' : `${percentValue(booking.completion_percent)}%`}
+                              </span>
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="gap-2 bg-[#008260] hover:bg-[#006d51]"
+                                onClick={() => openAttendance(booking.id)}
+                                aria-label={`Open attendance for ${booking.expert?.name || 'expert'}`}
+                              >
+                                <CalendarDays className="h-4 w-4" />
+                                <span>Attendance</span>
+                                {Number(booking.pending_days || 0) > 0 ? (
+                                  <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-semibold text-white">
+                                    {booking.pending_days}
+                                  </span>
+                                ) : null}
+                              </Button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -527,6 +535,44 @@ export default function RunningProjectsPage() {
           </div>
         </div>
       </SectionCard>
+
+      <Drawer
+        open={attendanceDrawerOpen}
+        onOpenChange={handleAttendanceDrawerOpenChange}
+        title={selectedBooking?.expert?.name ? `${selectedBooking.expert.name} attendance` : 'Attendance'}
+        className="bottom-0 left-0 right-0 top-auto h-[88vh] w-full rounded-t-2xl sm:w-full lg:w-full"
+      >
+        <div className="flex-1 overflow-y-auto bg-slate-50 p-4">
+          {selectedBooking ? (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-slate-200 bg-white p-4">
+                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-950">{selectedProjectRow?.project?.title || selectedBooking.project?.title || 'Project'}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {selectedProjectRow?.institution?.name || selectedBooking.institution?.name || 'Institution unavailable'} / {dateLabel(selectedProjectRow?.start_date || selectedBooking.start_date)} - {dateLabel(selectedProjectRow?.end_date || selectedBooking.end_date)}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold capitalize text-slate-700">
+                      {String(selectedBooking.status || '-').replace(/_/g, ' ')}
+                    </span>
+                    <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                      {selectedBooking.pending_days || 0} pending
+                    </span>
+                    <span className="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-800">
+                      {selectedBooking.disputed_days || 0} disputed
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <AttendancePanel booking={selectedBooking} />
+            </div>
+          ) : (
+            <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">Select an expert to review attendance.</div>
+          )}
+        </div>
+      </Drawer>
 
       {editingDay ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">

@@ -170,7 +170,11 @@ class SuperAdminController {
   };
 
   listRunningProjectBookings = async (req, res) => {
-    res.json(await this.service.listRunningProjectBookings(parsePage(req.query)));
+    res.json(await this.service.listRunningProjectBookings({
+      ...parsePage(req.query),
+      search: req.query.search || '',
+      attendance_status: req.query.attendance_status || '',
+    }));
   };
 
   getRunningProjectBookingDetail = async (req, res) => {

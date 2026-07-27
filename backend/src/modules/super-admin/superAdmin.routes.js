@@ -11,6 +11,8 @@ function createSuperAdminRouter() {
   router.get('/me', requireSuperAdmin(), asyncHandler(controller.me));
   router.get('/overview/stats', requireSuperAdmin('overview:read'), asyncHandler(controller.overviewStats));
   router.get('/overview/export', requireSuperAdmin('exports:download'), asyncHandler(controller.exportOverview));
+  router.get('/overview/running-projects', requireSuperAdmin('overview:read'), asyncHandler(controller.listRunningProjectBookings));
+  router.get('/overview/running-projects/:bookingId', requireSuperAdmin('overview:read'), asyncHandler(controller.getRunningProjectBookingDetail));
   router.get('/overview/:category', requireSuperAdmin('overview:read'), asyncHandler(controller.overviewCategory));
 
   router.get('/admins', requireSuperAdmin('admins:read'), asyncHandler(controller.listAdmins));
@@ -29,8 +31,6 @@ function createSuperAdminRouter() {
 
   router.get('/requirements', requireSuperAdmin('requirements:read'), asyncHandler(controller.listRequirements));
   router.get('/requirements/assigned', requireSuperAdmin(['assignments:read', 'daily_reports:write']), asyncHandler(controller.listAssignedRequirements));
-  router.get('/requirements/running-projects', requireSuperAdmin('requirements:read'), asyncHandler(controller.listRunningProjectBookings));
-  router.get('/requirements/running-projects/:bookingId', requireSuperAdmin('requirements:read'), asyncHandler(controller.getRunningProjectBookingDetail));
   router.post(
     '/requirements',
     requireSuperAdmin('requirements:write'),
