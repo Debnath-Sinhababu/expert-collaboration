@@ -69,7 +69,7 @@ export default function SuperAdminOverviewPage() {
               <Button asChild className="mt-4 bg-[#008260] hover:bg-[#006d51]">
                 <Link href="/superadmin/overview/running-projects">
                   <CalendarDays className="mr-2 h-4 w-4" />
-                  Attendance
+                  View Attendance Dashboard
                 </Link>
               </Button>
             </PermissionGate>
