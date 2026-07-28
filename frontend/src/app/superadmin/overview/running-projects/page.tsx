@@ -1,6 +1,6 @@
 'use client'
 
-import { type FormEvent, useEffect, useState } from 'react'
+import { type FormEvent, type ReactNode, useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -9,7 +9,6 @@ import {
   ChevronRight,
   ExternalLink,
   Filter,
-  MoreHorizontal,
   X,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -19,6 +18,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { SectionCard } from '@/components/superadmin/common/SectionCard'
 import { superAdminApi } from '@/lib/superadmin/api'
 import { api } from '@/lib/api'
@@ -75,12 +75,27 @@ function CompletionBar({ value, label = 'Completion' }: { value?: number | null;
     <div>
       <div className="mb-1 flex items-center justify-between text-xs">
         <span className="font-medium text-slate-600">{label}</span>
-        <span className="font-semibold text-slate-950">{percent}%</span>
+        <InfoTooltip text="Approved attendance hours compared with booked hours.">
+          <span className="font-semibold text-slate-950">{percent}%</span>
+        </InfoTooltip>
       </div>
       <div className="h-2 rounded-full bg-slate-100">
         <div className="h-2 rounded-full bg-[#008260]" style={{ width: `${percent}%` }} />
       </div>
     </div>
+  )
+}
+
+function InfoTooltip({ text, children }: { text: string; children: ReactNode }) {
+  return (
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex cursor-help items-center">{children}</span>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-xs text-xs">{text}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   )
 }
 
@@ -257,8 +272,8 @@ export default function RunningProjectsPage() {
           </div>
           <Popover>
             <PopoverTrigger asChild>
-              <Button type="button" variant="outline" size="icon" className="relative h-9 w-9">
-                <MoreHorizontal className="h-4 w-4" />
+              <Button type="button" variant="outline" size="icon" className="relative h-9 w-9" aria-label="Filter attendance by date">
+                <Filter className="h-4 w-4" />
                 {hasAttendanceFilter ? <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-[#008260]" /> : null}
               </Button>
             </PopoverTrigger>
@@ -403,7 +418,7 @@ export default function RunningProjectsPage() {
             <Input
               value={projectFilters.search}
               onChange={(event) => setProjectFilters((current) => ({ ...current, search: event.target.value }))}
-              placeholder="Project, institution, expert, or email"
+              placeholder="Project, institution name/email, or expert name/email"
             />
           </div>
           <div className="space-y-1 lg:w-52">
@@ -455,8 +470,16 @@ export default function RunningProjectsPage() {
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-[#008260]">{statusLabel(row.project?.status)}</span>
                           <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-700">{row.experts_count || row.bookings?.length || 0} experts</span>
-                          <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">{row.pending_days || 0} pending</span>
-                          <span className="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-800">{row.disputed_days || 0} disputed</span>
+                          {Number(row.pending_days || 0) > 0 ? (
+                            <InfoTooltip text="This project has attendance entries waiting for admin approval. Expand the project to see which expert has them.">
+                              <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">Pending attendance</span>
+                            </InfoTooltip>
+                          ) : null}
+                          {Number(row.disputed_days || 0) > 0 ? (
+                            <InfoTooltip text="This project has disputed attendance entries. Expand the project to see which expert has them.">
+                              <span className="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-800">Disputed attendance</span>
+                            </InfoTooltip>
+                          ) : null}
                         </div>
                         <button type="button" onClick={() => toggleProject(row.id)} className="mt-2 block max-w-full truncate text-left text-base font-semibold text-slate-950 hover:text-[#008260]">
                           {row.project?.title || 'Project'}
@@ -490,11 +513,25 @@ export default function RunningProjectsPage() {
                             <div className="min-w-0">
                               <p className="truncate text-sm font-semibold text-slate-950">{booking.expert?.name || 'Expert unavailable'}</p>
                               <p className="truncate text-xs text-slate-500">{booking.expert?.email || '-'}</p>
+                              <div className="mt-1 flex flex-wrap gap-2">
+                                <InfoTooltip text="Attendance entries from this expert waiting for admin approval.">
+                                  <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                                    {booking.pending_days || 0} pending
+                                  </span>
+                                </InfoTooltip>
+                                <InfoTooltip text="Attendance entries from this expert that are marked as disputed.">
+                                  <span className="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-800">
+                                    {booking.disputed_days || 0} disputed
+                                  </span>
+                                </InfoTooltip>
+                              </div>
                             </div>
                             <div className="flex shrink-0 items-center gap-3">
-                              <span className="min-w-12 text-right text-sm font-semibold text-slate-950">
-                                {percentValue(booking.completion_percent) == null ? '-' : `${percentValue(booking.completion_percent)}%`}
-                              </span>
+                              <InfoTooltip text="This expert's approved attendance hours compared with booked hours.">
+                                <span className="min-w-12 text-right text-sm font-semibold text-slate-950">
+                                  {percentValue(booking.completion_percent) == null ? '-' : `${percentValue(booking.completion_percent)}%`}
+                                </span>
+                              </InfoTooltip>
                               <Button
                                 type="button"
                                 size="sm"
@@ -504,11 +541,6 @@ export default function RunningProjectsPage() {
                               >
                                 <CalendarDays className="h-4 w-4" />
                                 <span>Attendance</span>
-                                {Number(booking.pending_days || 0) > 0 ? (
-                                  <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-semibold text-white">
-                                    {booking.pending_days}
-                                  </span>
-                                ) : null}
                               </Button>
                             </div>
                           </div>
@@ -557,12 +589,16 @@ export default function RunningProjectsPage() {
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold capitalize text-slate-700">
                       {String(selectedBooking.status || '-').replace(/_/g, ' ')}
                     </span>
-                    <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
-                      {selectedBooking.pending_days || 0} pending
-                    </span>
-                    <span className="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-800">
-                      {selectedBooking.disputed_days || 0} disputed
-                    </span>
+                    <InfoTooltip text="Attendance entries from this expert waiting for admin approval.">
+                      <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                        {selectedBooking.pending_days || 0} pending
+                      </span>
+                    </InfoTooltip>
+                    <InfoTooltip text="Attendance entries from this expert that are marked as disputed.">
+                      <span className="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-800">
+                        {selectedBooking.disputed_days || 0} disputed
+                      </span>
+                    </InfoTooltip>
                   </div>
                 </div>
               </div>
