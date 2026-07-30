@@ -1085,7 +1085,7 @@ export default function SuperAdminRequirementDetailPage() {
                     </SelectContent>
                   </Select>
                   <p className="mt-1 text-xs text-slate-500">
-                    Independent of booking status. Auto: open→running on start date, →completed after end date. Closed stays closed.
+                    Admin can set any status (open / running / completed / closed). Manual admin changes are not overridden by date auto-sync.
                   </p>
                 </div>
               ) : (

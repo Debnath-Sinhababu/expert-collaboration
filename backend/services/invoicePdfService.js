@@ -2,6 +2,7 @@ const PDFDocument = require('pdfkit');
 const {
   resolveSettlementRates,
   resolveInstitutionContractBudget,
+  applyInvoiceTaxes,
 } = require('./financeCalculationService');
 
 function money(value) {
@@ -52,7 +53,8 @@ function displayPaymentStatus(payment) {
 
 /**
  * Single source for invoice line math.
- * Expert = net rate × billable qty. Institute = gross rate × contract qty.
+ * Expert = net rate × billable qty (+ GST 18%).
+ * Institute = gross rate × contract qty (+ TDS 10% + GST 18%).
  * Invoice amount prefers saved invoice_amount when set.
  */
 function invoiceSettlementContext(payment, booking) {
@@ -67,11 +69,13 @@ function invoiceSettlementContext(payment, booking) {
     const rate = Number(
       payment.hourly_rate_snapshot > 0 ? payment.hourly_rate_snapshot : contract.ratePerUnit
     ) || Number(contract.ratePerUnit) || 0;
-    const computed = qty > 0 && rate > 0
+    const base = qty > 0 && rate > 0
       ? Math.round(rate * qty * 100) / 100
-      : Number(payment.calculated_amount) || Number(contract.amount) || 0;
+      : Number(contract.amount) || 0;
+    const taxes = applyInvoiceTaxes(base, 'institution');
+    const computedTotal = taxes.total_amount;
     const invoiceAmount =
-      Number(payment.invoice_amount) > 0 ? Number(payment.invoice_amount) : computed;
+      Number(payment.invoice_amount) > 0 ? Number(payment.invoice_amount) : computedTotal;
     const unitShort = contract.unitShort || rates.unitShort || 'unit';
     return {
       partyType,
@@ -82,20 +86,31 @@ function invoiceSettlementContext(payment, booking) {
       qty,
       qtyDisplay: formatQty(qty, unitShort),
       rate,
-      lineTotal: computed,
+      lineTotal: base,
+      baseAmount: taxes.base_amount,
+      applyTds: true,
+      tdsAmount: taxes.tds_amount,
+      tdsRate: taxes.tds_rate,
+      gstAmount: taxes.gst_amount,
+      gstRate: taxes.gst_rate,
+      computedTotal,
       invoiceAmount,
       formula: `${formatQty(qty, unitShort)} × ${money(rate)} / ${unitShort}`,
+      taxFormula: taxes.formula,
     };
   }
 
   // Expert payout: billable qty is stored on approved_hours; rate snapshot is net per unit.
   const qty = Number(payment.approved_hours || 0);
   const rate = Number(payment.hourly_rate_snapshot || rates.netPerUnit || 0);
-  const computed = qty > 0 && rate > 0
+  const base = qty > 0 && rate > 0
     ? Math.round(qty * rate * 100) / 100
-    : Number(payment.calculated_amount) || 0;
+    : 0;
+  const applyTds = Boolean(payment.apply_tds);
+  const taxes = applyInvoiceTaxes(base, 'expert', { applyTds });
+  const computedTotal = taxes.total_amount;
   const invoiceAmount =
-    Number(payment.invoice_amount) > 0 ? Number(payment.invoice_amount) : computed;
+    Number(payment.invoice_amount) > 0 ? Number(payment.invoice_amount) : computedTotal;
   const unitShort = rates.unitShort || 'unit';
   const project = booking?.projects || booking?.project || {};
   return {
@@ -109,10 +124,34 @@ function invoiceSettlementContext(payment, booking) {
     qty,
     qtyDisplay: formatQty(qty, unitShort),
     rate,
-    lineTotal: computed,
+    lineTotal: base,
+    baseAmount: taxes.base_amount,
+    applyTds: taxes.apply_tds,
+    tdsAmount: taxes.tds_amount,
+    tdsRate: taxes.tds_rate,
+    gstAmount: taxes.gst_amount,
+    gstRate: taxes.gst_rate,
+    computedTotal,
     invoiceAmount,
     formula: `${formatQty(qty, unitShort)} × ${money(rate)} / ${unitShort}`,
+    taxFormula: taxes.formula,
   };
+}
+
+function taxTotalLines(settlementCtx, due, paid, remaining, balanceLabel) {
+  const lines = [
+    ['Subtotal (qty × rate)', money(settlementCtx.baseAmount ?? settlementCtx.lineTotal)],
+  ];
+  if (Number(settlementCtx.tdsAmount) > 0) {
+    lines.push([`TDS (${Math.round((settlementCtx.tdsRate || 0) * 100)}%)`, money(settlementCtx.tdsAmount)]);
+  }
+  lines.push(
+    [`GST (${Math.round((settlementCtx.gstRate || 0) * 100)}%)`, money(settlementCtx.gstAmount || 0)],
+    ['Invoice amount', money(due)],
+    ['Already paid', money(paid)],
+    [balanceLabel, money(remaining)],
+  );
+  return lines;
 }
 
 const PAGE = {
@@ -297,37 +336,38 @@ function drawExpertInvoice(doc, { invoiceNumber, payment, booking, recipient, se
     .text(`Calculation: ${settlementCtx.formula} = ${money(settlementCtx.lineTotal)}`, PAGE.margin, doc.y, {
       width: PAGE.width - PAGE.margin * 2,
     });
+  doc.moveDown(0.3);
+  doc.font('Helvetica').fontSize(8).fillColor(COLORS.muted)
+    .text(`Taxes: ${settlementCtx.taxFormula} = ${money(settlementCtx.computedTotal)}`, PAGE.margin, doc.y, {
+      width: PAGE.width - PAGE.margin * 2,
+    });
   doc.moveDown(0.8);
 
   // Totals — authoritative invoice amount
-  ensureSpace(doc, 120);
-  const boxW = 240;
+  ensureSpace(doc, 160);
+  const boxW = 260;
   const boxX = PAGE.width - PAGE.margin - boxW;
   const boxY = doc.y;
-  doc.roundedRect(boxX, boxY, boxW, 108, 8).fill(COLORS.soft).stroke(COLORS.line);
+  const totalLines = taxTotalLines(settlementCtx, due, paid, remaining, 'Balance to pay you');
+  const boxH = 12 + totalLines.length * 22 + 8;
+  doc.roundedRect(boxX, boxY, boxW, boxH, 8).fill(COLORS.soft).stroke(COLORS.line);
 
-  const totalLines = [
-    ['Subtotal (qty × rate)', money(settlementCtx.lineTotal)],
-    ['Invoice amount', money(due)],
-    ['Already paid', money(paid)],
-    ['Balance to pay you', money(remaining)],
-  ];
   totalLines.forEach((pair, index) => {
     const rowY = boxY + 12 + index * 22;
     const isLast = index === totalLines.length - 1;
     doc.font(isLast ? 'Helvetica-Bold' : 'Helvetica')
       .fontSize(isLast ? 10 : 9)
       .fillColor(isLast ? COLORS.brandDark : COLORS.muted)
-      .text(pair[0], boxX + 14, rowY, { width: 120 });
+      .text(pair[0], boxX + 14, rowY, { width: 140 });
     doc.fillColor(isLast ? COLORS.brand : COLORS.text)
       .text(pair[1], boxX + 14, rowY, { width: boxW - 28, align: 'right' });
   });
-  doc.y = boxY + 124;
+  doc.y = boxY + boxH + 16;
 
-  if (Math.abs(Number(settlementCtx.lineTotal) - due) > 0.01) {
+  if (Math.abs(Number(settlementCtx.computedTotal) - due) > 0.01) {
     doc.font('Helvetica').fontSize(8).fillColor(COLORS.muted)
       .text(
-        'Note: Invoice amount was set by CalxMap finance and may differ from qty × rate.',
+        'Note: Invoice amount was set by CalxMap finance and may differ from base + taxes.',
         PAGE.margin,
         doc.y,
         { width: PAGE.width - PAGE.margin * 2 }
@@ -448,29 +488,40 @@ function drawInstitutionInvoice(doc, { invoiceNumber, payment, booking, recipien
   doc.y = y + 52;
   doc.font('Helvetica').fontSize(8).fillColor(COLORS.muted)
     .text(`Calculation: ${settlementCtx.formula} = ${money(settlementCtx.lineTotal)}`);
+  doc.moveDown(0.3);
+  doc.font('Helvetica').fontSize(8).fillColor(COLORS.muted)
+    .text(`Taxes: ${settlementCtx.taxFormula} = ${money(settlementCtx.computedTotal)}`);
   doc.moveDown(0.8);
 
-  ensureSpace(doc, 120);
-  const boxW = 240;
+  ensureSpace(doc, 180);
+  const boxW = 260;
   const boxX = PAGE.width - PAGE.margin - boxW;
   const boxY = doc.y;
-  doc.roundedRect(boxX, boxY, boxW, 108, 8).fill(COLORS.soft).stroke(COLORS.line);
-  [
-    ['Subtotal (qty × rate)', money(settlementCtx.lineTotal)],
-    ['Invoice amount', money(due)],
-    ['Already paid', money(paid)],
-    ['Balance due', money(remaining)],
-  ].forEach((pair, index) => {
+  const totalLines = taxTotalLines(settlementCtx, due, paid, remaining, 'Balance due');
+  const boxH = 12 + totalLines.length * 22 + 8;
+  doc.roundedRect(boxX, boxY, boxW, boxH, 8).fill(COLORS.soft).stroke(COLORS.line);
+  totalLines.forEach((pair, index) => {
     const rowY = boxY + 12 + index * 22;
-    const isLast = index === 3;
+    const isLast = index === totalLines.length - 1;
     doc.font(isLast ? 'Helvetica-Bold' : 'Helvetica')
       .fontSize(isLast ? 10 : 9)
       .fillColor(isLast ? COLORS.brandDark : COLORS.muted)
-      .text(pair[0], boxX + 14, rowY, { width: 120 });
+      .text(pair[0], boxX + 14, rowY, { width: 140 });
     doc.fillColor(isLast ? COLORS.brand : COLORS.text)
       .text(pair[1], boxX + 14, rowY, { width: boxW - 28, align: 'right' });
   });
-  doc.y = boxY + 124;
+  doc.y = boxY + boxH + 16;
+
+  if (Math.abs(Number(settlementCtx.computedTotal) - due) > 0.01) {
+    doc.font('Helvetica').fontSize(8).fillColor(COLORS.muted)
+      .text(
+        'Note: Invoice amount was set by CalxMap finance and may differ from base + taxes.',
+        PAGE.margin,
+        doc.y,
+        { width: PAGE.width - PAGE.margin * 2 }
+      );
+    doc.moveDown(0.8);
+  }
 
   if (payment.notes) {
     sectionTitle(doc, 'Notes');

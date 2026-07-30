@@ -85,6 +85,31 @@ function dateProgress(startValue, endValue) {
   return roundPercent(((now - start) / (end - start)) * 100);
 }
 
+function positiveNumber(...values) {
+  for (const value of values) {
+    const num = Number(value);
+    if (Number.isFinite(num) && num > 0) return num;
+  }
+  return 0;
+}
+
+function runningWorkTargetHours(booking = {}) {
+  const project = booking.projects || booking.project || {};
+  const unitQuantity = positiveNumber(booking.unit_quantity, project.unit_quantity);
+  const durationPerUnit = positiveNumber(booking.duration_per_unit, project.duration_per_unit, project.hours_per_day);
+  return positiveNumber(
+    booking.hours_booked,
+    project.duration_hours,
+    unitQuantity && durationPerUnit ? unitQuantity * durationPerUnit : 0,
+  );
+}
+
+function completionPercent(approvedHours, targetHours) {
+  const target = Number(targetHours) || 0;
+  if (target <= 0) return null;
+  return roundPercent((Number(approvedHours || 0) / target) * 100);
+}
+
 async function countRows(client, table, apply) {
   let query = client.from(table).select('id', { count: 'exact', head: true });
   if (apply) query = apply(query);
@@ -227,6 +252,230 @@ class SuperAdminRepository {
       summary,
       trend: Object.values(buckets).sort((a, b) => String(a.label).localeCompare(String(b.label))).slice(-24),
       data: rows.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)).slice(0, 100),
+    };
+  }
+
+  mapRunningProjectBooking(booking, attendanceDays = []) {
+    const approvedHours = approvedHoursFromDays(attendanceDays);
+    const approvedDays = approvedDaysFromDays(attendanceDays);
+    const pendingDays = attendanceDays.filter((day) => String(day.status || '').toLowerCase() === 'pending_review').length;
+    const openDays = attendanceDays.filter((day) => String(day.status || '').toLowerCase() === 'open').length;
+    const disputedDays = attendanceDays.filter((day) => String(day.status || '').toLowerCase() === 'disputed').length;
+    const targetHours = runningWorkTargetHours(booking);
+    const percent = completionPercent(approvedHours, targetHours);
+    const project = booking.projects || null;
+    return {
+      id: booking.id,
+      booking_id: booking.id,
+      status: booking.status,
+      start_date: booking.actual_start_date || booking.start_date || project?.start_date || null,
+      end_date: booking.actual_end_date || booking.end_date || project?.end_date || null,
+      hours_booked: targetHours || null,
+      approved_hours: approvedHours,
+      approved_days: approvedDays,
+      pending_days: pendingDays,
+      open_days: openDays,
+      disputed_days: disputedDays,
+      completion_percent: percent,
+      project,
+      expert: booking.experts || null,
+      institution: booking.institutions || null,
+      created_at: booking.created_at,
+      updated_at: booking.updated_at,
+    };
+  }
+
+  attendanceSummary(days = [], hoursBooked = null) {
+    const approvedHours = approvedHoursFromDays(days);
+    const approvedDays = approvedDaysFromDays(days);
+    const pendingDays = days.filter((day) => String(day.status || '').toLowerCase() === 'pending_review').length;
+    const disputedDays = days.filter((day) => String(day.status || '').toLowerCase() === 'disputed').length;
+    const openDays = days.filter((day) => String(day.status || '').toLowerCase() === 'open').length;
+    return {
+      daysApproved: approvedDays,
+      daysPending: pendingDays,
+      daysDisputed: disputedDays,
+      daysOpen: openDays,
+      totalHoursApproved: approvedHours,
+      hoursBooked: hoursBooked || null,
+      percentOfHoursBooked: completionPercent(approvedHours, hoursBooked),
+    };
+  }
+
+  async listRunningProjectBookings({ page, limit, offset, search = '', attendance_status = '' }) {
+    try {
+      await maybeSyncProjectStatuses(this.client, { force: true, cooldownMs: 0 });
+    } catch (syncErr) {
+      console.warn('[projectStatus] running overview sync skipped:', syncErr?.message || syncErr);
+    }
+
+    const { data, error } = await this.client
+      .from('bookings')
+      .select(`
+        id,status,start_date,end_date,actual_start_date,actual_end_date,hours_booked,unit_quantity,created_at,updated_at,expert_id,institution_id,project_id,
+        projects!inner(id,title,type,status,start_date,end_date,duration_hours,unit_quantity,duration_per_unit,hours_per_day,compensation_unit,institution_gross_per_unit,institution_gross_total,total_budget),
+        experts(id,name,email,phone,photo_url,city,state,domain_expertise,hourly_rate,experience_years,is_verified,kyc_status),
+        institutions(id,name,email,phone,type,city,state)
+      `)
+      .in('status', ['confirmed', 'in_progress', 'completion_requested', 'cancellation_requested'])
+      .order('updated_at', { ascending: false })
+      .limit(1000);
+    if (error) {
+      if (tableMissing(error) || relationMissing(error)) return { data: [], total: 0, page, limit, hasMore: false };
+      throw error;
+    }
+
+    const projectRows = (data || []).map((booking) => ({ ...(booking.projects || {}), requirement_type: 'project' }));
+    const enrichedProjects = await this.enrichRequirementRows(projectRows);
+    const runningProjectIds = new Set(
+      enrichedProjects
+        .filter((project) => normalizeProjectStatus(project.derived_status || project.status) === 'running')
+        .map((project) => project.id),
+    );
+    const runningBookings = (data || []).filter((booking) => runningProjectIds.has(booking.project_id));
+    const bookingIds = runningBookings.map((booking) => booking.id);
+    const { data: attendanceDays, error: daysError } = bookingIds.length
+      ? await this.client
+          .from('training_attendance_days')
+          .select('booking_id,status,effective_entry_at,effective_exit_at,expert_entry_at,expert_exit_at')
+          .in('booking_id', bookingIds)
+      : { data: [], error: null };
+    if (daysError && !tableMissing(daysError)) throw daysError;
+
+    const daysByBooking = {};
+    for (const day of attendanceDays || []) {
+      daysByBooking[day.booking_id] = daysByBooking[day.booking_id] || [];
+      daysByBooking[day.booking_id].push(day);
+    }
+
+    const bookingCards = runningBookings.map((booking) => this.mapRunningProjectBooking(booking, daysByBooking[booking.id] || []));
+    const groupedByProject = new Map();
+    for (const card of bookingCards) {
+      const projectId = card.project?.id || card.project_id || card.project?.title || card.id;
+      const existing = groupedByProject.get(projectId);
+      if (existing) {
+        existing.bookings.push(card);
+        existing.experts_count = existing.bookings.length;
+        existing.approved_hours = Math.round((existing.approved_hours + Number(card.approved_hours || 0)) * 100) / 100;
+        existing.hours_booked = Math.round((existing.hours_booked + Number(card.hours_booked || 0)) * 100) / 100;
+        existing.approved_days += Number(card.approved_days || 0);
+        existing.pending_days += Number(card.pending_days || 0);
+        existing.open_days += Number(card.open_days || 0);
+        existing.disputed_days += Number(card.disputed_days || 0);
+        existing.completion_percent = completionPercent(existing.approved_hours, existing.hours_booked);
+      } else {
+        groupedByProject.set(projectId, {
+          id: projectId,
+          project: card.project,
+          institution: card.institution,
+          start_date: card.project?.start_date || card.start_date,
+          end_date: card.project?.end_date || card.end_date,
+          status: card.project?.status || null,
+          approved_hours: Number(card.approved_hours || 0),
+          hours_booked: Number(card.hours_booked || 0),
+          approved_days: Number(card.approved_days || 0),
+          pending_days: Number(card.pending_days || 0),
+          open_days: Number(card.open_days || 0),
+          disputed_days: Number(card.disputed_days || 0),
+          completion_percent: card.completion_percent,
+          experts_count: 1,
+          updated_at: card.updated_at,
+          bookings: [card],
+        });
+      }
+    }
+
+    const searchTerm = String(search || '').trim().toLowerCase();
+    const attendanceStatus = String(attendance_status || '').trim().toLowerCase();
+    const groupedProjectRows = [...groupedByProject.values()]
+      .filter((row) => {
+        if (!searchTerm) return true;
+        const expertText = (row.bookings || [])
+          .map((booking) => `${booking.expert?.name || ''} ${booking.expert?.email || ''}`)
+          .join(' ');
+        return [
+          row.project?.title,
+          row.institution?.name,
+          row.institution?.email,
+          expertText,
+        ].some((value) => String(value || '').toLowerCase().includes(searchTerm));
+      })
+      .filter((row) => {
+        if (!attendanceStatus || attendanceStatus === 'all') return true;
+        if (attendanceStatus === 'pending') return Number(row.pending_days || 0) > 0;
+        if (attendanceStatus === 'disputed') return Number(row.disputed_days || 0) > 0;
+        return true;
+      })
+      .sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0));
+    return {
+      data: groupedProjectRows.slice(offset, offset + limit),
+      total: groupedProjectRows.length,
+      page,
+      limit,
+      hasMore: groupedProjectRows.length > offset + limit,
+    };
+  }
+
+  async getRunningProjectBookingDetail(bookingId, { page, limit, offset, date_from = '', date_to = '' }) {
+    const { data: booking, error } = await this.client
+      .from('bookings')
+      .select(`
+        id,status,start_date,end_date,actual_start_date,actual_end_date,hours_booked,unit_quantity,created_at,updated_at,expert_id,institution_id,project_id,
+        projects!inner(id,title,type,status,start_date,end_date,duration_hours,unit_quantity,duration_per_unit,hours_per_day,description,job_location,workplace_type,employment_type,compensation_unit,institution_gross_per_unit,institution_gross_total,total_budget),
+        experts(id,name,email,phone,photo_url,bio,city,state,domain_expertise,subskills,qualifications,hourly_rate,experience_years,rating,total_ratings,is_verified,kyc_status),
+        institutions(id,name,email,phone,type,city,state,website_url)
+      `)
+      .eq('id', bookingId)
+      .maybeSingle();
+    if (error) {
+      if (tableMissing(error) || relationMissing(error)) return null;
+      throw error;
+    }
+    if (!booking || !activeStatus(booking.status)) return null;
+
+    const [project] = await this.enrichRequirementRows([{ ...(booking.projects || {}), requirement_type: 'project' }]);
+    if (normalizeProjectStatus(project?.derived_status || project?.status) !== 'running') return null;
+
+    const hoursBooked = runningWorkTargetHours(booking);
+    const allDaysResult = await this.client
+      .from('training_attendance_days')
+      .select('*')
+      .eq('booking_id', bookingId)
+      .order('session_date', { ascending: false });
+    if (allDaysResult.error) {
+      if (tableMissing(allDaysResult.error)) {
+        return {
+          booking: this.mapRunningProjectBooking({ ...booking, projects: project || booking.projects }, []),
+          project: project || booking.projects || null,
+          expert: booking.experts || null,
+          institution: booking.institutions || null,
+          summary: this.attendanceSummary([], hoursBooked),
+          rangeSummary: this.attendanceSummary([], hoursBooked),
+          attendance: { data: [], total: 0, page, limit, hasMore: false },
+        };
+      }
+      throw allDaysResult.error;
+    }
+
+    let filteredDays = allDaysResult.data || [];
+    if (date_from) filteredDays = filteredDays.filter((day) => String(day.session_date || '').slice(0, 10) >= String(date_from).slice(0, 10));
+    if (date_to) filteredDays = filteredDays.filter((day) => String(day.session_date || '').slice(0, 10) <= String(date_to).slice(0, 10));
+    const pagedDays = filteredDays.slice(offset, offset + limit);
+
+    return {
+      booking: this.mapRunningProjectBooking({ ...booking, projects: project || booking.projects }, allDaysResult.data || []),
+      project: project || booking.projects || null,
+      expert: booking.experts || null,
+      institution: booking.institutions || null,
+      summary: this.attendanceSummary(allDaysResult.data || [], hoursBooked),
+      rangeSummary: this.attendanceSummary(filteredDays, hoursBooked),
+      attendance: {
+        data: pagedDays,
+        total: filteredDays.length,
+        page,
+        limit,
+        hasMore: filteredDays.length > offset + limit,
+      },
     };
   }
 
@@ -1648,28 +1897,47 @@ class SuperAdminRepository {
       throw err;
     }
 
-    const { data: existing, error: existingError } = await this.client
-      .from('projects')
-      .select('id, status, start_date, end_date')
-      .eq('id', requirementId)
-      .maybeSingle();
-    if (existingError) throw existingError;
+    let existing = null;
+    {
+      const { data, error } = await this.client
+        .from('projects')
+        .select('id, status, start_date, end_date, status_managed_by_admin')
+        .eq('id', requirementId)
+        .maybeSingle();
+      if (error && String(error.message || '').includes('status_managed_by_admin')) {
+        const legacy = await this.client
+          .from('projects')
+          .select('id, status, start_date, end_date')
+          .eq('id', requirementId)
+          .maybeSingle();
+        if (legacy.error) throw legacy.error;
+        existing = legacy.data ? { ...legacy.data, status_managed_by_admin: false } : null;
+      } else if (error) {
+        throw error;
+      } else {
+        existing = data;
+      }
+    }
     if (!existing) return null;
 
-    const nextStatus = computeAutoProjectStatus({
-      status: existing.status,
+    const managedByAdmin = Boolean(existing.status_managed_by_admin);
+    const patch = {
       start_date: startDate,
       end_date: endDate,
-    });
+      updated_at: new Date().toISOString(),
+    };
+    // Preserve admin-chosen status; only auto-derive when not locked by admin.
+    if (!managedByAdmin) {
+      patch.status = computeAutoProjectStatus({
+        status: existing.status,
+        start_date: startDate,
+        end_date: endDate,
+      });
+    }
 
     const { data: project, error } = await this.client
       .from('projects')
-      .update({
-        start_date: startDate,
-        end_date: endDate,
-        status: nextStatus,
-        updated_at: new Date().toISOString(),
-      })
+      .update(patch)
       .eq('id', requirementId)
       .select('*')
       .maybeSingle();
@@ -1712,16 +1980,48 @@ class SuperAdminRepository {
 
     const before = normalizeProjectStatus(existing.status);
     if (before === nextStatus) {
-      return { ...existing, status: nextStatus, _changed: false, _before: before };
+      // Still lock admin control so auto-sync cannot flip this project later.
+      const { data: locked, error: lockError } = await this.client
+        .from('projects')
+        .update({
+          status: nextStatus,
+          status_managed_by_admin: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', requirementId)
+        .select('*')
+        .maybeSingle();
+      if (lockError && String(lockError.message || '').includes('status_managed_by_admin')) {
+        return { ...existing, status: nextStatus, _changed: false, _before: before };
+      }
+      if (lockError) throw lockError;
+      return { ...(locked || existing), status: nextStatus, _changed: false, _before: before };
     }
 
     const { data, error } = await this.client
       .from('projects')
-      .update({ status: nextStatus, updated_at: new Date().toISOString() })
+      .update({
+        status: nextStatus,
+        status_managed_by_admin: true,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', requirementId)
       .select('*')
       .maybeSingle();
-    if (error) throw error;
+    if (error) {
+      // Pre-migration fallback: still allow status change without the lock column.
+      if (String(error.message || '').includes('status_managed_by_admin')) {
+        const { data: fallback, error: fallbackError } = await this.client
+          .from('projects')
+          .update({ status: nextStatus, updated_at: new Date().toISOString() })
+          .eq('id', requirementId)
+          .select('*')
+          .maybeSingle();
+        if (fallbackError) throw fallbackError;
+        return { ...(fallback || null), _changed: true, _before: before };
+      }
+      throw error;
+    }
     return { ...(data || null), _changed: true, _before: before };
   }
 
@@ -1914,6 +2214,7 @@ class SuperAdminRepository {
         const existing = existingByBooking[booking.id]?.[partyType];
         const draft = buildPaymentRecordDraft(booking, partyType, approvedHours, {
           approvedDays: metrics.approvedDays || 0,
+          applyTds: partyType === 'institution' ? true : Boolean(existing?.apply_tds),
         });
         const { settlement: _settlement, ...draftRow } = draft;
         if (existing && existing.status !== 'pending') {
@@ -1928,6 +2229,7 @@ class SuperAdminRepository {
             hourly_rate_snapshot: existing.hourly_rate_snapshot,
             calculated_amount: existing.calculated_amount,
             invoice_amount: existing.invoice_amount,
+            apply_tds: partyType === 'institution' ? true : Boolean(existing.apply_tds),
             status: existing.status,
             invoice_id: existing.invoice_id || null,
             paid_amount: existing.paid_amount || 0,
@@ -1940,6 +2242,7 @@ class SuperAdminRepository {
         }
         upserts.push({
           ...draftRow,
+          apply_tds: draftRow.apply_tds === true,
           status: existing?.status || 'pending',
           invoice_id: existing?.invoice_id || null,
           paid_amount: existing?.paid_amount || 0,

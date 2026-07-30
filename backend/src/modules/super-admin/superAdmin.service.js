@@ -11,6 +11,7 @@ const { addSheet, workbookBuffer } = require('./superAdmin.excel');
 const { checkExportRateLimit } = require('./superAdmin.exportLimiter');
 const ApplicationRateService = require('../applications/applicationRate.service');
 const institutionAccess = require('../../../auth/institutionAccess');
+const { applyInvoiceTaxes, roundMoney } = require('../../../services/financeCalculationService');
 
 const DEFAULT_ADMIN_PASSWORD = process.env.SUPERADMIN_DEFAULT_USER_PASSWORD || 'ExpertCollaboration@123';
 const REPORT_MIME_TYPES = new Set([
@@ -694,6 +695,20 @@ class SuperAdminService {
     return this.repository.getOverviewCategory(category, period);
   }
 
+  async listRunningProjectBookings(params) {
+    return this.repository.listRunningProjectBookings(params);
+  }
+
+  async getRunningProjectBookingDetail(bookingId, params) {
+    const detail = await this.repository.getRunningProjectBookingDetail(bookingId, params);
+    if (!detail) {
+      const err = new Error('Running project booking not found');
+      err.statusCode = 404;
+      throw err;
+    }
+    return detail;
+  }
+
   async exportOverview(params, auth) {
     await this.ensureExportAllowed(auth);
     const normalizedParams = { ...(params || {}) };
@@ -1238,8 +1253,56 @@ class SuperAdminService {
     const payment = await this.getFinancePayment(id);
     const hasInvoiceAmount = Object.prototype.hasOwnProperty.call(body || {}, 'invoice_amount');
     const hasPaidAmount = Object.prototype.hasOwnProperty.call(body || {}, 'paid_amount');
+    const hasApplyTds = Object.prototype.hasOwnProperty.call(body || {}, 'apply_tds');
     const hasAmounts = hasInvoiceAmount || hasPaidAmount;
     const requestedStatus = body.status != null ? String(body.status).trim().toLowerCase() : null;
+
+    // Expert-only: optionally include TDS 10% and recalculate invoice totals from base.
+    if (hasApplyTds) {
+      if (payment.party_type !== 'expert') {
+        const err = new Error('TDS toggle is only available for expert payouts');
+        err.statusCode = 400;
+        throw err;
+      }
+      const applyTds = Boolean(body.apply_tds);
+      const qty = Number(payment.approved_hours || 0);
+      const rate = Number(payment.hourly_rate_snapshot || 0);
+      const baseFromSnapshot = qty > 0 && rate > 0 ? roundMoney(qty * rate) : 0;
+      const base =
+        baseFromSnapshot > 0
+          ? baseFromSnapshot
+          : roundMoney(Number(payment.settlement?.base_amount || 0));
+      const taxes = applyInvoiceTaxes(base, 'expert', { applyTds });
+      const nextTotal = taxes.total_amount;
+      const paid = Number(payment.paid_amount || 0);
+      const nextStatus = resolveFinancePaymentStatus({
+        due: nextTotal,
+        paid,
+        previousStatus: payment.status,
+        hasInvoice: Boolean(payment.invoice_id) || payment.status === 'invoiced' || payment.status === 'partial_paid',
+      });
+      const updated = await this.repository.updateFinancePayment(id, {
+        apply_tds: applyTds,
+        calculated_amount: nextTotal,
+        invoice_amount: nextTotal,
+        status: nextStatus,
+        notes: body.notes != null ? body.notes : payment.notes || null,
+        updated_by: actorUserId || null,
+      });
+      await this.logActivity(auth, 'finance.payment_tds_updated', {
+        entity_type: 'finance_payment',
+        entity_id: id,
+        metadata: {
+          apply_tds: applyTds,
+          previous_invoice_amount: payment.invoice_amount,
+          invoice_amount: nextTotal,
+          base_amount: taxes.base_amount,
+          tds_amount: taxes.tds_amount,
+          gst_amount: taxes.gst_amount,
+        },
+      });
+      return updated;
+    }
 
     // Details modal "Save finance edit" — status (+ optional notes) only.
     if (!hasAmounts && requestedStatus) {
