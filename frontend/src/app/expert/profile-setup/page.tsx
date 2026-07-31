@@ -162,6 +162,19 @@ export default function ExpertProfileSetup() {
       }
       setUser(user)
       setFormData((prev) => ({ ...prev, profile_email: user.email || '' }))
+
+      try {
+        const existingProfile = await api.auth.completeExistingProfile('expert')
+        if (existingProfile.linked) {
+          await supabase.auth.refreshSession()
+          toast.success('Existing expert profile linked to your login.')
+          router.replace(existingProfile.redirectTo || '/expert/home')
+          return
+        }
+      } catch (e) {
+        console.error('Failed to check existing expert profile:', e)
+      }
+
       setLoading(false)
       loadCustomDomains()
     }

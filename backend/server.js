@@ -19,6 +19,9 @@ const expertAccess = require('./auth/expertAccess');
 const superAdminAuth = require('./auth/superAdminAuth');
 const { ensureAuthUserForProfile, authLoginMeta } = require('./auth/profileAuthService');
 const {
+  completeExistingProfileForAuthUser,
+} = require('./auth/profileLinkingService');
+const {
   confirmEmailByToken,
   confirmPasswordReset, 
   createOrRefreshAuthUser, 
@@ -380,6 +383,44 @@ app.post('/api/auth/password-reset/confirm', async (req, res) => {
   } catch (err) {
     const statusCode = err?.statusCode || 500;
     res.status(statusCode).json({ error: err.message || 'Failed to reset password' });
+  }
+});
+
+app.post('/api/auth/complete-existing-profile', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const token = authHeader.substring(7);
+    const authClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY,
+      { global: { headers: { Authorization: `Bearer ${token}` } } },
+    );
+
+    const { data: userData, error: userError } = await authClient.auth.getUser();
+    if (userError) throw userError;
+    if (!userData?.user?.id) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
+    );
+
+    const result = await completeExistingProfileForAuthUser(
+      serviceClient,
+      userData.user,
+      req.body?.role,
+    );
+
+    res.json({ success: true, ...result });
+  } catch (err) {
+    const statusCode = err?.statusCode || 500;
+    res.status(statusCode).json({ error: err.message || 'Failed to complete existing profile' });
   }
 });
 

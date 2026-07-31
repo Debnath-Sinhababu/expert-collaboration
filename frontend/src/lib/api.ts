@@ -96,6 +96,23 @@ export const api = {
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json?.error || 'Failed to update password')
       return json as { success: boolean; userId: string }
+    },
+    completeExistingProfile: async (role: 'student' | 'expert' | 'institution') => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/auth/complete-existing-profile`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ role }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to check existing profile')
+      return json as {
+        success: boolean
+        linked: boolean
+        role?: 'student' | 'expert' | 'institution'
+        profileId?: string
+        redirectTo?: string
+      }
     }
   },
   internshipApplications: {
