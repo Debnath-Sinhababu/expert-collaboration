@@ -108,6 +108,19 @@ export default function InstitutionProfileSetup() {
       }
       setUser(user)
       setFormData(prev => ({ ...prev, contact_email: user.email || '' }))
+
+      try {
+        const existingProfile = await api.auth.completeExistingProfile('institution')
+        if (existingProfile.linked) {
+          await supabase.auth.refreshSession()
+          toast.success('Existing institution profile linked to your login.')
+          router.replace(existingProfile.redirectTo || '/institution/home')
+          return
+        }
+      } catch (e) {
+        console.error('Failed to check existing institution profile:', e)
+      }
+
       setLoading(false)
     }
 

@@ -76,6 +76,17 @@ export default function StudentProfileSetup() {
       if (!user) { router.push('/auth/login'); return }
       if (!isSuperAdminStudentCreate) {
         setForm(prev => ({ ...prev, email: user.email || '' }))
+        try {
+          const existingProfile = await api.auth.completeExistingProfile('student')
+          if (existingProfile.linked) {
+            await supabase.auth.refreshSession()
+            toast.success('Existing student profile linked to your login.')
+            router.replace(existingProfile.redirectTo || '/student/home')
+            return
+          }
+        } catch (e) {
+          console.error('Failed to check existing student profile:', e)
+        }
       }
       try {
         const list = await api.institutions.getAll({ page: 1, limit: 1000, exclude_type: 'Corporate' })
