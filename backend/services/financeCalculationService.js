@@ -3,8 +3,39 @@ const {
   projectPostedRates,
 } = require('../src/shared/compensation');
 
+/** Institution invoice: always +10% TDS +18% GST on base. Expert: +18% GST; optional +10% TDS when applyTds. */
+const INSTITUTION_TDS_RATE = 0.10;
+const GST_RATE = 0.18;
+
 function roundMoney(value) {
   return Math.round(Number(value || 0) * 100) / 100;
+}
+
+/**
+ * Tax bifurcation for invoice / payout totals.
+ * Base = pre-tax settlement (institution gross×qty or expert net×qty).
+ * Institution: always TDS 10% + GST 18% on base → total = base × 1.28
+ * Expert: GST 18% on base; optional TDS 10% when options.applyTds → total = base × 1.18 or 1.28
+ */
+function applyInvoiceTaxes(baseAmount, partyType, options = {}) {
+  const base = roundMoney(baseAmount);
+  const applyTds = partyType === 'institution' || Boolean(options.applyTds);
+  const tdsRate = applyTds ? INSTITUTION_TDS_RATE : 0;
+  const tdsAmount = roundMoney(base * tdsRate);
+  const gstAmount = roundMoney(base * GST_RATE);
+  const totalAmount = roundMoney(base + tdsAmount + gstAmount);
+  return {
+    base_amount: base,
+    apply_tds: applyTds,
+    tds_rate: tdsRate,
+    tds_amount: tdsAmount,
+    gst_rate: GST_RATE,
+    gst_amount: gstAmount,
+    total_amount: totalAmount,
+    formula: applyTds
+      ? 'base + TDS 10% + GST 18%'
+      : 'base + GST 18%',
+  };
 }
 
 function positiveNumber(...candidates) {
@@ -202,11 +233,14 @@ function buildPaymentRecordDraft(booking, partyType, approvedHours, options = {}
   let ratePerUnit;
   let amount;
   let settlement = null;
+  const applyTds =
+    partyType === 'institution' ? true : Boolean(options.applyTds);
 
   if (partyType === 'institution') {
     const contract = resolveInstitutionContractBudget(booking);
     ratePerUnit = contract.ratePerUnit;
-    amount = contract.amount;
+    const taxes = applyInvoiceTaxes(contract.amount, 'institution');
+    amount = taxes.total_amount;
     settlement = {
       party_type: 'institution',
       unit: contract.unit,
@@ -214,9 +248,16 @@ function buildPaymentRecordDraft(booking, partyType, approvedHours, options = {}
       contract_quantity: contract.quantity,
       delivery_quantity: null,
       rate_per_unit: contract.ratePerUnit,
-      calculated_amount: contract.amount,
-      formula: contract.formula,
+      calculated_amount: taxes.total_amount,
+      base_amount: taxes.base_amount,
+      apply_tds: taxes.apply_tds,
+      tds_rate: taxes.tds_rate,
+      tds_amount: taxes.tds_amount,
+      gst_rate: taxes.gst_rate,
+      gst_amount: taxes.gst_amount,
+      formula: `${contract.formula}; then ${taxes.formula}`,
       source: contract.source,
+      tax: taxes,
     };
   } else {
     const quantity = billableQuantity(rates.unit, {
@@ -226,7 +267,9 @@ function buildPaymentRecordDraft(booking, partyType, approvedHours, options = {}
       bookingStatus: booking?.status,
     });
     ratePerUnit = rates.netPerUnit;
-    amount = roundMoney(quantity * (Number(ratePerUnit) || 0));
+    const baseAmount = roundMoney(quantity * (Number(ratePerUnit) || 0));
+    const taxes = applyInvoiceTaxes(baseAmount, 'expert', { applyTds });
+    amount = taxes.total_amount;
     settlement = {
       party_type: 'expert',
       unit: rates.unit,
@@ -234,9 +277,16 @@ function buildPaymentRecordDraft(booking, partyType, approvedHours, options = {}
       contract_quantity: null,
       delivery_quantity: quantity,
       rate_per_unit: roundMoney(ratePerUnit || 0),
-      calculated_amount: amount,
-      formula: 'net_rate × approved_delivery_qty',
+      calculated_amount: taxes.total_amount,
+      base_amount: taxes.base_amount,
+      apply_tds: taxes.apply_tds,
+      tds_rate: taxes.tds_rate,
+      tds_amount: taxes.tds_amount,
+      gst_rate: taxes.gst_rate,
+      gst_amount: taxes.gst_amount,
+      formula: `net_rate × approved_delivery_qty; then ${taxes.formula}`,
       source: 'delivery_x_net',
+      tax: taxes,
     };
   }
 
@@ -258,6 +308,7 @@ function buildPaymentRecordDraft(booking, partyType, approvedHours, options = {}
     hourly_rate_snapshot: roundMoney(ratePerUnit || 0),
     calculated_amount: amount,
     invoice_amount: amount,
+    apply_tds: applyTds,
     settlement,
   };
 }
@@ -275,14 +326,22 @@ function estimateSettlementAmounts(booking, approvedHours, approvedDays = 0) {
     bookingStatus: booking?.status,
   });
   const institution = resolveInstitutionContractBudget(booking);
+  const institutionTaxes = applyInvoiceTaxes(institution.amount, 'institution');
+  const expertBase = roundMoney(quantity * (rates.netPerUnit || 0));
+  const expertTaxes = applyInvoiceTaxes(expertBase, 'expert');
   return {
     unit: rates.unit,
     unitShort: rates.unitShort,
     quantity,
     grossPerUnit: rates.grossPerUnit,
     netPerUnit: rates.netPerUnit,
-    estimated_expert_amount: roundMoney(quantity * (rates.netPerUnit || 0)),
-    estimated_institution_amount: institution.amount,
+    estimated_expert_amount: expertTaxes.total_amount,
+    estimated_institution_amount: institutionTaxes.total_amount,
+    estimated_expert_base: expertTaxes.base_amount,
+    estimated_expert_gst: expertTaxes.gst_amount,
+    estimated_institution_base: institutionTaxes.base_amount,
+    estimated_institution_tds: institutionTaxes.tds_amount,
+    estimated_institution_gst: institutionTaxes.gst_amount,
     institution_contract_quantity: institution.quantity,
     institution_contract_rate: institution.ratePerUnit,
     institution_contract_source: institution.source,
@@ -298,8 +357,11 @@ function attachSettlementBreakdown(record, booking) {
     const qty = Number(contract.quantity) > 0 ? Number(contract.quantity) : (storedQty > 0 ? storedQty : 0);
     const storedRate = Number(record.hourly_rate_snapshot);
     const rate = storedRate > 0 ? storedRate : Number(contract.ratePerUnit) || 0;
+    const baseAmount = qty > 0 && rate > 0 ? roundMoney(qty * rate) : contract.amount;
+    const taxes = applyInvoiceTaxes(baseAmount, 'institution');
     return {
       ...record,
+      apply_tds: true,
       settlement: {
         party_type: 'institution',
         unit: contract.unit,
@@ -307,9 +369,16 @@ function attachSettlementBreakdown(record, booking) {
         contract_quantity: qty,
         delivery_quantity: null,
         rate_per_unit: roundMoney(rate),
-        expected_amount: qty > 0 && rate > 0 ? roundMoney(qty * rate) : contract.amount,
-        formula: contract.formula,
+        expected_amount: taxes.total_amount,
+        base_amount: taxes.base_amount,
+        apply_tds: taxes.apply_tds,
+        tds_rate: taxes.tds_rate,
+        tds_amount: taxes.tds_amount,
+        gst_rate: taxes.gst_rate,
+        gst_amount: taxes.gst_amount,
+        formula: `${contract.formula}; then ${taxes.formula}`,
         source: contract.source,
+        tax: taxes,
       },
     };
   }
@@ -317,8 +386,12 @@ function attachSettlementBreakdown(record, booking) {
   const deliveryQuantity = Number(record.approved_hours || 0);
   const storedRate = Number(record.hourly_rate_snapshot);
   const rate = storedRate > 0 ? storedRate : Number(rates.netPerUnit) || 0;
+  const baseAmount = deliveryQuantity > 0 && rate > 0 ? roundMoney(deliveryQuantity * rate) : 0;
+  const applyTds = Boolean(record.apply_tds);
+  const taxes = applyInvoiceTaxes(baseAmount, 'expert', { applyTds });
   return {
     ...record,
+    apply_tds: applyTds,
     settlement: {
       party_type: 'expert',
       unit: rates.unit,
@@ -326,14 +399,24 @@ function attachSettlementBreakdown(record, booking) {
       contract_quantity: null,
       delivery_quantity: deliveryQuantity,
       rate_per_unit: roundMoney(rate),
-      expected_amount: deliveryQuantity > 0 && rate > 0 ? roundMoney(deliveryQuantity * rate) : null,
-      formula: 'net_rate × approved_delivery_qty',
+      expected_amount: taxes.total_amount,
+      base_amount: taxes.base_amount,
+      apply_tds: taxes.apply_tds,
+      tds_rate: taxes.tds_rate,
+      tds_amount: taxes.tds_amount,
+      gst_rate: taxes.gst_rate,
+      gst_amount: taxes.gst_amount,
+      formula: `net_rate × approved_delivery_qty; then ${taxes.formula}`,
       source: 'delivery_x_net',
+      tax: taxes,
     },
   };
 }
 
 module.exports = {
+  INSTITUTION_TDS_RATE,
+  GST_RATE,
+  applyInvoiceTaxes,
   approvedHoursFromDays,
   approvedDaysFromDays,
   billableQuantity,

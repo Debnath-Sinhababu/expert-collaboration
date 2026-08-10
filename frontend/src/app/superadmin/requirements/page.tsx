@@ -306,6 +306,7 @@ export default function SuperAdminRequirementsPage() {
         <StatCard label="Freelance" value={rows.filter((r) => r.requirement_type === 'freelance').length} icon={Handshake} tone="violet" helper="Current page" />
         <StatCard label="Completed" value={rows.filter((r) => r.derived_status === 'completed').length} icon={ListFilter} tone="green" helper="Current page" />
       </div>
+
       <SectionCard
         title="Requirements"
         description="Manage requirements across institutions without entering each workspace."
