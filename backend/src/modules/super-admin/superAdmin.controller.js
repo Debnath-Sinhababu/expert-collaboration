@@ -169,6 +169,22 @@ class SuperAdminController {
     res.json(await this.service.getOverviewCategory(req.params.category, req.query.period || 'monthly'));
   };
 
+  listRunningProjectBookings = async (req, res) => {
+    res.json(await this.service.listRunningProjectBookings({
+      ...parsePage(req.query),
+      search: req.query.search || '',
+      attendance_status: req.query.attendance_status || '',
+    }));
+  };
+
+  getRunningProjectBookingDetail = async (req, res) => {
+    res.json(await this.service.getRunningProjectBookingDetail(req.params.bookingId, {
+      ...parsePage(req.query),
+      date_from: req.query.date_from || '',
+      date_to: req.query.date_to || '',
+    }));
+  };
+
   exportOverview = async (req, res) => {
     const result = await this.service.exportOverview({
       date_from: req.query.date_from || '',
@@ -218,6 +234,34 @@ class SuperAdminController {
     ));
   };
 
+  updateRequirementDates = async (req, res) => {
+    res.json(await this.service.updateRequirementDates(
+      req.params.type,
+      req.params.id,
+      req.body || {},
+      req.superAdmin,
+    ));
+  };
+
+  updateRequirementStatus = async (req, res) => {
+    res.json(await this.service.updateRequirementStatus(
+      req.params.type,
+      req.params.id,
+      req.body || {},
+      req.superAdmin,
+    ));
+  };
+
+  reviewProjectEditRequest = async (req, res) => {
+    res.json(await this.service.reviewProjectEditRequest(
+      req.params.type,
+      req.params.id,
+      req.params.requestId,
+      req.body || {},
+      req.superAdmin,
+    ));
+  };
+
   listFreelance = async (req, res) => {
     const paging = parsePage(req.query);
     res.json(await this.service.listFreelance({ ...paging, search: req.query.search || '' }));
@@ -248,6 +292,15 @@ class SuperAdminController {
 
   getFinancePayment = async (req, res) => {
     res.json(await this.service.getFinancePayment(req.params.id));
+  };
+
+  updateFinancePaymentAdjustment = async (req, res) => {
+    res.json(await this.service.updateFinancePaymentAdjustment(
+      req.params.id,
+      req.body || {},
+      req.superAdmin.user.id,
+      req.superAdmin,
+    ));
   };
 
   sendFinanceInvoice = async (req, res) => {

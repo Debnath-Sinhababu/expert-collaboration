@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Activity, Banknote, BriefcaseBusiness, Building2, Download, GraduationCap, ListChecks, TrendingUp, Users } from 'lucide-react'
+import { Activity, Banknote, BriefcaseBusiness, Building2, CalendarDays, Download, GraduationCap, ListChecks, TrendingUp, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { SectionCard } from '@/components/superadmin/common/SectionCard'
 import { StatCard } from '@/components/superadmin/common/StatCard'
+import { PermissionGate } from '@/components/superadmin/common/PermissionGate'
 import { superAdminApi } from '@/lib/superadmin/api'
 
 function statusValue(stats: any, key: string) {
@@ -64,6 +65,14 @@ export default function SuperAdminOverviewPage() {
             <p className="mt-2 max-w-2xl text-sm text-slate-600">
               Track requirement health, profile growth, attendance review, and finance readiness from one place.
             </p>
+            <PermissionGate permission="requirements:write">
+              <Button asChild className="mt-4 bg-[#008260] hover:bg-[#006d51]">
+                <Link href="/superadmin/overview/running-projects">
+                  <CalendarDays className="mr-2 h-4 w-4" />
+                  View Attendance Dashboard
+                </Link>
+              </Button>
+            </PermissionGate>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[140px_140px_120px_120px_auto]">
             <div className="space-y-1">
@@ -92,10 +101,10 @@ export default function SuperAdminOverviewPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard label="Total Requirements" value={statusValue(stats, 'total')} icon={ListChecks} helper="All business work items" />
-        <StatCard label="Running / Live" value={statusValue(stats, 'running')} icon={Activity} tone="blue" helper="Expert or worker selected" />
-        <StatCard label="Pending Start" value={statusValue(stats, 'pending')} icon={TrendingUp} tone="amber" helper="Open and not started" />
-        <StatCard label="Completed" value={statusValue(stats, 'completed')} icon={ListChecks} tone="green" helper="Work completed" />
-        <StatCard label="Closed Incomplete" value={statusValue(stats, 'closed_incomplete')} icon={BriefcaseBusiness} tone="slate" helper="Closed without completion" />
+        <StatCard label="Running" value={statusValue(stats, 'running')} icon={Activity} tone="blue" helper="Start date reached" />
+        <StatCard label="Open" value={statusValue(stats, 'open') || statusValue(stats, 'pending')} icon={TrendingUp} tone="amber" helper="Open for applications" />
+        <StatCard label="Completed" value={statusValue(stats, 'completed')} icon={ListChecks} tone="green" helper="End date passed / completed" />
+        <StatCard label="Closed" value={statusValue(stats, 'closed') || statusValue(stats, 'closed_incomplete')} icon={BriefcaseBusiness} tone="slate" helper="Closed by action" />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -105,7 +114,7 @@ export default function SuperAdminOverviewPage() {
         <StatCard label="Students" value={stats.students ?? 0} icon={GraduationCap} tone="amber" helper="Student records" />
       </div>
 
-      <SectionCard title="Requirement Categories" description="Open a category to review totals, running work, pending requirements, closed work, and trend graphs.">
+      <SectionCard title="Requirement Categories" description="Open a category to review totals by project status.">
         <div className="grid gap-4 lg:grid-cols-3">
           {categories.map((item) => {
             const values = category(stats, item.key as any)
@@ -115,17 +124,23 @@ export default function SuperAdminOverviewPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-semibold text-slate-950">{item.label}</p>
-                    <p className="mt-1 text-xs text-slate-500">Total, running, pending, completed, incomplete</p>
+                    <p className="mt-1 text-xs text-slate-500">Total, open, running, completed, closed</p>
                   </div>
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-[#008260] shadow-sm">
                     <Icon className="h-5 w-5" />
                   </div>
                 </div>
                 <div className="mt-4 grid grid-cols-5 gap-2 text-center">
-                  {['total', 'running', 'pending', 'completed', 'closed_incomplete'].map((key) => (
+                  {['total', 'open', 'running', 'completed', 'closed'].map((key) => (
                     <div key={key} className="rounded-md bg-white px-2 py-2">
-                      <p className="text-lg font-bold text-slate-950">{values[key] || 0}</p>
-                      <p className="text-[11px] capitalize text-slate-500">{key === 'closed_incomplete' ? 'incomplete' : key}</p>
+                      <p className="text-lg font-bold text-slate-950">
+                        {key === 'open'
+                          ? (values.open ?? values.pending ?? 0)
+                          : key === 'closed'
+                            ? (values.closed ?? values.closed_incomplete ?? 0)
+                            : (values[key] || 0)}
+                      </p>
+                      <p className="text-[11px] capitalize text-slate-500">{key}</p>
                     </div>
                   ))}
                 </div>
@@ -134,6 +149,7 @@ export default function SuperAdminOverviewPage() {
           })}
         </div>
       </SectionCard>
+
     </div>
   )
 }

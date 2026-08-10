@@ -35,6 +35,15 @@ const fileFilter = (req, file, cb) => {
   }
 
   const ext = path.extname(file.originalname).toLowerCase();
+  if (file.fieldname === 'agreement_pdf') {
+    const okExt = ext === '.pdf';
+    const okMime = file.mimetype === 'application/pdf';
+    if (okExt && okMime) {
+      return cb(null, true);
+    }
+    return cb(new Error('Agreement must be a PDF file'), false);
+  }
+
   const documentField =
     file.fieldname === 'requirement_pdf' ||
     file.fieldname === 'attendance_attachment' ||

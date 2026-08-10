@@ -73,6 +73,10 @@ export const superAdminApi = {
   overviewStats: () => request<any>('/api/superadmin/overview/stats'),
   overviewCategory: (category: 'projects' | 'internships' | 'freelance', params?: { period?: string }) =>
     request<any>(`/api/superadmin/overview/${category}?${query({ ...(params || {}), _t: Date.now() })}`),
+  runningProjects: (params?: { page?: number; limit?: number; search?: string; attendance_status?: string }) =>
+    request<PaginatedResponse<any>>(`/api/superadmin/overview/running-projects?${query({ ...(params || {}), _t: Date.now() })}`),
+  runningProjectDetail: (bookingId: string, params?: { page?: number; limit?: number; date_from?: string; date_to?: string }) =>
+    request<any>(`/api/superadmin/overview/running-projects/${encodeURIComponent(bookingId)}?${query({ ...(params || {}), _t: Date.now() })}`),
   exportOverview: async (params?: { date_from?: string; date_to?: string; month?: string; year?: string }) => {
     const blob = await requestBlob(`/api/superadmin/overview/export?${query({ ...(params || {}), _t: Date.now() })}`)
     downloadBlob(blob, 'calxmap-business-overview.xlsx')
@@ -161,6 +165,21 @@ export const superAdminApi = {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),
+  updateRequirementDates: (type: string, id: string, body: { start_date: string; end_date: string }) =>
+    request<any>(`/api/superadmin/requirements/${encodeURIComponent(type)}/${encodeURIComponent(id)}/dates`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+  updateRequirementStatus: (type: string, id: string, body: { status: string }) =>
+    request<any>(`/api/superadmin/requirements/${encodeURIComponent(type)}/${encodeURIComponent(id)}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+  reviewProjectEditRequest: (type: string, id: string, requestId: string, body: { action: 'approve' | 'reject'; review_note?: string }) =>
+    request<any>(`/api/superadmin/requirements/${encodeURIComponent(type)}/${encodeURIComponent(id)}/edit-requests/${encodeURIComponent(requestId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
   assignRequirement: (type: string, id: string, body: { admin_id: string; notes?: string }) =>
     request<any>(`/api/superadmin/requirements/${encodeURIComponent(type)}/${encodeURIComponent(id)}/assignment`, {
       method: 'POST',
@@ -189,6 +208,11 @@ export const superAdminApi = {
     request<PaginatedResponse<any>>(`/api/superadmin/finance/payments?${query({ ...params, _t: Date.now() })}`),
   financePayment: (id: string) =>
     request<any>(`/api/superadmin/finance/payments/${encodeURIComponent(id)}?${query({ _t: Date.now() })}`),
+  updateFinancePayment: (id: string, body: Record<string, unknown>) =>
+    request<any>(`/api/superadmin/finance/payments/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
   sendFinanceInvoice: (id: string, body: Record<string, unknown>) =>
     request<any>(`/api/superadmin/finance/payments/${encodeURIComponent(id)}/invoice`, {
       method: 'POST',

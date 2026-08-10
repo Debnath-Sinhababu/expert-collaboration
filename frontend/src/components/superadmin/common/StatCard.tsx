@@ -47,7 +47,7 @@ export function StatCard({ label, value, icon: Icon, tone = 'green', helper, tre
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-          <p className="mt-2 truncate text-3xl font-bold tracking-tight text-slate-950">{value}</p>
+          <p className="mt-2 whitespace-nowrap text-3xl font-bold tracking-tight text-slate-950">{value}</p>
           {helper ? <p className="mt-2 text-sm text-slate-600">{helper}</p> : null}
         </div>
         <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg shadow-sm ${styles.icon}`}>

@@ -16,6 +16,7 @@ import {
   Star
 } from 'lucide-react'
 import { getInstitutionRate } from '@/lib/utils'
+import { RateIntentBadge } from '@/components/requirements/RateIntentBadge'
 
 interface ProjectApplicationsProps {
   projectId: string
@@ -108,24 +109,10 @@ export default function ProjectApplications({ projectId, projectTitle, onClose, 
         reviewed_at: new Date().toISOString()
       })
       
-      // If accepting, create a booking
       if (action === 'accept') {
-        const application = applications.find(app => app.id === applicationId)
-        if (application) {
-          const bookingData = {
-            expert_id: application.expert_id,
-            institution_id: institutionId,
-            project_id: application.project_id,
-            application_id: applicationId,
-            amount: application.proposed_rate || 1000,
-            start_date: new Date().toISOString().split('T')[0],
-            end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 days from now
-            hours_booked: 1,
-            status: 'in_progress',
-            payment_status: 'pending'
-          }
-          
-          await api.bookings.create(bookingData)
+        const result = await api.applications.confirmLock(applicationId, {})
+        if (result?.error) {
+          throw new Error(result.error)
         }
       }
       
@@ -208,7 +195,7 @@ export default function ProjectApplications({ projectId, projectTitle, onClose, 
                         </div>
                         <div>
                           <h3 className="font-semibold text-slate-900">{expert?.name || 'Unknown Expert'}</h3>
-                          <p className="text-sm text-slate-600">₹{getInstitutionRate(expert?.hourly_rate)}/hr</p>
+                          <p className="text-sm text-slate-600">Original rate ₹{getInstitutionRate(expert?.hourly_rate)}/hr</p>
                         </div>
                       </div>
                       <Badge 
@@ -236,7 +223,7 @@ export default function ProjectApplications({ projectId, projectTitle, onClose, 
                           </p>
                         </div>
                         <div>
-                          <span className="text-slate-500">Hourly Rate:</span>
+                          <span className="text-slate-500">Original rate:</span>
                           <p className="font-medium text-slate-700">₹{getInstitutionRate(expert?.hourly_rate)}/hr</p>
                         </div>
                         <div>
@@ -349,8 +336,8 @@ export default function ProjectApplications({ projectId, projectTitle, onClose, 
                                     <p className="text-sm">{expertDetail?.domain_expertise || 'Not specified'}</p>
                                   </div>
                                   <div>
-                                    <h4 className="font-medium mb-1">Hourly Rate</h4>
-                                    <p className="text-sm">₹{getInstitutionRate(expert?.hourly_rate)}</p>
+                                    <h4 className="font-medium mb-1">Original rate</h4>
+                                    <p className="text-sm">₹{getInstitutionRate(expert?.hourly_rate)}/hr</p>
                                   </div>
                                   <div>
                                     <h4 className="font-medium mb-1">Experience</h4>

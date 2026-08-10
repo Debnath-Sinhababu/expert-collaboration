@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { formatInterviewSlotRange } from '@/lib/datetime'
 
 export type InterviewSlot = {
   start_at: string
@@ -17,9 +18,7 @@ type Props = {
 }
 
 function slotLabel(slot: InterviewSlot) {
-  const start = new Date(slot.start_at)
-  const end = new Date(slot.end_at)
-  return `${start.toLocaleDateString()} ${start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+  return formatInterviewSlotRange(slot)
 }
 
 function emptySlot(): InterviewSlot {

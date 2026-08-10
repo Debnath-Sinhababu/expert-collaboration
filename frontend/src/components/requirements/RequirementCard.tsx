@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ShareRequirementButton } from '@/components/requirements/ShareRequirementButton'
 import { PricingSummary } from './PricingSummary'
+import { formatLongDate } from '@/lib/dateFormat'
 
 type Project = {
   id: string
@@ -31,8 +32,7 @@ type Props = {
 }
 
 function formatDate(value?: string) {
-  if (!value) return '-'
-  return new Date(value).toLocaleDateString()
+  return formatLongDate(value)
 }
 
 function typeLabel(type?: string) {
@@ -81,9 +81,11 @@ export function RequirementCard({ project, detailHref, onApply }: Props) {
           </div>
           <div className="w-full lg:w-72 space-y-3">
             <PricingSummary
+              project={project}
               hourlyRate={project.hourly_rate}
               totalBudget={project.total_budget}
               durationHours={project.duration_hours}
+              audience="expert"
               compact
             />
             <div className="flex gap-2">

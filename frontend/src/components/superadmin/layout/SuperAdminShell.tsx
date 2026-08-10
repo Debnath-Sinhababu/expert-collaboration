@@ -76,11 +76,12 @@ export default function SuperAdminShell({ children }: { children: React.ReactNod
 
   const requiredPermission = requiredPermissionForSuperAdminPath(pathname)
   const allowed = canAccess(me, requiredPermission || undefined)
+  const fullPage = pathname === '/superadmin/overview/running-projects'
 
   return (
     <SuperAdminAccessContext.Provider value={me}>
       <div className="fixed inset-0 flex w-full max-w-[100vw] overflow-hidden bg-[#f6faf8]">
-        {navOpen ? (
+        {!fullPage && navOpen ? (
           <button
             type="button"
             className="fixed inset-0 z-40 bg-black/40 md:hidden"
@@ -88,17 +89,19 @@ export default function SuperAdminShell({ children }: { children: React.ReactNod
             onClick={() => setNavOpen(false)}
           />
         ) : null}
-        <aside
-          className={`fixed bottom-0 left-0 top-0 z-50 w-[min(286px,92vw)] overflow-y-auto overscroll-contain border-r border-slate-200 bg-white shadow-xl transition-transform md:static md:z-0 md:h-full md:w-[280px] md:shrink-0 md:translate-x-0 md:shadow-none ${
-            navOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-          }`}
-        >
-          <SuperAdminSidebar me={me} onNavigate={() => setNavOpen(false)} onRequestClose={() => setNavOpen(false)} />
-        </aside>
+        {!fullPage ? (
+          <aside
+            className={`fixed bottom-0 left-0 top-0 z-50 w-[min(286px,92vw)] overflow-y-auto overscroll-contain border-r border-slate-200 bg-white shadow-xl transition-transform md:static md:z-0 md:h-full md:w-[280px] md:shrink-0 md:translate-x-0 md:shadow-none ${
+              navOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+            }`}
+          >
+            <SuperAdminSidebar me={me} onNavigate={() => setNavOpen(false)} onRequestClose={() => setNavOpen(false)} />
+          </aside>
+        ) : null}
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <SuperAdminHeader me={me} onOpenNav={() => setNavOpen(true)} />
+          {!fullPage ? <SuperAdminHeader me={me} onOpenNav={() => setNavOpen(true)} /> : null}
           <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
-            <div className="mx-auto min-h-full w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
+            <div className={`mx-auto min-h-full w-full px-4 py-6 sm:px-6 lg:px-8 ${fullPage ? 'max-w-none' : 'max-w-[1600px]'}`}>
               {allowed ? children : (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 p-6">
                   <h1 className="text-lg font-semibold text-amber-950">Permission required</h1>

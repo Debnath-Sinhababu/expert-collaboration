@@ -20,12 +20,24 @@ const superAdminAuth = require('./auth/superAdminAuth');
 const { ensureAuthUserForProfile, authLoginMeta } = require('./auth/profileAuthService');
 const {
   confirmEmailByToken,
-  confirmPasswordReset,
-  createOrRefreshAuthUser,
+  confirmPasswordReset, 
+  createOrRefreshAuthUser, 
   requestPasswordReset,
 } = require('./services/authEmailService');
 const privacyMask = require('./privacyMask');
 const financeDashboardService = new FinanceDashboardService();
+const projectEditRequestService = require('./services/projectEditRequestService');
+const {
+  assertCanonicalProjectStatus,
+  applyProjectStatusListFilter,
+  maybeSyncProjectStatuses,
+  normalizeProjectStatus,
+  syncProjectStatusesDue,
+} = require('./src/shared/projectStatus');
+const {
+  ACTIVE_BOOKING_STATUSES_FOR_STATS,
+  isActiveBookingStatus,
+} = require('./src/shared/compensation');
 
 console.log('Environment variables loaded:');
 console.log('UPSTASH_REDIS_REST_URL:', process.env.UPSTASH_REDIS_REST_URL ? 'Set' : 'Not set');
@@ -78,6 +90,73 @@ function parseBooleanBody(value) {
 function normalizePositiveInt(value, fallback = 1) {
   const n = parseInt(String(value ?? ''), 10);
   return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+const PROJECT_COMPENSATION_UNITS = new Set(['per_session', 'per_day', 'per_month', 'fixed_package', 'hourly']);
+
+function normalizeOptionalPositiveNumber(value) {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function normalizeOptionalPositiveInt(value) {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
+  const n = parseInt(String(value), 10);
+  return Number.isFinite(n) && n >= 1 ? n : null;
+}
+
+/** Normalize compensation fields on project create/update payloads. Mutates and returns body. */
+function normalizeProjectCompensationFields(body) {
+  if (!body || typeof body !== 'object') return body;
+
+  if (body.compensation_unit !== undefined) {
+    const unit = body.compensation_unit == null || body.compensation_unit === ''
+      ? null
+      : String(body.compensation_unit);
+    body.compensation_unit = unit && PROJECT_COMPENSATION_UNITS.has(unit) ? unit : null;
+  }
+
+  if (body.unit_quantity !== undefined) {
+    body.unit_quantity = normalizeOptionalPositiveInt(body.unit_quantity);
+  }
+  if (body.duration_per_unit !== undefined) {
+    body.duration_per_unit = normalizeOptionalPositiveNumber(body.duration_per_unit);
+  }
+  if (body.hours_per_day !== undefined) {
+    body.hours_per_day = normalizeOptionalPositiveNumber(body.hours_per_day);
+  }
+  if (body.institution_gross_per_unit !== undefined) {
+    body.institution_gross_per_unit = normalizeOptionalPositiveNumber(body.institution_gross_per_unit);
+  }
+  if (body.institution_gross_total !== undefined) {
+    body.institution_gross_total = normalizeOptionalPositiveNumber(body.institution_gross_total);
+  }
+  if (body.schedule_notes !== undefined) {
+    body.schedule_notes =
+      body.schedule_notes != null && String(body.schedule_notes).trim() !== ''
+        ? String(body.schedule_notes).trim()
+        : null;
+  }
+  if (body.other_description !== undefined) {
+    body.other_description =
+      body.other_description != null && String(body.other_description).trim() !== ''
+        ? String(body.other_description).trim()
+        : null;
+  }
+  if (body.hourly_rate !== undefined && body.hourly_rate !== '') {
+    body.hourly_rate = Number(body.hourly_rate);
+  }
+  if (body.total_budget !== undefined && body.total_budget !== '') {
+    body.total_budget = Number(body.total_budget);
+  }
+  if (body.duration_hours !== undefined && body.duration_hours !== '') {
+    body.duration_hours = Number(body.duration_hours);
+  }
+
+  return body;
 }
 
 function normalizeInterviewAvailability(value) {
@@ -320,7 +399,9 @@ app.get('/api/experts', async (req, res) => {
       is_verified = '',
       min_rating = '',
       sort_by = '',
-      sort_order = 'desc'
+      sort_order = 'desc',
+      expert_type = '',
+      expert_service = ''
     } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
     
@@ -369,6 +450,24 @@ app.get('/api/experts', async (req, res) => {
       } else if (values.length > 1) {
         // Use overlap operator for Postgrest: domain_expertise overlaps any of values
         query = query.overlaps('domain_expertise', values)
+      }
+    }
+
+    if (expert_type) {
+      const types = String(expert_type).split(',').map((s) => s.trim()).filter(Boolean);
+      if (types.length === 1) {
+        query = query.contains('expert_types', [types[0]]);
+      } else if (types.length > 1) {
+        query = query.overlaps('expert_types', types);
+      }
+    }
+
+    if (expert_service) {
+      const services = String(expert_service).split(',').map((s) => s.trim()).filter(Boolean);
+      if (services.length === 1) {
+        query = query.contains('expert_services', [services[0]]);
+      } else if (services.length > 1) {
+        query = query.overlaps('expert_services', services);
       }
     }
     
@@ -1731,6 +1830,7 @@ app.get('/api/projects', async (req, res) => {
       min_hourly_rate = '', 
       max_hourly_rate = '',
       status = '',
+      has_active_bookings = '',
       institution_id = '',
       expert_id = '', // used for filtering out applied projects
       domain_expertise = '', // new parameter for similar projects
@@ -1739,6 +1839,17 @@ app.get('/api/projects', async (req, res) => {
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
     console.log(`Pagination: page=${page}, limit=${limit}, offset=${offset}`);
+
+    // Forward-only date transitions (open→running, open|running→completed). Cooldown avoids per-request load.
+    try {
+      const serviceClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+      await maybeSyncProjectStatuses(serviceClient);
+    } catch (syncErr) {
+      console.warn('Project status sync skipped:', syncErr?.message || syncErr);
+    }
 
     // Start building base query
     let query = supabase
@@ -1765,8 +1876,39 @@ app.get('/api/projects', async (req, res) => {
     if (type) query = query.eq('type', type);
     if (min_hourly_rate) query = query.gte('hourly_rate', parseFloat(min_hourly_rate));
     if (max_hourly_rate) query = query.lte('hourly_rate', parseFloat(max_hourly_rate));
-    if (status) query = query.eq('status', status);
+    if (status) {
+      query = applyProjectStatusListFilter(query, status);
+    }
     if (institution_id) query = query.eq('institution_id', institution_id);
+
+    const wantsActiveBookingsFilter =
+      has_active_bookings === 'true' ||
+      has_active_bookings === true ||
+      String(has_active_bookings).toLowerCase() === '1';
+    if (wantsActiveBookingsFilter) {
+      const serviceClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+      let activeBookingQuery = serviceClient
+        .from('bookings')
+        .select('project_id')
+        .in('status', ACTIVE_BOOKING_STATUSES_FOR_STATS);
+      if (institution_id) {
+        activeBookingQuery = activeBookingQuery.eq('institution_id', institution_id);
+      }
+      const { data: activeBookingRows, error: activeBookingError } = await activeBookingQuery;
+      if (activeBookingError) throw activeBookingError;
+      const projectIdsWithActiveBookings = [
+        ...new Set((activeBookingRows || []).map((row) => row.project_id).filter(Boolean)),
+      ];
+      if (projectIdsWithActiveBookings.length === 0) {
+        console.log('Projects query result: 0 projects returned (no active bookings match)');
+        const { role: emptyRole } = await superAdminAuth.getUserRoleFromRequest(req);
+        return res.json(privacyMask.maskProjectsList([], emptyRole));
+      }
+      query = query.in('id', projectIdsWithActiveBookings);
+    }
     
     // Similar projects filters
     if (domain_expertise) {
@@ -1844,6 +1986,29 @@ app.get('/api/projects', async (req, res) => {
           project.applicationCounts = projectCounts[project.id] || { total: 0, pending: 0 };
         });
       }
+
+      const { data: bookingRows, error: bookingCountsError } = await supabase
+        .from('bookings')
+        .select('project_id, status')
+        .in('project_id', projectIds);
+
+      if (bookingCountsError) {
+        console.log('Error fetching booking counts:', bookingCountsError);
+      } else {
+        const projectBookingCounts = {};
+        (bookingRows || []).forEach((booking) => {
+          if (!projectBookingCounts[booking.project_id]) {
+            projectBookingCounts[booking.project_id] = { total: 0, active: 0 };
+          }
+          projectBookingCounts[booking.project_id].total++;
+          if (isActiveBookingStatus(booking.status)) {
+            projectBookingCounts[booking.project_id].active++;
+          }
+        });
+        data.forEach((project) => {
+          project.bookingCounts = projectBookingCounts[project.id] || { total: 0, active: 0 };
+        });
+      }
     }
 
     console.log(`Projects query result: ${data?.length || 0} projects returned`);
@@ -1852,6 +2017,102 @@ app.get('/api/projects', async (req, res) => {
 
   } catch (error) {
     console.error('GET projects error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/projects/types', async (_req, res) => {
+  try {
+    const baseTypes = [
+      'guest_lecture',
+      'fdp',
+      'workshop',
+      'curriculum_dev',
+      'research_collaboration',
+      'training_program',
+      'consultation',
+      'other'
+    ];
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+    const { data, error } = await serviceClient
+      .from('projects')
+      .select('type')
+      .not('type', 'is', null)
+      .limit(1000);
+    if (error) throw error;
+
+    const seen = new Set();
+    const normalize = (value) => String(value || '').trim();
+    const labelize = (value) =>
+      normalize(value)
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+    const options = [...baseTypes, ...(data || []).map((row) => row.type)]
+      .map(normalize)
+      .filter(Boolean)
+      .filter((value) => {
+        const key = value.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .map((value) => ({ value, label: labelize(value) }))
+      .sort((a, b) => {
+        const ai = baseTypes.indexOf(a.value);
+        const bi = baseTypes.indexOf(b.value);
+        if (ai !== -1 || bi !== -1) return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+        return a.label.localeCompare(b.label);
+      });
+    res.json(options);
+  } catch (error) {
+    console.error('GET project types error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Project status counts for institution dashboard stats
+app.get('/api/projects/counts', async (req, res) => {
+  try {
+    const { institution_id } = req.query;
+    if (!institution_id) {
+      return res.status(400).json({ error: 'institution_id is required' });
+    }
+
+    const access = await institutionAccess.resolveInstitutionAccess(req, String(institution_id));
+    if (!access) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const queryClient = institutionAccess.getWriteClientForInstitution(access);
+    const { data, error } = await queryClient
+      .from('projects')
+      .select('status')
+      .eq('institution_id', institution_id);
+
+    if (error) throw error;
+
+    const counts = {
+      total: data?.length || 0,
+      open: 0,
+      running: 0,
+      completed: 0,
+      closed: 0,
+    };
+
+    (data || []).forEach((row) => {
+      const status = normalizeProjectStatus(row.status);
+      if (status === 'open') counts.open++;
+      else if (status === 'running') counts.running++;
+      else if (status === 'completed') counts.completed++;
+      else if (status === 'closed') counts.closed++;
+    });
+
+    res.json(counts);
+  } catch (error) {
+    console.error('GET project counts error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1919,6 +2180,7 @@ app.post('/api/projects', upload.fields([
     };
     delete projectPayload.interview_period_start_date;
     delete projectPayload.interview_period_end_date;
+    normalizeProjectCompensationFields(projectPayload);
 
     // Handle optional requirement PDF upload
     let requirementPdfData = null;
@@ -2031,12 +2293,18 @@ app.get('/api/projects/:id', async (req, res) => {
   }
 });
 
-app.put('/api/projects/:id', async (req, res) => {
+app.put('/api/projects/:id', (req, res, next) => {
+  const contentType = String(req.headers['content-type'] || '');
+  if (contentType.includes('multipart/form-data')) {
+    return upload.fields([{ name: 'requirement_pdf', maxCount: 1 }])(req, res, next);
+  }
+  return next();
+}, async (req, res) => {
   try {
     const service = institutionAccess.getServiceClient();
     const { data: projectRow, error: projErr } = await service
       .from('projects')
-      .select('id, institution_id')
+      .select('id, institution_id, requirement_pdf_url, requirement_pdf_public_id')
       .eq('id', req.params.id)
       .maybeSingle();
 
@@ -2052,17 +2320,40 @@ app.put('/api/projects/:id', async (req, res) => {
 
     const supabaseClient = institutionAccess.getWriteClientForInstitution(access);
 
+    const normalizeArrayField = (value) => {
+      if (Array.isArray(value)) return value;
+      if (typeof value === 'string' && value.trim().length > 0) {
+        return value
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+      return [];
+    };
+
     const updateBody = { ...req.body };
+    if (updateBody.required_expertise !== undefined) {
+      updateBody.required_expertise = normalizeArrayField(updateBody.required_expertise);
+    }
+    if (updateBody.subskills !== undefined) {
+      updateBody.subskills = normalizeArrayField(updateBody.subskills);
+    }
     if (updateBody.screening_questions !== undefined) {
       updateBody.screening_questions = normalizeScreeningQuestionsBody(updateBody.screening_questions);
     }
-    if (updateBody.workplace_type !== undefined && updateBody.workplace_type !== null) {
+    if (updateBody.workplace_type !== undefined && updateBody.workplace_type !== null && updateBody.workplace_type !== '') {
       const w = String(updateBody.workplace_type);
       updateBody.workplace_type = ['remote', 'hybrid', 'on_site'].includes(w) ? w : null;
     }
-    if (updateBody.employment_type !== undefined && updateBody.employment_type !== null) {
+    if (updateBody.employment_type !== undefined && updateBody.employment_type !== null && updateBody.employment_type !== '') {
       const e = String(updateBody.employment_type);
       updateBody.employment_type = ['full_time', 'part_time', 'contract'].includes(e) ? e : null;
+    }
+    if (updateBody.job_location !== undefined) {
+      updateBody.job_location =
+        updateBody.job_location != null && String(updateBody.job_location).trim() !== ''
+          ? String(updateBody.job_location).trim()
+          : null;
     }
     if (updateBody.opening_count !== undefined || updateBody.openings !== undefined) {
       updateBody.opening_count = normalizePositiveInt(updateBody.opening_count || updateBody.openings, 1);
@@ -2074,8 +2365,67 @@ app.put('/api/projects/:id', async (req, res) => {
           ? String(updateBody.interview_period_interval).trim()
           : null;
     }
+    normalizeProjectCompensationFields(updateBody);
     delete updateBody.interview_period_start_date;
     delete updateBody.interview_period_end_date;
+    delete updateBody.institution_id;
+
+    if (updateBody.status !== undefined && updateBody.status !== null && updateBody.status !== '') {
+      updateBody.status = assertCanonicalProjectStatus(updateBody.status);
+    }
+    // Institution workspace cannot change lifecycle status via edit form.
+    if (projectEditRequestService.shouldRequireInstitutionEditApproval(access)) {
+      delete updateBody.status;
+    }
+
+    const requirementPdfFile = req.files?.requirement_pdf?.[0];
+    if (requirementPdfFile) {
+      try {
+        const requirementPdfData = await ImageUploadService.uploadDocument(
+          requirementPdfFile.buffer,
+          'institution-contract-requirements',
+          null,
+          requirementPdfFile.mimetype,
+          requirementPdfFile.originalname
+        );
+        if (!requirementPdfData?.success) {
+          return res.status(500).json({
+            error: `Requirement PDF upload failed: ${requirementPdfData?.error || 'Unknown error'}`
+          });
+        }
+        updateBody.requirement_pdf_url = requirementPdfData.url || null;
+        updateBody.requirement_pdf_public_id = requirementPdfData.publicId || null;
+      } catch (e) {
+        console.error('Requirement PDF upload exception on update:', e);
+        return res.status(500).json({ error: 'Requirement PDF upload failed' });
+      }
+    }
+
+    if (projectEditRequestService.shouldRequireInstitutionEditApproval(access)) {
+      const needsApproval = await projectEditRequestService.projectHasBookings(req.params.id, service);
+      if (needsApproval) {
+        const { data: currentProject, error: currentErr } = await service
+          .from('projects')
+          .select('*')
+          .eq('id', req.params.id)
+          .maybeSingle();
+        if (currentErr) throw currentErr;
+
+        const editRequest = await projectEditRequestService.queueInstitutionProjectEdit({
+          projectId: req.params.id,
+          institutionId: projectRow.institution_id,
+          proposedPayload: updateBody,
+          previousSnapshot: projectEditRequestService.pickProjectSnapshot(currentProject || {}),
+          client: service,
+        });
+
+        return res.status(202).json({
+          pendingApproval: true,
+          message: 'Changes submitted for admin approval. This project has bookings, so edits are reviewed before going live.',
+          editRequest,
+        });
+      }
+    }
 
     const { data, error } = await supabaseClient
       .from('projects')
@@ -2092,6 +2442,31 @@ app.put('/api/projects/:id', async (req, res) => {
     }
 
     res.json(data[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/projects/:id/edit-request', async (req, res) => {
+  try {
+    const service = institutionAccess.getServiceClient();
+    const { data: projectRow, error: projErr } = await service
+      .from('projects')
+      .select('id, institution_id')
+      .eq('id', req.params.id)
+      .maybeSingle();
+    if (projErr) throw projErr;
+    if (!projectRow) return res.status(404).json({ error: 'Project not found' });
+
+    const access = await institutionAccess.resolveInstitutionAccess(req, projectRow.institution_id);
+    if (!access) return res.status(403).json({ error: 'Unauthorized' });
+
+    const pending = await projectEditRequestService.getPendingEditRequest(req.params.id, service);
+    res.json({
+      pending: pending || null,
+      hasBookings: await projectEditRequestService.projectHasBookings(req.params.id, service),
+      requiresApproval: await projectEditRequestService.projectHasBookings(req.params.id, service),
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -3232,7 +3607,10 @@ app.put('/api/internship-applications/:id/status', async (req, res) => {
     }
 
     const updatePayload = { status, updated_at: new Date().toISOString() };
-    if (status === 'interview' && interview_scheduled_at) {
+    if (status === 'interview') {
+      if (!interview_scheduled_at) {
+        return res.status(400).json({ error: 'Interview date and time are required' });
+      }
       updatePayload.interview_scheduled_at = interview_scheduled_at;
     }
 
@@ -4407,6 +4785,8 @@ app.get('/api/applications', async (req, res) => {
           qualifications_url,
           domain_expertise,
           subskills,
+          expert_types,
+          expert_services,
           hourly_rate,
           resume_url,
           availability,
@@ -4431,6 +4811,13 @@ app.get('/api/applications', async (req, res) => {
           start_date,
           end_date,
           duration_hours,
+          compensation_unit,
+          unit_quantity,
+          duration_per_unit,
+          institution_gross_per_unit,
+          institution_gross_total,
+          schedule_notes,
+          hours_per_day,
           required_expertise,
           domain_expertise,
           subskills,
@@ -4575,7 +4962,25 @@ app.get('/api/applications/counts', async (req, res) => {
 
     if (expert_id) query = query.eq('expert_id', expert_id);
     if (project_id) query = query.eq('project_id', project_id);
-    if (institution_id) query = query.eq('institution_id', institution_id);
+    if (institution_id) {
+      // applications may not have institution_id — scope via this institution's projects
+      const { data: projectRows, error: projectErr } = await queryClient
+        .from('projects')
+        .select('id')
+        .eq('institution_id', institution_id);
+      if (projectErr) throw projectErr;
+      const projectIds = (projectRows || []).map((p) => p.id).filter(Boolean);
+      if (!projectIds.length) {
+        return res.json({
+          total: 0,
+          pending: 0,
+          interview: 0,
+          accepted: 0,
+          rejected: 0,
+        });
+      }
+      query = query.in('project_id', projectIds);
+    }
     // Only filter by status if specifically requested
     if (status) query = query.eq('status', status);
 
@@ -4674,6 +5079,29 @@ app.post('/api/applications', async (req, res) => {
     if (req.body.proposed_rate !== undefined && req.body.proposed_rate !== '') {
       const proposedRate = Number(req.body.proposed_rate);
       req.body.proposed_rate = Number.isFinite(proposedRate) && proposedRate > 0 ? proposedRate : null;
+    }
+
+    if (req.body.screening_answers != null) {
+      const answers = String(req.body.screening_answers).trim();
+      req.body.screening_answers = answers || null;
+    } else {
+      req.body.screening_answers = null;
+    }
+
+    // Rate intent / compensation snapshot (MVC service — keep create path thin)
+    try {
+      const serviceClient = institutionAccess.getServiceClient();
+      const ApplicationRateService = require('./src/modules/applications/applicationRate.service');
+      const rateService = new ApplicationRateService(serviceClient);
+      const { data: projectForRate } = await serviceClient
+        .from('projects')
+        .select('compensation_unit, unit_quantity, duration_per_unit, institution_gross_per_unit, institution_gross_total, hourly_rate, total_budget, duration_hours')
+        .eq('id', req.body.project_id)
+        .maybeSingle();
+      Object.assign(req.body, rateService.prepareCreatePayload(req.body, projectForRate || {}));
+    } catch (ratePrepError) {
+      const status = ratePrepError.status || 400;
+      return res.status(status).json({ error: ratePrepError.message || 'Invalid rate preference' });
     }
 
     console.log('Final request body:', req.body);
@@ -4779,6 +5207,9 @@ app.put('/api/applications/:id', async (req, res) => {
 
     // Handle interview_date field if provided
     const updateData = { ...req.body };
+    if (req.body.status === 'interview' && !req.body.interview_date) {
+      return res.status(400).json({ error: 'Interview date and time are required' });
+    }
     if (updateData.interview_date) {
       // Convert to proper timestamp format
       updateData.interview_date = new Date(updateData.interview_date).toISOString();
@@ -4917,16 +5348,16 @@ app.post('/api/bookings', async (req, res) => {
           process.env.SUPABASE_URL,
           process.env.SUPABASE_SERVICE_ROLE_KEY
         );
+        const { resolveBookingAmount } = require('./src/shared/compensation');
         const { data: applicationForPrice } = await serviceClient
           .from('applications')
-          .select('final_hourly_rate, proposed_rate, projects(hourly_rate)')
+          .select('final_gross_per_unit, final_hourly_rate, proposed_rate, projects(hourly_rate, institution_gross_per_unit, institution_gross_total, compensation_unit, unit_quantity, total_budget, duration_hours)')
           .eq('id', req.body.application_id)
           .maybeSingle();
-        const resolvedAmount =
-          Number(applicationForPrice?.final_hourly_rate) ||
-          Number(applicationForPrice?.proposed_rate) ||
-          Number(applicationForPrice?.projects?.hourly_rate) ||
-          Number(req.body.amount);
+        const resolvedAmount = resolveBookingAmount(
+          applicationForPrice,
+          applicationForPrice?.projects
+        );
         if (Number.isFinite(resolvedAmount) && resolvedAmount > 0) {
           req.body.amount = resolvedAmount;
         }
@@ -5054,6 +5485,8 @@ app.get('/api/bookings', async (req, res) => {
           qualifications_url,
           domain_expertise,
           subskills,
+          expert_types,
+          expert_services,
           hourly_rate,
           resume_url,
           availability,
@@ -5083,6 +5516,12 @@ app.get('/api/bookings', async (req, res) => {
           start_date,
           end_date,
           duration_hours,
+          compensation_unit,
+          unit_quantity,
+          duration_per_unit,
+          hours_per_day,
+          institution_gross_per_unit,
+          institution_gross_total,
           required_expertise,
           domain_expertise,
           subskills,
@@ -5165,7 +5604,14 @@ app.get('/api/bookings', async (req, res) => {
       // Calculate counts by status
       const counts = {
         total: allBookings?.length || 0,
-        in_progress: allBookings?.filter(b => b.status === 'in_progress').length || 0,
+        in_progress: allBookings?.filter(b =>
+          b.status === 'in_progress' ||
+          b.status === 'completion_requested' ||
+          b.status === 'cancellation_requested' ||
+          b.status === 'confirmed'
+        ).length || 0,
+        completion_requested: allBookings?.filter(b => b.status === 'completion_requested').length || 0,
+        cancellation_requested: allBookings?.filter(b => b.status === 'cancellation_requested').length || 0,
         completed: allBookings?.filter(b => b.status === 'completed').length || 0,
         cancelled: allBookings?.filter(b => b.status === 'cancelled').length || 0,
         pending: allBookings?.filter(b => b.status === 'pending').length || 0
@@ -5238,7 +5684,14 @@ app.get('/api/bookings/counts', async (req, res) => {
     // Calculate counts by status
     const bookingCounts = {
       total: data?.length || 0,
-      in_progress: data?.filter(b => b.status === 'in_progress').length || 0,
+      in_progress: data?.filter(b =>
+        b.status === 'in_progress' ||
+        b.status === 'completion_requested' ||
+        b.status === 'cancellation_requested' ||
+        b.status === 'confirmed'
+      ).length || 0,
+      completion_requested: data?.filter(b => b.status === 'completion_requested').length || 0,
+      cancellation_requested: data?.filter(b => b.status === 'cancellation_requested').length || 0,
       completed: data?.filter(b => b.status === 'completed').length || 0,
       cancelled: data?.filter(b => b.status === 'cancelled').length || 0,
       pending: data?.filter(b => b.status === 'pending').length || 0
@@ -5444,6 +5897,40 @@ app.put('/api/bookings/:id', async (req, res) => {
     const { id } = req.params;
     const updateData = req.body;
     console.log('Updating booking:', id, 'with data:', updateData);
+
+    // Experts cannot unilaterally mark a booking completed/cancelled — use request flows.
+    if (
+      updateData &&
+      (String(updateData.status) === 'completed' || String(updateData.status) === 'cancelled')
+    ) {
+      const serviceClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+      const { data: bookingRow } = await serviceClient
+        .from('bookings')
+        .select('id, expert_id, institution_id, projects(institution_id)')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (bookingRow) {
+        const institutionId = bookingRow.institution_id || bookingRow.projects?.institution_id;
+        const institutionOk = institutionId
+          ? await institutionAccess.resolveInstitutionAccess(req, institutionId)
+          : null;
+        const expertOk = await expertAccess.resolveExpertAccess(req, bookingRow.expert_id);
+        const role = userData?.user?.user_metadata?.role || userData?.user?.app_metadata?.role;
+
+        if (!institutionOk && expertOk && role !== 'super_admin') {
+          return res.status(403).json({
+            error:
+              String(updateData.status) === 'cancelled'
+                ? 'Experts cannot cancel bookings directly. Request cancellation for institution approval.'
+                : 'Experts cannot mark bookings completed directly. Request completion for institution approval.',
+          });
+        }
+      }
+    }
     
     const { data, error } = await supabaseClient
       .from('bookings')
@@ -5543,6 +6030,33 @@ app.delete('/api/bookings/:id', async (req, res) => {
 
     const { id } = req.params;
     console.log('Deleting booking:', id);
+
+    // Experts cannot delete bookings — use cancellation request flow.
+    {
+      const serviceClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+      const { data: bookingRow } = await serviceClient
+        .from('bookings')
+        .select('id, expert_id, institution_id, projects(institution_id)')
+        .eq('id', id)
+        .maybeSingle();
+      if (bookingRow) {
+        const institutionId = bookingRow.institution_id || bookingRow.projects?.institution_id;
+        const institutionOk = institutionId
+          ? await institutionAccess.resolveInstitutionAccess(req, institutionId)
+          : null;
+        const expertOk = await expertAccess.resolveExpertAccess(req, bookingRow.expert_id);
+        const role = userData?.user?.user_metadata?.role || userData?.user?.app_metadata?.role;
+        if (!institutionOk && expertOk && role !== 'super_admin') {
+          return res.status(403).json({
+            error:
+              'Experts cannot delete bookings. Request cancellation for institution approval.',
+          });
+        }
+      }
+    }
     
     const { data, error } = await supabaseClient
       .from('bookings')
@@ -6584,6 +7098,12 @@ app.use((err, req, res, next) => {
 const { createSuperAdminRouter } = require('./src/modules/super-admin/superAdmin.routes');
 app.use('/api/superadmin', createSuperAdminRouter());
 
+const { createApplicationRateRouter } = require('./src/modules/applications/applicationRate.routes');
+app.use('/api/applications', createApplicationRateRouter());
+
+const { createBookingCompletionRouter } = require('./src/modules/bookings/bookingCompletion.routes');
+app.use('/api/bookings', createBookingCompletionRouter());
+
 const { registerSuperAdminExpertMutations } = require('./routes/superadminExpertMutations');
 registerSuperAdminExpertMutations(app, {
   upload,
@@ -6613,6 +7133,25 @@ socketService.initialize(server);
 // Start notification queue processor
 notificationService.startQueueProcessor();
 
+// Periodic project status sync (date-based open→running / →completed). Independent of bookings.
+function runProjectStatusSync(reason = 'interval') {
+  try {
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+    syncProjectStatusesDue(serviceClient)
+      .then((result) => {
+        if (result.runningUpdated || result.completedUpdated) {
+          console.log(`[projectStatus] ${reason}:`, result);
+        }
+      })
+      .catch((err) => console.warn(`[projectStatus] ${reason} failed:`, err?.message || err));
+  } catch (err) {
+    console.warn(`[projectStatus] ${reason} setup failed:`, err?.message || err);
+  }
+}
+
 // Start server
 server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
@@ -6623,6 +7162,8 @@ server.listen(PORT, () => {
   console.log('- EMAIL_APP_PASSWORD:', process.env.EMAIL_APP_PASSWORD ? 'Set' : 'Not set');
   console.log('- UPSTASH_REDIS_REST_URL:', process.env.UPSTASH_REDIS_REST_URL ? 'Set' : 'Not set');
   console.log('- UPSTASH_REDIS_REST_TOKEN:', process.env.UPSTASH_REDIS_REST_TOKEN ? 'Set' : 'Not set');
+  runProjectStatusSync('startup');
+  setInterval(() => runProjectStatusSync('hourly'), 60 * 60 * 1000);
 });
 
 module.exports = app;

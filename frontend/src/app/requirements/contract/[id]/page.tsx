@@ -13,6 +13,8 @@ import Link from 'next/link'
 import { Calendar, Clock, MapPin, Building, Send, CheckCircle, ArrowLeft, AlertCircle, FileText } from 'lucide-react'
 import { ProjectRequirementMeta } from '@/components/requirements/ProjectRequirementMeta'
 import { ShareRequirementButton } from '@/components/requirements/ShareRequirementButton'
+import { formatLongDate } from '@/lib/dateFormat'
+import { moneyInr, projectCompensationDisplay, projectEngagementQuantityDisplay } from '@/lib/projectCompensation'
 
 export default function PublicContractDetail() {
   const params = useParams()
@@ -126,6 +128,7 @@ export default function PublicContractDetail() {
     }
     return labels[type] || type
   }
+  const pricing = projectCompensationDisplay(project)
 
   return (
     <div className="min-h-screen bg-[#ECF2FF]">
@@ -192,16 +195,31 @@ export default function PublicContractDetail() {
             </div>
 
             {/* Details Grid */}
+            <div className="mb-6 rounded-lg border border-[#BFE3D8] bg-[#E8F5F1] p-4">
+              <div className="text-xs font-medium text-[#008260]">Total Project Budget</div>
+              <div className="mt-1 text-2xl font-bold text-[#008260]">
+                {moneyInr(pricing.totalBudgetGross || Number(project.total_budget || 0))}
+              </div>
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
               <div>
-                <div className="text-xs text-[#6A6A6A] font-medium mb-1">Hourly Rate</div>
-                <div className="text-lg font-semibold text-[#008260]">₹{project.hourly_rate}/hr</div>
+                <div className="text-xs text-[#6A6A6A] font-medium mb-1">
+                  {projectCompensationDisplay(project).unit === 'hourly' ? 'Hourly rate' : 'Posted rate'}
+                </div>
+                <div className="text-lg font-semibold text-[#008260]">
+                  {(() => {
+                    const pricing = projectCompensationDisplay(project)
+                    if (!(pricing.grossPerUnitDisplay > 0)) return '—'
+                    if (pricing.unit === 'hourly') return `${moneyInr(pricing.grossPerUnitDisplay)}/hr`
+                    return `${moneyInr(pricing.grossPerUnitDisplay)}/${pricing.unitShort}`
+                  })()}
+                </div>
               </div>
               {project.start_date && (
                 <div>
                   <div className="text-xs text-[#6A6A6A] font-medium mb-1">Start Date</div>
                   <div className="text-sm font-semibold text-[#000000]">
-                    {new Date(project.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {formatLongDate(project.start_date)}
                   </div>
                 </div>
               )}
@@ -209,14 +227,30 @@ export default function PublicContractDetail() {
                 <div>
                   <div className="text-xs text-[#6A6A6A] font-medium mb-1">End Date</div>
                   <div className="text-sm font-semibold text-[#000000]">
-                    {new Date(project.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {formatLongDate(project.end_date)}
                   </div>
                 </div>
               )}
-              {project.duration_hours && (
+              {(() => {
+                const engagement = projectEngagementQuantityDisplay(project)
+                if (engagement.value === '—') return null
+                return (
+                  <div>
+                    <div className="text-xs text-[#6A6A6A] font-medium mb-1">{engagement.label}</div>
+                    <div className="text-sm font-semibold text-[#000000]">{engagement.value}</div>
+                  </div>
+                )
+              })()}
+              {Number(project.hours_per_day) > 0 && (
                 <div>
-                  <div className="text-xs text-[#6A6A6A] font-medium mb-1">Duration</div>
-                  <div className="text-sm font-semibold text-[#000000]">{project.duration_hours} Hours</div>
+                  <div className="text-xs text-[#6A6A6A] font-medium mb-1">Hours per day</div>
+                  <div className="text-sm font-semibold text-[#000000]">{project.hours_per_day} hours</div>
+                </div>
+              )}
+              {project.schedule_notes && (
+                <div className="sm:col-span-2">
+                  <div className="text-xs text-[#6A6A6A] font-medium mb-1">Weekly schedule</div>
+                  <div className="text-sm font-semibold text-[#000000]">{project.schedule_notes}</div>
                 </div>
               )}
             </div>

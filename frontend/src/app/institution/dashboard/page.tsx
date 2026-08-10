@@ -22,6 +22,16 @@ import { Drawer } from '@/components/ui/drawer'
 import ProfileDropdown from '@/components/ProfileDropdown'
 import Logo from '@/components/Logo'
 import { getInstitutionRate } from '@/lib/utils'
+import { PostedCompensationRate } from '@/components/requirements/PostedCompensationRate'
+import { projectEngagementQuantityDisplay } from '@/lib/projectCompensation'
+import {
+  PROJECT_STATUSES,
+  PROJECT_STATUS_LABELS,
+  isActiveProjectStatus,
+  isEndedProjectStatus,
+  normalizeProjectStatus,
+  projectStatusLabel,
+} from '@/lib/projectStatus'
 import { 
   Building, 
   Plus, 
@@ -64,13 +74,37 @@ export default function InstitutionDashboardPage() {
   const [projects, setProjects] = useState<any[]>([])
   const [applications, setApplications] = useState<any[]>([])
   const [bookings, setBookings] = useState<any[]>([])
-  const [bookingCounts, setBookingCounts] = useState<any>({ total: 0, in_progress: 0, completed: 0, cancelled: 0, pending: 0 })
+  const [bookingCounts, setBookingCounts] = useState<any>({
+    total: 0,
+    in_progress: 0,
+    completed: 0,
+    cancelled: 0,
+    pending: 0,
+    completion_requested: 0,
+    cancellation_requested: 0,
+  })
+  const [applicationCounts, setApplicationCounts] = useState<any>({
+    total: 0,
+    pending: 0,
+    interview: 0,
+    accepted: 0,
+    rejected: 0,
+  })
+  const [projectCounts, setProjectCounts] = useState({
+    total: 0,
+    open: 0,
+    running: 0,
+    completed: 0,
+    closed: 0,
+  })
   const [financeSummary, setFinanceSummary] = useState<any>(null)
   const [ratings, setRatings] = useState<any[]>([])
   const [allRatings, setAllRatings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
   const [selectedExpert, setSelectedExpert] = useState<any>(null)
   const [showProjectForm, setShowProjectForm] = useState(false)
   const [projectForm, setProjectForm] = useState({
@@ -87,8 +121,6 @@ export default function InstitutionDashboardPage() {
     subskills: [] as string[]
   })
   const [submittingProject, setSubmittingProject] = useState(false)
-  const [editingProject, setEditingProject] = useState<any>(null)
-  const [showEditForm, setShowEditForm] = useState(false)
   const [selectedSubskills, setSelectedSubskills] = useState<string[]>([])
   const [availableSubskills, setAvailableSubskills] = useState<string[]>([])
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
@@ -220,11 +252,14 @@ export default function InstitutionDashboardPage() {
             expert_id: expert.id,
             project_id: selectedProjectId,
             institution_id: institution?.id,
-            amount: projectDetails.hourly_rate,
+            amount: projectDetails.institution_gross_per_unit || projectDetails.hourly_rate,
             hours_booked: projectDetails.duration_hours,
             start_date: new Date().toISOString().split('T')[0],
             end_date: projectDetails.end_date,
-            status: 'in_progress'
+            status: 'in_progress',
+            compensation_unit: projectDetails.compensation_unit || 'hourly',
+            unit_quantity: projectDetails.unit_quantity || projectDetails.duration_hours || null,
+            final_gross_per_unit: projectDetails.institution_gross_per_unit || projectDetails.hourly_rate || null,
           }
 
           await api.bookings.create(bookingData)
@@ -308,8 +343,10 @@ export default function InstitutionDashboardPage() {
         .catch(() => setFinanceSummary(null))
       
       // Initial light calls (experts list is paginated below). Lists are fed by paginated hooks
-      const [bookingCountsResponse] = await Promise.all([
-        api.bookings.getCounts({ institution_id: institutionsResponse.id })
+      const [bookingCountsResponse, applicationCountsResponse, projectCountsResponse] = await Promise.all([
+        api.bookings.getCounts({ institution_id: institutionsResponse.id }),
+        api.applications.getCounts({ institution_id: institutionsResponse.id }).catch(() => null),
+        api.projects.getCounts({ institution_id: institutionsResponse.id }).catch(() => null),
       ])
     
       
@@ -321,6 +358,18 @@ export default function InstitutionDashboardPage() {
       const counts = bookingCountsResponse || { total: 0, in_progress: 0, completed: 0, cancelled: 0, pending: 0 }
 
       setBookingCounts(counts)
+      if (applicationCountsResponse && !applicationCountsResponse.error) {
+        setApplicationCounts(applicationCountsResponse)
+      }
+      if (projectCountsResponse && !projectCountsResponse.error) {
+        setProjectCounts({
+          total: Number(projectCountsResponse.total) || 0,
+          open: Number(projectCountsResponse.open) || 0,
+          running: Number(projectCountsResponse.running) || 0,
+          completed: Number(projectCountsResponse.completed) || 0,
+          closed: Number(projectCountsResponse.closed) || 0,
+        })
+      }
       
 
     
@@ -339,6 +388,11 @@ export default function InstitutionDashboardPage() {
 
 
   // Paginated projects owned by the institution
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
   const {
     data: pagedProjects,
     loading: projectsLoading,
@@ -348,9 +402,20 @@ export default function InstitutionDashboardPage() {
   } = usePagination(
     async (page: number) => {
       if (!institution?.id) return []
-      return await api.projects.getAll({ page, limit: 10, institution_id: institution?.id })
+      const params: Record<string, any> = {
+        page,
+        limit: 10,
+        institution_id: institution.id,
+      }
+      if (debouncedSearch) params.search = debouncedSearch
+      if (statusFilter === 'active_bookings') {
+        params.has_active_bookings = true
+      } else if (statusFilter && statusFilter !== 'all') {
+        params.status = statusFilter
+      }
+      return await api.projects.getAll(params)
     },
-    [institution?.id]
+    [institution?.id, debouncedSearch, statusFilter]
   )
 
   useEffect(() => {
@@ -381,33 +446,7 @@ export default function InstitutionDashboardPage() {
 
 
   const handleEditProject = (project: any) => {
-    setEditingProject(project)
-    setProjectForm({
-      title: project.title,
-      description: project.description,
-      type: project.type,
-      hourly_rate: project.hourly_rate.toString(),
-      total_budget: project.total_budget.toString(),
-      start_date: project.start_date,
-      end_date: project.end_date,
-      duration_hours: project.duration_hours.toString(),
-      required_expertise: project.required_expertise.join(', '),
-      domain_expertise: project.domain_expertise || '',
-      subskills: project.subskills || []
-    })
-    
-    // Set subskills state
-    setSelectedSubskills(project.subskills || [])
-    
-    // Set available subskills based on domain
-    if (project.domain_expertise) {
-      const selectedDomain = EXPERTISE_DOMAINS.find(d => d.name === project.domain_expertise)
-      if (selectedDomain) {
-        setAvailableSubskills([...selectedDomain.subskills])
-      }
-    }
-    
-    setShowEditForm(true)
+    router.push(`${basePath}/dashboard/project/${project.id}/edit`)
   }
 
   const handleViewApplications = (project: any) => {
@@ -416,107 +455,6 @@ export default function InstitutionDashboardPage() {
     
     // Navigate to the project details page
     router.push(`${basePath}/dashboard/project/${project.id}`)
-  }
-
-  const handleUpdateProject = async (e: React.FormEvent) => {
-   
-    if (!projectForm.title.trim()) {
-      toast.error('Project title is required.')
-      return
-    }
-    
-    if (!projectForm.type) {
-      toast.error('Project type is required.')
-      return
-    }
-    
-    if (!projectForm.hourly_rate || parseFloat(projectForm.hourly_rate) <= 0) {
-      toast.error('Valid hourly rate is required.')
-      return
-    }
-    
-    if (!projectForm.total_budget || parseFloat(projectForm.total_budget) <= 0) {
-      toast.error('Valid total budget is required.')
-      return
-    }
-    
-    if (!projectForm.start_date) {
-      toast.error('Start date is required.')
-      return
-    }
-    
-    if (!projectForm.end_date) {
-      toast.error('End date is required.')
-      return
-    }
-    
-    if (!projectForm.duration_hours || parseInt(projectForm.duration_hours) <= 0) {
-      toast.error('Valid duration in hours is required.')
-      return
-    }
-    
-    if (!projectForm.domain_expertise) {
-      toast.error('Domain expertise is required.')
-      return
-    }
-    
-    if (!projectForm.subskills || projectForm.subskills.length === 0) {
-      toast.error('At least one specialization is required.')
-      return
-    }
-    
-    if (!projectForm.description.trim()) {
-      toast.error('Project description is required.')
-      return
-    }
-
-    setSubmittingProject(true)
-    try {
-      const result = await api.projects.update(editingProject.id, {
-        title: projectForm.title,
-        description: projectForm.description,
-        type: projectForm.type,
-        hourly_rate: parseFloat(projectForm.hourly_rate),
-        total_budget: parseFloat(projectForm.total_budget) || parseFloat(projectForm.hourly_rate) * parseInt(projectForm.duration_hours || '1'),
-        start_date: projectForm.start_date,
-        end_date: projectForm.end_date,
-        duration_hours: parseInt(projectForm.duration_hours) || 1,
-        required_expertise: projectForm.required_expertise.split(',').map(s => s.trim()).filter(s => s),
-        domain_expertise: projectForm.domain_expertise,
-        subskills: projectForm.subskills
-      })
-      
-      console.log('Project updated successfully:', result)
-      
-      setProjectForm({
-        title: '',
-        description: '',
-        type: '',
-        hourly_rate: '',
-        total_budget: '',
-        start_date: '',
-        end_date: '',
-        duration_hours: '',
-        required_expertise: '',
-        domain_expertise: '',
-        subskills: []
-      })
-      setSelectedSubskills([])
-      setAvailableSubskills([])
-      setShowEditForm(false)
-      setEditingProject(null)
-     
-      refreshProjects()
-      if (result && result.id) {
-        await loadRecommendedExperts(result.id)
-      }
-      setError('')
-    } catch (error: any) {
-      console.error('Project update error:', error)
-      setError(`Failed to update project: ${error.message}`)
-    } finally {
-      setSubmittingProject(false)
-    }
   }
 
   const loadRecommendedExperts = async (projectId: string) => {
@@ -682,6 +620,21 @@ export default function InstitutionDashboardPage() {
       console.log('Project closed successfully:', result)
       toast.success('Project closed successfully!')
       refreshProjects()
+      if (institution?.id) {
+        api.projects.getCounts({ institution_id: institution.id })
+          .then((counts) => {
+            if (counts && !counts.error) {
+              setProjectCounts({
+                total: Number(counts.total) || 0,
+                open: Number(counts.open) || 0,
+                running: Number(counts.running) || 0,
+                completed: Number(counts.completed) || 0,
+                closed: Number(counts.closed) || 0,
+              })
+            }
+          })
+          .catch(() => {})
+      }
       setError('')
       setShowCloseConfirm(false)
       setProjectToClose(null)
@@ -696,11 +649,33 @@ export default function InstitutionDashboardPage() {
   // Load ratings when institution is available
 // Only depend on institution ID
 
-  const runningProjects = projects.filter((project: any) => !['completed', 'closed', 'cancelled'].includes(project.status))
-  const closedProjects = projects.filter((project: any) => ['completed', 'closed', 'cancelled'].includes(project.status))
-  const orderedProjects = [...runningProjects, ...closedProjects]
-  const totalApplications = projects.reduce((total, project) => total + (project.applicationCounts?.total || 0), 0)
-  const pendingApplications = projects.reduce((total, project) => total + (project.applicationCounts?.pending || 0), 0)
+  const closedProjects = projects.filter((project: any) => isEndedProjectStatus(project.status))
+  const openProjects = projects.filter((project: any) => normalizeProjectStatus(project.status) === 'open')
+  const liveRunningProjects = projects.filter((project: any) => normalizeProjectStatus(project.status) === 'running')
+  const completedProjects = projects.filter((project: any) => normalizeProjectStatus(project.status) === 'completed')
+  const closedOnlyProjects = projects.filter((project: any) => normalizeProjectStatus(project.status) === 'closed')
+  const showGroupedSections = statusFilter === 'all' && !debouncedSearch
+  const orderedProjects = showGroupedSections
+    ? [...openProjects, ...liveRunningProjects, ...closedProjects]
+    : projects
+  const hasActiveProjectFilters = Boolean(debouncedSearch) || statusFilter !== 'all'
+  const totalProjectsDisplay = projectCounts.total > 0 ? projectCounts.total : projects.length
+  const openProjectsDisplay =
+    projectCounts.total > 0 ? projectCounts.open : openProjects.length
+  const runningProjectsDisplay =
+    projectCounts.total > 0 ? projectCounts.running : liveRunningProjects.length
+  const completedProjectsDisplay =
+    projectCounts.total > 0 ? projectCounts.completed : completedProjects.length
+  const closedProjectsDisplay =
+    projectCounts.total > 0 ? projectCounts.closed : closedOnlyProjects.length
+  const totalApplicationsDisplay =
+    applicationCounts.total > 0
+      ? applicationCounts.total
+      : projects.reduce((total, project) => total + (project.applicationCounts?.total || 0), 0)
+  const pendingApplicationsDisplay =
+    applicationCounts.total > 0
+      ? applicationCounts.pending + applicationCounts.interview
+      : projects.reduce((total, project) => total + (project.applicationCounts?.pending || 0), 0)
 
   if (loading) {
     return (
@@ -1106,175 +1081,6 @@ export default function InstitutionDashboardPage() {
           </DialogContent>
         </Dialog>
 
-          {/* Edit Project Dialog */}
-          <Dialog open={showEditForm} onOpenChange={setShowEditForm}>
-            <DialogContent className="max-w-3xl max-h-[90vh]  flex flex-col">
-              <DialogHeader className="flex-shrink-0">
-                <DialogTitle className="text-2xl font-bold text-[#000000]">Edit Project</DialogTitle>
-                <DialogDescription className="text-[#6A6A6A]">
-                  Update your project details
-                </DialogDescription>
-              </DialogHeader>
-              <div className="overflow-y-auto flex-1 pr-2 p-2">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="title" className="text-[#000000] font-medium mb-2 block">Project Title *</Label>
-                    <Input
-                      id="title"
-                      value={projectForm.title}
-                      onChange={(e) => setProjectForm({...projectForm, title: e.target.value})}
-                      placeholder="e.g., Guest Lecture on AI"
-                      className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:border-[#008260]"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="type" className="text-[#000000] font-medium mb-2 block">Project Type *</Label>
-                    <Select value={projectForm.type} onValueChange={(value) => setProjectForm({...projectForm, type: value})}>
-                      <SelectTrigger className="border-[#DCDCDC] focus:ring-[#008260] focus:border-[#008260]">
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="guest_lecture">Guest Lecture</SelectItem>
-                        <SelectItem value="fdp">Faculty Development Program</SelectItem>
-                        <SelectItem value="workshop">Workshop</SelectItem>
-                        <SelectItem value="curriculum_dev">Curriculum Development</SelectItem>
-                        <SelectItem value="research_collaboration">Research Collaboration</SelectItem>
-                        <SelectItem value="training_program">Training Program</SelectItem>
-                        <SelectItem value="consultation">Consultation</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="hourly_rate" className="text-[#000000] font-medium mb-2 block">Hourly Rate (₹) *</Label>
-                    <Input
-                      id="hourly_rate"
-                      type="number"
-                      min="1"
-                      value={projectForm.hourly_rate}
-                      onChange={(e) => setProjectForm({...projectForm, hourly_rate: e.target.value})}
-                      placeholder="1000"
-                      className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:border-[#008260]"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="total_budget" className="text-[#000000] font-medium mb-2 block">Total Budget (₹) *</Label>
-                    <Input
-                      id="total_budget"
-                      type="number"
-                      min="1"
-                      value={projectForm.total_budget}
-                      onChange={(e) => setProjectForm({...projectForm, total_budget: e.target.value})}
-                      placeholder="50000"
-                      className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:border-[#008260]"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="start_date" className="text-[#000000] font-medium mb-2 block">Start Date *</Label>
-                    <Input
-                      id="start_date"
-                      type="date"
-                      value={projectForm.start_date}
-                      onChange={(e) => setProjectForm({...projectForm, start_date: e.target.value})}
-                      className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:border-[#008260]"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="end_date" className="text-[#000000] font-medium mb-2 block">End Date *</Label>
-                    <Input
-                      id="end_date"
-                      type="date"
-                      value={projectForm.end_date}
-                      onChange={(e) => setProjectForm({...projectForm, end_date: e.target.value})}
-                      className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:border-[#008260]"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="duration_hours" className="text-[#000000] font-medium mb-2 block">Duration (Hours) *</Label>
-                    <Input
-                      id="duration_hours"
-                      type="number"
-                      min="1"
-                      value={projectForm.duration_hours}
-                      onChange={(e) => setProjectForm({...projectForm, duration_hours: e.target.value})}
-                      placeholder="40"
-                      className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:border-[#008260]"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="domain_expertise" className="text-[#000000] font-medium mb-2 block">Domain Expertise *</Label>
-                    <Select value={projectForm.domain_expertise} onValueChange={handleDomainChange}>
-                      <SelectTrigger className="border-[#DCDCDC] focus:ring-[#008260] focus:border-[#008260]">
-                        <SelectValue placeholder="Select required domain" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {EXPERTISE_DOMAINS.map((domain) => (
-                          <SelectItem key={domain.name} value={domain.name}>
-                            {domain.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="md:col-span-2">
-                    <Label htmlFor="required_expertise" className="text-[#000000] font-medium mb-2 block">Additional Skills (comma-separated)</Label>
-                    <Input
-                      id="required_expertise"
-                      value={projectForm.required_expertise}
-                      onChange={(e) => setProjectForm({...projectForm, required_expertise: e.target.value})}
-                      placeholder="AI, Machine Learning, Data Science"
-                      className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:border-[#008260]"
-                    />
-                  </div>
-                </div>
-                
-                {/* Subskills Multi-Select */}
-                {projectForm.domain_expertise && availableSubskills.length > 0 && (
-                  <div className='my-4 min-w-0 max-w-full overflow-hidden' onClick={(e) => e.stopPropagation()}>
-                    <Label className="text-[#000000] font-medium mb-2 block" htmlFor="required_specialization">Required Specializations *</Label>
-                    <MultiSelect
-                      options={availableSubskills}
-                      selected={selectedSubskills}
-                      onSelectionChange={handleSubskillChange}
-                      placeholder="Select required specializations..."
-                      className="w-full min-w-0"
-                    />
-                  </div>
-                )}
-                
-                <div className="mt-4">
-                  <Label htmlFor="description" className="text-[#000000] font-medium mb-2 block">Description *</Label>
-                  <Textarea
-                    id="description"
-                    value={projectForm.description}
-                    onChange={(e) => setProjectForm({...projectForm, description: e.target.value})}
-                    placeholder="Describe the project requirements..."
-                    rows={4}
-                    className="border-[#DCDCDC] focus-visible:ring-[#008260] focus-visible:border-[#008260]"
-                    required
-                  />
-                </div>
-                </div>
-                <div className="flex-shrink-0 flex justify-end space-x-3 pt-4 border-t border-[#DCDCDC]">
-                  <Button variant="outline" onClick={() => setShowEditForm(false)} className="border-[#DCDCDC] text-[#000000] hover:bg-slate-50">
-                    Cancel
-                  </Button>
-                  <Button 
-                    onClick={handleUpdateProject}
-                    disabled={submittingProject}
-                    className="bg-[#008260] hover:bg-[#006B4F] text-white"
-                  >
-                    {submittingProject ? 'Updating...' : 'Update Project'}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
           </div>
         </div>
 
@@ -1285,9 +1091,9 @@ export default function InstitutionDashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-[#000000]">Total Projects</p>
-                  <p className="text-3xl font-bold text-[#000000] my-2">{projects.length}</p>
+                  <p className="text-3xl font-bold text-[#000000] my-2">{totalProjectsDisplay}</p>
                   <p className="text-xs text-[#656565]">
-                    {projects.filter(p => p.status === 'open').length} open
+                    {openProjectsDisplay} open
                   </p>
                 </div>
                 <div className="p-3 bg-[#ECF2FF] rounded-full">
@@ -1303,10 +1109,10 @@ export default function InstitutionDashboardPage() {
                 <div>
                   <p className="text-sm font-medium text-[#000000]">Applications</p>
                   <p className="text-3xl font-bold text-[#000000] my-2">
-                    {totalApplications}
+                    {totalApplicationsDisplay}
                   </p>
                   <p className="text-xs text-[#656565]">
-                    {pendingApplications} pending
+                    {pendingApplicationsDisplay} pending / interview
                   </p>
                 </div>
                 <div className="p-3 bg-[#ECF2FF] rounded-full">
@@ -1320,11 +1126,15 @@ export default function InstitutionDashboardPage() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#000000]">Running projects</p>
+                  <p className="text-sm font-medium text-[#000000]">Active bookings</p>
                   <p className="text-3xl font-bold text-[#000000] my-2">
                     {bookingCounts.in_progress}
                   </p>
-                  <p className="text-xs text-[#656565]">in progress</p>
+                  <p className="text-xs text-[#656565]">
+                    {(bookingCounts.completion_requested || 0) + (bookingCounts.cancellation_requested || 0) > 0
+                      ? `${bookingCounts.completion_requested || 0} completion · ${bookingCounts.cancellation_requested || 0} cancel pending`
+                      : 'in progress'}
+                  </p>
                 </div>
                 <div className="p-3 bg-[#ECF2FF] rounded-full">
                   <BookOpen className="h-8 w-8 text-[#008260]" />
@@ -1371,11 +1181,73 @@ export default function InstitutionDashboardPage() {
           </Card> */}
         </div>
 
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+          <Card className="bg-white border-2 border-[#D6D6D6]">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-[#000000]">Open</p>
+                  <p className="text-3xl font-bold text-[#000000] my-2">{openProjectsDisplay}</p>
+                  <p className="text-xs text-[#656565]">projects</p>
+                </div>
+                <div className="p-3 bg-[#ECF2FF] rounded-full">
+                  <Briefcase className="h-8 w-8 text-[#008260]" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white border-2 border-[#D6D6D6]">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-[#000000]">Running</p>
+                  <p className="text-3xl font-bold text-[#000000] my-2">{runningProjectsDisplay}</p>
+                  <p className="text-xs text-[#656565]">live projects</p>
+                </div>
+                <div className="p-3 bg-[#ECF2FF] rounded-full">
+                  <Hourglass className="h-8 w-8 text-[#008260]" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white border-2 border-[#D6D6D6]">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-[#000000]">Completed</p>
+                  <p className="text-3xl font-bold text-[#000000] my-2">{completedProjectsDisplay}</p>
+                  <p className="text-xs text-[#656565]">projects</p>
+                </div>
+                <div className="p-3 bg-[#ECF2FF] rounded-full">
+                  <CheckCircle className="h-8 w-8 text-[#008260]" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white border-2 border-[#D6D6D6]">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-[#000000]">Closed</p>
+                  <p className="text-3xl font-bold text-[#000000] my-2">{closedProjectsDisplay}</p>
+                  <p className="text-xs text-[#656565]">projects</p>
+                </div>
+                <div className="p-3 bg-[#ECF2FF] rounded-full">
+                  <XCircle className="h-8 w-8 text-[#008260]" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {financeSummary?.summary ? (
           <div className="grid md:grid-cols-3 gap-6 mb-8">
             <Card className="bg-white border-2 border-[#D6D6D6]">
               <CardContent className="p-4">
-                <p className="text-sm font-medium text-[#000000]">Pending Payable</p>
+                <p className="text-sm font-medium text-[#000000]">Pending receivable</p>
                 <p className="text-3xl font-bold text-[#000000] my-2">Rs. {Number(financeSummary.summary.pending || 0).toFixed(2)}</p>
                 <p className="text-xs text-[#656565]">Not invoiced yet</p>
               </CardContent>
@@ -1384,7 +1256,7 @@ export default function InstitutionDashboardPage() {
               <CardContent className="p-4">
                 <p className="text-sm font-medium text-[#000000]">Invoiced Amount</p>
                 <p className="text-3xl font-bold text-[#000000] my-2">Rs. {Number(financeSummary.summary.invoiced || 0).toFixed(2)}</p>
-                <p className="text-xs text-[#656565]">Awaiting payment confirmation</p>
+                <p className="text-xs text-[#656565]">Remaining on invoices (unpaid + partial)</p>
               </CardContent>
             </Card>
             <Card className="bg-white border-2 border-[#D6D6D6]">
@@ -1403,40 +1275,99 @@ export default function InstitutionDashboardPage() {
             <CardHeader>
               <CardTitle className="text-lg font-semibold text-[#000000]">My Projects</CardTitle>
               <CardDescription className="text-[#000000] font-normal text-base !-mt-[2px]">
-                Running projects are shown first, followed by closed and completed projects.
+                Search and filter by status: Open, Running, Completed, Closed.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {projects.length === 0 ? (
+              <div className="mb-4 grid grid-cols-1 gap-3 rounded-xl border border-[#DCDCDC] bg-[#FAFAFA] p-3 sm:grid-cols-[1fr_220px_auto]">
+                <div>
+                  <Label htmlFor="project-search" className="text-xs text-[#656565]">Search</Label>
+                  <div className="relative mt-1">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <Input
+                      id="project-search"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Search by title or description..."
+                      className="border-[#DCDCDC] bg-white pl-10"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs text-[#656565]">Status</Label>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="mt-1 border-[#DCDCDC] bg-white">
+                      <SelectValue placeholder="All statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All statuses</SelectItem>
+                      {PROJECT_STATUSES.map((value) => (
+                        <SelectItem key={value} value={value}>{PROJECT_STATUS_LABELS[value]}</SelectItem>
+                      ))}
+                      <SelectItem value="active_bookings">Active bookings</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full border-[#DCDCDC] bg-white"
+                    disabled={!hasActiveProjectFilters}
+                    onClick={() => {
+                      setSearchTerm('')
+                      setDebouncedSearch('')
+                      setStatusFilter('all')
+                    }}
+                  >
+                    <Filter className="mr-2 h-4 w-4" />
+                    Clear
+                  </Button>
+                </div>
+              </div>
+
+              {projects.length === 0 && !projectsLoading ? (
                 <div className="text-center py-8">
                   <Briefcase className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                  <p className="text-slate-600">No projects posted yet</p>
-                  <p className="text-sm text-slate-500">Create your first project to find experts</p>
-                
+                  <p className="text-slate-600">
+                    {hasActiveProjectFilters ? 'No projects match your filters' : 'No projects posted yet'}
+                  </p>
+                  <p className="text-sm text-slate-500">
+                    {hasActiveProjectFilters
+                      ? 'Try a different search or status filter'
+                      : 'Create your first project to find experts'}
+                  </p>
                 </div>
                 ) : (
                   <div className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       <div className="rounded-lg border border-[#DCDCDC] p-3">
-                        <p className="text-xs text-[#656565]">Running projects</p>
-                        <p className="text-xl font-bold text-[#000000]">{runningProjects.length}</p>
+                        <p className="text-xs text-[#656565]">Open</p>
+                        <p className="text-xl font-bold text-[#000000]">{openProjectsDisplay}</p>
                       </div>
                       <div className="rounded-lg border border-[#DCDCDC] p-3">
-                        <p className="text-xs text-[#656565]">Closed projects</p>
-                        <p className="text-xl font-bold text-[#000000]">{closedProjects.length}</p>
+                        <p className="text-xs text-[#656565]">Running</p>
+                        <p className="text-xl font-bold text-[#000000]">{runningProjectsDisplay}</p>
                       </div>
                       <div className="rounded-lg border border-[#DCDCDC] p-3">
-                        <p className="text-xs text-[#656565]">Pending applications</p>
-                        <p className="text-xl font-bold text-[#000000]">{pendingApplications}</p>
+                        <p className="text-xs text-[#656565]">Completed</p>
+                        <p className="text-xl font-bold text-[#000000]">{completedProjectsDisplay}</p>
+                      </div>
+                      <div className="rounded-lg border border-[#DCDCDC] p-3">
+                        <p className="text-xs text-[#656565]">Closed</p>
+                        <p className="text-xl font-bold text-[#000000]">{closedProjectsDisplay}</p>
                       </div>
                     </div>
                     {orderedProjects.map((project: any, index: number) => (
                       <div key={`${project.id}-section`}>
-                        {index === 0 && runningProjects.length > 0 && (
-                          <h3 className="text-sm font-semibold text-[#008260]">Running projects</h3>
+                        {showGroupedSections && index === 0 && openProjects.length > 0 && (
+                          <h3 className="text-sm font-semibold text-[#008260]">Open</h3>
                         )}
-                        {index === runningProjects.length && closedProjects.length > 0 && (
-                          <h3 className="text-sm font-semibold text-[#6A6A6A]">Closed projects</h3>
+                        {showGroupedSections && index === openProjects.length && liveRunningProjects.length > 0 && (
+                          <h3 className="text-sm font-semibold text-[#1D4ED8]">Running</h3>
+                        )}
+                        {showGroupedSections && index === openProjects.length + liveRunningProjects.length && closedProjects.length > 0 && (
+                          <h3 className="text-sm font-semibold text-[#6A6A6A]">Ended</h3>
                         )}
                         <div 
                           key={project.id} 
@@ -1445,7 +1376,7 @@ export default function InstitutionDashboardPage() {
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                           <h3 className="font-bold text-base sm:text-lg text-[#000000]">{project.title}</h3>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 px-3 sm:py-2 sm:px-4">{project.status}</Badge>
+                            <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 px-3 sm:py-2 sm:px-4">{projectStatusLabel(project.status)}</Badge>
                             <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 px-3 sm:py-2 sm:px-4">{project.type}</Badge>
                           </div>
                         </div>
@@ -1457,7 +1388,7 @@ export default function InstitutionDashboardPage() {
                             </div>
                             <div className="min-w-0">
                               <span className="text-[#717171] text-xs">Rate:</span>
-                              <p className="font-semibold text-[#008260] text-sm sm:text-base truncate">₹{project.hourly_rate}/hour</p>
+                              <PostedCompensationRate project={project} audience="institution" />
                             </div>
                           </div>
                           <div className='flex items-start gap-2.5 sm:gap-3'>
@@ -1465,8 +1396,15 @@ export default function InstitutionDashboardPage() {
                               <Hourglass className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
                             </div>
                             <div className="min-w-0">
-                              <span className="text-[#717171] text-xs">Duration:</span>
-                              <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">{project.duration_hours} hours</p>
+                              <span className="text-[#717171] text-xs">
+                                {(() => {
+                                  const engagement = projectEngagementQuantityDisplay(project)
+                                  return engagement.label
+                                })()}:
+                              </span>
+                              <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">
+                                {projectEngagementQuantityDisplay(project).value}
+                              </p>
                             </div>
                           </div>
                           <div className='flex items-start gap-2.5 sm:gap-3'>
@@ -1485,7 +1423,18 @@ export default function InstitutionDashboardPage() {
                             <div className="min-w-0">
                               <span className="text-[#717171] text-xs">Applications:</span>
                               <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">
-                                {project.applicationCounts?.total}
+                                {project.applicationCounts?.total ?? 0}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-2.5 sm:gap-3">
+                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ECF2FF' }}>
+                              <UserCheck className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#008260' }} />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[#717171] text-xs">Active bookings:</span>
+                              <p className="font-medium text-sm sm:text-base text-[#1D1D1D] truncate">
+                                {project.bookingCounts?.active ?? 0}
                               </p>
                             </div>
                           </div>
@@ -1512,7 +1461,6 @@ export default function InstitutionDashboardPage() {
                               variant="outline" 
                               className="flex-1 sm:flex-none bg-[#ECF2FF] rounded-[25px] text-[#1D1D1D] font-medium text-[13px]"
                               onClick={() => handleViewApplications(project)}
-                              disabled={!project.applicationCounts?.total}
                             >
                               <Eye className="h-4 w-4" />
                               View Applications ({project.applicationCounts?.pending || 0})
@@ -1526,7 +1474,7 @@ export default function InstitutionDashboardPage() {
                               <Edit className="h-4 w-4" />
                               Edit
                             </Button>
-                            {project.status === 'open' && (
+                            {isActiveProjectStatus(project.status) && (
                               <Button size="sm" variant="outline" onClick={() => handleCloseProjectClick(project.id)} className="flex-1 sm:flex-none bg-[#9B0000] hover:bg-[#9B0000] rounded-[25px] text-white hover:text-white font-semibold text-[13px]">
                                 <XCircle className="h-4 w-4" />
                                 Close
