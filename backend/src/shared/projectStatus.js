@@ -149,40 +149,37 @@ async function syncProjectStatusesDue(client, { today = todayISODate(), nowIso =
     }
   }
 
-  // Start day reached → running (still within / without end)
-  {
-    let query = client
-      .from('projects')
-      .update({ status: 'running', updated_at: nowIso })
-      .in('status', ['open', 'in_progress', 'ongoing', 'active'])
-      .not('start_date', 'is', null)
-      .lte('start_date', todayStr)
-      .or(`end_date.is.null,end_date.gte.${todayStr}`)
-      .eq('status_managed_by_admin', false)
-      .select('id');
-    const { data, error } = await query;
-    if (error) {
-      if (String(error.message || '').includes('status_managed_by_admin')) {
-        const fallback = await client
-          .from('projects')
-          .update({ status: 'running', updated_at: nowIso })
-          .in('status', ['open', 'in_progress', 'ongoing', 'active'])
-          .not('start_date', 'is', null)
-          .lte('start_date', todayStr)
-          .or(`end_date.is.null,end_date.gte.${todayStr}`)
-          .select('id');
-        if (fallback.error) {
-          console.warn('[projectStatus] running sync failed:', fallback.error.message || fallback.error);
-        } else {
-          runningUpdated = Array.isArray(fallback.data) ? fallback.data.length : 0;
-        }
-      } else {
-        console.warn('[projectStatus] running sync failed:', error.message || error);
-      }
-    } else {
-      runningUpdated = Array.isArray(data) ? data.length : 0;
+  // Start day reached → running (still within / without end).
+  // IMPORTANT: do not use .or() on UPDATE — PostgREST rejects e.g.
+  // `.or('end_date.is.null,end_date.gte.YYYY-MM-DD')` with
+  // "column projects.end_date does not exist" (selects work; updates fail).
+  // Run two updates instead: null end_date, then end_date >= today.
+  async function updateOpenToRunning(extraFilter) {
+    const run = async (withManagedFilter) => {
+      let q = client
+        .from('projects')
+        .update({ status: 'running', updated_at: nowIso })
+        .in('status', ['open', 'in_progress', 'ongoing', 'active'])
+        .not('start_date', 'is', null)
+        .lte('start_date', todayStr);
+      q = extraFilter(q);
+      if (withManagedFilter) q = q.eq('status_managed_by_admin', false);
+      return q.select('id');
+    };
+
+    let { data, error } = await run(true);
+    if (error && String(error.message || '').includes('status_managed_by_admin')) {
+      ({ data, error } = await run(false));
     }
+    if (error) {
+      console.warn('[projectStatus] running sync failed:', error.message || error);
+      return 0;
+    }
+    return Array.isArray(data) ? data.length : 0;
   }
+
+  runningUpdated += await updateOpenToRunning((q) => q.is('end_date', null));
+  runningUpdated += await updateOpenToRunning((q) => q.gte('end_date', todayStr));
 
   return { runningUpdated, completedUpdated };
 }
