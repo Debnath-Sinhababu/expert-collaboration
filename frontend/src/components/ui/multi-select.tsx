@@ -68,16 +68,25 @@ const MultiSelect = React.forwardRef<HTMLDivElement, MultiSelectProps>(
                         className="shrink-0 text-xs whitespace-nowrap bg-[#008260]/10 text-[#008260] border-[#008260]/20"
                       >
                         {item}
-                        <button
-                          type="button"
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Remove ${item}`}
                           onClick={(e) => {
                             e.stopPropagation()
                             handleRemove(item)
                           }}
-                          className="ml-1 hover:text-red-600"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              handleRemove(item)
+                            }
+                          }}
+                          className="ml-1 inline-flex cursor-pointer hover:text-red-600"
                         >
                           <X className="h-3 w-3" />
-                        </button>
+                        </span>
                       </Badge>
                     ))}
                   </div>
