@@ -26,7 +26,7 @@ const STATUS_TONE: Record<string, string> = {
   expired: 'bg-slate-200 text-slate-700',
 }
 
-export default function SuperAdminOfferLettersPage() {
+export default function SuperAdminOnboardVerificationPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [rows, setRows] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
@@ -76,7 +76,7 @@ export default function SuperAdminOfferLettersPage() {
       </div>
 
       <SectionCard
-        title="Offer Letters"
+        title="Onboard Verification"
         description="Institutions submit an onboarding case after locking the booking. Verify each case to auto-generate and send the offer letter to the expert."
         action={
           <select

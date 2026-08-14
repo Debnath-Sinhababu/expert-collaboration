@@ -22,8 +22,6 @@ export type SuperAdminPermission =
   | 'finance:write'
   | 'finance:confirm'
   | 'exports:download'
-  | 'onboarding:read'
-  | 'onboarding:write'
 
 export type SuperAdminMe = {
   user: {
