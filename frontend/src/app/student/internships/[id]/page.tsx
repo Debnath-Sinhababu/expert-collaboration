@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useEffect, useState, use } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -16,9 +16,12 @@ import { Badge } from '@/components/ui/badge'
 import Logo from '@/components/Logo'
 import Link from 'next/link'
 
-export default function StudentInternshipDetail() {
-  const params = useParams()
-  const id = params?.id as string
+export default function StudentInternshipDetail({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = use(params)
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [student, setStudent] = useState<any>(null)

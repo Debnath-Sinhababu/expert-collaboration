@@ -1,8 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, use } from 'react'
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
 import { ArrowLeft, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -139,8 +138,12 @@ function toDatetimeLocal(value?: string | null) {
   return value.slice(0, 16)
 }
 
-export default function SuperAdminRequirementDetailPage() {
-  const params = useParams<{ id: string }>()
+export default function SuperAdminRequirementDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const routeParams = use(params)
   const me = useSuperAdminAccess()
   const [detail, setDetail] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
@@ -185,7 +188,7 @@ export default function SuperAdminRequirementDetailPage() {
     onConfirm: () => Promise<void>
   }>(null)
 
-  const decoded = decodeURIComponent(params.id)
+  const decoded = decodeURIComponent(routeParams.id)
   const { requirementType, requirementId } = useMemo(() => {
     const [type, ...rest] = decoded.split(':')
     return { requirementType: type || 'project', requirementId: rest.join(':') || decoded }
