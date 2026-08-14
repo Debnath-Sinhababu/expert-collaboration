@@ -59,7 +59,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { ExpertAvailabilityTrigger } from '@/components/expert/ExpertAvailabilityTrigger'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { RatingModal } from '@/components/RatingModal'
 import NotificationBell from '@/components/NotificationBell'
 import { toast } from 'sonner'
@@ -69,6 +69,7 @@ import { ShareRequirementButton } from '@/components/requirements/ShareRequireme
 
 export default function InstitutionDashboardPage() {
   const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
+  const pathname = usePathname()
   const [user, setUser] = useState<any>(null)
   const [institution, setInstitution] = useState<any>(null)
   const [projects, setProjects] = useState<any[]>([])
@@ -697,9 +698,59 @@ export default function InstitutionDashboardPage() {
             <Link href={`${basePath}/home`} className="flex items-center group">
               <Logo size="header" />
             </Link>
-            
+
+            {/* Navigation - Desktop only */}
+            <nav className="hidden md:flex items-center space-x-6">
+              <Link
+                href={`${basePath}/home`}
+                className="text-sm font-medium text-white/80 hover:text-white transition-colors duration-200 relative group"
+              >
+                Home
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
+              </Link>
+              <Link
+                href={`${basePath}/dashboard`}
+                className={`text-sm font-medium transition-colors duration-200 relative group ${
+                  pathname?.startsWith(`${basePath}/dashboard`) && !pathname?.startsWith(`${basePath}/internships`) && !pathname?.startsWith(`${basePath}/freelance`)
+                    ? 'text-white'
+                    : 'text-white/80 hover:text-white'
+                }`}
+              >
+                Dashboard
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
+              </Link>
+
+              {institution?.type && institution.type.toLowerCase() === 'corporate' && (
+                <Link
+                  href={`${basePath}/internships/dashboard`}
+                  className={`text-sm font-medium transition-colors duration-200 relative group ${
+                    pathname?.startsWith(`${basePath}/internships`)
+                      ? 'text-white'
+                      : 'text-white/80 hover:text-white'
+                  }`}
+                >
+                  Internship Dashboard
+                  <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
+                </Link>
+              )}
+
+              {institution?.type && institution.type.toLowerCase() === 'corporate' && (
+                <Link
+                  href={`${basePath}/freelance/dashboard`}
+                  className={`text-sm font-medium transition-colors duration-200 relative group ${
+                    pathname?.startsWith(`${basePath}/freelance`)
+                      ? 'text-white'
+                      : 'text-white/80 hover:text-white'
+                  }`}
+                >
+                  Freelance Dashboard
+                  <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
+                </Link>
+              )}
+            </nav>
+
             <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 lg:gap-4">
-            
+
               <div className="flex items-center space-x-2 order-2 sm:order-none">
                 <NotificationBell />
                 <ProfileDropdown

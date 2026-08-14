@@ -49,7 +49,7 @@ import {
 } from 'lucide-react'
 import { BookOpen } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { useExpertWorkspace } from '@/contexts/ExpertWorkspaceContext'
 import { fetchExpertForWorkspace, expertProfileSetupPath } from '@/lib/expertWorkspace'
 import { isTrainingBooking } from '@/lib/trainingTypes'
@@ -160,6 +160,7 @@ export default function ExpertDashboard() {
   const onboardingMapRef = useRef<Record<string, any>>({})
 
   const router = useRouter()
+  const pathname = usePathname()
   const { viewer, actingExpertId, basePath } = useExpertWorkspace()
 
   const getUser = async (): Promise<SessionUser | null> => {
@@ -677,7 +678,29 @@ export default function ExpertDashboard() {
             <Link href={`${basePath}/home`} className="flex items-center group">
               <Logo size="header" />
             </Link>
-            
+
+            {/* Navigation */}
+            <nav className="hidden md:flex items-center space-x-8">
+              <Link
+                href={`${basePath}/home`}
+                className={`font-medium transition-colors duration-200 relative group ${
+                  pathname?.startsWith(`${basePath}/home`) ? 'text-white' : 'text-white/80 hover:text-white'
+                }`}
+              >
+                Home
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
+              </Link>
+              <Link
+                href={`${basePath}/dashboard`}
+                className={`font-medium transition-colors duration-200 relative group ${
+                  pathname?.startsWith(`${basePath}/dashboard`) ? 'text-white' : 'text-white/80 hover:text-white'
+                }`}
+              >
+                Dashboard
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
+              </Link>
+            </nav>
+
             <div className="flex items-center space-x-4">
               <NotificationBell />
               <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white hover:bg-slate-800/50 border border-transparent hover:border-slate-600 transition-all duration-300">
