@@ -187,6 +187,12 @@ class OnboardingService {
       }
     }
 
+    try {
+      await this.repo.rejectApplication(request.application_id);
+    } catch (err) {
+      console.warn('Failed to revert application status for declined onboarding request:', err.message || err);
+    }
+
     const institution = request.institutions;
     try {
       await sendOfferDeclinedEmail({

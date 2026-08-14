@@ -77,6 +77,18 @@ class OnboardingRepository {
     return data;
   }
 
+  async rejectApplication(applicationId) {
+    if (!applicationId) return null;
+    const { data, error } = await this.db
+      .from('applications')
+      .update({ status: 'rejected', reviewed_at: new Date().toISOString() })
+      .eq('id', applicationId)
+      .select()
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  }
+
   async update(id, patch) {
     const { data, error } = await this.db
       .from('onboarding_requests')

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
@@ -105,7 +105,7 @@ export default function ExpertDashboard() {
   const [user, setUser] = useState<any>(null)
   const [expert, setExpert] = useState<ExpertProfile | null>(null)
   const [applications, setApplications] = useState<Application[]>([])
-  const [offerLetters, setOfferLetters] = useState<any[]>([])
+  const [onboardingRequests, setOnboardingRequests] = useState<any[]>([])
   const [offerLettersLoading, setOfferLettersLoading] = useState(false)
   const [decliningOffer, setDecliningOffer] = useState<any>(null)
   const [declineReason, setDeclineReason] = useState('')
@@ -154,6 +154,10 @@ export default function ExpertDashboard() {
   const interviewScrollRef = useRef<HTMLDivElement>(null)
   const rejectedScrollRef = useRef<HTMLDivElement>(null)
   const bookingsScrollRef = useRef<HTMLDivElement>(null)
+
+  // Always-current onboarding-by-application-id map, readable inside pagination fetchers
+  // without adding it to their dependency arrays (which would reset pagination on every update).
+  const onboardingMapRef = useRef<Record<string, any>>({})
 
   const router = useRouter()
   const { viewer, actingExpertId, basePath } = useExpertWorkspace()
@@ -311,14 +315,34 @@ export default function ExpertDashboard() {
   } = usePagination(
     async (page: number) => {
       if (!expert?.id) return []
-      const response = await api.applications.getAll({ expert_id: expert.id, page, limit: 10, status: 'interview' })
-      if (response && typeof response === 'object' && 'data' in response) {
-        if (page === 1) {
-          setApplicationCounts((prev: any) => ({ ...prev, interview: response.counts?.interview || 0 }))
-        }
-        return response.data
+      const [interviewResponse, acceptedResponse] = await Promise.all([
+        api.applications.getAll({ expert_id: expert.id, page, limit: 10, status: 'interview' }),
+        api.applications.getAll({ expert_id: expert.id, page, limit: 10, status: 'accepted' }),
+      ])
+
+      const interviewList = interviewResponse && typeof interviewResponse === 'object' && 'data' in interviewResponse
+        ? interviewResponse.data
+        : (Array.isArray(interviewResponse) ? interviewResponse : [])
+      const acceptedList = acceptedResponse && typeof acceptedResponse === 'object' && 'data' in acceptedResponse
+        ? acceptedResponse.data
+        : (Array.isArray(acceptedResponse) ? acceptedResponse : [])
+
+      // An institution completing "Onboarding" moves the application to accepted and creates the
+      // booking right away, but it should still read as "Interview" to the expert until CalxMap
+      // verifies it and the expert accepts the offer letter — only then does it move to Bookings.
+      const stillOnboarding = acceptedList.filter((application: any) => {
+        const onboarding = onboardingMapRef.current[application.id]
+        return onboarding && (onboarding.status === 'pending_review' || onboarding.status === 'offer_sent')
+      })
+
+      if (page === 1 && interviewResponse && typeof interviewResponse === 'object' && 'counts' in interviewResponse) {
+        setApplicationCounts((prev: any) => ({
+          ...prev,
+          interview: (interviewResponse.counts?.interview || 0) + stillOnboarding.length,
+        }))
       }
-      return response
+
+      return [...interviewList, ...stillOnboarding]
     },
     [expert?.id]
   )
@@ -356,13 +380,22 @@ export default function ExpertDashboard() {
     async (page: number) => {
       if (!expert?.id) return []
       const response = await api.bookings.getAll({ expert_id: expert.id, page, limit: 10 })
-      if (response && typeof response === 'object' && 'data' in response) {
-        if (page === 1) {
-          setBookingCounts(response.counts || { total: 0, in_progress: 0, completed: 0, cancelled: 0, pending: 0 })
-        }
-        return response.data
+      const list = response && typeof response === 'object' && 'data' in response
+        ? response.data
+        : (Array.isArray(response) ? response : [])
+
+      // Hide bookings tied to an onboarding case that hasn't been accepted by the expert yet
+      // (pending_review / offer_sent). Bookings with no onboarding record at all (legacy flow,
+      // or non-project booking types) are shown as before.
+      const visible = (list || []).filter((booking: any) => {
+        const onboarding = onboardingMapRef.current[booking.application_id]
+        return !onboarding || onboarding.status === 'accepted'
+      })
+
+      if (page === 1 && response && typeof response === 'object' && 'counts' in response) {
+        setBookingCounts(response.counts || { total: 0, in_progress: 0, completed: 0, cancelled: 0, pending: 0 })
       }
-      return response
+      return visible
     },
     [expert?.id]
   )
@@ -371,29 +404,66 @@ export default function ExpertDashboard() {
     setBookings(pagedBookings as Booking[])
   }, [pagedBookings])
 
-  const fetchOfferLetters = useCallback(async () => {
+  const fetchOnboardingRequests = useCallback(async () => {
     if (!expert?.id) return
     setOfferLettersLoading(true)
     try {
-      const response = await api.onboarding.getAll({ expert_id: expert.id, status: 'offer_sent' })
-      setOfferLetters(Array.isArray(response) ? response : [])
+      // No status filter: we need every stage (pending_review / offer_sent / accepted / declined / expired)
+      // so the Interview and Bookings tabs can tell which applications are still awaiting onboarding.
+      const response = await api.onboarding.getAll({ expert_id: expert.id })
+      setOnboardingRequests(Array.isArray(response) ? response : [])
     } catch (error) {
-      console.error('Error fetching offer letters:', error)
+      console.error('Error fetching onboarding requests:', error)
     } finally {
       setOfferLettersLoading(false)
     }
   }, [expert?.id])
 
   useEffect(() => {
-    fetchOfferLetters()
-  }, [fetchOfferLetters])
+    fetchOnboardingRequests()
+  }, [fetchOnboardingRequests])
+
+  // Only offers still awaiting the expert's response show in the Offer Letters tab.
+  const offerLetters = useMemo(
+    () => onboardingRequests.filter((request: any) => request.status === 'offer_sent'),
+    [onboardingRequests]
+  )
+
+  // Keyed by application_id so the Interview/Bookings tabs can check onboarding progress per application.
+  const onboardingByApplicationId = useMemo(() => {
+    const map: Record<string, any> = {}
+    onboardingRequests.forEach((request: any) => { map[request.application_id] = request })
+    return map
+  }, [onboardingRequests])
+
+  // Keep the ref in sync and re-derive the Interview/Bookings lists once fresh onboarding data
+  // lands (covers both the initial-load race and the state right after accept/decline).
+  useEffect(() => {
+    onboardingMapRef.current = onboardingByApplicationId
+    refreshInterviewApplications()
+    refreshBookings()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onboardingByApplicationId])
+
+  // The backend's booking counts include bookings the expert hasn't accepted onboarding for yet
+  // (hidden from the Bookings tab above) — subtract those so the header counts match what's shown.
+  const bookingsHiddenFromTotal = useMemo(
+    () => onboardingRequests.filter((r: any) => r.booking_id && r.status !== 'accepted').length,
+    [onboardingRequests]
+  )
+  const bookingsHiddenFromInProgress = useMemo(
+    () => onboardingRequests.filter((r: any) => r.booking_id && (r.status === 'pending_review' || r.status === 'offer_sent')).length,
+    [onboardingRequests]
+  )
+  const visibleBookingTotal = Math.max(0, (bookingCounts.total || 0) - bookingsHiddenFromTotal)
+  const visibleBookingInProgress = Math.max(0, (bookingCounts.in_progress || 0) - bookingsHiddenFromInProgress)
 
   const handleAcceptOffer = async (offerId: string) => {
     setOfferActionId(offerId)
     try {
       await api.onboarding.accept(offerId)
-      toast.success('Offer accepted! The institution has been notified.')
-      fetchOfferLetters()
+      toast.success('Offer accepted! The institution has been notified and this now shows under Bookings.')
+      fetchOnboardingRequests()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to accept offer')
     } finally {
@@ -413,7 +483,8 @@ export default function ExpertDashboard() {
       toast.success('Offer declined. CalxMap has been notified.')
       setDecliningOffer(null)
       setDeclineReason('')
-      fetchOfferLetters()
+      fetchOnboardingRequests()
+      refreshRejectedApplications()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to decline offer')
     } finally {
@@ -640,7 +711,7 @@ export default function ExpertDashboard() {
             </div>
             <div className="rounded-xl bg-[#E8F5F1] px-4 py-3 text-left sm:text-right">
               <p className="text-xs font-medium text-[#6A6A6A]">Active bookings</p>
-              <p className="text-2xl font-bold text-[#008260]">{bookingCounts.in_progress || 0}</p>
+              <p className="text-2xl font-bold text-[#008260]">{visibleBookingInProgress}</p>
             </div>
           </div>
         </div>
@@ -778,9 +849,9 @@ export default function ExpertDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-[#000000]">Active bookings</p>
-                  <p className="text-2xl font-bold text-[#000000] my-1">{bookingCounts.in_progress || 0}</p>
+                  <p className="text-2xl font-bold text-[#000000] my-1">{visibleBookingInProgress}</p>
                   <p className="text-xs text-slate-500">
-                    {bookingCounts.completed || 0} completed 
+                    {bookingCounts.completed || 0} completed
                   </p>
                 </div>
                 <div className="p-3 bg-[#ECF2FF] rounded-full">
@@ -848,7 +919,7 @@ export default function ExpertDashboard() {
                   value="bookings"
                   className="data-[state=active]:bg-emerald-50 data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-emerald-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
                 >
-                  Bookings ({bookingCounts.total || 0})
+                  Bookings ({visibleBookingTotal})
                 </TabsTrigger>
                 <TabsTrigger 
                   value="rejected" 
@@ -1052,6 +1123,19 @@ export default function ExpertDashboard() {
                             />
                           </div>
                         )}
+                        {(() => {
+                          const onboarding = onboardingByApplicationId[application.id]
+                          if (!onboarding) return null
+                          return (
+                            <div className="border-l-4 border-amber-400 bg-amber-50 rounded-r-lg p-2 sm:p-3 mb-3">
+                              <p className="text-xs sm:text-sm font-semibold text-amber-800">
+                                {onboarding.status === 'offer_sent'
+                                  ? 'Offer letter sent — respond from the Offer Letters tab'
+                                  : 'Institution submitted this for onboarding — awaiting CalxMap verification'}
+                              </p>
+                            </div>
+                          )
+                        })()}
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3">
                           <Badge className="capitalize bg-[#E8F4F8] hover:bg-[#E8F4F8] text-[#008260] border border-[#008260] rounded-full text-xs font-semibold py-1.5 px-3 self-start">
                             Interview
