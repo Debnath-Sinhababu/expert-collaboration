@@ -29,6 +29,6 @@ export const superAdminNavItems: SuperAdminNavItem[] = [
   { href: '/superadmin/calxbook-verification', label: 'CalxBook Verification', permission: 'calxbook_verification:write', icon: BadgeCheck },
   { href: '/superadmin/requirements', label: 'Requirements', permission: 'requirements:read', icon: ListChecks },
   { href: '/superadmin/my-requirements', label: 'My Requirements', permission: 'assignments:read', icon: ClipboardList },
-  { href: '/superadmin/offer-letters', label: 'Offer Letters', permission: 'onboarding:read', icon: FileText },
+  { href: '/superadmin/onboard-verification', label: 'Onboard Verification', icon: FileText },
   { href: '/superadmin/finance', label: 'Finance', permission: 'finance:read', icon: Banknote },
 ]

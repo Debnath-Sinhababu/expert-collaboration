@@ -24,14 +24,12 @@ export const SUPER_ADMIN_PERMISSIONS: SuperAdminPermission[] = [
   'finance:write',
   'finance:confirm',
   'exports:download',
-  'onboarding:read',
-  'onboarding:write',
 ]
 
 export const SUPER_ADMIN_PERMISSION_DETAILS: Record<SuperAdminPermission, {
   label: string
   description: string
-  group: 'Dashboard' | 'Admin Team' | 'Profiles' | 'Requirements' | 'Onboarding' | 'Finance' | 'Exports'
+  group: 'Dashboard' | 'Admin Team' | 'Profiles' | 'Requirements' | 'Finance' | 'Exports'
 }> = {
   'overview:read': {
     label: 'View overview dashboard',
@@ -148,16 +146,6 @@ export const SUPER_ADMIN_PERMISSION_DETAILS: Record<SuperAdminPermission, {
     description: 'Can download heavy Excel reports such as admin activity and business overview exports.',
     group: 'Exports',
   },
-  'onboarding:read': {
-    label: 'View offer letters',
-    description: 'Can open the Offer Letters queue and review onboarding requests submitted by institutions.',
-    group: 'Onboarding',
-  },
-  'onboarding:write': {
-    label: 'Verify and send offer letters',
-    description: 'Can verify onboarding requests, which auto-generates and sends the offer letter to the expert.',
-    group: 'Onboarding',
-  },
 }
 
 export const SUPER_ADMIN_PERMISSION_GROUPS = [
@@ -165,7 +153,6 @@ export const SUPER_ADMIN_PERMISSION_GROUPS = [
   'Admin Team',
   'Profiles',
   'Requirements',
-  'Onboarding',
   'Finance',
   'Exports',
 ] as const
@@ -201,7 +188,6 @@ export function normalizeUiPermissions(permissions: SuperAdminPermission[]) {
     'finance:write': 'finance:read',
     'finance:confirm': 'finance:read',
     'exports:download': 'overview:read',
-    'onboarding:write': 'onboarding:read',
   }
   let changed = true
   while (changed) {
@@ -230,7 +216,6 @@ export function requiredPermissionForSuperAdminPath(pathname: string | null): Su
   if (pathname.startsWith('/superadmin/requirements')) return 'requirements:read'
   if (pathname.startsWith('/superadmin/freelance')) return 'requirements:read'
   if (pathname.startsWith('/superadmin/internships')) return 'requirements:read'
-  if (pathname.startsWith('/superadmin/offer-letters')) return 'onboarding:read'
   if (pathname.startsWith('/superadmin/finance')) return 'finance:read'
   if (pathname.startsWith('/superadmin/overview')) return 'overview:read'
   return null

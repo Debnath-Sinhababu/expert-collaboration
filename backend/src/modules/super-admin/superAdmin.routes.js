@@ -29,9 +29,10 @@ function createSuperAdminRouter() {
     asyncHandler(controller.setExpertCalxbookVerification),
   );
 
-  router.get('/onboarding-requests', requireSuperAdmin('onboarding:read'), asyncHandler(controller.listOnboardingRequests));
-  router.get('/onboarding-requests/:id', requireSuperAdmin('onboarding:read'), asyncHandler(controller.getOnboardingRequest));
-  router.post('/onboarding-requests/:id/verify', requireSuperAdmin('onboarding:write'), asyncHandler(controller.verifyOnboardingRequest));
+  // Open to any authenticated super admin — no dedicated permission required.
+  router.get('/onboarding-requests', requireSuperAdmin(), asyncHandler(controller.listOnboardingRequests));
+  router.get('/onboarding-requests/:id', requireSuperAdmin(), asyncHandler(controller.getOnboardingRequest));
+  router.post('/onboarding-requests/:id/verify', requireSuperAdmin(), asyncHandler(controller.verifyOnboardingRequest));
 
   router.get('/requirements', requireSuperAdmin('requirements:read'), asyncHandler(controller.listRequirements));
   router.get('/requirements/assigned', requireSuperAdmin(['assignments:read', 'daily_reports:write']), asyncHandler(controller.listAssignedRequirements));

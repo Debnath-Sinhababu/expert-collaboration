@@ -6,10 +6,27 @@ class OnboardingRepository {
   #detailSelect() {
     return `
       *,
-      applications ( id, status, final_gross_per_unit, final_net_per_unit, compensation_unit, unit_quantity ),
-      projects ( id, title, type, start_date, end_date, compensation_unit ),
-      experts ( id, name, email, user_id, hourly_rate ),
-      institutions ( id, name, email, user_id, city, state )
+      applications (
+        id, status, cover_letter, proposed_rate, applied_at, reviewed_at,
+        final_hourly_rate, final_gross_per_unit, final_net_per_unit,
+        compensation_unit, unit_quantity, rate_note
+      ),
+      projects (
+        id, title, description, type, start_date, end_date,
+        duration_hours, duration_per_unit, hours_per_day,
+        required_expertise, domain_expertise, subskills,
+        compensation_unit, unit_quantity, hourly_rate, total_budget,
+        institution_gross_per_unit, institution_gross_total
+      ),
+      experts (
+        id, name, email, phone, user_id, bio, photo_url,
+        experience_years, qualifications, domain_expertise,
+        hourly_rate, is_verified, kyc_status, rating, total_ratings, linkedin_url
+      ),
+      institutions (
+        id, name, email, phone, user_id, type, description,
+        logo_url, website_url, address, city, state, country, contact_person
+      )
     `;
   }
 
