@@ -123,6 +123,18 @@ class SuperAdminController {
     res.json(await this.service.setExpertCalxbookVerification(req.params.id, req.body?.calxbook_verified, req.superAdmin));
   };
 
+  listOnboardingRequests = async (req, res) => {
+    res.json(await this.service.listOnboardingRequests(req.query));
+  };
+
+  getOnboardingRequest = async (req, res) => {
+    res.json(await this.service.getOnboardingRequest(req.params.id));
+  };
+
+  verifyOnboardingRequest = async (req, res) => {
+    res.json(await this.service.verifyOnboardingRequest(req.params.id, req.superAdmin));
+  };
+
   listRequirements = async (req, res) => {
     const paging = parsePage(req.query);
     res.json(await this.service.listRequirements({

@@ -22,6 +22,8 @@ const SUPER_ADMIN_PERMISSIONS = Object.freeze([
   'finance:write',
   'finance:confirm',
   'exports:download',
+  'onboarding:read',
+  'onboarding:write',
 ]);
 
 const SUPER_ADMIN_PERMISSION_SET = new Set(SUPER_ADMIN_PERMISSIONS);
@@ -54,6 +56,7 @@ function normalizePermissions(value) {
     'finance:write': 'finance:read',
     'finance:confirm': 'finance:read',
     'exports:download': 'overview:read',
+    'onboarding:write': 'onboarding:read',
   };
   let changed = true;
   while (changed) {

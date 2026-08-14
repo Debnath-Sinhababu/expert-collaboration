@@ -1,4 +1,6 @@
 const ApplicationRateRepository = require('./applicationRate.repository');
+const institutionAccess = require('../../../auth/institutionAccess');
+const OnboardingService = require('../onboarding/onboarding.service');
 const {
   RATE_INTENTS,
   toExpertNet,
@@ -312,7 +314,21 @@ class ApplicationRateService {
       writeClient
     );
 
-    return { application: updatedApp, booking };
+    let onboardingRequest = null;
+    try {
+      const onboardingService = new OnboardingService(institutionAccess.getServiceClient());
+      onboardingRequest = await onboardingService.createRequest({
+        applicationId,
+        bookingId: booking?.id,
+        projectId: app.project_id,
+        expertId: app.expert_id,
+        institutionId,
+      });
+    } catch (err) {
+      console.warn('Failed to open onboarding request:', err.message || err);
+    }
+
+    return { application: updatedApp, booking, onboardingRequest };
   }
 
   #lockRates(app, posted, gross, net, actor, action, note) {

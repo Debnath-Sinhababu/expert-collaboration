@@ -225,4 +225,10 @@ export const superAdminApi = {
     }),
   financeInvoices: (params?: { page?: number; limit?: number; recipient_type?: string; search?: string }) =>
     request<PaginatedResponse<any>>(`/api/superadmin/finance/invoices?${query({ ...(params || {}), _t: Date.now() })}`),
+  onboardingRequests: (params?: { status?: string }) =>
+    request<any[]>(`/api/superadmin/onboarding-requests?${query({ ...(params || {}), _t: Date.now() })}`),
+  onboardingRequest: (id: string) =>
+    request<any>(`/api/superadmin/onboarding-requests/${encodeURIComponent(id)}?${query({ _t: Date.now() })}`),
+  verifyOnboardingRequest: (id: string) =>
+    request<any>(`/api/superadmin/onboarding-requests/${encodeURIComponent(id)}/verify`, { method: 'POST', body: JSON.stringify({}) }),
 }

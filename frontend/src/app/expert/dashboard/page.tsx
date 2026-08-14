@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
 import { usePagination } from '@/hooks/usePagination'
@@ -104,6 +105,11 @@ export default function ExpertDashboard() {
   const [user, setUser] = useState<any>(null)
   const [expert, setExpert] = useState<ExpertProfile | null>(null)
   const [applications, setApplications] = useState<Application[]>([])
+  const [offerLetters, setOfferLetters] = useState<any[]>([])
+  const [offerLettersLoading, setOfferLettersLoading] = useState(false)
+  const [decliningOffer, setDecliningOffer] = useState<any>(null)
+  const [declineReason, setDeclineReason] = useState('')
+  const [offerActionId, setOfferActionId] = useState<string | null>(null)
   const [applicationCounts, setApplicationCounts] = useState<any>({ total: 0, pending: 0, interview: 0, accepted: 0, rejected: 0 })
   const [bookingCounts, setBookingCounts] = useState<any>({ total: 0, in_progress: 0, completed: 0, cancelled: 0, pending: 0 })
   const [analytics, setAnalytics] = useState({
@@ -364,6 +370,56 @@ export default function ExpertDashboard() {
   useEffect(() => {
     setBookings(pagedBookings as Booking[])
   }, [pagedBookings])
+
+  const fetchOfferLetters = useCallback(async () => {
+    if (!expert?.id) return
+    setOfferLettersLoading(true)
+    try {
+      const response = await api.onboarding.getAll({ expert_id: expert.id, status: 'offer_sent' })
+      setOfferLetters(Array.isArray(response) ? response : [])
+    } catch (error) {
+      console.error('Error fetching offer letters:', error)
+    } finally {
+      setOfferLettersLoading(false)
+    }
+  }, [expert?.id])
+
+  useEffect(() => {
+    fetchOfferLetters()
+  }, [fetchOfferLetters])
+
+  const handleAcceptOffer = async (offerId: string) => {
+    setOfferActionId(offerId)
+    try {
+      await api.onboarding.accept(offerId)
+      toast.success('Offer accepted! The institution has been notified.')
+      fetchOfferLetters()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to accept offer')
+    } finally {
+      setOfferActionId(null)
+    }
+  }
+
+  const handleDeclineOffer = async () => {
+    if (!decliningOffer) return
+    if (!declineReason.trim()) {
+      toast.error('Please provide a reason for declining')
+      return
+    }
+    setOfferActionId(decliningOffer.id)
+    try {
+      await api.onboarding.decline(decliningOffer.id, declineReason.trim())
+      toast.success('Offer declined. CalxMap has been notified.')
+      setDecliningOffer(null)
+      setDeclineReason('')
+      fetchOfferLetters()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to decline offer')
+    } finally {
+      setOfferActionId(null)
+    }
+  }
 
 
 
@@ -769,21 +825,27 @@ export default function ExpertDashboard() {
           
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <div className="w-full overflow-x-auto md:overflow-x-visible scrollbar-hide">
-              <TabsList ref={tabsListRef} className="flex md:grid w-max md:w-full md:grid-cols-4 gap-2 bg-white border-b border-slate-200 h-12 px-4 md:px-0">
-              <TabsTrigger 
-  value="pending" 
+              <TabsList ref={tabsListRef} className="flex md:grid w-max md:w-full md:grid-cols-5 gap-2 bg-white border-b border-slate-200 h-12 px-4 md:px-0">
+              <TabsTrigger
+  value="pending"
   className="data-[state=active]:bg-emerald-50 data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-emerald-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
 >
   Pending ({applicationCounts.pending || 0})
 </TabsTrigger>
-                <TabsTrigger 
-                  value="interview" 
+                <TabsTrigger
+                  value="interview"
                  className="data-[state=active]:bg-emerald-50 data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-emerald-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
                 >
                   Interview ({applicationCounts.interview || 0})
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="bookings" 
+                <TabsTrigger
+                  value="offers"
+                 className="data-[state=active]:bg-emerald-50 data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-emerald-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
+                >
+                  Offer Letters ({offerLetters.length || 0})
+                </TabsTrigger>
+                <TabsTrigger
+                  value="bookings"
                   className="data-[state=active]:bg-emerald-50 data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-emerald-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
                 >
                   Bookings ({bookingCounts.total || 0})
@@ -1023,6 +1085,78 @@ export default function ExpertDashboard() {
               </Card>
             </TabsContent>
 
+            {/* Offer Letters Tab */}
+            <TabsContent value="offers" className="space-y-6">
+              <Card className="border-2 border-[#D6D6D6]">
+                <CardHeader>
+                  <CardTitle className="text-[#000000] font-semibold text-[18px]">Offer Letters</CardTitle>
+                  <CardDescription className="text-[#000000] font-base font-normal">
+                    Offer letters verified and sent by CalxMap. Accept to confirm onboarding, or decline with a reason.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {offerLettersLoading && offerLetters.length === 0 ? (
+                    <div className="text-center py-4">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#008260] mx-auto"></div>
+                    </div>
+                  ) : offerLetters.length === 0 ? (
+                    <div className="text-center py-4 flex flex-col justify-center items-center">
+                      <div className="p-3 bg-[#ECF2FF] rounded-full flex justify-center items-center w-16 h-16">
+                        <Briefcase className="h-8 w-8 text-[#008260]" />
+                      </div>
+                      <p className="text-[#000000] font-semibold">No offer letters yet</p>
+                      <p className="text-sm text-[#6A6A6A]">Offer letters verified by CalxMap will appear here</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {offerLetters.map((offer: any) => (
+                        <div key={offer.id} className="bg-white border border-[#DCDCDC] rounded-lg p-4 sm:p-6">
+                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
+                            <h3 className="font-bold text-base sm:text-lg text-[#000000]">{offer.projects?.title || 'Requirement'}</h3>
+                            <Badge className="capitalize bg-[#E8F4F8] hover:bg-[#E8F4F8] text-[#008260] border border-[#008260] rounded-full text-xs font-semibold py-1.5 px-3 self-start">
+                              Offer Sent
+                            </Badge>
+                          </div>
+                          <p className="text-xs sm:text-sm text-[#6A6A6A] mb-3">
+                            Institution: <span className="font-medium text-[#000000]">{offer.institutions?.name || '-'}</span>
+                          </p>
+                          {offer.offer_letter_url && (
+                            <a
+                              href={offer.offer_letter_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center text-[#008260] hover:underline text-sm mb-4"
+                            >
+                              View offer letter (PDF)
+                            </a>
+                          )}
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2">
+                            <Button
+                              size="sm"
+                              disabled={offerActionId === offer.id}
+                              onClick={() => handleAcceptOffer(offer.id)}
+                              className="bg-[#008260] hover:bg-[#006d51] text-white text-xs font-semibold px-4 w-full sm:w-auto"
+                            >
+                              {offerActionId === offer.id ? 'Processing...' : 'Accept'}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={offerActionId === offer.id}
+                              onClick={() => { setDecliningOffer(offer); setDeclineReason('') }}
+                              className="border-red-300 text-red-600 hover:bg-red-50 text-xs font-semibold px-4 w-full sm:w-auto"
+                            >
+                              Decline
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
             {/* Rejected Applications Tab */}
             <TabsContent value="rejected" className="space-y-6">
               <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
@@ -1214,6 +1348,35 @@ export default function ExpertDashboard() {
           </Tabs>
         </div>
       </main>
+
+      <Dialog open={Boolean(decliningOffer)} onOpenChange={(open) => { if (!open) { setDecliningOffer(null); setDeclineReason('') } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Decline offer letter</DialogTitle>
+            <DialogDescription>
+              Please share a reason for declining this offer. This will be sent to CalxMap.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Textarea
+              value={declineReason}
+              onChange={(e) => setDeclineReason(e.target.value)}
+              placeholder="Reason for declining"
+              rows={4}
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => { setDecliningOffer(null); setDeclineReason('') }}>Cancel</Button>
+              <Button
+                onClick={handleDeclineOffer}
+                disabled={offerActionId === decliningOffer?.id || !declineReason.trim()}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {offerActionId === decliningOffer?.id ? 'Processing...' : 'Decline offer'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
