@@ -7145,6 +7145,9 @@ app.use('/api/applications', createApplicationRateRouter());
 const { createBookingCompletionRouter } = require('./src/modules/bookings/bookingCompletion.routes');
 app.use('/api/bookings', createBookingCompletionRouter());
 
+const { createOnboardingRouter } = require('./src/modules/onboarding/onboarding.routes');
+app.use('/api/onboarding', createOnboardingRouter());
+
 const { registerSuperAdminExpertMutations } = require('./routes/superadminExpertMutations');
 registerSuperAdminExpertMutations(app, {
   upload,
@@ -7193,6 +7196,27 @@ function runProjectStatusSync(reason = 'interval') {
   }
 }
 
+// Periodic offer-letter expiry (auto-decline offers the expert hasn't responded to within 3 days).
+function runOnboardingExpirySync(reason = 'interval') {
+  try {
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+    const OnboardingService = require('./src/modules/onboarding/onboarding.service');
+    new OnboardingService(serviceClient)
+      .expireStaleOffers()
+      .then((results) => {
+        if (results.length) {
+          console.log(`[onboardingExpiry] ${reason}: auto-expired ${results.length} offer(s)`);
+        }
+      })
+      .catch((err) => console.warn(`[onboardingExpiry] ${reason} failed:`, err?.message || err));
+  } catch (err) {
+    console.warn(`[onboardingExpiry] ${reason} setup failed:`, err?.message || err);
+  }
+}
+
 // Start server
 server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
@@ -7205,6 +7229,8 @@ server.listen(PORT, () => {
   console.log('- UPSTASH_REDIS_REST_TOKEN:', process.env.UPSTASH_REDIS_REST_TOKEN ? 'Set' : 'Not set');
   runProjectStatusSync('startup');
   setInterval(() => runProjectStatusSync('hourly'), 60 * 60 * 1000);
+  runOnboardingExpirySync('startup');
+  setInterval(() => runOnboardingExpirySync('hourly'), 60 * 60 * 1000);
 });
 
 module.exports = app;

@@ -108,6 +108,7 @@ export default function InstitutionProjectDetailsPage() {
   const [ratings, setRatings] = useState<any[]>([])
   const [ratingModalOpen, setRatingModalOpen] = useState(false)
   const [selectedBooking, setSelectedBooking] = useState<any>(null)
+  const [onboardingByApplicationId, setOnboardingByApplicationId] = useState<Record<string, any>>({})
   const [activeTab, setActiveTab] = useState('pending')
   
   // Tab counts
@@ -343,6 +344,19 @@ export default function InstitutionProjectDetailsPage() {
   const rejectedApplications = Array.isArray(rawRejectedApplications) ? rawRejectedApplications : []
   const selectedBookings = Array.isArray(rawSelectedBookings) ? rawSelectedBookings : []
 
+  useEffect(() => {
+    if (!institution?.id) return
+    api.onboarding.getAll({ institution_id: institution.id })
+      .then((rows: any) => {
+        const map: Record<string, any> = {}
+        if (Array.isArray(rows)) {
+          rows.forEach((row: any) => { map[row.application_id] = row })
+        }
+        setOnboardingByApplicationId(map)
+      })
+      .catch(() => {})
+  }, [institution?.id, selectedBookings.length])
+
   // Infinite scroll logic using Intersection Observer
   useEffect(() => {
     const observerOptions = {
@@ -522,7 +536,7 @@ export default function InstitutionProjectDetailsPage() {
         return
       }
 
-      toast.success('Booking created successfully!')
+      toast.success('Sent for onboarding — CalxMap will verify and send the offer letter.')
       setShowFinalRateModal(false)
       setSelectedBookingApplication(null)
       setApproveOverBudget(false)
@@ -572,8 +586,8 @@ export default function InstitutionProjectDetailsPage() {
     const application: any = [...(pendingApplications || []), ...(interviewApplications || [])].find((app: any) => app.id === applicationId)
     const name = application?.experts?.name || 'this expert'
     setConfirmAction({
-      title: 'Proceed for booking?',
-      description: `Are you sure you want to select ${name} and proceed for booking?`,
+      title: 'Send for onboarding?',
+      description: `Are you sure you want to select ${name} and send them for onboarding? CalxMap will review and send the offer letter.`,
       confirmLabel: 'Proceed',
       onConfirm: () => handleProceedToBooking(applicationId),
     })
@@ -584,6 +598,17 @@ export default function InstitutionProjectDetailsPage() {
     const action = confirmAction.onConfirm
     setConfirmAction(null)
     await action()
+  }
+
+  const onboardingStatusLabel = (status?: string) => {
+    switch (status) {
+      case 'pending_review': return 'Awaiting CalxMap review'
+      case 'offer_sent': return 'Offer letter sent — awaiting expert'
+      case 'accepted': return 'Confirmed by expert'
+      case 'declined': return 'Declined by expert'
+      case 'expired': return 'Not accepted'
+      default: return 'Not yet submitted'
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -1380,17 +1405,17 @@ export default function InstitutionProjectDetailsPage() {
                       className="bg-[#008260] hover:bg-[#008260] text-white hover:text-white rounded-[25px] text-[13px] w-full sm:w-auto"
                     >
                       <CheckCircle className="h-4 w-4" />
-                      {processingApplications[application.id] ? 'Processing...' : 'Confirm & lock booking'}
+                      {processingApplications[application.id] ? 'Processing...' : 'Onboarding'}
                     </Button>
                   </div>
                   {isPostedRateOfferPending(application.rate_status) && (
                     <p className="text-xs text-sky-800 mt-2">
-                      Confirm &amp; lock is paused until the expert responds to your posted-rate request.
+                      Onboarding is paused until the expert responds to your posted-rate request.
                     </p>
                   )}
                   {isPostedRateDeclined(application.rate_status) && (
                     <p className="text-xs text-rose-700 mt-2">
-                      Confirm &amp; lock is disabled — the expert declined proceeding at the posted rate only.
+                      Onboarding is disabled — the expert declined proceeding at the posted rate only.
                     </p>
                   )}
                 </div>
@@ -1608,13 +1633,26 @@ export default function InstitutionProjectDetailsPage() {
               <span className="text-[#666666] font-medium text-sm">Status: </span>
               <span className="text-[#008260] font-medium text-sm capitalize">{booking.status.replace('_', ' ')}</span>
             </div>
-            
+
             {/* Right Column */}
             <div>
               <span className="text-[#666666] font-medium text-sm">Rated: </span>
               <span className="text-[#000000] font-medium text-sm">
                 {getBookingRating(booking.id) ? 'Yes' : 'No'}
               </span>
+            </div>
+
+            {/* Left Column */}
+            <div>
+              <span className="text-[#666666] font-medium text-sm">Onboarding: </span>
+              <span className="text-[#000000] font-medium text-sm">
+                {onboardingStatusLabel(onboardingByApplicationId[booking.application_id]?.status)}
+              </span>
+              {['declined', 'expired'].includes(onboardingByApplicationId[booking.application_id]?.status) && (
+                <p className="text-xs text-rose-700 mt-1">
+                  {onboardingByApplicationId[booking.application_id]?.decline_reason}
+                </p>
+              )}
             </div>
           </div>
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 rounded-lg border border-[#DCDCDC] bg-[#F8FBFA] p-3">
@@ -1921,9 +1959,9 @@ export default function InstitutionProjectDetailsPage() {
       <Dialog open={showFinalRateModal} onOpenChange={setShowFinalRateModal}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Confirm & lock booking</DialogTitle>
+            <DialogTitle>Onboarding</DialogTitle>
             <DialogDescription>
-              Review locked compensation before creating the booking.
+              Review locked compensation before sending this expert for onboarding. CalxMap will verify and send the offer letter.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -1980,7 +2018,7 @@ export default function InstitutionProjectDetailsPage() {
                       }
                       className="bg-[#008260] hover:bg-[#008260]"
                     >
-                      {processingApplications[selectedBookingApplication?.id || ''] ? 'Processing...' : 'Confirm & create booking'}
+                      {processingApplications[selectedBookingApplication?.id || ''] ? 'Processing...' : 'Send for onboarding'}
                     </Button>
                   </div>
                 </>

@@ -10,6 +10,7 @@ const { sendInvoiceEmail } = require('../../../services/financeEmailService');
 const { addSheet, workbookBuffer } = require('./superAdmin.excel');
 const { checkExportRateLimit } = require('./superAdmin.exportLimiter');
 const ApplicationRateService = require('../applications/applicationRate.service');
+const OnboardingService = require('../onboarding/onboarding.service');
 const institutionAccess = require('../../../auth/institutionAccess');
 const { applyInvoiceTaxes, roundMoney } = require('../../../services/financeCalculationService');
 
@@ -102,6 +103,27 @@ class SuperAdminService {
 
   async getOverviewStats() {
     return this.repository.getOverviewStats();
+  }
+
+  async listOnboardingRequests(query = {}) {
+    const onboardingService = new OnboardingService(this.serviceClient);
+    return onboardingService.listRequests({ status: query.status });
+  }
+
+  async getOnboardingRequest(id) {
+    const onboardingService = new OnboardingService(this.serviceClient);
+    return onboardingService.getRequest(id);
+  }
+
+  async verifyOnboardingRequest(id, auth) {
+    const onboardingService = new OnboardingService(this.serviceClient);
+    const updated = await onboardingService.verifyAndSendOfferLetter(id, auth?.user?.id || null);
+    await this.logActivity(auth, 'onboarding.offer_letter_sent', {
+      entity_type: 'onboarding_request',
+      entity_id: id,
+      metadata: { application_id: updated.application_id },
+    });
+    return updated;
   }
 
   async logActivity(auth, action, options = {}) {
@@ -893,7 +915,7 @@ class SuperAdminService {
           requirement_id: requirementId,
           metadata: { status: 'accepted', booking_id: result.booking?.id || null },
         });
-        return { ...updated, booking: result.booking || null };
+        return { ...updated, booking: result.booking || null, onboardingRequest: result.onboardingRequest || null };
       } catch (err) {
         if (err.status) err.statusCode = err.status;
         throw err;
