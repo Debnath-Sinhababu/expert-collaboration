@@ -1,7 +1,7 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { Suspense, use, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import NotificationBell from '@/components/NotificationBell'
@@ -12,9 +12,7 @@ import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
 import { fetchInstitutionForWorkspace, profileSetupPath } from '@/lib/institutionWorkspace'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
-function EditProjectContent() {
-  const params = useParams()
-  const projectId = params.projectId as string
+function EditProjectContent({ projectId }: { projectId: string }) {
   const router = useRouter()
   const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
   const [user, setUser] = useState<any>(null)
@@ -91,7 +89,12 @@ function EditProjectContent() {
   )
 }
 
-export default function EditProjectPage() {
+export default function EditProjectPage({
+  params,
+}: {
+  params: Promise<{ projectId: string }>
+}) {
+  const { projectId } = use(params)
   return (
     <Suspense
       fallback={
@@ -100,7 +103,7 @@ export default function EditProjectPage() {
         </div>
       }
     >
-      <EditProjectContent />
+      <EditProjectContent projectId={projectId} />
     </Suspense>
   )
 }

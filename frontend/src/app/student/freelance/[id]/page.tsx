@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useEffect, useState, use } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
 import { Card, CardContent } from '@/components/ui/card'
@@ -15,10 +15,14 @@ import { toast } from 'sonner'
 import Logo from '@/components/Logo'
 import Link from 'next/link'
 
-export default function StudentFreelanceDetail() {
-  const params = useParams()
+export default function StudentFreelanceDetail({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
   const router = useRouter()
-  const id = String(params?.id || '')
+  const { id: resolvedId } = use(params)
+  const id = String(resolvedId || '')
   const [user, setUser] = useState<any>(null)
   const [student, setStudent] = useState<any>(null)
   const [loading, setLoading] = useState(true)

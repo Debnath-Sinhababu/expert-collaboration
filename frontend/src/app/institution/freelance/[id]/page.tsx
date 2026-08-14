@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useEffect, useState, useRef, use } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -16,10 +16,14 @@ import Logo from '@/components/Logo'
 import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
 import { fetchInstitutionForWorkspace, profileSetupPath } from '@/lib/institutionWorkspace'
 
-export default function FreelanceProjectDetail() {
-  const params = useParams()
+export default function FreelanceProjectDetail({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
   const router = useRouter()
-  const id = String(params?.id || '')
+  const { id: resolvedId } = use(params)
+  const id = String(resolvedId || '')
   const [user, setUser] = useState<any>(null)
   const [institution, setInstitution] = useState<any>(null)
   const [loading, setLoading] = useState(true)

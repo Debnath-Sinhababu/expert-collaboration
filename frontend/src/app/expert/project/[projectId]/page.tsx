@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useState, useEffect, useRef, use } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
@@ -113,10 +113,13 @@ interface ExpertProfile {
   photo_url?: string
 }
 
-export default function ExpertProjectPage() {
-  const params = useParams()
+export default function ExpertProjectPage({
+  params,
+}: {
+  params: Promise<{ projectId: string }>
+}) {
+  const { projectId } = use(params)
   const router = useRouter()
-  const projectId = params.projectId as string
   const { viewer, actingExpertId, basePath } = useExpertWorkspace()
 
   const [user, setUser] = useState<any>(null)

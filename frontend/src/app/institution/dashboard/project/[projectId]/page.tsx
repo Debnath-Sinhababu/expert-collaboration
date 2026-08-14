@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useState, useEffect, useRef, useCallback, use, type ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
 import { usePagination } from '@/hooks/usePagination'
@@ -93,11 +93,14 @@ function formatExpertTypes(expert: any) {
   return types.length ? types.join(', ') : 'Not specified'
 }
 
-export default function InstitutionProjectDetailsPage() {
+export default function InstitutionProjectDetailsPage({
+  params,
+}: {
+  params: Promise<{ projectId: string }>
+}) {
   const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
-  const params = useParams()
+  const { projectId } = use(params)
   const router = useRouter()
-  const projectId = params.projectId as string
 
   const [user, setUser] = useState<any>(null)
   const [institution, setInstitution] = useState<any>(null)

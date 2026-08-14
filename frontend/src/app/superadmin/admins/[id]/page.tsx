@@ -1,7 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useEffect, useState, use } from 'react'
 import Link from 'next/link'
 import { CheckCircle2, Clock3, Download, FileText, ListChecks, Shield, UserRound } from 'lucide-react'
 import { toast } from 'sonner'
@@ -167,9 +166,13 @@ function activityTargetId(row: any) {
   return row.requirement_id || row.entity_id || ''
 }
 
-export default function SuperAdminAdminDetailPage() {
-  const params = useParams()
-  const id = String(params?.id || '')
+export default function SuperAdminAdminDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id: resolvedId } = use(params)
+  const id = String(resolvedId || '')
   const [detail, setDetail] = useState<any>(null)
   const [activity, setActivity] = useState<any[]>([])
   const [loading, setLoading] = useState(true)

@@ -1,7 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useEffect, useMemo, useState, use } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, BriefcaseBusiness, CheckCircle2, Clock3, PlayCircle } from 'lucide-react'
 import { toast } from 'sonner'
@@ -31,9 +30,13 @@ function MiniBars({ data }: { data: any[] }) {
   )
 }
 
-export default function OverviewCategoryPage() {
-  const params = useParams()
-  const category = String(params?.category || 'projects') as 'projects' | 'internships' | 'freelance'
+export default function OverviewCategoryPage({
+  params,
+}: {
+  params: Promise<{ category: string }>
+}) {
+  const { category: rawCategory } = use(params)
+  const category = String(rawCategory || 'projects') as 'projects' | 'internships' | 'freelance'
   const [period, setPeriod] = useState('monthly')
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)

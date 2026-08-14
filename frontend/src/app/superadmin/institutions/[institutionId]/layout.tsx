@@ -1,17 +1,17 @@
 'use client'
 
-import { useParams } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, use } from 'react'
 import { setSuperAdminActingInstitutionId } from '@/lib/superAdminActing'
 import { InstitutionWorkspaceProvider } from '@/contexts/InstitutionWorkspaceContext'
 
 export default function SuperAdminInstitutionLayout({
-  children
+  children,
+  params,
 }: {
   children: React.ReactNode
+  params: Promise<{ institutionId: string }>
 }) {
-  const params = useParams()
-  const institutionId = params.institutionId as string
+  const { institutionId } = use(params)
 
   useEffect(() => {
     if (institutionId) {

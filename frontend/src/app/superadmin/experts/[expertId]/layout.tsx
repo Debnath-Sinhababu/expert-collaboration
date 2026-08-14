@@ -1,17 +1,17 @@
 'use client'
 
-import { useParams } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, use } from 'react'
 import { setSuperAdminActingExpertId } from '@/lib/superAdminActing'
 import { ExpertWorkspaceProvider } from '@/contexts/ExpertWorkspaceContext'
 
 export default function SuperAdminExpertLayout({
-  children
+  children,
+  params,
 }: {
   children: React.ReactNode
+  params: Promise<{ expertId: string }>
 }) {
-  const params = useParams()
-  const expertId = params.expertId as string
+  const { expertId } = use(params)
 
   useEffect(() => {
     if (expertId) {

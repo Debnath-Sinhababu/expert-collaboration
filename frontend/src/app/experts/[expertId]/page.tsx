@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useEffect, useState, use } from 'react'
+import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { supabase } from '@/lib/supabase'
 import { ExpertAvailabilityTrigger } from '@/components/expert/ExpertAvailabilityTrigger'
@@ -31,10 +31,13 @@ type Expert = {
   last_working_company?: string
 }
 
-export default function PublicExpertProfile() {
-  const params = useParams()
+export default function PublicExpertProfile({
+  params,
+}: {
+  params: Promise<{ expertId: string }>
+}) {
+  const { expertId } = use(params)
   const router = useRouter()
-  const expertId = params.expertId as string
 
   const [expert, setExpert] = useState<Expert | null>(null)
   const [loading, setLoading] = useState(true)

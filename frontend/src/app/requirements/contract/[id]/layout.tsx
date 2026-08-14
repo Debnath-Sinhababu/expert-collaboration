@@ -36,8 +36,9 @@ async function getProjectData(projectId: string) {
   }
 }
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-  const project = await getProjectData(params.id)
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params
+  const project = await getProjectData(id)
   const siteUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://www.calxmap.in'
 
   if (!project) {
@@ -67,7 +68,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
     ].filter(Boolean),
     openGraph: {
       type: 'article',
-      url: `${siteUrl}/requirements/contract/${params.id}`,
+      url: `${siteUrl}/requirements/contract/${id}`,
       title: `${title} - ${projectType} Opportunity`,
       description: description,
       siteName: 'Calxmap',
@@ -78,7 +79,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
       description: description,
     },
     alternates: {
-      canonical: `${siteUrl}/requirements/contract/${params.id}`,
+      canonical: `${siteUrl}/requirements/contract/${id}`,
     },
   }
 }
@@ -88,9 +89,10 @@ export default async function ContractLayout({
   params,
 }: {
   children: React.ReactNode
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
-  const project = await getProjectData(params.id)
+  const { id } = await params
+  const project = await getProjectData(id)
   const siteUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://www.calxmap.in'
 
   // Generate JobPosting schema for SEO
