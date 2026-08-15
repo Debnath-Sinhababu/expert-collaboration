@@ -3,6 +3,7 @@ const upload = require('../../../middleware/upload');
 const asyncHandler = require('../../shared/http/asyncHandler');
 const SuperAdminController = require('./superAdmin.controller');
 const { requireSuperAdmin } = require('./superAdmin.middleware');
+const profileHardDelete = require('./superAdmin.profileHardDelete.handlers');
 
 function createSuperAdminRouter() {
   const router = express.Router();
@@ -23,6 +24,10 @@ function createSuperAdminRouter() {
   router.patch('/admins/:id', requireSuperAdmin('admins:write'), asyncHandler(controller.updateAdmin));
 
   router.get('/profiles', requireSuperAdmin('profiles:read'), asyncHandler(controller.listProfiles));
+  router.delete('/profiles/experts/:id', asyncHandler(profileHardDelete.deleteExpert));
+  router.delete('/profiles/institutions/:id', asyncHandler(profileHardDelete.deleteInstitution));
+  router.delete('/profiles/students/:id', asyncHandler(profileHardDelete.deleteStudent));
+  router.get('/custom-domains', asyncHandler(profileHardDelete.listCustomDomains));
   router.patch(
     '/experts/:id/calxbook-verification',
     requireSuperAdmin('calxbook_verification:write'),
