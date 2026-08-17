@@ -2,9 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { X, LogOut } from 'lucide-react'
 import Logo from '@/components/Logo'
 import { supabase } from '@/lib/supabase'
+import { superAdminApi } from '@/lib/superadmin/api'
 import { canAccess } from '@/lib/superadmin/permissions'
 import { superAdminNavItems } from '@/lib/superadmin/nav'
 import type { SuperAdminMe } from '@/lib/superadmin/types'
@@ -21,6 +23,16 @@ export function SuperAdminSidebar({
 }) {
   const pathname = usePathname()
   const visibleItems = superAdminNavItems.filter((item) => canAccess(me, item.permission))
+  const [pendingOnboardCount, setPendingOnboardCount] = useState(0)
+
+  useEffect(() => {
+    if (!me) return
+    let mounted = true
+    superAdminApi.onboardingRequests({ status: 'pending_review' })
+      .then((res) => { if (mounted) setPendingOnboardCount(Array.isArray(res) ? res.length : 0) })
+      .catch(() => {})
+    return () => { mounted = false }
+  }, [me, pathname])
 
   async function handleSignOut() {
     await supabase.auth.signOut()
@@ -68,6 +80,16 @@ export function SuperAdminSidebar({
                 <Icon className="h-4 w-4" />
               </span>
               <span className="min-w-0 flex-1 truncate">{item.label}</span>
+              {item.href === '/superadmin/onboard-verification' && pendingOnboardCount > 0 ? (
+                <span
+                  className={cn(
+                    'flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-xs font-bold',
+                    active ? 'bg-white text-[#008260]' : 'bg-red-500 text-white',
+                  )}
+                >
+                  {pendingOnboardCount > 99 ? '99+' : pendingOnboardCount}
+                </span>
+              ) : null}
             </Link>
           )
         })}
