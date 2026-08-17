@@ -371,34 +371,13 @@ export default function InstitutionProjectDetailsPage({
     const observerCallback = (entries: IntersectionObserverEntry[]) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
-          console.log('Intersection detected:', {
-            target: entry.target,
-            pendingRef: pendingScrollRef.current,
-            interviewRef: interviewScrollRef.current,
-            selectedRef: selectedScrollRef.current,
-            rejectedRef: rejectedScrollRef.current,
-            hasMorePending,
-            hasMoreInterview,
-            hasMoreSelected,
-            hasMoreRejected,
-            pendingLoading,
-            interviewLoading,
-            selectedLoading,
-            rejectedLoading,
-            activeTab
-          })
-          
           if (entry.target === pendingScrollRef.current && hasMorePending && !pendingLoading) {
-            console.log('Loading more pending applications')
             loadMorePending()
           } else if (entry.target === interviewScrollRef.current && hasMoreInterview && !interviewLoading) {
-            console.log('Loading more interview applications')
             loadMoreInterview()
           } else if (entry.target === selectedScrollRef.current && hasMoreSelected && !selectedLoading) {
-            console.log('Loading more selected bookings')
             loadMoreSelected()
           } else if (entry.target === rejectedScrollRef.current && hasMoreRejected && !rejectedLoading) {
-            console.log('Loading more rejected applications')
             loadMoreRejected()
           }
         }
@@ -411,19 +390,15 @@ export default function InstitutionProjectDetailsPage({
     const timeoutId = setTimeout(() => {
       // Observe all scroll refs
       if (pendingScrollRef.current) {
-        console.log('Observing pending scroll ref')
         observer.observe(pendingScrollRef.current)
       }
       if (interviewScrollRef.current) {
-        console.log('Observing interview scroll ref')
         observer.observe(interviewScrollRef.current)
       }
       if (selectedScrollRef.current) {
-        console.log('Observing selected scroll ref')
         observer.observe(selectedScrollRef.current)
       }
       if (rejectedScrollRef.current) {
-        console.log('Observing rejected scroll ref')
         observer.observe(rejectedScrollRef.current)
       }
     }, 100)
