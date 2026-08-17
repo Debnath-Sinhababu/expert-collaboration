@@ -347,6 +347,15 @@ export default function InstitutionProjectDetailsPage({
   const rejectedApplications = Array.isArray(rawRejectedApplications) ? rawRejectedApplications : []
   const selectedBookings = Array.isArray(rawSelectedBookings) ? rawSelectedBookings : []
 
+  // A booking only truly becomes "Selected" once CalxMap verifies the case and the expert accepts
+  // the offer letter (onboarding status: accepted). Before that it's still shown below (so nothing
+  // disappears from view) but doesn't count as confirmed — the Onboarding status line explains why.
+  const pendingOnboardingBookings = selectedBookings.filter((booking: any) => {
+    const onboarding = onboardingByApplicationId[booking.application_id]
+    return onboarding && onboarding.status !== 'accepted'
+  })
+  const confirmedSelectedCount = Math.max(0, (selectedCount || 0) - pendingOnboardingBookings.length)
+
   useEffect(() => {
     if (!institution?.id) return
     api.onboarding.getAll({ institution_id: institution.id })
@@ -1022,7 +1031,7 @@ export default function InstitutionProjectDetailsPage({
                 value="selected" 
                 className="data-[state=active]:bg-emerald-50 data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-emerald-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
               >
-                Selected ({selectedCount || 0})
+                Selected ({confirmedSelectedCount})
               </TabsTrigger>
             </TabsList>
           </div>
@@ -1564,8 +1573,20 @@ export default function InstitutionProjectDetailsPage({
                 ) : (
                   <div className="space-y-4">
   {selectedBookings?.map((booking: any) => {
+    const onboardingStatus = onboardingByApplicationId[booking.application_id]?.status
+    const isConfirmedSelection = !onboardingStatus || onboardingStatus === 'accepted'
     return (
       <div key={booking.id} className="bg-white border border-[#DCDCDC] rounded-lg p-4">
+        <div className="mb-3">
+          <Badge className={isConfirmedSelection
+            ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100'
+            : ['declined', 'expired'].includes(onboardingStatus)
+              ? 'bg-red-100 text-red-800 hover:bg-red-100'
+              : 'bg-amber-100 text-amber-800 hover:bg-amber-100'}
+          >
+            {isConfirmedSelection ? 'Selected' : onboardingStatusLabel(onboardingStatus)}
+          </Badge>
+        </div>
         <div className="flex justify-between items-start">
           <div className="flex-1 grid grid-cols-2 gap-x-8 gap-y-3">
             {/* Left Column */}
