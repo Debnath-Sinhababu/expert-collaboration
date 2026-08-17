@@ -133,7 +133,9 @@ export default function SuperAdminOnboardVerificationPage() {
   }
 
   const pendingCount = rows.filter((r) => r.status === 'pending_review').length
-  const sentCount = rows.filter((r) => r.status === 'offer_sent').length
+  // Cumulative offers ever sent, not just those still awaiting a response -
+  // once an expert accepts/declines, status moves off 'offer_sent' but the offer was still sent.
+  const sentCount = rows.filter((r) => Boolean(r.offer_sent_at)).length
   const acceptedCount = rows.filter((r) => r.status === 'accepted').length
   const declinedCount = rows.filter((r) => r.status === 'declined').length
 
@@ -148,7 +150,7 @@ export default function SuperAdminOnboardVerificationPage() {
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Pending Review" value={pendingCount} tone="amber" icon={FileText} />
-        <StatCard label="Offer Sent" value={sentCount} tone="blue" icon={Send} />
+        <StatCard label="Offer Sent" value={sentCount} tone="blue" icon={Send} helper="Total offers sent" />
         <StatCard label="Accepted" value={acceptedCount} tone="green" icon={CheckCircle2} />
         <StatCard label="Declined" value={declinedCount} tone="slate" />
       </div>
