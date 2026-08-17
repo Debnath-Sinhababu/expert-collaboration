@@ -2,13 +2,14 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { Eye, FileText, Search, Send, Star, X } from 'lucide-react'
+import { CheckCircle2, Eye, FileText, Search, Send, Star, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { superAdminApi } from '@/lib/superadmin/api'
 import { StatCard } from '@/components/superadmin/common/StatCard'
 import { SectionCard } from '@/components/superadmin/common/SectionCard'
@@ -38,10 +39,27 @@ const STATUS_TONE: Record<string, string> = {
   expired: 'bg-slate-200 text-slate-700',
 }
 
+const STATUS_DOT: Record<string, string> = {
+  pending_review: 'bg-amber-500',
+  offer_sent: 'bg-sky-500',
+  accepted: 'bg-emerald-500',
+  declined: 'bg-red-500',
+  expired: 'bg-slate-500',
+}
+
 function formatDate(value?: string | null) {
   if (!value) return '-'
   const d = new Date(value)
   return Number.isNaN(d.getTime()) ? '-' : d.toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+function StatusBadge({ status }: { status: string }) {
+  return (
+    <Badge className={`gap-1.5 rounded-full font-medium ${STATUS_TONE[status] || ''}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[status] || 'bg-slate-500'}`} />
+      {STATUS_LABEL[status] || status}
+    </Badge>
+  )
 }
 
 function DetailRow({ label, value }: { label: string; value?: React.ReactNode }) {
@@ -116,6 +134,7 @@ export default function SuperAdminOnboardVerificationPage() {
 
   const pendingCount = rows.filter((r) => r.status === 'pending_review').length
   const sentCount = rows.filter((r) => r.status === 'offer_sent').length
+  const acceptedCount = rows.filter((r) => r.status === 'accepted').length
   const declinedCount = rows.filter((r) => r.status === 'declined').length
 
   const expert = selectedRow?.experts
@@ -127,9 +146,10 @@ export default function SuperAdminOnboardVerificationPage() {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Pending Review" value={pendingCount} tone="amber" icon={FileText} />
         <StatCard label="Offer Sent" value={sentCount} tone="blue" icon={Send} />
+        <StatCard label="Accepted" value={acceptedCount} tone="green" icon={CheckCircle2} />
         <StatCard label="Declined" value={declinedCount} tone="slate" />
       </div>
 
@@ -137,7 +157,7 @@ export default function SuperAdminOnboardVerificationPage() {
         title="Onboard Verification"
         description="Institutions submit an onboarding case after locking the booking. Review the full details, then verify each case to auto-generate and send the offer letter to the expert."
       >
-        <div className="mb-5 flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:flex-row sm:items-center">
+        <div className="mb-5 flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3 shadow-sm sm:flex-row sm:items-center">
           <div className="relative min-w-0 flex-1">
             <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
             <Input
@@ -173,28 +193,51 @@ export default function SuperAdminOnboardVerificationPage() {
           rows={filteredRows}
           columns={[
             { key: 'expert', header: 'Expert', render: (row: any) => (
-              <div>
-                <p className="font-medium text-slate-950">{row.experts?.name || 'Unknown expert'}</p>
-                <p className="text-xs text-slate-500">{row.experts?.email}</p>
+              <div className="flex items-center gap-3">
+                <Avatar className="h-9 w-9 border border-emerald-100">
+                  <AvatarImage src={row.experts?.photo_url} />
+                  <AvatarFallback className="bg-gradient-to-r from-[#008260] to-emerald-500 text-xs font-bold text-white">
+                    {row.experts?.name?.charAt(0) || 'E'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-slate-950">{row.experts?.name || 'Unknown expert'}</p>
+                  <p className="truncate text-xs text-slate-500">{row.experts?.email}</p>
+                </div>
               </div>
             ) },
-            { key: 'institution', header: 'Institution', render: (row: any) => row.institutions?.name || '-' },
-            { key: 'project', header: 'Requirement', render: (row: any) => row.projects?.title || '-' },
-            { key: 'submitted', header: 'Submitted', render: (row: any) => row.submitted_at ? new Date(row.submitted_at).toLocaleDateString() : '-' },
-            { key: 'status', header: 'Status', render: (row: any) => (
-              <div>
-                <Badge className={STATUS_TONE[row.status] || ''}>{STATUS_LABEL[row.status] || row.status}</Badge>
-                {(row.status === 'declined' || row.status === 'expired') && row.decline_reason ? (
-                  <p className="mt-1 max-w-xs text-xs text-red-600">{row.decline_reason}</p>
-                ) : null}
+            { key: 'institution', header: 'Institution', render: (row: any) => (
+              <span className="text-slate-800">{row.institutions?.name || '-'}</span>
+            ) },
+            { key: 'project', header: 'Requirement', render: (row: any) => (
+              <div className="min-w-0 max-w-[220px]">
+                <p className="truncate font-medium text-slate-900">{row.projects?.title || '-'}</p>
+                {row.projects?.type ? <p className="text-xs capitalize text-slate-500">{row.projects.type}</p> : null}
               </div>
+            ) },
+            { key: 'submitted', header: 'Submitted', render: (row: any) => (
+              <span className="text-slate-600">{formatDate(row.submitted_at)}</span>
+            ) },
+            { key: 'status', header: 'Status', render: (row: any) => (
+              (row.status === 'declined' || row.status === 'expired') && row.decline_reason ? (
+                <TooltipProvider delayDuration={150}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="cursor-help"><StatusBadge status={row.status} /></span>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs text-xs">{row.decline_reason}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              ) : (
+                <StatusBadge status={row.status} />
+              )
             ) },
             { key: 'letter', header: 'Offer Letter', render: (row: any) => row.offer_letter_url ? (
-              <a href={row.offer_letter_url} target="_blank" rel="noreferrer" className="inline-flex items-center text-[#008260] hover:underline" onClick={(e) => e.stopPropagation()}>
+              <a href={row.offer_letter_url} target="_blank" rel="noreferrer" className="inline-flex items-center text-sm font-medium text-[#008260] hover:underline" onClick={(e) => e.stopPropagation()}>
                 <FileText className="mr-1 h-4 w-4" />
                 View PDF
               </a>
-            ) : '-' },
+            ) : <span className="text-slate-400">-</span> },
             { key: 'action', header: '', render: (row: any) => (
               <div className="flex items-center gap-2">
                 <Button
@@ -235,7 +278,7 @@ export default function SuperAdminOnboardVerificationPage() {
           {selectedRow ? (
             <div className="space-y-5">
               <div className="flex items-center justify-between">
-                <Badge className={STATUS_TONE[selectedRow.status] || ''}>{STATUS_LABEL[selectedRow.status] || selectedRow.status}</Badge>
+                <StatusBadge status={selectedRow.status} />
                 {(selectedRow.status === 'declined' || selectedRow.status === 'expired') && selectedRow.decline_reason ? (
                   <p className="text-xs text-red-600">{selectedRow.decline_reason}</p>
                 ) : null}
