@@ -10,6 +10,7 @@ import { Phone, User, GraduationCap, MapPin, Edit, FileText, Linkedin, Github, G
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Logo from '@/components/Logo'
+import { StudentPortalNavLinks } from '@/components/student/StudentPortalNav'
 import NotificationBell from '@/components/NotificationBell'
 import ProfileDropdown from '@/components/ProfileDropdown'
 import { Badge } from '@/components/ui/badge'
@@ -114,6 +115,7 @@ export default function StudentProfile() {
                 Dashboard
                 <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
+              <StudentPortalNavLinks />
             </nav>
 
             <div className="flex items-center space-x-4">
