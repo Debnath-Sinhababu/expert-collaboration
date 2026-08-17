@@ -12,6 +12,38 @@ const {
 const OFFER_EXPIRY_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
 const AUTO_DECLINE_REASON = 'Auto-declined: the expert did not respond to the offer letter within 3 days.';
 
+const TRAINING_MODE_LABELS = { remote: 'Online (Remote)', hybrid: 'Hybrid', on_site: 'On-site (In-person)' };
+
+function computeTotalFee(application, project) {
+  const grossPerUnit = Number(application?.final_gross_per_unit ?? project?.institution_gross_per_unit ?? project?.hourly_rate);
+  if (!Number.isFinite(grossPerUnit) || grossPerUnit <= 0) return undefined;
+  const unitQuantity = Number(application?.unit_quantity ?? project?.unit_quantity ?? 1);
+  const qty = Number.isFinite(unitQuantity) && unitQuantity > 0 ? unitQuantity : 1;
+  return grossPerUnit * qty;
+}
+
+function describeTrainingDuration(project) {
+  const p = project || {};
+  const hours = Number(p.duration_hours);
+  const perDay = Number(p.hours_per_day);
+  const qty = Number(p.unit_quantity);
+  const perUnit = Number(p.duration_per_unit);
+  if (qty > 0 && p.compensation_unit === 'per_session' && perUnit > 0) {
+    return `${qty} session${qty > 1 ? 's' : ''} of ${perUnit} hour${perUnit > 1 ? 's' : ''} each`;
+  }
+  if (Number.isFinite(hours) && hours > 0 && Number.isFinite(perDay) && perDay > 0) {
+    const days = hours / perDay;
+    if (days >= 5) {
+      const weeks = Math.round((days / 5) * 10) / 10;
+      return `${weeks} week${weeks > 1 ? 's' : ''} (${hours} hours)`;
+    }
+    return `${Math.round(days * 10) / 10} day${days > 1 ? 's' : ''} (${hours} hours)`;
+  }
+  if (Number.isFinite(hours) && hours > 0) return `${hours} hour${hours > 1 ? 's' : ''}`;
+  if (p.start_date && p.end_date) return `${p.start_date} to ${p.end_date}`;
+  return undefined;
+}
+
 class HttpError extends Error {
   constructor(status, message) {
     super(message);
@@ -71,15 +103,36 @@ class OnboardingService {
     const sentAt = new Date();
     const expiresAt = new Date(sentAt.getTime() + OFFER_EXPIRY_MS);
 
+    const totalFee = computeTotalFee(application, project);
+    const milestone1Percent = 50;
+    const milestone1Amount = totalFee != null ? Math.round((totalFee * milestone1Percent) / 100) : undefined;
+    const milestone2Percent = 50;
+    const milestone2Amount = totalFee != null ? Math.round((totalFee * milestone2Percent) / 100) : undefined;
+
     const html = buildOfferLetterHtml({
       expertName: expert?.name,
-      institutionName: institution?.name,
-      projectTitle: project?.title,
-      grossPerUnit: application?.final_gross_per_unit,
-      compensationUnit: application?.compensation_unit || project?.compensation_unit,
+      expertAddress: expert?.address,
+      referenceNo: `CALX/${sentAt.getFullYear()}/${String(request.application_id).slice(0, 8).toUpperCase()}`,
+      letterDate: sentAt.toISOString(),
+      engagementRole: project?.title,
+      courseTitle: project?.title,
+      trainingMode: TRAINING_MODE_LABELS[project?.workplace_type] || project?.workplace_type,
+      totalSessions: application?.unit_quantity ?? project?.unit_quantity,
+      trainingDuration: describeTrainingDuration(project),
       startDate: project?.start_date,
-      endDate: project?.end_date,
-      offerDate: sentAt.toISOString(),
+      totalFee,
+      milestone1Percent,
+      milestone1Amount,
+      milestone2Percent,
+      milestone2Amount,
+      paymentDays: 15,
+      noticePeriodDays: 15,
+      nonSolicitationMonths: 12,
+      ipSurvivalYears: 3,
+      jurisdictionCity: 'Gurugram',
+      jurisdictionState: 'Haryana',
+      documentTitle: 'TRAINER ENGAGEMENT LETTER',
+      institutionName: institution?.name,
     });
 
     const pdfBuffer = await generateOfferLetterPdf(html);

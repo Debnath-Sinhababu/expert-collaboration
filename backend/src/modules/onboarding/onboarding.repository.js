@@ -13,13 +13,13 @@ class OnboardingRepository {
       ),
       projects (
         id, title, description, type, start_date, end_date,
-        duration_hours, duration_per_unit, hours_per_day,
+        duration_hours, duration_per_unit, hours_per_day, workplace_type,
         required_expertise, domain_expertise, subskills,
         compensation_unit, unit_quantity, hourly_rate, total_budget,
         institution_gross_per_unit, institution_gross_total
       ),
       experts (
-        id, name, email, phone, user_id, bio, photo_url,
+        id, name, email, phone, user_id, bio, photo_url, address,
         experience_years, qualifications, domain_expertise,
         hourly_rate, is_verified, kyc_status, rating, total_ratings, linkedin_url
       ),
