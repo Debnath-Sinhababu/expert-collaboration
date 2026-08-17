@@ -1,10 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { Eye, FileText, Send, Star } from 'lucide-react'
+import { Eye, FileText, Search, Send, Star, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { superAdminApi } from '@/lib/superadmin/api'
@@ -12,6 +14,13 @@ import { StatCard } from '@/components/superadmin/common/StatCard'
 import { SectionCard } from '@/components/superadmin/common/SectionCard'
 import { DataTable } from '@/components/superadmin/common/DataTable'
 import { moneyInr, compensationUnitShortLabel } from '@/lib/projectCompensation'
+
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'All statuses' },
+  { value: 'pending_review', label: 'Pending Review' },
+  { value: 'accepted', label: 'Accepted' },
+  { value: 'declined', label: 'Declined' },
+]
 
 const STATUS_LABEL: Record<string, string> = {
   pending_review: 'Pending Review',
@@ -45,6 +54,7 @@ function DetailRow({ label, value }: { label: string; value?: React.ReactNode })
 }
 
 export default function SuperAdminOnboardVerificationPage() {
+  const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [rows, setRows] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
@@ -55,7 +65,7 @@ export default function SuperAdminOnboardVerificationPage() {
   const load = () => {
     setLoading(true)
     setError('')
-    superAdminApi.onboardingRequests(statusFilter === 'all' ? {} : { status: statusFilter })
+    superAdminApi.onboardingRequests()
       .then((res) => setRows(Array.isArray(res) ? res : []))
       .catch((err) => {
         setRows([])
@@ -66,8 +76,29 @@ export default function SuperAdminOnboardVerificationPage() {
 
   useEffect(() => {
     load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter])
+  }, [])
+
+  const filteredRows = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    return rows.filter((row) => {
+      if (statusFilter !== 'all' && row.status !== statusFilter) return false
+      if (query) {
+        const haystack = [row.experts?.name, row.institutions?.name, row.projects?.title]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+        if (!haystack.includes(query)) return false
+      }
+      return true
+    })
+  }, [rows, search, statusFilter])
+
+  const hasActiveFilters = Boolean(search.trim()) || statusFilter !== 'all'
+
+  const clearAll = () => {
+    setSearch('')
+    setStatusFilter('all')
+  }
 
   async function verify(row: any) {
     setVerifyingId(row.id)
@@ -105,25 +136,41 @@ export default function SuperAdminOnboardVerificationPage() {
       <SectionCard
         title="Onboard Verification"
         description="Institutions submit an onboarding case after locking the booking. Review the full details, then verify each case to auto-generate and send the offer letter to the expert."
-        action={
-          <select
-            className="rounded-md border border-slate-200 px-3 py-2 text-sm"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="all">All statuses</option>
-            <option value="pending_review">Pending Review</option>
-            <option value="offer_sent">Offer Sent</option>
-            <option value="accepted">Accepted</option>
-            <option value="declined">Declined</option>
-            <option value="expired">Expired</option>
-          </select>
-        }
       >
+        <div className="mb-5 flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:flex-row sm:items-center">
+          <div className="relative min-w-0 flex-1">
+            <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+            <Input
+              className="pl-9"
+              placeholder="Search by expert name, institution, or requirement"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="sm:w-48"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {STATUS_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            type="button"
+            variant="ghost"
+            className="shrink-0 text-slate-600 hover:text-slate-900"
+            disabled={!hasActiveFilters}
+            onClick={clearAll}
+          >
+            <X className="mr-2 h-4 w-4" />
+            Clear all
+          </Button>
+        </div>
+
         {loading ? <p className="mb-3 text-sm text-slate-600">Loading onboarding requests...</p> : null}
         {error ? <p className="mb-3 text-sm text-red-600">{error}</p> : null}
         <DataTable
-          rows={rows}
+          rows={filteredRows}
           columns={[
             { key: 'expert', header: 'Expert', render: (row: any) => (
               <div>
@@ -172,7 +219,7 @@ export default function SuperAdminOnboardVerificationPage() {
               </div>
             ) },
           ]}
-          emptyText="No onboarding requests yet."
+          emptyText={hasActiveFilters ? 'No onboarding requests match your search/filters.' : 'No onboarding requests yet.'}
         />
       </SectionCard>
 
