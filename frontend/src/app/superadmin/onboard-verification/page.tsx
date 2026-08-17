@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { CheckCircle2, Eye, FileText, Search, Send, Star, X } from 'lucide-react'
+import { CheckCircle2, Eye, FileText, RefreshCw, Search, Send, Star, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -178,12 +178,23 @@ export default function SuperAdminOnboardVerificationPage() {
           <Button
             type="button"
             variant="ghost"
-            className="shrink-0 text-slate-600 hover:text-slate-900"
+            className="shrink-0 text-slate-600 hover:text-red-900 bg-red-500/10 hover:bg-red-500/20"
             disabled={!hasActiveFilters}
             onClick={clearAll}
           >
-            <X className="mr-2 h-4 w-4" />
-            Clear all
+            <X className=" h-4 w-4" />
+         
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="shrink-0 text-slate-600 hover:text-slate-900"
+            disabled={loading}
+            onClick={load}
+            title="Refresh"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
         </div>
 
