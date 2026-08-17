@@ -330,10 +330,11 @@ export default function ExpertDashboard() {
 
       // An institution completing "Onboarding" moves the application to accepted and creates the
       // booking right away, but it should still read as "Interview" to the expert until CalxMap
-      // verifies it and the expert accepts the offer letter — only then does it move to Bookings.
+      // verifies it. Once CalxMap sends the offer letter (status: offer_sent), it moves out of
+      // Interview and into the Offer Letters tab instead; accepting it then moves it to Bookings.
       const stillOnboarding = acceptedList.filter((application: any) => {
         const onboarding = onboardingMapRef.current[application.id]
-        return onboarding && (onboarding.status === 'pending_review' || onboarding.status === 'offer_sent')
+        return onboarding && onboarding.status === 'pending_review'
       })
 
       if (page === 1 && interviewResponse && typeof interviewResponse === 'object' && 'counts' in interviewResponse) {
@@ -1146,19 +1147,13 @@ export default function ExpertDashboard() {
                             />
                           </div>
                         )}
-                        {(() => {
-                          const onboarding = onboardingByApplicationId[application.id]
-                          if (!onboarding) return null
-                          return (
-                            <div className="border-l-4 border-amber-400 bg-amber-50 rounded-r-lg p-2 sm:p-3 mb-3">
-                              <p className="text-xs sm:text-sm font-semibold text-amber-800">
-                                {onboarding.status === 'offer_sent'
-                                  ? 'Offer letter sent — respond from the Offer Letters tab'
-                                  : 'Institution submitted this for onboarding — awaiting CalxMap verification'}
-                              </p>
-                            </div>
-                          )
-                        })()}
+                        {onboardingByApplicationId[application.id]?.status === 'pending_review' ? (
+                          <div className="border-l-4 border-amber-400 bg-amber-50 rounded-r-lg p-2 sm:p-3 mb-3">
+                            <p className="text-xs sm:text-sm font-semibold text-amber-800">
+                              Institution submitted this for onboarding — awaiting CalxMap verification
+                            </p>
+                          </div>
+                        ) : null}
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3">
                           <Badge className="capitalize bg-[#E8F4F8] hover:bg-[#E8F4F8] text-[#008260] border border-[#008260] rounded-full text-xs font-semibold py-1.5 px-3 self-start">
                             Interview
@@ -1284,7 +1279,11 @@ export default function ExpertDashboard() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {pagedRejectedApplications?.map((application: any) => (
+                      {pagedRejectedApplications?.map((application: any) => {
+                        const onboarding = onboardingByApplicationId[application.id]
+                        const declinedByYou = onboarding?.status === 'declined' && onboarding?.decline_reason
+                        const autoExpired = onboarding?.status === 'expired' && onboarding?.decline_reason
+                        return (
                         <div key={application.id} className="bg-white border border-[#DCDCDC] rounded-lg p-4 sm:p-6 hover:border-[#008260] hover:shadow-md transition-all duration-300 group">
                           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
                             <h3 className="font-semibold text-base sm:text-lg text-slate-900 group-hover:text-[#008260] transition-colors duration-300 break-words">{application.projects?.title || 'Project Title'}</h3>
@@ -1296,6 +1295,14 @@ export default function ExpertDashboard() {
                             </Badge>
                           </div>
                           <p className="text-xs sm:text-sm text-slate-600 mb-2 break-words line-clamp-2">{application.projects?.description || 'Project description'}</p>
+                          {declinedByYou || autoExpired ? (
+                            <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 p-3">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-rose-700 mb-1">
+                                {autoExpired ? 'Offer auto-declined' : 'Reason you declined'}
+                              </p>
+                              <p className="text-sm text-rose-800 whitespace-pre-wrap">{onboarding.decline_reason}</p>
+                            </div>
+                          ) : null}
                           {application.cover_letter ? (
                             <div className="mb-3 rounded-lg border border-[#E8E8E8] bg-[#FAFAFA] p-3">
                               <p className="text-xs font-semibold uppercase tracking-wide text-[#717171] mb-1">Your cover letter</p>
@@ -1312,8 +1319,9 @@ export default function ExpertDashboard() {
                             />
                           </div>
                         </div>
-                      ))}
-                      
+                        )
+                      })}
+
                       {rejectedApplicationsLoading && (
                         <div className="text-center py-4">
                           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>

@@ -19,6 +19,7 @@ import { moneyInr, compensationUnitShortLabel } from '@/lib/projectCompensation'
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All statuses' },
   { value: 'pending_review', label: 'Pending Review' },
+  { value: 'offer_sent', label: 'Offer Sent' },
   { value: 'accepted', label: 'Accepted' },
   { value: 'declined', label: 'Declined' },
 ]
