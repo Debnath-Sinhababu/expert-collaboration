@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Activity, Banknote, BriefcaseBusiness, Building2, CalendarDays, Download, GraduationCap, ListChecks, TrendingUp, Users } from 'lucide-react'
+import { Activity, AlertCircle, Banknote, BriefcaseBusiness, Building2, CalendarDays, Download, GraduationCap, ListChecks, TrendingUp, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -26,12 +26,16 @@ export default function SuperAdminOverviewPage() {
   const [error, setError] = useState('')
   const [exportFilters, setExportFilters] = useState({ date_from: '', date_to: '', month: '', year: '' })
   const [exporting, setExporting] = useState(false)
+  const [pendingOnboardCount, setPendingOnboardCount] = useState(0)
 
   useEffect(() => {
     superAdminApi.overviewStats()
       .then(setStats)
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load overview'))
       .finally(() => setLoading(false))
+    superAdminApi.onboardingRequests({ status: 'pending_review' })
+      .then((res) => setPendingOnboardCount(Array.isArray(res) ? res.length : 0))
+      .catch(() => {})
   }, [])
 
   async function exportOverview() {
@@ -98,6 +102,16 @@ export default function SuperAdminOverviewPage() {
           </div>
         </div>
       </div>
+
+      {pendingOnboardCount > 0 ? (
+        <Link
+          href="/superadmin/onboard-verification"
+          className="relative flex animate-pulse items-center gap-3 overflow-hidden rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900 shadow-sm transition hover:bg-amber-100"
+        >
+          <AlertCircle className="h-5 w-5 shrink-0 text-amber-600" />
+          {pendingOnboardCount} onboarding expert waiting for your verification
+        </Link>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard label="Total Requirements" value={statusValue(stats, 'total')} icon={ListChecks} helper="All business work items" />
