@@ -16,6 +16,7 @@ import { toast } from 'sonner'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Upload, X, Camera } from 'lucide-react'
 import Logo from '@/components/Logo'
+import { StudentPortalNavLinks } from '@/components/student/StudentPortalNav'
 import Link from 'next/link'
 import {
   SuperAdminAccountFields,
@@ -233,6 +234,9 @@ export default function StudentProfileSetup() {
       <header className="bg-[#008260] text-white py-4 px-6 shadow-md">
         <div className="container mx-auto flex items-center justify-between">
           <Logo size="header" />
+          <nav className="hidden md:flex items-center space-x-8">
+            <StudentPortalNavLinks />
+          </nav>
           <div className="flex items-center gap-4">
             <Link href="/contact-us">
             <span className="text-sm">Contact Us</span>

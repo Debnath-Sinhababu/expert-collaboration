@@ -14,6 +14,7 @@ import ProfileDropdown from '@/components/ProfileDropdown'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import Logo from '@/components/Logo'
+import { StudentPortalNavLinks } from '@/components/student/StudentPortalNav'
 import Link from 'next/link'
 
 export default function StudentInternshipDetail({
@@ -90,6 +91,9 @@ export default function StudentInternshipDetail({
           <Link href="/student/home" className="flex items-center">
             <Logo size="header" />
           </Link>
+          <nav className="hidden md:flex items-center space-x-8">
+            <StudentPortalNavLinks />
+          </nav>
           <div className="flex items-center gap-2">
             <NotificationBell />
             <ProfileDropdown user={user} student={student} userType="student" />

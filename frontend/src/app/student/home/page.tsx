@@ -19,6 +19,7 @@ import Autoplay from 'embla-carousel-autoplay'
 import { usePagination } from '@/hooks/usePagination'
 import { Search, MapPin, IndianRupee, Briefcase, Star, Calendar, Clock } from 'lucide-react'
 import Logo from '@/components/Logo'
+import { StudentPortalNavLinks } from '@/components/student/StudentPortalNav'
 
 export default function StudentHome() {
   const [user, setUser] = useState<any>(null)
@@ -151,15 +152,7 @@ export default function StudentHome() {
 
             {/* Navigation */}
             <nav className="hidden md:flex items-center space-x-8">
-            
-              <Link href="/student/dashboard" className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
-               Internship Dashboard
-                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
-              </Link>
-              <Link href="/student/freelance/dashboard" className="text-white/80 hover:text-white font-medium transition-colors duration-200 relative group">
-                Freelance Dashboard
-                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
-              </Link>
+              <StudentPortalNavLinks />
             </nav>
 
             {/* Right side */}

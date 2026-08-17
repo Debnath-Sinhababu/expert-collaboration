@@ -19,6 +19,7 @@ import { Save, ArrowLeft, FileText, X, GraduationCap, Camera, Upload } from 'luc
 import { INDIAN_STATES, INDIAN_DEGREES } from '@/lib/constants'
 import { toast } from 'sonner'
 import Logo from '@/components/Logo'
+import { StudentPortalNavLinks } from '@/components/student/StudentPortalNav'
 
 export default function StudentProfileEdit() {
   const router = useRouter()
@@ -288,6 +289,7 @@ export default function StudentProfileEdit() {
                  Dashboard
                 <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
               </Link>
+              <StudentPortalNavLinks />
             </nav>
 
             <div className="flex items-center space-x-4">
