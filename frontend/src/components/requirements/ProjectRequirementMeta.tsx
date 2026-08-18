@@ -3,9 +3,10 @@
 import { Badge } from '@/components/ui/badge'
 import { formatEmploymentType, formatWorkplaceType } from '@/lib/requirementLabels'
 import { institutionDisplayName } from '@/lib/privacyDisplay'
+import { moneyInr, projectCompensationDisplay, type ProjectCompensationLike } from '@/lib/projectCompensation'
 import { Building, Clock, MapPin } from 'lucide-react'
 
-type ProjectLike = {
+type ProjectLike = ProjectCompensationLike & {
   type?: string
   job_location?: string | null
   workplace_type?: string | null
@@ -30,7 +31,14 @@ const TYPE_LABELS: Record<string, string> = {
   other: 'Other',
 }
 
-export function ProjectRequirementMeta({ project }: { project: ProjectLike }) {
+export function ProjectRequirementMeta({
+  project,
+  audience = 'institution',
+}: {
+  project: ProjectLike
+  /** Experts must never see the institution's gross budget — show their net earning instead. */
+  audience?: 'institution' | 'expert'
+}) {
   const location =
     project.job_location?.trim() ||
     [project.institutions?.city, project.institutions?.state].filter(Boolean).join(', ')
@@ -73,10 +81,21 @@ export function ProjectRequirementMeta({ project }: { project: ProjectLike }) {
           <Badge variant="secondary">{formatEmploymentType(project.employment_type)}</Badge>
         )}
       </div>
-      {project.total_budget != null && (
-        <p className="text-sm text-[#6A6A6A]">
-          Total budget: <span className="font-semibold text-[#000000]">₹{project.total_budget}</span>
-        </p>
+      {audience === 'expert' ? (
+        (() => {
+          const netTotal = projectCompensationDisplay(project).expertNetTotal
+          return netTotal > 0 ? (
+            <p className="text-sm text-[#6A6A6A]">
+              You&apos;ll earn: <span className="font-semibold text-[#000000]">{moneyInr(netTotal)}</span>
+            </p>
+          ) : null
+        })()
+      ) : (
+        project.total_budget != null && (
+          <p className="text-sm text-[#6A6A6A]">
+            Total budget: <span className="font-semibold text-[#000000]">₹{project.total_budget}</span>
+          </p>
+        )
       )}
       {project.interview_period_interval && (
         <div className="rounded-lg border border-[#BFE3D8] bg-[#E8F5F1] p-3">

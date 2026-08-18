@@ -180,6 +180,13 @@ export const superAdminApi = {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),
+  pendingMarginRequirements: (params?: { page?: number; limit?: number }) =>
+    request<PaginatedResponse<any>>(`/api/superadmin/requirements/pending-margin?${query({ ...(params || {}), _t: Date.now() })}`),
+  setRequirementMargin: (type: string, id: string, body: { margin_percent: number }) =>
+    request<any>(`/api/superadmin/requirements/${encodeURIComponent(type)}/${encodeURIComponent(id)}/margin`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
   assignRequirement: (type: string, id: string, body: { admin_id: string; notes?: string }) =>
     request<any>(`/api/superadmin/requirements/${encodeURIComponent(type)}/${encodeURIComponent(id)}/assignment`, {
       method: 'POST',

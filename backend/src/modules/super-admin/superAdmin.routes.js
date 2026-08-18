@@ -111,6 +111,16 @@ function createSuperAdminRouter() {
     requireSuperAdmin('requirements:write'),
     asyncHandler(controller.reviewProjectEditRequest),
   );
+  router.get(
+    '/requirements/pending-margin',
+    requireSuperAdmin('requirements:read'),
+    asyncHandler(controller.listPendingMarginRequirements),
+  );
+  router.post(
+    '/requirements/:type/:id/margin',
+    requireSuperAdmin('requirements:write'),
+    asyncHandler(controller.setRequirementMargin),
+  );
 
   router.get('/freelance', requireSuperAdmin('freelance:read'), asyncHandler(controller.listFreelance));
   router.get('/internships', requireSuperAdmin('internships:read'), asyncHandler(controller.listInternships));

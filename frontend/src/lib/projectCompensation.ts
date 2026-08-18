@@ -48,19 +48,35 @@ export function compensationUnitShortLabel(unit?: string | null): string {
   return COMPENSATION_UNIT_OPTIONS.find((item) => item.value === unit)?.shortLabel || 'unit'
 }
 
-export function toExpertNet(gross: number): number {
-  if (!Number.isFinite(gross) || gross <= 0) return 0
-  return Math.round(gross * EXPERT_NET_SHARE)
+/**
+ * Resolve the expert's share (0-1) of a project's gross budget.
+ * Per-project margin set by super-admin during approval takes priority;
+ * EXPERT_NET_SHARE is only a defensive fallback for rows without one.
+ */
+export function resolveExpertShare(project?: { margin_percent?: number | string | null } | null): number {
+  const marginPercent = Number(project?.margin_percent)
+  if (Number.isFinite(marginPercent) && marginPercent >= 0 && marginPercent <= 100) {
+    return (100 - marginPercent) / 100
+  }
+  return EXPERT_NET_SHARE
 }
 
-export function toInstitutionGrossFromNet(net: number): number {
+export function toExpertNet(gross: number, expertShare: number = EXPERT_NET_SHARE): number {
+  if (!Number.isFinite(gross) || gross <= 0) return 0
+  const share = Number.isFinite(expertShare) ? expertShare : EXPERT_NET_SHARE
+  return Math.round(gross * share)
+}
+
+export function toInstitutionGrossFromNet(net: number, expertShare: number = EXPERT_NET_SHARE): number {
   if (!Number.isFinite(net) || net <= 0) return 0
-  return Math.round(net / EXPERT_NET_SHARE)
+  const share = Number.isFinite(expertShare) && expertShare > 0 ? expertShare : EXPERT_NET_SHARE
+  return Math.round(net / share)
 }
 
-export function toPlatformFee(gross: number): number {
+export function toPlatformFee(gross: number, expertShare: number = EXPERT_NET_SHARE): number {
   if (!Number.isFinite(gross) || gross <= 0) return 0
-  return Math.round(gross * PLATFORM_FEE_SHARE)
+  const share = Number.isFinite(expertShare) ? expertShare : EXPERT_NET_SHARE
+  return Math.round(gross * (1 - share))
 }
 
 export type CompensationInput = {
@@ -82,7 +98,10 @@ export type CompensationDerived = {
   grossPerUnit: number
 }
 
-export function deriveCompensation(input: CompensationInput): CompensationDerived {
+export function deriveCompensation(
+  input: CompensationInput,
+  expertShare: number = EXPERT_NET_SHARE
+): CompensationDerived {
   const unit = input.compensation_unit
   const quantity = Math.max(0, Number(input.unit_quantity) || 0)
   const durationPerUnit = Math.max(0, Number(input.duration_per_unit) || 0)
@@ -105,20 +124,20 @@ export function deriveCompensation(input: CompensationInput): CompensationDerive
 
   const expertNetPerUnit =
     unit === 'fixed_package'
-      ? toExpertNet(totalBudgetGross)
-      : toExpertNet(grossPerUnit)
+      ? toExpertNet(totalBudgetGross, expertShare)
+      : toExpertNet(grossPerUnit, expertShare)
 
   const expertNetTotal =
     unit === 'fixed_package'
       ? expertNetPerUnit
-      : toExpertNet(totalBudgetGross)
+      : toExpertNet(totalBudgetGross, expertShare)
 
   return {
     expectedTotalHours: Number.isFinite(expectedTotalHours) ? expectedTotalHours : 0,
     totalBudgetGross: Number.isFinite(totalBudgetGross) ? totalBudgetGross : 0,
     expertNetPerUnit,
     expertNetTotal,
-    platformFeeTotal: toPlatformFee(totalBudgetGross),
+    platformFeeTotal: toPlatformFee(totalBudgetGross, expertShare),
     quantity,
     durationPerUnit,
     grossPerUnit: unit === 'fixed_package' ? totalBudgetGross : grossPerUnit,
@@ -151,6 +170,8 @@ export type ProjectCompensationLike = {
   hourly_rate?: number | string | null
   total_budget?: number | string | null
   duration_hours?: number | string | null
+  margin_percent?: number | string | null
+  margin_status?: string | null
 }
 
 /**
@@ -231,26 +252,38 @@ export function projectCompensationDisplay(project?: ProjectCompensationLike | n
   const unit = normalized.unit
   const legacyBudget = Number(project?.total_budget)
   const legacyHours = Number(project?.duration_hours)
+  const expertShare = resolveExpertShare(project)
 
-  const derived = deriveCompensation({
-    compensation_unit: unit,
-    unit_quantity: String(normalized.quantity),
-    duration_per_unit: String(normalized.durationPerUnit),
-    institution_gross_per_unit: String(normalized.grossPerUnit),
-    institution_gross_total: String(
-      normalized.packageTotal > 0
-        ? normalized.packageTotal
-        : Number.isFinite(legacyBudget) && legacyBudget > 0
-          ? legacyBudget
-          : 0
-    ),
-  })
+  const derived = deriveCompensation(
+    {
+      compensation_unit: unit,
+      unit_quantity: String(normalized.quantity),
+      duration_per_unit: String(normalized.durationPerUnit),
+      institution_gross_per_unit: String(normalized.grossPerUnit),
+      institution_gross_total: String(
+        normalized.packageTotal > 0
+          ? normalized.packageTotal
+          : Number.isFinite(legacyBudget) && legacyBudget > 0
+            ? legacyBudget
+            : 0
+      ),
+    },
+    expertShare
+  )
 
-  // Prefer stored totals when present
-  if (Number.isFinite(legacyBudget) && legacyBudget > 0 && derived.totalBudgetGross <= 0) {
-    derived.totalBudgetGross = legacyBudget
-    derived.expertNetTotal = toExpertNet(legacyBudget)
-    derived.platformFeeTotal = toPlatformFee(legacyBudget)
+  // Prefer the stored total budget (what the institution actually entered) over
+  // quantity * rounded-per-unit-rate, which can drift by a few rupees from rounding
+  // (e.g. Rs.100000 / 7 days -> Rs.14285.71/day -> x7 = Rs.99999.97, not Rs.100000).
+  const accurateTotal =
+    normalized.packageTotal > 0
+      ? normalized.packageTotal
+      : Number.isFinite(legacyBudget) && legacyBudget > 0
+        ? legacyBudget
+        : 0
+  if (accurateTotal > 0 && unit !== 'fixed_package') {
+    derived.totalBudgetGross = accurateTotal
+    derived.expertNetTotal = toExpertNet(accurateTotal, expertShare)
+    derived.platformFeeTotal = toPlatformFee(accurateTotal, expertShare)
   }
   if (Number.isFinite(legacyHours) && legacyHours > 0 && derived.expectedTotalHours <= 0) {
     derived.expectedTotalHours = legacyHours
@@ -582,6 +615,7 @@ export function resolveApplicationRates(
 ) {
   const display = projectCompensationDisplay(project)
   const unit = (application?.compensation_unit as CompensationUnit) || display.unit
+  const expertShare = resolveExpertShare(project)
 
   const finalGross = Number(application?.final_gross_per_unit)
   const finalNet = Number(application?.final_net_per_unit)
@@ -601,7 +635,7 @@ export function resolveApplicationRates(
 
   const counterGross = Number(application?.institution_counter_gross_per_unit)
   if (Number.isFinite(counterGross) && counterGross > 0) {
-    const net = toExpertNet(counterGross)
+    const net = toExpertNet(counterGross, expertShare)
     return {
       unit,
       unitShort: compensationUnitShortLabel(unit),
@@ -617,7 +651,7 @@ export function resolveApplicationRates(
 
   const proposedNet = Number(application?.proposed_net_per_unit)
   if (Number.isFinite(proposedNet) && proposedNet > 0) {
-    const gross = toInstitutionGrossFromNet(proposedNet)
+    const gross = toInstitutionGrossFromNet(proposedNet, expertShare)
     return {
       unit,
       unitShort: compensationUnitShortLabel(unit),
@@ -639,10 +673,10 @@ export function resolveApplicationRates(
       unit: 'hourly' as CompensationUnit,
       unitShort: 'hour',
       grossPerUnit: legacyFinal,
-      netPerUnit: toExpertNet(legacyFinal),
+      netPerUnit: toExpertNet(legacyFinal, expertShare),
       quantity: display.expectedTotalHours || display.quantity || 1,
       totalGross: legacyFinal * (display.expectedTotalHours || 1),
-      totalNet: toExpertNet(legacyFinal) * (display.expectedTotalHours || 1),
+      totalNet: toExpertNet(legacyFinal, expertShare) * (display.expectedTotalHours || 1),
       locked: true,
       source: 'legacy_final' as const,
     }
@@ -652,10 +686,10 @@ export function resolveApplicationRates(
       unit: 'hourly' as CompensationUnit,
       unitShort: 'hour',
       grossPerUnit: legacyProposed,
-      netPerUnit: toExpertNet(legacyProposed),
+      netPerUnit: toExpertNet(legacyProposed, expertShare),
       quantity: display.expectedTotalHours || display.quantity || 1,
       totalGross: legacyProposed * (display.expectedTotalHours || 1),
-      totalNet: toExpertNet(legacyProposed) * (display.expectedTotalHours || 1),
+      totalNet: toExpertNet(legacyProposed, expertShare) * (display.expectedTotalHours || 1),
       locked: false,
       source: 'legacy_proposed' as const,
     }
@@ -689,6 +723,7 @@ export function resolveBookingSettlementRates(
 ) {
   const project = booking?.projects || booking?.project || null
   const posted = projectCompensationDisplay(project)
+  const expertShare = resolveExpertShare(project)
   let unit = (booking?.compensation_unit as CompensationUnit) || posted.unit
 
   let grossPerUnit = Number(booking?.final_gross_per_unit)
@@ -710,7 +745,7 @@ export function resolveBookingSettlementRates(
     unit = posted.unit
   }
   if (!(Number.isFinite(netPerUnit) && netPerUnit > 0)) {
-    netPerUnit = toExpertNet(grossPerUnit)
+    netPerUnit = toExpertNet(grossPerUnit, expertShare)
   }
 
   return {

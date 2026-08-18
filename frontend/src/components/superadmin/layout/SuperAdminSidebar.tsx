@@ -24,12 +24,16 @@ export function SuperAdminSidebar({
   const pathname = usePathname()
   const visibleItems = superAdminNavItems.filter((item) => canAccess(me, item.permission))
   const [pendingOnboardCount, setPendingOnboardCount] = useState(0)
+  const [pendingMarginCount, setPendingMarginCount] = useState(0)
 
   useEffect(() => {
     if (!me) return
     let mounted = true
     superAdminApi.onboardingRequests({ status: 'pending_review' })
       .then((res) => { if (mounted) setPendingOnboardCount(Array.isArray(res) ? res.length : 0) })
+      .catch(() => {})
+    superAdminApi.pendingMarginRequirements({ limit: 1 })
+      .then((res) => { if (mounted) setPendingMarginCount(res?.total || 0) })
       .catch(() => {})
     return () => { mounted = false }
   }, [me, pathname])
@@ -81,13 +85,13 @@ export function SuperAdminSidebar({
               </span>
               <span className="min-w-0 flex-1 truncate">{item.label}</span>
               {item.href === '/superadmin/onboard-verification' && pendingOnboardCount > 0 ? (
-                <span
-                  className={cn(
-                    'flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-xs font-bold',
-                    active ? 'bg-white text-[#008260]' : 'bg-red-500 text-white',
-                  )}
-                >
+                <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">
                   {pendingOnboardCount > 99 ? '99+' : pendingOnboardCount}
+                </span>
+              ) : null}
+              {item.href === '/superadmin/margin-review' && pendingMarginCount > 0 ? (
+                <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">
+                  {pendingMarginCount > 99 ? '99+' : pendingMarginCount}
                 </span>
               ) : null}
             </Link>

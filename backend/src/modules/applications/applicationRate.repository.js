@@ -23,7 +23,8 @@ class ApplicationRateRepository {
           total_budget,
           duration_hours,
           start_date,
-          end_date
+          end_date,
+          margin_percent
         ),
         experts (
           id,
@@ -62,7 +63,8 @@ class ApplicationRateRepository {
           total_budget,
           duration_hours,
           start_date,
-          end_date
+          end_date,
+          margin_percent
         ),
         experts ( id, name, hourly_rate )
       `)

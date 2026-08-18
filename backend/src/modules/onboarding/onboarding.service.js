@@ -8,18 +8,41 @@ const {
   sendOfferDeclinedEmail,
   sendOnboardingDeclinedToInstitutionEmail,
 } = require('../../../services/offerLetterEmailService');
+const { notifyOnboardingPendingReview } = require('../../../services/superAdminAlertService');
+const { resolveExpertShare, toExpertNet } = require('../../shared/compensation');
 
 const OFFER_EXPIRY_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
 const AUTO_DECLINE_REASON = 'Auto-declined: the expert did not respond to the offer letter within 3 days.';
 
 const TRAINING_MODE_LABELS = { remote: 'Online (Remote)', hybrid: 'Hybrid', on_site: 'On-site (In-person)' };
 
+/**
+ * Fees payable to the Trainer are the expert's NET amount (after the platform margin),
+ * never the institution's gross budget. Derive from the accurate stored total budget
+ * (not qty * rounded per-unit rate, which can drift by a few rupees from rounding).
+ */
 function computeTotalFee(application, project) {
-  const grossPerUnit = Number(application?.final_gross_per_unit ?? project?.institution_gross_per_unit ?? project?.hourly_rate);
-  if (!Number.isFinite(grossPerUnit) || grossPerUnit <= 0) return undefined;
+  const expertShare = resolveExpertShare(project);
+  const grossTotal =
+    Number(project?.institution_gross_total) > 0
+      ? Number(project.institution_gross_total)
+      : Number(project?.total_budget) > 0
+        ? Number(project.total_budget)
+        : 0;
+  if (grossTotal > 0) {
+    return toExpertNet(grossTotal, expertShare) ?? undefined;
+  }
+
+  // Fallback for legacy rows without a stored total: derive from per-unit rate * quantity.
+  const netPerUnit = Number(application?.final_net_per_unit);
   const unitQuantity = Number(application?.unit_quantity ?? project?.unit_quantity ?? 1);
   const qty = Number.isFinite(unitQuantity) && unitQuantity > 0 ? unitQuantity : 1;
-  return grossPerUnit * qty;
+  if (Number.isFinite(netPerUnit) && netPerUnit > 0) {
+    return Math.round(netPerUnit * qty);
+  }
+  const grossPerUnit = Number(application?.final_gross_per_unit ?? project?.institution_gross_per_unit ?? project?.hourly_rate);
+  if (!Number.isFinite(grossPerUnit) || grossPerUnit <= 0) return undefined;
+  return toExpertNet(grossPerUnit * qty, expertShare) ?? undefined;
 }
 
 function describeTrainingDuration(project) {
@@ -65,7 +88,7 @@ class OnboardingService {
     const existing = await this.repo.findActiveByApplicationId(applicationId);
     if (existing) return existing;
 
-    return this.repo.create({
+    const created = await this.repo.create({
       application_id: applicationId,
       booking_id: bookingId || null,
       project_id: projectId,
@@ -73,6 +96,8 @@ class OnboardingService {
       institution_id: institutionId,
       status: 'pending_review',
     });
+    notifyOnboardingPendingReview(this.db).catch(() => {});
+    return created;
   }
 
   async listRequests(filters) {

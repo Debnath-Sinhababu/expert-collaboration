@@ -1427,6 +1427,9 @@ export default function InstitutionDashboardPage() {
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                           <h3 className="font-bold text-base sm:text-lg text-[#000000]">{project.title}</h3>
                           <div className="flex items-center gap-2 flex-wrap">
+                            {project.margin_status === 'pending_review' && (
+                              <Badge variant="secondary" className="capitalize bg-[#FEF3C7] rounded-[18px] text-xs font-semibold text-[#B45309] py-1.5 px-3 sm:py-2 sm:px-4">Pending admin review</Badge>
+                            )}
                             <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 px-3 sm:py-2 sm:px-4">{projectStatusLabel(project.status)}</Badge>
                             <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 px-3 sm:py-2 sm:px-4">{project.type}</Badge>
                           </div>

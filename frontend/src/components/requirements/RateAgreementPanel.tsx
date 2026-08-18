@@ -25,6 +25,7 @@ import {
   isRateNegotiationClosed,
   moneyInr,
   projectCompensationDisplay,
+  resolveExpertShare,
   toExpertNet,
   toInstitutionGrossFromNet,
   type NegotiationHistoryEntry,
@@ -161,7 +162,7 @@ export function RateAgreementPanel({ application, project, role, onUpdated }: Pr
       toast.error('No expert proposal to accept')
       return
     }
-    const gross = toInstitutionGrossFromNet(net)
+    const gross = toInstitutionGrossFromNet(net, resolveExpertShare(project))
     await runInstitutionActionWithBudgetCheck('accept_proposal', gross, {})
   }
 
@@ -315,7 +316,7 @@ export function RateAgreementPanel({ application, project, role, onUpdated }: Pr
                 ? (
                     <span className="block">
                       Expert proposed a new rate. You need to pay{' '}
-                      {moneyInr(toInstitutionGrossFromNet(Number(application.proposed_net_per_unit)))} /{' '}
+                      {moneyInr(toInstitutionGrossFromNet(Number(application.proposed_net_per_unit), resolveExpertShare(project)))} /{' '}
                       {display.unitShort}
                     </span>
                   )
@@ -324,7 +325,7 @@ export function RateAgreementPanel({ application, project, role, onUpdated }: Pr
           {application.institution_counter_gross_per_unit != null && (
             <span className="block mt-1">
               {role === 'expert'
-                ? `Institution counter: ${moneyInr(toExpertNet(Number(application.institution_counter_gross_per_unit)))} earn / ${display.unitShort}`
+                ? `Institution counter: ${moneyInr(toExpertNet(Number(application.institution_counter_gross_per_unit), resolveExpertShare(project)))} earn / ${display.unitShort}`
                 : `Institution counter: pay ${moneyInr(Number(application.institution_counter_gross_per_unit))} / ${display.unitShort}`}
             </span>
           )}

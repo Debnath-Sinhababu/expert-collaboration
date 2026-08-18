@@ -264,6 +264,20 @@ class SuperAdminController {
     ));
   };
 
+  listPendingMarginRequirements = async (req, res) => {
+    const paging = parsePage(req.query);
+    res.json(await this.service.listPendingMarginRequirements(paging));
+  };
+
+  setRequirementMargin = async (req, res) => {
+    res.json(await this.service.setRequirementMargin(
+      req.params.type,
+      req.params.id,
+      req.body || {},
+      req.superAdmin,
+    ));
+  };
+
   reviewProjectEditRequest = async (req, res) => {
     res.json(await this.service.reviewProjectEditRequest(
       req.params.type,
