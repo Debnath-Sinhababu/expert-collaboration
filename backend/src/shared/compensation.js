@@ -1,5 +1,8 @@
 /**
- * Shared compensation math (70% expert net / 30% platform of institution gross).
+ * Shared compensation math. Expert net / platform fee split is per-project,
+ * driven by projects.margin_percent (set by super-admin on approval).
+ * EXPERT_NET_SHARE/PLATFORM_FEE_SHARE are only the legacy fallback for rows
+ * without a margin set.
  */
 
 const EXPERT_NET_SHARE = 0.7;
@@ -18,22 +21,38 @@ const RATE_STATUSES = new Set([
   'posted_rate_declined',
 ]);
 
-function toExpertNet(gross) {
-  const n = Number(gross);
-  if (!Number.isFinite(n) || n <= 0) return null;
-  return Math.round(n * EXPERT_NET_SHARE);
+/**
+ * Resolve the expert's share (0-1) of a project's gross budget.
+ * Per-project margin set by super-admin during approval takes priority;
+ * EXPERT_NET_SHARE is only a defensive fallback for rows without one.
+ */
+function resolveExpertShare(project) {
+  const marginPercent = Number(project?.margin_percent);
+  if (Number.isFinite(marginPercent) && marginPercent >= 0 && marginPercent <= 100) {
+    return (100 - marginPercent) / 100;
+  }
+  return EXPERT_NET_SHARE;
 }
 
-function toInstitutionGrossFromNet(net) {
+function toExpertNet(gross, expertShare = EXPERT_NET_SHARE) {
+  const n = Number(gross);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  const share = Number.isFinite(expertShare) ? expertShare : EXPERT_NET_SHARE;
+  return Math.round(n * share);
+}
+
+function toInstitutionGrossFromNet(net, expertShare = EXPERT_NET_SHARE) {
   const n = Number(net);
   if (!Number.isFinite(n) || n <= 0) return null;
-  return Math.round(n / EXPERT_NET_SHARE);
+  const share = Number.isFinite(expertShare) && expertShare > 0 ? expertShare : EXPERT_NET_SHARE;
+  return Math.round(n / share);
 }
 
-function toPlatformFee(gross) {
+function toPlatformFee(gross, expertShare = EXPERT_NET_SHARE) {
   const n = Number(gross);
   if (!Number.isFinite(n) || n <= 0) return null;
-  return Math.round(n * PLATFORM_FEE_SHARE);
+  const share = Number.isFinite(expertShare) ? expertShare : EXPERT_NET_SHARE;
+  return Math.round(n * (1 - share));
 }
 
 function isRateAgreed(status) {
@@ -108,11 +127,15 @@ function projectPostedRates(project) {
     }
   }
 
-  const netPerUnit = toExpertNet(grossPerUnit) || 0;
+  const netPerUnit = toExpertNet(grossPerUnit, resolveExpertShare(project)) || 0;
+  // Prefer the stored total budget over quantity * rounded-per-unit-rate, which can
+  // drift by a few rupees from rounding (e.g. Rs.100000 / 7 days -> Rs.14285.71/day -> x7 = Rs.99999.97).
   const totalGross =
     unit === 'fixed_package'
       ? packageTotal || grossPerUnit
-      : grossPerUnit * quantity;
+      : packageTotal > 0
+        ? packageTotal
+        : grossPerUnit * quantity;
 
   const durationHours =
     isUnitPay && quantity > 0 && (hoursPerDay > 0 || durationPerUnit > 0)
@@ -212,7 +235,7 @@ function resolveSettlementRates(booking) {
   }
 
   if (!(Number.isFinite(netPerUnit) && netPerUnit > 0) && Number.isFinite(grossPerUnit) && grossPerUnit > 0) {
-    netPerUnit = toExpertNet(grossPerUnit);
+    netPerUnit = toExpertNet(grossPerUnit, resolveExpertShare(project));
   }
 
   return {
@@ -251,6 +274,7 @@ module.exports = {
   RATE_INTENTS,
   RATE_STATUSES,
   ACTIVE_BOOKING_STATUSES_FOR_STATS,
+  resolveExpertShare,
   toExpertNet,
   toInstitutionGrossFromNet,
   toPlatformFee,

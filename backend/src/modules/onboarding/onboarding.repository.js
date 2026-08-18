@@ -16,7 +16,7 @@ class OnboardingRepository {
         duration_hours, duration_per_unit, hours_per_day, workplace_type,
         required_expertise, domain_expertise, subskills,
         compensation_unit, unit_quantity, hourly_rate, total_budget,
-        institution_gross_per_unit, institution_gross_total
+        institution_gross_per_unit, institution_gross_total, margin_percent
       ),
       experts (
         id, name, email, phone, user_id, bio, photo_url, address,

@@ -27,6 +27,7 @@ export default function SuperAdminOverviewPage() {
   const [exportFilters, setExportFilters] = useState({ date_from: '', date_to: '', month: '', year: '' })
   const [exporting, setExporting] = useState(false)
   const [pendingOnboardCount, setPendingOnboardCount] = useState(0)
+  const [pendingMarginCount, setPendingMarginCount] = useState(0)
 
   useEffect(() => {
     superAdminApi.overviewStats()
@@ -35,6 +36,9 @@ export default function SuperAdminOverviewPage() {
       .finally(() => setLoading(false))
     superAdminApi.onboardingRequests({ status: 'pending_review' })
       .then((res) => setPendingOnboardCount(Array.isArray(res) ? res.length : 0))
+      .catch(() => {})
+    superAdminApi.pendingMarginRequirements({ limit: 1 })
+      .then((res) => setPendingMarginCount(res?.total || 0))
       .catch(() => {})
   }, [])
 
@@ -106,10 +110,20 @@ export default function SuperAdminOverviewPage() {
       {pendingOnboardCount > 0 ? (
         <Link
           href="/superadmin/onboard-verification"
-          className="relative flex animate-pulse items-center gap-3 overflow-hidden rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900 shadow-sm transition hover:bg-amber-100"
+          className="relative flex animate-pulse items-center gap-3 overflow-hidden rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm font-semibold text-red-900 shadow-sm transition hover:bg-red-100"
         >
-          <AlertCircle className="h-5 w-5 shrink-0 text-amber-600" />
+          <AlertCircle className="h-5 w-5 shrink-0 text-red-600" />
           {pendingOnboardCount} onboarding expert waiting for your verification
+        </Link>
+      ) : null}
+
+      {pendingMarginCount > 0 ? (
+        <Link
+          href="/superadmin/margin-review"
+          className="relative flex animate-pulse items-center gap-3 overflow-hidden rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm font-semibold text-red-900 shadow-sm transition hover:bg-red-100"
+        >
+          <AlertCircle className="h-5 w-5 shrink-0 text-red-600" />
+          {pendingMarginCount} requirement{pendingMarginCount === 1 ? '' : 's'} waiting for margin approval
         </Link>
       ) : null}
 

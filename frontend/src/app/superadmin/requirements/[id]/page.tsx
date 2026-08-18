@@ -52,6 +52,7 @@ import {
   projectEngagementQuantityDisplay,
   bookingEngagementQuantityDisplay,
   resolveBookingSettlementRates,
+  resolveExpertShare,
   toExpertNet,
 } from '@/lib/projectCompensation'
 import {
@@ -1123,8 +1124,25 @@ export default function SuperAdminRequirementDetailPage({
                               `${Number(requirement.hours_per_day) > 0 ? requirement.hours_per_day : pricing.durationPerUnit} hrs`
                             )
                           : null}
-                        {detailValue('Expert earns (approx)', pricing.netPerUnitDisplay > 0 ? `${moneyInr(pricing.netPerUnitDisplay)} / ${pricing.unitShort}` : null)}
+                        {requirement.margin_status === 'approved'
+                          ? detailValue('Expert earns (approx)', pricing.netPerUnitDisplay > 0 ? `${moneyInr(pricing.netPerUnitDisplay)} / ${pricing.unitShort}` : null)
+                          : null}
                         {detailValue('Total budget', pricing.totalBudgetGross > 0 ? moneyInr(pricing.totalBudgetGross) : requirement.total_budget ? `Rs. ${requirement.total_budget}` : null)}
+                        {requirement.margin_status === 'approved' ? (
+                          detailValue('Platform margin', `${requirement.margin_percent}% (locked)`)
+                        ) : (
+                          <div className="md:col-span-3 rounded-lg border border-red-200 bg-red-50 p-4">
+                            <p className="text-sm font-medium text-red-900">
+                              Awaiting margin approval — this requirement is not visible to experts yet.
+                            </p>
+                            <Link
+                              href={`/superadmin/margin-review/${requirement.id}`}
+                              className="mt-2 inline-flex text-sm font-semibold text-[#008260] hover:underline"
+                            >
+                              Set margin in Margin Review →
+                            </Link>
+                          </div>
+                        )}
                       </>
                     )
                   })()}
@@ -1414,7 +1432,7 @@ export default function SuperAdminRequirementDetailPage({
                   <p className="mt-1 text-xs text-slate-500">
                     Auto-calculated from total budget ÷ quantity. You can still override it.
                     Expert earns (auto){' '}
-                    {moneyInr(toExpertNet(Number(bookingEditForm.final_gross_per_unit) || 0))} /{' '}
+                    {moneyInr(toExpertNet(Number(bookingEditForm.final_gross_per_unit) || 0, resolveExpertShare(requirement)))} /{' '}
                     {bookingEditUnitMeta().unitShort}
                   </p>
                 </div>

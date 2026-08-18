@@ -1920,7 +1920,12 @@ app.get('/api/projects', async (req, res) => {
     if (status) {
       query = applyProjectStatusListFilter(query, status);
     }
-    if (institution_id) query = query.eq('institution_id', institution_id);
+    if (institution_id) {
+      query = query.eq('institution_id', institution_id);
+    } else {
+      // Public/expert browsing: hide requirements still awaiting super-admin margin approval.
+      query = query.eq('margin_status', 'approved');
+    }
 
     const wantsActiveBookingsFilter =
       has_active_bookings === 'true' ||
@@ -2250,46 +2255,29 @@ app.post('/api/projects', upload.fields([
     const insertPayload = {
       ...projectPayload,
       requirement_pdf_url: requirementPdfData?.url || null,
-      requirement_pdf_public_id: requirementPdfData?.publicId || null
+      requirement_pdf_public_id: requirementPdfData?.publicId || null,
+      // Margin is set by a super-admin before this requirement is shown to experts —
+      // ignore any client-supplied value and always start pending review.
+      margin_percent: null,
+      margin_status: 'pending_review',
+      margin_set_by: null,
+      margin_set_at: null,
     };
 
     const { data, error } = await supabaseClient
       .from('projects')
       .insert([insertPayload])
       .select();
-    
-    console.log('Insert result:', { data, error });
-    
-    if (error) throw error;
-    
-    // Send notification to all experts about new project
-    try {
-      const serviceClient = createClient(
-        process.env.SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY
-      );
-      // Get institution details for notification
-      const { data: institutionData } = await serviceClient
-        .from('institutions')
-        .select('name')
-        .eq('id', req.body.institution_id)
-        .single();
-      console.log('Institution data:', institutionData);
-      
-      if (institutionData) {
-        // Get all experts to notify about new project
-        const { data: expertsData } = await serviceClient
-          .from('experts')
-          .select('user_id, domain_expertise')
-          .not('domain_expertise', 'is', null);
-          console.log('Experts data:', expertsData);
 
-      }
-    } catch (notificationError) {
-      console.error('Error sending project notification:', notificationError);
-      // Don't fail the main request if notification fails
-    }
-    
+    console.log('Insert result:', { data, error });
+
+    if (error) throw error;
+
+    // Experts are notified once a super-admin approves the margin (see
+    // POST /api/admin/requirements/:id/margin), not at creation time.
+    // Super admins get an email now so the new pending requirement doesn't sit unnoticed.
+    require('./services/superAdminAlertService').notifyMarginPendingReview().catch(() => {});
+
     res.status(201).json(data[0]);
   } catch (error) {
     console.log('Project creation error:', error);
@@ -2326,8 +2314,12 @@ app.get('/api/projects/:id', async (req, res) => {
     if (!data) {
       return res.status(404).json({ error: 'Project not found' });
     }
-    
+
     const { role: projectDetailRole } = await superAdminAuth.getUserRoleFromRequest(req);
+    // Requirements still awaiting super-admin margin approval aren't visible to experts/public.
+    if (data.margin_status !== 'approved' && projectDetailRole !== 'institution' && projectDetailRole !== 'super_admin') {
+      return res.status(404).json({ error: 'Project not found' });
+    }
     res.json(privacyMask.maskProjectRow(data, projectDetailRole));
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -4441,6 +4433,7 @@ app.get('/api/projects/recommended/:expertId', async (req, res) => {
         )
       `)
       .eq('status', 'open')
+      .eq('margin_status', 'approved')
       .order('created_at', { ascending: false });
 
     // Exclude projects that the expert has already applied to
@@ -4857,6 +4850,7 @@ app.get('/api/applications', async (req, res) => {
           duration_per_unit,
           institution_gross_per_unit,
           institution_gross_total,
+          margin_percent,
           schedule_notes,
           hours_per_day,
           required_expertise,
@@ -5136,7 +5130,7 @@ app.post('/api/applications', async (req, res) => {
       const rateService = new ApplicationRateService(serviceClient);
       const { data: projectForRate } = await serviceClient
         .from('projects')
-        .select('compensation_unit, unit_quantity, duration_per_unit, institution_gross_per_unit, institution_gross_total, hourly_rate, total_budget, duration_hours')
+        .select('compensation_unit, unit_quantity, duration_per_unit, institution_gross_per_unit, institution_gross_total, hourly_rate, total_budget, duration_hours, margin_percent')
         .eq('id', req.body.project_id)
         .maybeSingle();
       Object.assign(req.body, rateService.prepareCreatePayload(req.body, projectForRate || {}));
@@ -5392,7 +5386,7 @@ app.post('/api/bookings', async (req, res) => {
         const { resolveBookingAmount } = require('./src/shared/compensation');
         const { data: applicationForPrice } = await serviceClient
           .from('applications')
-          .select('final_gross_per_unit, final_hourly_rate, proposed_rate, projects(hourly_rate, institution_gross_per_unit, institution_gross_total, compensation_unit, unit_quantity, total_budget, duration_hours)')
+          .select('final_gross_per_unit, final_hourly_rate, proposed_rate, projects(hourly_rate, institution_gross_per_unit, institution_gross_total, compensation_unit, unit_quantity, total_budget, duration_hours, margin_percent)')
           .eq('id', req.body.application_id)
           .maybeSingle();
         const resolvedAmount = resolveBookingAmount(
@@ -5563,6 +5557,7 @@ app.get('/api/bookings', async (req, res) => {
           hours_per_day,
           institution_gross_per_unit,
           institution_gross_total,
+          margin_percent,
           required_expertise,
           domain_expertise,
           subskills,
@@ -7217,6 +7212,24 @@ function runOnboardingExpirySync(reason = 'interval') {
   }
 }
 
+// Auto-approve requirements an admin hasn't set a margin for within 15 minutes of posting,
+// falling back to the legacy 30% default so institutions/experts aren't blocked indefinitely.
+function runMarginAutoApproveSync(reason = 'interval') {
+  try {
+    const SuperAdminService = require('./src/modules/super-admin/superAdmin.service');
+    new SuperAdminService()
+      .autoApproveStaleMargins({ olderThanMinutes: 15, defaultMarginPercent: 30 })
+      .then((results) => {
+        if (results.length) {
+          console.log(`[marginAutoApprove] ${reason}: auto-approved ${results.length} requirement(s) at 30%`);
+        }
+      })
+      .catch((err) => console.warn(`[marginAutoApprove] ${reason} failed:`, err?.message || err));
+  } catch (err) {
+    console.warn(`[marginAutoApprove] ${reason} setup failed:`, err?.message || err);
+  }
+}
+
 // Start server
 server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
@@ -7231,6 +7244,8 @@ server.listen(PORT, () => {
   setInterval(() => runProjectStatusSync('hourly'), 60 * 60 * 1000);
   runOnboardingExpirySync('startup');
   setInterval(() => runOnboardingExpirySync('hourly'), 60 * 60 * 1000);
+  runMarginAutoApproveSync('startup');
+  setInterval(() => runMarginAutoApproveSync('every-5-min'), 5 * 60 * 1000);
 });
 
 module.exports = app;

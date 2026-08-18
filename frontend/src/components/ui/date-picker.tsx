@@ -41,7 +41,7 @@ export function DatePicker({
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen} modal={true}>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -56,10 +56,11 @@ export function DatePicker({
           {value ? format(value, "PPP") : placeholder}
         </Button>
       </PopoverTrigger>
-      <PopoverContent 
-        className="w-auto p-0" 
-        align="start" 
-    
+      <PopoverContent
+        className="w-auto p-0 max-h-[var(--radix-popover-content-available-height)] overflow-y-auto"
+        align="start"
+        sideOffset={8}
+        collisionPadding={16}
       >
         <div onClick={(e) => e.stopPropagation()}>
           <Calendar
