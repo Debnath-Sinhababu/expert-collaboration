@@ -50,6 +50,14 @@ function createSuperAdminRouter() {
     requireSuperAdmin(['requirements:read', 'freelance:read', 'internships:read']),
     asyncHandler(controller.getRequirementDetail),
   );
+
+  // "Projects" section: lists/detail scoped by unique_code search, same access as Requirements.
+  router.get('/projects', requireSuperAdmin('requirements:read'), asyncHandler(controller.listProjects));
+  router.get(
+    '/projects/:type/:id',
+    requireSuperAdmin(['requirements:read', 'freelance:read', 'internships:read']),
+    asyncHandler(controller.getProjectDetail),
+  );
   router.post(
     '/requirements/:type/:id/assignment',
     requireSuperAdmin('assignments:write'),

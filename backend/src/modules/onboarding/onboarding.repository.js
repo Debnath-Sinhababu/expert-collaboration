@@ -12,7 +12,7 @@ class OnboardingRepository {
         compensation_unit, unit_quantity, rate_note
       ),
       projects (
-        id, title, description, type, start_date, end_date,
+        id, unique_code, title, description, type, start_date, end_date,
         duration_hours, duration_per_unit, hours_per_day, workplace_type,
         required_expertise, domain_expertise, subskills,
         compensation_unit, unit_quantity, hourly_rate, total_budget,
