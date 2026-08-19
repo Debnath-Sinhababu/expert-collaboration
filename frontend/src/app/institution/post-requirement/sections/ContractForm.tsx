@@ -755,15 +755,11 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
         return
       }
 
-      const response = await api.projects.create(formData)
-      toast.success('Requirement posted successfully!')
-      
-      // Load recommended experts for the new project
-      if (response && response.id) {
-        await loadRecommendedExperts(response.id)
-      } else {
-        router.push(`${basePath}/dashboard`)
-      }
+      await api.projects.create(formData)
+      // Margin is set by a super-admin before this requirement is shown to experts,
+      // so experts can't be selected/notified yet — skip straight to the dashboard.
+      toast.success('Requirement submitted. It will go live to experts once the admin team reviews and approves it.')
+      router.push(`${basePath}/dashboard`)
     } catch (e: any) {
       toast.error(e.message || (isEdit ? 'Failed to update project' : 'Failed to create project'))
     } finally { setSubmitting(false) }
@@ -911,6 +907,11 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
                 onChange={(e) => setForm((prev) => ({ ...prev, institution_gross_total: e.target.value }))}
                 className="border-[#DCDCDC]"
               />
+              {!isEdit && (
+                <p className="text-xs text-[#6A6A6A] mt-1">
+                  Our admin team reviews the budget before this requirement goes live to experts.
+                </p>
+              )}
             </div>
             <div>
               <Label className="text-[#000000] font-medium mb-2 block">

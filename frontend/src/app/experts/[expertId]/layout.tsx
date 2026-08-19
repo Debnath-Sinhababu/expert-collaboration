@@ -22,8 +22,9 @@ async function getExpertData(expertId: string) {
   }
 }
 
-export async function generateMetadata({ params }: { params: { expertId: string } }): Promise<Metadata> {
-  const expert = await getExpertData(params.expertId)
+export async function generateMetadata({ params }: { params: Promise<{ expertId: string }> }): Promise<Metadata> {
+  const { expertId } = await params
+  const expert = await getExpertData(expertId)
   const siteUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://www.calxmap.in'
 
   if (!expert) {
@@ -53,7 +54,7 @@ export async function generateMetadata({ params }: { params: { expertId: string 
     ],
     openGraph: {
       type: 'profile',
-      url: `${siteUrl}/experts/${params.expertId}`,
+      url: `${siteUrl}/experts/${expertId}`,
       title: `${expertName} - ${domain} Expert`,
       description: bio,
       images: [
@@ -73,7 +74,7 @@ export async function generateMetadata({ params }: { params: { expertId: string 
       images: [imageUrl],
     },
     alternates: {
-      canonical: `${siteUrl}/experts/${params.expertId}`,
+      canonical: `${siteUrl}/experts/${expertId}`,
     },
   }
 }
@@ -83,9 +84,10 @@ export default async function ExpertLayout({
   params,
 }: {
   children: React.ReactNode
-  params: { expertId: string }
+  params: Promise<{ expertId: string }>
 }) {
-  const expert = await getExpertData(params.expertId)
+  const { expertId } = await params
+  const expert = await getExpertData(expertId)
   const siteUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://www.calxmap.in'
 
   // Generate Person schema for SEO
@@ -96,7 +98,7 @@ export default async function ExpertLayout({
     "description": expert.bio || `Expert in ${Array.isArray(expert.domain_expertise) && expert.domain_expertise.length > 0 ? expert.domain_expertise[0] : 'Professional'}`,
     "image": expert.photo_url || `${siteUrl}/images/logo.png`,
     "jobTitle": Array.isArray(expert.domain_expertise) && expert.domain_expertise.length > 0 ? expert.domain_expertise[0] : "Expert",
-    "url": `${siteUrl}/experts/${params.expertId}`,
+    "url": `${siteUrl}/experts/${expertId}`,
     ...(expert.is_verified && {
       "identifier": {
         "@type": "PropertyValue",

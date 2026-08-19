@@ -37,8 +37,9 @@ async function getInternshipData(internshipId: string) {
   }
 }
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-  const internship = await getInternshipData(params.id)
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params
+  const internship = await getInternshipData(id)
   const siteUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://www.calxmap.in'
 
   if (!internship) {
@@ -66,7 +67,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
     ].filter(Boolean),
     openGraph: {
       type: 'article',
-      url: `${siteUrl}/requirements/internship/${params.id}`,
+      url: `${siteUrl}/requirements/internship/${id}`,
       title: `${title} - Internship Opportunity`,
       description: description,
       siteName: 'Calxmap',
@@ -77,7 +78,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
       description: description,
     },
     alternates: {
-      canonical: `${siteUrl}/requirements/internship/${params.id}`,
+      canonical: `${siteUrl}/requirements/internship/${id}`,
     },
   }
 }
@@ -87,9 +88,10 @@ export default async function InternshipLayout({
   params,
 }: {
   children: React.ReactNode
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
-  const internship = await getInternshipData(params.id)
+  const { id } = await params
+  const internship = await getInternshipData(id)
   const siteUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://www.calxmap.in'
 
   // Generate JobPosting schema for SEO

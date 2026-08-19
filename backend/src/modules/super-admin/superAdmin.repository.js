@@ -313,7 +313,7 @@ class SuperAdminRepository {
       .from('bookings')
       .select(`
         id,status,start_date,end_date,actual_start_date,actual_end_date,hours_booked,unit_quantity,created_at,updated_at,expert_id,institution_id,project_id,
-        projects!inner(id,title,type,status,start_date,end_date,duration_hours,unit_quantity,duration_per_unit,hours_per_day,compensation_unit,institution_gross_per_unit,institution_gross_total,total_budget),
+        projects!inner(id,title,type,status,start_date,end_date,duration_hours,unit_quantity,duration_per_unit,hours_per_day,compensation_unit,institution_gross_per_unit,institution_gross_total,total_budget,margin_percent,margin_status),
         experts(id,name,email,phone,photo_url,city,state,domain_expertise,hourly_rate,experience_years,is_verified,kyc_status),
         institutions(id,name,email,phone,type,city,state)
       `)
@@ -421,7 +421,7 @@ class SuperAdminRepository {
       .from('bookings')
       .select(`
         id,status,start_date,end_date,actual_start_date,actual_end_date,hours_booked,unit_quantity,created_at,updated_at,expert_id,institution_id,project_id,
-        projects!inner(id,title,type,status,start_date,end_date,duration_hours,unit_quantity,duration_per_unit,hours_per_day,description,job_location,workplace_type,employment_type,compensation_unit,institution_gross_per_unit,institution_gross_total,total_budget),
+        projects!inner(id,title,type,status,start_date,end_date,duration_hours,unit_quantity,duration_per_unit,hours_per_day,description,job_location,workplace_type,employment_type,compensation_unit,institution_gross_per_unit,institution_gross_total,total_budget,margin_percent,margin_status),
         experts(id,name,email,phone,photo_url,bio,city,state,domain_expertise,subskills,qualifications,hourly_rate,experience_years,rating,total_ratings,is_verified,kyc_status),
         institutions(id,name,email,phone,type,city,state,website_url)
       `)
@@ -929,7 +929,7 @@ class SuperAdminRepository {
       project: {
         table: 'projects',
         institutionField: 'institution_id',
-        select: 'id,title,description,type,status,created_at,institution_id,call_status,hourly_rate,total_budget,start_date,end_date,duration_hours,compensation_unit,unit_quantity,duration_per_unit,hours_per_day,institutions:institution_id(id,name,email,type,city,state)',
+        select: 'id,title,description,type,status,created_at,institution_id,call_status,hourly_rate,total_budget,start_date,end_date,duration_hours,compensation_unit,unit_quantity,duration_per_unit,hours_per_day,institution_gross_per_unit,institution_gross_total,margin_percent,margin_status,institutions:institution_id(id,name,email,type,city,state)',
         searchFields: 'title,description',
         map: (r) => ({ ...r, requirement_type: 'project' }),
       },
@@ -1348,6 +1348,79 @@ class SuperAdminRepository {
       adminRecordId,
       client: this.client,
     });
+  }
+
+  async listStaleMarginPendingRequirements(cutoffIso) {
+    const { data, error } = await this.client
+      .from('projects')
+      .select('id, title, created_at')
+      .eq('margin_status', 'pending_review')
+      .lt('created_at', cutoffIso);
+    if (error) {
+      if (tableMissing(error)) return [];
+      throw error;
+    }
+    return data || [];
+  }
+
+  async listPendingMarginRequirements({ page = 1, limit = 20, offset = 0 } = {}) {
+    const { data, error, count } = await this.client
+      .from('projects')
+      .select(
+        'id,title,description,type,status,created_at,institution_id,compensation_unit,unit_quantity,duration_per_unit,hours_per_day,institution_gross_per_unit,institution_gross_total,hourly_rate,total_budget,duration_hours,margin_status,margin_percent,institutions:institution_id(id,name,email,type,city,state)',
+        { count: 'exact' }
+      )
+      .eq('margin_status', 'pending_review')
+      .order('created_at', { ascending: true })
+      .range(offset, offset + limit - 1);
+    if (error) {
+      if (tableMissing(error)) return { data: [], total: 0, page, limit, hasMore: false };
+      throw error;
+    }
+    const rows = (data || []).map((row) => ({ ...row, requirement_type: 'project' }));
+    return {
+      data: rows,
+      total: count || 0,
+      page,
+      limit,
+      hasMore: (count || 0) > offset + limit,
+    };
+  }
+
+  async setRequirementMargin(requirementId, { marginPercent, adminRecordId = null } = {}) {
+    const { data: existing, error: existingError } = await this.client
+      .from('projects')
+      .select('id, margin_status')
+      .eq('id', requirementId)
+      .maybeSingle();
+    if (existingError) throw existingError;
+    if (!existing) return null;
+    if (existing.margin_status === 'approved') {
+      const err = new Error('Margin already approved for this requirement and cannot be changed');
+      err.statusCode = 409;
+      throw err;
+    }
+
+    const { data, error } = await this.client
+      .from('projects')
+      .update({
+        margin_percent: marginPercent,
+        margin_status: 'approved',
+        margin_set_by: adminRecordId,
+        margin_set_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', requirementId)
+      .eq('margin_status', 'pending_review')
+      .select('*')
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) {
+      const err = new Error('Margin already approved for this requirement and cannot be changed');
+      err.statusCode = 409;
+      throw err;
+    }
+    return data;
   }
 
   async getActiveAssignment(type, id) {

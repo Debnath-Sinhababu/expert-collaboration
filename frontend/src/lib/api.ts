@@ -662,6 +662,34 @@ export const api = {
     }
   },
 
+  onboarding: {
+    getAll: async (params?: { expert_id?: string; institution_id?: string; application_id?: string; status?: string }) => {
+      const headers = await getAuthHeaders()
+      const query = new URLSearchParams({ ...params as any, _t: Date.now().toString() }).toString()
+      return fetch(`${API_BASE_URL}/api/onboarding${query ? `?${query}` : ''}`, { headers }).then(res => res.json())
+    },
+    getById: async (id: string) => {
+      const headers = await getAuthHeaders()
+      return fetch(`${API_BASE_URL}/api/onboarding/${id}`, { headers }).then(res => res.json())
+    },
+    accept: async (id: string) => {
+      const headers = await getAuthHeaders()
+      return fetch(`${API_BASE_URL}/api/onboarding/${id}/accept`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({})
+      }).then(res => res.json())
+    },
+    decline: async (id: string, reason: string) => {
+      const headers = await getAuthHeaders()
+      return fetch(`${API_BASE_URL}/api/onboarding/${id}/decline`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ reason })
+      }).then(res => res.json())
+    }
+  },
+
   bookings: {
     getAll: async (params?: { expert_id?: string; institution_id?: string; project_id?: string; page?: number; limit?: number }) => {
       const headers = await getAuthHeaders()

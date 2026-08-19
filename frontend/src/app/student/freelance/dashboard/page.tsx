@@ -15,6 +15,7 @@ import ProfileDropdown from '@/components/ProfileDropdown'
 import { Briefcase, FileText } from 'lucide-react'
 import { usePagination } from '@/hooks/usePagination'
 import Logo from '@/components/Logo'
+import { StudentPortalNavLinks } from '@/components/student/StudentPortalNav'
 
 export default function StudentFreelanceDashboard() {
   const [user, setUser] = useState<any>(null)
@@ -91,6 +92,9 @@ export default function StudentFreelanceDashboard() {
             <Link href="/student/home" className="flex items-center group">
               <Logo size="header" />
             </Link>
+            <nav className="hidden md:flex items-center space-x-8">
+              <StudentPortalNavLinks />
+            </nav>
             <div className="flex items-center gap-2">
               <NotificationBell />
               <ProfileDropdown user={user} student={student} userType="student" />

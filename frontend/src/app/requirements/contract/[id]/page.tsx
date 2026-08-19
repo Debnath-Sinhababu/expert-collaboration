@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useEffect, useState, use } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
@@ -16,10 +16,13 @@ import { ShareRequirementButton } from '@/components/requirements/ShareRequireme
 import { formatLongDate } from '@/lib/dateFormat'
 import { moneyInr, projectCompensationDisplay, projectEngagementQuantityDisplay } from '@/lib/projectCompensation'
 
-export default function PublicContractDetail() {
-  const params = useParams()
+export default function PublicContractDetail({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
   const router = useRouter()
-  const id = params?.id as string
+  const { id } = use(params)
   const [user, setUser] = useState<any>(null)
   const [project, setProject] = useState<any>(null)
   const [loading, setLoading] = useState(true)

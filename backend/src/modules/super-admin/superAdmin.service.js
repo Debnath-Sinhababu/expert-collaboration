@@ -10,6 +10,7 @@ const { sendInvoiceEmail } = require('../../../services/financeEmailService');
 const { addSheet, workbookBuffer } = require('./superAdmin.excel');
 const { checkExportRateLimit } = require('./superAdmin.exportLimiter');
 const ApplicationRateService = require('../applications/applicationRate.service');
+const OnboardingService = require('../onboarding/onboarding.service');
 const institutionAccess = require('../../../auth/institutionAccess');
 const { applyInvoiceTaxes, roundMoney } = require('../../../services/financeCalculationService');
 
@@ -102,6 +103,27 @@ class SuperAdminService {
 
   async getOverviewStats() {
     return this.repository.getOverviewStats();
+  }
+
+  async listOnboardingRequests(query = {}) {
+    const onboardingService = new OnboardingService(this.serviceClient);
+    return onboardingService.listRequests({ status: query.status });
+  }
+
+  async getOnboardingRequest(id) {
+    const onboardingService = new OnboardingService(this.serviceClient);
+    return onboardingService.getRequest(id);
+  }
+
+  async verifyOnboardingRequest(id, auth) {
+    const onboardingService = new OnboardingService(this.serviceClient);
+    const updated = await onboardingService.verifyAndSendOfferLetter(id, auth?.user?.id || null);
+    await this.logActivity(auth, 'onboarding.offer_letter_sent', {
+      entity_type: 'onboarding_request',
+      entity_id: id,
+      metadata: { application_id: updated.application_id },
+    });
+    return updated;
   }
 
   async logActivity(auth, action, options = {}) {
@@ -893,7 +915,7 @@ class SuperAdminService {
           requirement_id: requirementId,
           metadata: { status: 'accepted', booking_id: result.booking?.id || null },
         });
-        return { ...updated, booking: result.booking || null };
+        return { ...updated, booking: result.booking || null, onboardingRequest: result.onboardingRequest || null };
       } catch (err) {
         if (err.status) err.statusCode = err.status;
         throw err;
@@ -1079,6 +1101,89 @@ class SuperAdminService {
       },
     });
     return result;
+  }
+
+  async listPendingMarginRequirements(params) {
+    return this.repository.listPendingMarginRequirements(params);
+  }
+
+  /**
+   * Requirements an admin hasn't set a margin for within `olderThanMinutes` of posting
+   * fall back to the legacy default margin so institutions/experts aren't blocked indefinitely.
+   */
+  async autoApproveStaleMargins({ olderThanMinutes = 15, defaultMarginPercent = 30 } = {}) {
+    const cutoffIso = new Date(Date.now() - olderThanMinutes * 60 * 1000).toISOString();
+    const stale = await this.repository.listStaleMarginPendingRequirements(cutoffIso);
+    const results = [];
+    for (const row of stale) {
+      try {
+        const updated = await this.repository.setRequirementMargin(row.id, {
+          marginPercent: defaultMarginPercent,
+          adminRecordId: null,
+        });
+        if (!updated) continue;
+        await this.logActivity(null, 'requirement.margin_auto_approved', {
+          entity_type: 'project',
+          entity_id: row.id,
+          requirement_type: 'project',
+          requirement_id: row.id,
+          metadata: { margin_percent: defaultMarginPercent, reason: `no admin action within ${olderThanMinutes}m of posting` },
+        });
+        try {
+          socketService.broadcastToAll('project:new', { project_id: row.id, title: updated.title || null });
+        } catch (notifyErr) {
+          console.warn('Failed to broadcast new-project notification:', notifyErr.message || notifyErr);
+        }
+        results.push(updated);
+      } catch (err) {
+        console.warn('Failed to auto-approve margin for requirement', row.id, err.message || err);
+      }
+    }
+    return results;
+  }
+
+  async setRequirementMargin(type, requirementId, body, auth = null) {
+    const requirementType = parseRequirementType(type);
+    if (requirementType !== 'project') {
+      const err = new Error('Margin approval is only available for project requirements');
+      err.statusCode = 400;
+      throw err;
+    }
+    const marginPercent = Number(body?.margin_percent);
+    if (!Number.isFinite(marginPercent) || marginPercent < 0 || marginPercent > 100) {
+      const err = new Error('margin_percent must be a number between 0 and 100');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const updated = await this.repository.setRequirementMargin(requirementId, {
+      marginPercent,
+      adminRecordId: auth?.access?.adminRecord?.id || null,
+    });
+    if (!updated) {
+      const err = new Error('Requirement not found');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    await this.logActivity(auth, 'requirement.margin_approved', {
+      entity_type: 'project',
+      entity_id: requirementId,
+      requirement_type: requirementType,
+      requirement_id: requirementId,
+      metadata: { margin_percent: marginPercent },
+    });
+
+    try {
+      socketService.broadcastToAll('project:new', {
+        project_id: requirementId,
+        title: updated.title || null,
+      });
+    } catch (notifyErr) {
+      console.warn('Failed to broadcast new-project notification:', notifyErr.message || notifyErr);
+    }
+
+    return updated;
   }
 
   async listFreelance(params) {

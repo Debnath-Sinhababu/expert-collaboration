@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useState, useEffect, useRef, use } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
@@ -113,10 +113,13 @@ interface ExpertProfile {
   photo_url?: string
 }
 
-export default function ExpertProjectPage() {
-  const params = useParams()
+export default function ExpertProjectPage({
+  params,
+}: {
+  params: Promise<{ projectId: string }>
+}) {
+  const { projectId } = use(params)
   const router = useRouter()
-  const projectId = params.projectId as string
   const { viewer, actingExpertId, basePath } = useExpertWorkspace()
 
   const [user, setUser] = useState<any>(null)
@@ -397,9 +400,9 @@ export default function ExpertProjectPage() {
             </div>
             <div className="flex flex-col sm:items-end gap-2 flex-shrink-0">
                   <div className="text-lg sm:text-xl md:text-[24px] font-bold text-[#008260]">
-                    {moneyInr(pricing.totalBudgetGross || Number(project.total_budget || 0))}
+                    {moneyInr(pricing.expertNetTotal)}
                   </div>
-                  <div className="text-sm text-[#757575]">Total project budget</div>
+                  <div className="text-sm text-[#757575]">You&apos;ll earn</div>
                   <ShareRequirementButton
                     path={`/requirements/contract/${project.id}`}
                     title={project.title}
@@ -414,7 +417,7 @@ export default function ExpertProjectPage() {
             {/* Project Title */}
           
 
-            <ProjectRequirementMeta project={project} />
+            <ProjectRequirementMeta project={project} audience="expert" />
 
             <div>
               <h2 className="text-lg sm:text-xl font-semibold text-black mb-4">Project Description</h2>

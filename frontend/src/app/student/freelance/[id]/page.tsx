@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useEffect, useState, use } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
 import { Card, CardContent } from '@/components/ui/card'
@@ -13,12 +13,17 @@ import NotificationBell from '@/components/NotificationBell'
 import ProfileDropdown from '@/components/ProfileDropdown'
 import { toast } from 'sonner'
 import Logo from '@/components/Logo'
+import { StudentPortalNavLinks } from '@/components/student/StudentPortalNav'
 import Link from 'next/link'
 
-export default function StudentFreelanceDetail() {
-  const params = useParams()
+export default function StudentFreelanceDetail({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
   const router = useRouter()
-  const id = String(params?.id || '')
+  const { id: resolvedId } = use(params)
+  const id = String(resolvedId || '')
   const [user, setUser] = useState<any>(null)
   const [student, setStudent] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -82,6 +87,9 @@ export default function StudentFreelanceDetail() {
           <Link href="/student/home" className="flex items-center">
             <Logo size="header" />
           </Link>
+          <nav className="hidden md:flex items-center space-x-8">
+            <StudentPortalNavLinks />
+          </nav>
           <div className="flex items-center gap-2">
             <NotificationBell />
             <ProfileDropdown user={user} student={student} userType="student" />

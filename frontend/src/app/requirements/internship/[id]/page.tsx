@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useEffect, useState, use } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
@@ -12,10 +12,13 @@ import Logo from '@/components/Logo'
 import Link from 'next/link'
 import { Calendar, Clock, MapPin, Building, Send, ArrowLeft, AlertCircle } from 'lucide-react'
 
-export default function PublicInternshipDetail() {
-  const params = useParams()
+export default function PublicInternshipDetail({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
   const router = useRouter()
-  const id = params?.id as string
+  const { id } = use(params)
   const [user, setUser] = useState<any>(null)
   const [internship, setInternship] = useState<any>(null)
   const [loading, setLoading] = useState(true)

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useState, useEffect, useRef, useCallback, use, type ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
 import { usePagination } from '@/hooks/usePagination'
@@ -93,11 +93,14 @@ function formatExpertTypes(expert: any) {
   return types.length ? types.join(', ') : 'Not specified'
 }
 
-export default function InstitutionProjectDetailsPage() {
+export default function InstitutionProjectDetailsPage({
+  params,
+}: {
+  params: Promise<{ projectId: string }>
+}) {
   const { viewer, actingInstitutionId, basePath } = useInstitutionWorkspace()
-  const params = useParams()
+  const { projectId } = use(params)
   const router = useRouter()
-  const projectId = params.projectId as string
 
   const [user, setUser] = useState<any>(null)
   const [institution, setInstitution] = useState<any>(null)
@@ -108,6 +111,7 @@ export default function InstitutionProjectDetailsPage() {
   const [ratings, setRatings] = useState<any[]>([])
   const [ratingModalOpen, setRatingModalOpen] = useState(false)
   const [selectedBooking, setSelectedBooking] = useState<any>(null)
+  const [onboardingByApplicationId, setOnboardingByApplicationId] = useState<Record<string, any>>({})
   const [activeTab, setActiveTab] = useState('pending')
   
   // Tab counts
@@ -343,6 +347,28 @@ export default function InstitutionProjectDetailsPage() {
   const rejectedApplications = Array.isArray(rawRejectedApplications) ? rawRejectedApplications : []
   const selectedBookings = Array.isArray(rawSelectedBookings) ? rawSelectedBookings : []
 
+  // A booking only truly becomes "Selected" once CalxMap verifies the case and the expert accepts
+  // the offer letter (onboarding status: accepted). Before that it's still shown below (so nothing
+  // disappears from view) but doesn't count as confirmed — the Onboarding status line explains why.
+  const pendingOnboardingBookings = selectedBookings.filter((booking: any) => {
+    const onboarding = onboardingByApplicationId[booking.application_id]
+    return onboarding && onboarding.status !== 'accepted'
+  })
+  const confirmedSelectedCount = Math.max(0, (selectedCount || 0) - pendingOnboardingBookings.length)
+
+  useEffect(() => {
+    if (!institution?.id) return
+    api.onboarding.getAll({ institution_id: institution.id })
+      .then((rows: any) => {
+        const map: Record<string, any> = {}
+        if (Array.isArray(rows)) {
+          rows.forEach((row: any) => { map[row.application_id] = row })
+        }
+        setOnboardingByApplicationId(map)
+      })
+      .catch(() => {})
+  }, [institution?.id, selectedBookings.length])
+
   // Infinite scroll logic using Intersection Observer
   useEffect(() => {
     const observerOptions = {
@@ -354,34 +380,13 @@ export default function InstitutionProjectDetailsPage() {
     const observerCallback = (entries: IntersectionObserverEntry[]) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
-          console.log('Intersection detected:', {
-            target: entry.target,
-            pendingRef: pendingScrollRef.current,
-            interviewRef: interviewScrollRef.current,
-            selectedRef: selectedScrollRef.current,
-            rejectedRef: rejectedScrollRef.current,
-            hasMorePending,
-            hasMoreInterview,
-            hasMoreSelected,
-            hasMoreRejected,
-            pendingLoading,
-            interviewLoading,
-            selectedLoading,
-            rejectedLoading,
-            activeTab
-          })
-          
           if (entry.target === pendingScrollRef.current && hasMorePending && !pendingLoading) {
-            console.log('Loading more pending applications')
             loadMorePending()
           } else if (entry.target === interviewScrollRef.current && hasMoreInterview && !interviewLoading) {
-            console.log('Loading more interview applications')
             loadMoreInterview()
           } else if (entry.target === selectedScrollRef.current && hasMoreSelected && !selectedLoading) {
-            console.log('Loading more selected bookings')
             loadMoreSelected()
           } else if (entry.target === rejectedScrollRef.current && hasMoreRejected && !rejectedLoading) {
-            console.log('Loading more rejected applications')
             loadMoreRejected()
           }
         }
@@ -394,19 +399,15 @@ export default function InstitutionProjectDetailsPage() {
     const timeoutId = setTimeout(() => {
       // Observe all scroll refs
       if (pendingScrollRef.current) {
-        console.log('Observing pending scroll ref')
         observer.observe(pendingScrollRef.current)
       }
       if (interviewScrollRef.current) {
-        console.log('Observing interview scroll ref')
         observer.observe(interviewScrollRef.current)
       }
       if (selectedScrollRef.current) {
-        console.log('Observing selected scroll ref')
         observer.observe(selectedScrollRef.current)
       }
       if (rejectedScrollRef.current) {
-        console.log('Observing rejected scroll ref')
         observer.observe(rejectedScrollRef.current)
       }
     }, 100)
@@ -522,7 +523,7 @@ export default function InstitutionProjectDetailsPage() {
         return
       }
 
-      toast.success('Booking created successfully!')
+      toast.success('Sent for onboarding — CalxMap will verify and send the offer letter.')
       setShowFinalRateModal(false)
       setSelectedBookingApplication(null)
       setApproveOverBudget(false)
@@ -572,8 +573,8 @@ export default function InstitutionProjectDetailsPage() {
     const application: any = [...(pendingApplications || []), ...(interviewApplications || [])].find((app: any) => app.id === applicationId)
     const name = application?.experts?.name || 'this expert'
     setConfirmAction({
-      title: 'Proceed for booking?',
-      description: `Are you sure you want to select ${name} and proceed for booking?`,
+      title: 'Send for onboarding?',
+      description: `Are you sure you want to select ${name} and send them for onboarding? CalxMap will review and send the offer letter.`,
       confirmLabel: 'Proceed',
       onConfirm: () => handleProceedToBooking(applicationId),
     })
@@ -584,6 +585,17 @@ export default function InstitutionProjectDetailsPage() {
     const action = confirmAction.onConfirm
     setConfirmAction(null)
     await action()
+  }
+
+  const onboardingStatusLabel = (status?: string) => {
+    switch (status) {
+      case 'pending_review': return 'Awaiting CalxMap review'
+      case 'offer_sent': return 'Offer letter sent — awaiting expert'
+      case 'accepted': return 'Confirmed by expert'
+      case 'declined': return 'Declined by expert'
+      case 'expired': return 'Not accepted'
+      default: return 'Not yet submitted'
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -795,6 +807,9 @@ export default function InstitutionProjectDetailsPage() {
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3 min-w-0">
                           <h3 className="font-bold text-base sm:text-lg text-[#000000] truncate pr-2">{project.title}</h3>
                           <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
+                            {project.margin_status === 'pending_review' && (
+                              <Badge variant="secondary" className="capitalize bg-[#FEF3C7] rounded-[18px] text-xs font-semibold text-[#B45309] py-1.5 px-3 sm:py-2 sm:px-4">Pending admin review</Badge>
+                            )}
                             <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 px-3 sm:py-2 sm:px-4">{projectStatusLabel(project.status)}</Badge>
                             <Badge variant="secondary" className="capitalize bg-[#FFF1E7] rounded-[18px] text-xs font-semibold text-[#FF6A00] py-1.5 px-3 sm:py-2 sm:px-4">{project.type}</Badge>
                             <Button
@@ -1019,7 +1034,7 @@ export default function InstitutionProjectDetailsPage() {
                 value="selected" 
                 className="data-[state=active]:bg-emerald-50 data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-emerald-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
               >
-                Selected ({selectedCount || 0})
+                Selected ({confirmedSelectedCount})
               </TabsTrigger>
             </TabsList>
           </div>
@@ -1380,17 +1395,17 @@ export default function InstitutionProjectDetailsPage() {
                       className="bg-[#008260] hover:bg-[#008260] text-white hover:text-white rounded-[25px] text-[13px] w-full sm:w-auto"
                     >
                       <CheckCircle className="h-4 w-4" />
-                      {processingApplications[application.id] ? 'Processing...' : 'Confirm & lock booking'}
+                      {processingApplications[application.id] ? 'Processing...' : 'Onboarding'}
                     </Button>
                   </div>
                   {isPostedRateOfferPending(application.rate_status) && (
                     <p className="text-xs text-sky-800 mt-2">
-                      Confirm &amp; lock is paused until the expert responds to your posted-rate request.
+                      Onboarding is paused until the expert responds to your posted-rate request.
                     </p>
                   )}
                   {isPostedRateDeclined(application.rate_status) && (
                     <p className="text-xs text-rose-700 mt-2">
-                      Confirm &amp; lock is disabled — the expert declined proceeding at the posted rate only.
+                      Onboarding is disabled — the expert declined proceeding at the posted rate only.
                     </p>
                   )}
                 </div>
@@ -1561,8 +1576,20 @@ export default function InstitutionProjectDetailsPage() {
                 ) : (
                   <div className="space-y-4">
   {selectedBookings?.map((booking: any) => {
+    const onboardingStatus = onboardingByApplicationId[booking.application_id]?.status
+    const isConfirmedSelection = !onboardingStatus || onboardingStatus === 'accepted'
     return (
       <div key={booking.id} className="bg-white border border-[#DCDCDC] rounded-lg p-4">
+        <div className="mb-3">
+          <Badge className={isConfirmedSelection
+            ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100'
+            : ['declined', 'expired'].includes(onboardingStatus)
+              ? 'bg-red-100 text-red-800 hover:bg-red-100'
+              : 'bg-amber-100 text-amber-800 hover:bg-amber-100'}
+          >
+            {isConfirmedSelection ? 'Selected' : onboardingStatusLabel(onboardingStatus)}
+          </Badge>
+        </div>
         <div className="flex justify-between items-start">
           <div className="flex-1 grid grid-cols-2 gap-x-8 gap-y-3">
             {/* Left Column */}
@@ -1608,13 +1635,26 @@ export default function InstitutionProjectDetailsPage() {
               <span className="text-[#666666] font-medium text-sm">Status: </span>
               <span className="text-[#008260] font-medium text-sm capitalize">{booking.status.replace('_', ' ')}</span>
             </div>
-            
+
             {/* Right Column */}
             <div>
               <span className="text-[#666666] font-medium text-sm">Rated: </span>
               <span className="text-[#000000] font-medium text-sm">
                 {getBookingRating(booking.id) ? 'Yes' : 'No'}
               </span>
+            </div>
+
+            {/* Left Column */}
+            <div>
+              <span className="text-[#666666] font-medium text-sm">Onboarding: </span>
+              <span className="text-[#000000] font-medium text-sm">
+                {onboardingStatusLabel(onboardingByApplicationId[booking.application_id]?.status)}
+              </span>
+              {['declined', 'expired'].includes(onboardingByApplicationId[booking.application_id]?.status) && (
+                <p className="text-xs text-rose-700 mt-1">
+                  {onboardingByApplicationId[booking.application_id]?.decline_reason}
+                </p>
+              )}
             </div>
           </div>
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 rounded-lg border border-[#DCDCDC] bg-[#F8FBFA] p-3">
@@ -1921,9 +1961,9 @@ export default function InstitutionProjectDetailsPage() {
       <Dialog open={showFinalRateModal} onOpenChange={setShowFinalRateModal}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Confirm & lock booking</DialogTitle>
+            <DialogTitle>Onboarding</DialogTitle>
             <DialogDescription>
-              Review locked compensation before creating the booking.
+              Review locked compensation before sending this expert for onboarding. CalxMap will verify and send the offer letter.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -1980,7 +2020,7 @@ export default function InstitutionProjectDetailsPage() {
                       }
                       className="bg-[#008260] hover:bg-[#008260]"
                     >
-                      {processingApplications[selectedBookingApplication?.id || ''] ? 'Processing...' : 'Confirm & create booking'}
+                      {processingApplications[selectedBookingApplication?.id || ''] ? 'Processing...' : 'Send for onboarding'}
                     </Button>
                   </div>
                 </>

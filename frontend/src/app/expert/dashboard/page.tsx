@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
 import { usePagination } from '@/hooks/usePagination'
@@ -48,7 +49,7 @@ import {
 } from 'lucide-react'
 import { BookOpen } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { useExpertWorkspace } from '@/contexts/ExpertWorkspaceContext'
 import { fetchExpertForWorkspace, expertProfileSetupPath } from '@/lib/expertWorkspace'
 import { isTrainingBooking } from '@/lib/trainingTypes'
@@ -104,6 +105,11 @@ export default function ExpertDashboard() {
   const [user, setUser] = useState<any>(null)
   const [expert, setExpert] = useState<ExpertProfile | null>(null)
   const [applications, setApplications] = useState<Application[]>([])
+  const [onboardingRequests, setOnboardingRequests] = useState<any[]>([])
+  const [offerLettersLoading, setOfferLettersLoading] = useState(false)
+  const [decliningOffer, setDecliningOffer] = useState<any>(null)
+  const [declineReason, setDeclineReason] = useState('')
+  const [offerActionId, setOfferActionId] = useState<string | null>(null)
   const [applicationCounts, setApplicationCounts] = useState<any>({ total: 0, pending: 0, interview: 0, accepted: 0, rejected: 0 })
   const [bookingCounts, setBookingCounts] = useState<any>({ total: 0, in_progress: 0, completed: 0, cancelled: 0, pending: 0 })
   const [analytics, setAnalytics] = useState({
@@ -149,7 +155,12 @@ export default function ExpertDashboard() {
   const rejectedScrollRef = useRef<HTMLDivElement>(null)
   const bookingsScrollRef = useRef<HTMLDivElement>(null)
 
+  // Always-current onboarding-by-application-id map, readable inside pagination fetchers
+  // without adding it to their dependency arrays (which would reset pagination on every update).
+  const onboardingMapRef = useRef<Record<string, any>>({})
+
   const router = useRouter()
+  const pathname = usePathname()
   const { viewer, actingExpertId, basePath } = useExpertWorkspace()
 
   const getUser = async (): Promise<SessionUser | null> => {
@@ -305,14 +316,35 @@ export default function ExpertDashboard() {
   } = usePagination(
     async (page: number) => {
       if (!expert?.id) return []
-      const response = await api.applications.getAll({ expert_id: expert.id, page, limit: 10, status: 'interview' })
-      if (response && typeof response === 'object' && 'data' in response) {
-        if (page === 1) {
-          setApplicationCounts((prev: any) => ({ ...prev, interview: response.counts?.interview || 0 }))
-        }
-        return response.data
+      const [interviewResponse, acceptedResponse] = await Promise.all([
+        api.applications.getAll({ expert_id: expert.id, page, limit: 10, status: 'interview' }),
+        api.applications.getAll({ expert_id: expert.id, page, limit: 10, status: 'accepted' }),
+      ])
+
+      const interviewList = interviewResponse && typeof interviewResponse === 'object' && 'data' in interviewResponse
+        ? interviewResponse.data
+        : (Array.isArray(interviewResponse) ? interviewResponse : [])
+      const acceptedList = acceptedResponse && typeof acceptedResponse === 'object' && 'data' in acceptedResponse
+        ? acceptedResponse.data
+        : (Array.isArray(acceptedResponse) ? acceptedResponse : [])
+
+      // An institution completing "Onboarding" moves the application to accepted and creates the
+      // booking right away, but it should still read as "Interview" to the expert until CalxMap
+      // verifies it. Once CalxMap sends the offer letter (status: offer_sent), it moves out of
+      // Interview and into the Offer Letters tab instead; accepting it then moves it to Bookings.
+      const stillOnboarding = acceptedList.filter((application: any) => {
+        const onboarding = onboardingMapRef.current[application.id]
+        return onboarding && onboarding.status === 'pending_review'
+      })
+
+      if (page === 1 && interviewResponse && typeof interviewResponse === 'object' && 'counts' in interviewResponse) {
+        setApplicationCounts((prev: any) => ({
+          ...prev,
+          interview: (interviewResponse.counts?.interview || 0) + stillOnboarding.length,
+        }))
       }
-      return response
+
+      return [...interviewList, ...stillOnboarding]
     },
     [expert?.id]
   )
@@ -350,13 +382,22 @@ export default function ExpertDashboard() {
     async (page: number) => {
       if (!expert?.id) return []
       const response = await api.bookings.getAll({ expert_id: expert.id, page, limit: 10 })
-      if (response && typeof response === 'object' && 'data' in response) {
-        if (page === 1) {
-          setBookingCounts(response.counts || { total: 0, in_progress: 0, completed: 0, cancelled: 0, pending: 0 })
-        }
-        return response.data
+      const list = response && typeof response === 'object' && 'data' in response
+        ? response.data
+        : (Array.isArray(response) ? response : [])
+
+      // Hide bookings tied to an onboarding case that hasn't been accepted by the expert yet
+      // (pending_review / offer_sent). Bookings with no onboarding record at all (legacy flow,
+      // or non-project booking types) are shown as before.
+      const visible = (list || []).filter((booking: any) => {
+        const onboarding = onboardingMapRef.current[booking.application_id]
+        return !onboarding || onboarding.status === 'accepted'
+      })
+
+      if (page === 1 && response && typeof response === 'object' && 'counts' in response) {
+        setBookingCounts(response.counts || { total: 0, in_progress: 0, completed: 0, cancelled: 0, pending: 0 })
       }
-      return response
+      return visible
     },
     [expert?.id]
   )
@@ -364,6 +405,94 @@ export default function ExpertDashboard() {
   useEffect(() => {
     setBookings(pagedBookings as Booking[])
   }, [pagedBookings])
+
+  const fetchOnboardingRequests = useCallback(async () => {
+    if (!expert?.id) return
+    setOfferLettersLoading(true)
+    try {
+      // No status filter: we need every stage (pending_review / offer_sent / accepted / declined / expired)
+      // so the Interview and Bookings tabs can tell which applications are still awaiting onboarding.
+      const response = await api.onboarding.getAll({ expert_id: expert.id })
+      setOnboardingRequests(Array.isArray(response) ? response : [])
+    } catch (error) {
+      console.error('Error fetching onboarding requests:', error)
+    } finally {
+      setOfferLettersLoading(false)
+    }
+  }, [expert?.id])
+
+  useEffect(() => {
+    fetchOnboardingRequests()
+  }, [fetchOnboardingRequests])
+
+  // Only offers still awaiting the expert's response show in the Offer Letters tab.
+  const offerLetters = useMemo(
+    () => onboardingRequests.filter((request: any) => request.status === 'offer_sent'),
+    [onboardingRequests]
+  )
+
+  // Keyed by application_id so the Interview/Bookings tabs can check onboarding progress per application.
+  const onboardingByApplicationId = useMemo(() => {
+    const map: Record<string, any> = {}
+    onboardingRequests.forEach((request: any) => { map[request.application_id] = request })
+    return map
+  }, [onboardingRequests])
+
+  // Keep the ref in sync and re-derive the Interview/Bookings lists once fresh onboarding data
+  // lands (covers both the initial-load race and the state right after accept/decline).
+  useEffect(() => {
+    onboardingMapRef.current = onboardingByApplicationId
+    refreshInterviewApplications()
+    refreshBookings()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onboardingByApplicationId])
+
+  // The backend's booking counts include bookings the expert hasn't accepted onboarding for yet
+  // (hidden from the Bookings tab above) — subtract those so the header counts match what's shown.
+  const bookingsHiddenFromTotal = useMemo(
+    () => onboardingRequests.filter((r: any) => r.booking_id && r.status !== 'accepted').length,
+    [onboardingRequests]
+  )
+  const bookingsHiddenFromInProgress = useMemo(
+    () => onboardingRequests.filter((r: any) => r.booking_id && (r.status === 'pending_review' || r.status === 'offer_sent')).length,
+    [onboardingRequests]
+  )
+  const visibleBookingTotal = Math.max(0, (bookingCounts.total || 0) - bookingsHiddenFromTotal)
+  const visibleBookingInProgress = Math.max(0, (bookingCounts.in_progress || 0) - bookingsHiddenFromInProgress)
+
+  const handleAcceptOffer = async (offerId: string) => {
+    setOfferActionId(offerId)
+    try {
+      await api.onboarding.accept(offerId)
+      toast.success('Offer accepted! The institution has been notified and this now shows under Bookings.')
+      fetchOnboardingRequests()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to accept offer')
+    } finally {
+      setOfferActionId(null)
+    }
+  }
+
+  const handleDeclineOffer = async () => {
+    if (!decliningOffer) return
+    if (!declineReason.trim()) {
+      toast.error('Please provide a reason for declining')
+      return
+    }
+    setOfferActionId(decliningOffer.id)
+    try {
+      await api.onboarding.decline(decliningOffer.id, declineReason.trim())
+      toast.success('Offer declined. CalxMap has been notified.')
+      setDecliningOffer(null)
+      setDeclineReason('')
+      fetchOnboardingRequests()
+      refreshRejectedApplications()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to decline offer')
+    } finally {
+      setOfferActionId(null)
+    }
+  }
 
 
 
@@ -550,7 +679,29 @@ export default function ExpertDashboard() {
             <Link href={`${basePath}/home`} className="flex items-center group">
               <Logo size="header" />
             </Link>
-            
+
+            {/* Navigation */}
+            <nav className="hidden md:flex items-center space-x-8">
+              <Link
+                href={`${basePath}/home`}
+                className={`font-medium transition-colors duration-200 relative group ${
+                  pathname?.startsWith(`${basePath}/home`) ? 'text-white' : 'text-white/80 hover:text-white'
+                }`}
+              >
+                Home
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
+              </Link>
+              <Link
+                href={`${basePath}/dashboard`}
+                className={`font-medium transition-colors duration-200 relative group ${
+                  pathname?.startsWith(`${basePath}/dashboard`) ? 'text-white' : 'text-white/80 hover:text-white'
+                }`}
+              >
+                Dashboard
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200"></span>
+              </Link>
+            </nav>
+
             <div className="flex items-center space-x-4">
               <NotificationBell />
               <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white hover:bg-slate-800/50 border border-transparent hover:border-slate-600 transition-all duration-300">
@@ -584,7 +735,7 @@ export default function ExpertDashboard() {
             </div>
             <div className="rounded-xl bg-[#E8F5F1] px-4 py-3 text-left sm:text-right">
               <p className="text-xs font-medium text-[#6A6A6A]">Active bookings</p>
-              <p className="text-2xl font-bold text-[#008260]">{bookingCounts.in_progress || 0}</p>
+              <p className="text-2xl font-bold text-[#008260]">{visibleBookingInProgress}</p>
             </div>
           </div>
         </div>
@@ -722,9 +873,9 @@ export default function ExpertDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-[#000000]">Active bookings</p>
-                  <p className="text-2xl font-bold text-[#000000] my-1">{bookingCounts.in_progress || 0}</p>
+                  <p className="text-2xl font-bold text-[#000000] my-1">{visibleBookingInProgress}</p>
                   <p className="text-xs text-slate-500">
-                    {bookingCounts.completed || 0} completed 
+                    {bookingCounts.completed || 0} completed
                   </p>
                 </div>
                 <div className="p-3 bg-[#ECF2FF] rounded-full">
@@ -769,24 +920,30 @@ export default function ExpertDashboard() {
           
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <div className="w-full overflow-x-auto md:overflow-x-visible scrollbar-hide">
-              <TabsList ref={tabsListRef} className="flex md:grid w-max md:w-full md:grid-cols-4 gap-2 bg-white border-b border-slate-200 h-12 px-4 md:px-0">
-              <TabsTrigger 
-  value="pending" 
+              <TabsList ref={tabsListRef} className="flex md:grid w-max md:w-full md:grid-cols-5 gap-2 bg-white border-b border-slate-200 h-12 px-4 md:px-0">
+              <TabsTrigger
+  value="pending"
   className="data-[state=active]:bg-emerald-50 data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-emerald-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
 >
   Pending ({applicationCounts.pending || 0})
 </TabsTrigger>
-                <TabsTrigger 
-                  value="interview" 
+                <TabsTrigger
+                  value="interview"
                  className="data-[state=active]:bg-emerald-50 data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-emerald-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
                 >
                   Interview ({applicationCounts.interview || 0})
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="bookings" 
+                <TabsTrigger
+                  value="offers"
+                 className="data-[state=active]:bg-emerald-50 data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-emerald-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
+                >
+                  Offer Letters ({offerLetters.length || 0})
+                </TabsTrigger>
+                <TabsTrigger
+                  value="bookings"
                   className="data-[state=active]:bg-emerald-50 data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-emerald-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
                 >
-                  Bookings ({bookingCounts.total || 0})
+                  Bookings ({visibleBookingTotal})
                 </TabsTrigger>
                 <TabsTrigger 
                   value="rejected" 
@@ -990,6 +1147,13 @@ export default function ExpertDashboard() {
                             />
                           </div>
                         )}
+                        {onboardingByApplicationId[application.id]?.status === 'pending_review' ? (
+                          <div className="border-l-4 border-amber-400 bg-amber-50 rounded-r-lg p-2 sm:p-3 mb-3">
+                            <p className="text-xs sm:text-sm font-semibold text-amber-800">
+                              Institution submitted this for onboarding — awaiting CalxMap verification
+                            </p>
+                          </div>
+                        ) : null}
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3">
                           <Badge className="capitalize bg-[#E8F4F8] hover:bg-[#E8F4F8] text-[#008260] border border-[#008260] rounded-full text-xs font-semibold py-1.5 px-3 self-start">
                             Interview
@@ -1023,6 +1187,78 @@ export default function ExpertDashboard() {
               </Card>
             </TabsContent>
 
+            {/* Offer Letters Tab */}
+            <TabsContent value="offers" className="space-y-6">
+              <Card className="border-2 border-[#D6D6D6]">
+                <CardHeader>
+                  <CardTitle className="text-[#000000] font-semibold text-[18px]">Offer Letters</CardTitle>
+                  <CardDescription className="text-[#000000] font-base font-normal">
+                    Offer letters verified and sent by CalxMap. Accept to confirm onboarding, or decline with a reason.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {offerLettersLoading && offerLetters.length === 0 ? (
+                    <div className="text-center py-4">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#008260] mx-auto"></div>
+                    </div>
+                  ) : offerLetters.length === 0 ? (
+                    <div className="text-center py-4 flex flex-col justify-center items-center">
+                      <div className="p-3 bg-[#ECF2FF] rounded-full flex justify-center items-center w-16 h-16">
+                        <Briefcase className="h-8 w-8 text-[#008260]" />
+                      </div>
+                      <p className="text-[#000000] font-semibold">No offer letters yet</p>
+                      <p className="text-sm text-[#6A6A6A]">Offer letters verified by CalxMap will appear here</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {offerLetters.map((offer: any) => (
+                        <div key={offer.id} className="bg-white border border-[#DCDCDC] rounded-lg p-4 sm:p-6">
+                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
+                            <h3 className="font-bold text-base sm:text-lg text-[#000000]">{offer.projects?.title || 'Requirement'}</h3>
+                            <Badge className="capitalize bg-[#E8F4F8] hover:bg-[#E8F4F8] text-[#008260] border border-[#008260] rounded-full text-xs font-semibold py-1.5 px-3 self-start">
+                              Offer Sent
+                            </Badge>
+                          </div>
+                          <p className="text-xs sm:text-sm text-[#6A6A6A] mb-3">
+                            Institution: <span className="font-medium text-[#000000]">{offer.institutions?.name || '-'}</span>
+                          </p>
+                          {offer.offer_letter_url && (
+                            <a
+                              href={offer.offer_letter_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center text-[#008260] hover:underline text-sm mb-4"
+                            >
+                              View offer letter (PDF)
+                            </a>
+                          )}
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2">
+                            <Button
+                              size="sm"
+                              disabled={offerActionId === offer.id}
+                              onClick={() => handleAcceptOffer(offer.id)}
+                              className="bg-[#008260] hover:bg-[#006d51] text-white text-xs font-semibold px-4 w-full sm:w-auto"
+                            >
+                              {offerActionId === offer.id ? 'Processing...' : 'Accept'}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={offerActionId === offer.id}
+                              onClick={() => { setDecliningOffer(offer); setDeclineReason('') }}
+                              className="border-red-300 text-red-600 hover:bg-red-50 text-xs font-semibold px-4 w-full sm:w-auto"
+                            >
+                              Decline
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
             {/* Rejected Applications Tab */}
             <TabsContent value="rejected" className="space-y-6">
               <Card className="bg-gradient-to-br from-white to-slate-50/30 border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300">
@@ -1043,7 +1279,11 @@ export default function ExpertDashboard() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {pagedRejectedApplications?.map((application: any) => (
+                      {pagedRejectedApplications?.map((application: any) => {
+                        const onboarding = onboardingByApplicationId[application.id]
+                        const declinedByYou = onboarding?.status === 'declined' && onboarding?.decline_reason
+                        const autoExpired = onboarding?.status === 'expired' && onboarding?.decline_reason
+                        return (
                         <div key={application.id} className="bg-white border border-[#DCDCDC] rounded-lg p-4 sm:p-6 hover:border-[#008260] hover:shadow-md transition-all duration-300 group">
                           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
                             <h3 className="font-semibold text-base sm:text-lg text-slate-900 group-hover:text-[#008260] transition-colors duration-300 break-words">{application.projects?.title || 'Project Title'}</h3>
@@ -1055,6 +1295,14 @@ export default function ExpertDashboard() {
                             </Badge>
                           </div>
                           <p className="text-xs sm:text-sm text-slate-600 mb-2 break-words line-clamp-2">{application.projects?.description || 'Project description'}</p>
+                          {declinedByYou || autoExpired ? (
+                            <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 p-3">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-rose-700 mb-1">
+                                {autoExpired ? 'Offer auto-declined' : 'Reason you declined'}
+                              </p>
+                              <p className="text-sm text-rose-800 whitespace-pre-wrap">{onboarding.decline_reason}</p>
+                            </div>
+                          ) : null}
                           {application.cover_letter ? (
                             <div className="mb-3 rounded-lg border border-[#E8E8E8] bg-[#FAFAFA] p-3">
                               <p className="text-xs font-semibold uppercase tracking-wide text-[#717171] mb-1">Your cover letter</p>
@@ -1071,8 +1319,9 @@ export default function ExpertDashboard() {
                             />
                           </div>
                         </div>
-                      ))}
-                      
+                        )
+                      })}
+
                       {rejectedApplicationsLoading && (
                         <div className="text-center py-4">
                           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
@@ -1214,6 +1463,35 @@ export default function ExpertDashboard() {
           </Tabs>
         </div>
       </main>
+
+      <Dialog open={Boolean(decliningOffer)} onOpenChange={(open) => { if (!open) { setDecliningOffer(null); setDeclineReason('') } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Decline offer letter</DialogTitle>
+            <DialogDescription>
+              Please share a reason for declining this offer. This will be sent to CalxMap.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Textarea
+              value={declineReason}
+              onChange={(e) => setDeclineReason(e.target.value)}
+              placeholder="Reason for declining"
+              rows={4}
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => { setDecliningOffer(null); setDeclineReason('') }}>Cancel</Button>
+              <Button
+                onClick={handleDeclineOffer}
+                disabled={offerActionId === decliningOffer?.id || !declineReason.trim()}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {offerActionId === decliningOffer?.id ? 'Processing...' : 'Decline offer'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

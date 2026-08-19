@@ -1,6 +1,9 @@
 const ApplicationRateRepository = require('./applicationRate.repository');
+const institutionAccess = require('../../../auth/institutionAccess');
+const OnboardingService = require('../onboarding/onboarding.service');
 const {
   RATE_INTENTS,
+  resolveExpertShare,
   toExpertNet,
   toInstitutionGrossFromNet,
   isRateAgreed,
@@ -84,6 +87,7 @@ class ApplicationRateService {
 
     const action = actionBody.action;
     const posted = projectPostedRates(project);
+    const expertShare = resolveExpertShare(project);
     let patch = {};
     const historyActor = actor.role === 'expert' ? 'expert' : 'institution';
 
@@ -92,7 +96,7 @@ class ApplicationRateService {
       this.#assertCanNegotiate(app);
       const net = actionBody.proposed_net_per_unit;
       if (!net) throw new HttpError(400, 'proposed_net_per_unit is required');
-      const gross = toInstitutionGrossFromNet(net);
+      const gross = toInstitutionGrossFromNet(net, expertShare);
       patch = {
         proposed_net_per_unit: net,
         institution_counter_gross_per_unit: null,
@@ -112,7 +116,7 @@ class ApplicationRateService {
       this.#assertCanNegotiate(app);
       const gross = actionBody.institution_counter_gross_per_unit;
       if (!gross) throw new HttpError(400, 'institution_counter_gross_per_unit is required');
-      const net = toExpertNet(gross);
+      const net = toExpertNet(gross, expertShare);
       this.#assertBudgetGuard(gross, posted, actionBody.approve_over_budget);
       patch = {
         institution_counter_gross_per_unit: gross,
@@ -131,7 +135,7 @@ class ApplicationRateService {
       this.#assertCanNegotiate(app);
       const net = parsePositiveNumber(app.proposed_net_per_unit);
       if (!net) throw new HttpError(400, 'No expert proposal to accept');
-      const gross = toInstitutionGrossFromNet(net);
+      const gross = toInstitutionGrossFromNet(net, expertShare);
       this.#assertBudgetGuard(gross, posted, actionBody.approve_over_budget);
       patch = this.#lockRates(app, posted, gross, net, historyActor, 'accept_proposal', actionBody.note);
     } else if (action === 'accept_counter') {
@@ -139,7 +143,7 @@ class ApplicationRateService {
       this.#assertCanNegotiate(app);
       const gross = parsePositiveNumber(app.institution_counter_gross_per_unit);
       if (!gross) throw new HttpError(400, 'No institution counter to accept');
-      const net = toExpertNet(gross);
+      const net = toExpertNet(gross, expertShare);
       patch = this.#lockRates(app, posted, gross, net, historyActor, 'accept_counter', actionBody.note);
     } else if (action === 'offer_posted_rate') {
       // Institution asks to close negotiation and proceed at the original posted rate.
@@ -255,7 +259,7 @@ class ApplicationRateService {
       } else {
         // Legacy fallback
         finalGross = resolveBookingAmount(app, project);
-        finalNet = toExpertNet(finalGross);
+        finalNet = toExpertNet(finalGross, resolveExpertShare(project));
         rateStatus = 'agreed';
       }
     }
@@ -312,7 +316,21 @@ class ApplicationRateService {
       writeClient
     );
 
-    return { application: updatedApp, booking };
+    let onboardingRequest = null;
+    try {
+      const onboardingService = new OnboardingService(institutionAccess.getServiceClient());
+      onboardingRequest = await onboardingService.createRequest({
+        applicationId,
+        bookingId: booking?.id,
+        projectId: app.project_id,
+        expertId: app.expert_id,
+        institutionId,
+      });
+    } catch (err) {
+      console.warn('Failed to open onboarding request:', err.message || err);
+    }
+
+    return { application: updatedApp, booking, onboardingRequest };
   }
 
   #lockRates(app, posted, gross, net, actor, action, note) {

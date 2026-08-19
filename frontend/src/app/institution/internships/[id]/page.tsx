@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useEffect, useRef, useState, use } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
@@ -43,9 +43,12 @@ function validateInterviewSchedule(date?: Date, time?: string) {
   return null
 }
 
-export default function CorporateInternshipDetail() {
-  const params = useParams()
-  const id = params?.id as string
+export default function CorporateInternshipDetail({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = use(params)
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [institution, setInstitution] = useState<any>(null)

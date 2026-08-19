@@ -36,8 +36,9 @@ async function getFreelanceProjectData(projectId: string) {
   }
 }
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-  const project = await getFreelanceProjectData(params.id)
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params
+  const project = await getFreelanceProjectData(id)
   const siteUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://www.calxmap.in'
 
   if (!project) {
@@ -71,7 +72,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
     ].filter(Boolean),
     openGraph: {
       type: 'article',
-      url: `${siteUrl}/requirements/freelance/${params.id}`,
+      url: `${siteUrl}/requirements/freelance/${id}`,
       title: `${title} - Freelance Project`,
       description: description,
       siteName: 'Calxmap',
@@ -82,7 +83,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
       description: description,
     },
     alternates: {
-      canonical: `${siteUrl}/requirements/freelance/${params.id}`,
+      canonical: `${siteUrl}/requirements/freelance/${id}`,
     },
   }
 }
@@ -92,9 +93,10 @@ export default async function FreelanceLayout({
   params,
 }: {
   children: React.ReactNode
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
-  const project = await getFreelanceProjectData(params.id)
+  const { id } = await params
+  const project = await getFreelanceProjectData(id)
   const siteUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://www.calxmap.in'
 
   // Generate JobPosting schema for SEO

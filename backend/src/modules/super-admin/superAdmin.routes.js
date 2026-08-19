@@ -29,6 +29,11 @@ function createSuperAdminRouter() {
     asyncHandler(controller.setExpertCalxbookVerification),
   );
 
+  // Open to any authenticated super admin — no dedicated permission required.
+  router.get('/onboarding-requests', requireSuperAdmin(), asyncHandler(controller.listOnboardingRequests));
+  router.get('/onboarding-requests/:id', requireSuperAdmin(), asyncHandler(controller.getOnboardingRequest));
+  router.post('/onboarding-requests/:id/verify', requireSuperAdmin(), asyncHandler(controller.verifyOnboardingRequest));
+
   router.get('/requirements', requireSuperAdmin('requirements:read'), asyncHandler(controller.listRequirements));
   router.get('/requirements/assigned', requireSuperAdmin(['assignments:read', 'daily_reports:write']), asyncHandler(controller.listAssignedRequirements));
   router.post(
@@ -105,6 +110,16 @@ function createSuperAdminRouter() {
     '/requirements/:type/:id/edit-requests/:requestId',
     requireSuperAdmin('requirements:write'),
     asyncHandler(controller.reviewProjectEditRequest),
+  );
+  router.get(
+    '/requirements/pending-margin',
+    requireSuperAdmin('requirements:read'),
+    asyncHandler(controller.listPendingMarginRequirements),
+  );
+  router.post(
+    '/requirements/:type/:id/margin',
+    requireSuperAdmin('requirements:write'),
+    asyncHandler(controller.setRequirementMargin),
   );
 
   router.get('/freelance', requireSuperAdmin('freelance:read'), asyncHandler(controller.listFreelance));
