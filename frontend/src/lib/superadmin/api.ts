@@ -145,6 +145,10 @@ export const superAdminApi = {
     request<PaginatedResponse<any>>(`/api/superadmin/requirements/assigned?${query({ _t: Date.now() })}`),
   requirementDetail: (type: string, id: string) =>
     request<any>(`/api/superadmin/requirements/${encodeURIComponent(type)}/${encodeURIComponent(id)}?${query({ _t: Date.now() })}`),
+  projects: (params?: { page?: number; limit?: number; type?: string; status?: string; derived_status?: string; search?: string; institution_id?: string; assigned_admin_id?: string }) =>
+    request<PaginatedResponse<any>>(`/api/superadmin/projects?${query({ ...(params || {}), _t: Date.now() })}`),
+  projectDetail: (type: string, id: string) =>
+    request<any>(`/api/superadmin/projects/${encodeURIComponent(type)}/${encodeURIComponent(id)}?${query({ _t: Date.now() })}`),
   createRequirement: (body: Record<string, unknown> | FormData) =>
     body instanceof FormData
       ? requestForm<any>('/api/superadmin/requirements', body)

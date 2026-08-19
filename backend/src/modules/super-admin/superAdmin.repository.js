@@ -929,15 +929,15 @@ class SuperAdminRepository {
       project: {
         table: 'projects',
         institutionField: 'institution_id',
-        select: 'id,title,description,type,status,created_at,institution_id,call_status,hourly_rate,total_budget,start_date,end_date,duration_hours,compensation_unit,unit_quantity,duration_per_unit,hours_per_day,institution_gross_per_unit,institution_gross_total,margin_percent,margin_status,institutions:institution_id(id,name,email,type,city,state)',
-        searchFields: 'title,description',
+        select: 'id,unique_code,title,description,type,status,created_at,institution_id,call_status,hourly_rate,total_budget,start_date,end_date,duration_hours,compensation_unit,unit_quantity,duration_per_unit,hours_per_day,institution_gross_per_unit,institution_gross_total,margin_percent,margin_status,institutions:institution_id(id,name,email,type,city,state)',
+        searchFields: 'title,description,unique_code',
         map: (r) => ({ ...r, requirement_type: 'project' }),
       },
       internship: {
         table: 'internships',
         institutionField: 'corporate_institution_id',
-        select: 'id,title,responsibilities,status,created_at,corporate_institution_id,call_status,stipend_min,stipend_max,location,work_mode,engagement,start_date,application_deadline,duration_value,duration_unit,institutions:corporate_institution_id(id,name,email,type,city,state)',
-        searchFields: 'title,responsibilities',
+        select: 'id,unique_code,title,responsibilities,status,created_at,corporate_institution_id,call_status,stipend_min,stipend_max,location,work_mode,engagement,start_date,application_deadline,duration_value,duration_unit,institutions:corporate_institution_id(id,name,email,type,city,state)',
+        searchFields: 'title,responsibilities,unique_code',
         map: (r) => ({
           ...r,
           requirement_type: 'internship',
@@ -948,8 +948,8 @@ class SuperAdminRepository {
       freelance: {
         table: 'freelance_projects',
         institutionField: 'corporate_institution_id',
-        select: 'id,title,description,status,created_at,corporate_institution_id,call_status,budget_min,budget_max,deadline,institutions:corporate_institution_id(id,name,email,type,city,state)',
-        searchFields: 'title,description',
+        select: 'id,unique_code,title,description,status,created_at,corporate_institution_id,call_status,budget_min,budget_max,deadline,institutions:corporate_institution_id(id,name,email,type,city,state)',
+        searchFields: 'title,description,unique_code',
         map: (r) => ({
           ...r,
           requirement_type: 'freelance',
@@ -1189,12 +1189,18 @@ class SuperAdminRepository {
       approved_hours: 0,
       target_hours: 0,
       selected_experts: [],
+      stage_counts: { pending: 0, interview: 0, rejected: 0, selected: 0 },
     }]));
     for (const app of applications || []) {
       const item = out[app.project_id];
       if (!item) continue;
       item.applications_total += 1;
-      if (String(app.status).toLowerCase() === 'accepted') item.accepted_applications += 1;
+      const status = String(app.status || '').toLowerCase();
+      if (status === 'accepted') item.accepted_applications += 1;
+      if (status === 'pending') item.stage_counts.pending += 1;
+      else if (status === 'interview') item.stage_counts.interview += 1;
+      else if (status === 'rejected') item.stage_counts.rejected += 1;
+      else if (status === 'accepted') item.stage_counts.selected += 1;
     }
     for (const booking of bookings || []) {
       const item = out[booking.project_id];
@@ -1238,7 +1244,12 @@ class SuperAdminRepository {
       if (tableMissing(error)) return {};
       throw error;
     }
-    const out = Object.fromEntries(ids.map((id) => [id, { applications_total: 0, shortlisted_count: 0, completed_count: 0 }]));
+    const out = Object.fromEntries(ids.map((id) => [id, {
+      applications_total: 0,
+      shortlisted_count: 0,
+      completed_count: 0,
+      stage_counts: { pending: 0, interview: 0, rejected: 0, selected: 0 },
+    }]));
     for (const app of data || []) {
       const item = out[app[config.key]];
       if (!item) continue;
@@ -1246,6 +1257,11 @@ class SuperAdminRepository {
       item.applications_total += 1;
       if (['shortlisted', 'accepted', 'selected'].includes(status)) item.shortlisted_count += 1;
       if (['completed', 'closed'].includes(status)) item.completed_count += 1;
+      // Internship uses interview/shortlisted_corporate/rejected_corporate; freelance uses pending/shortlisted/rejected.
+      if (status === 'pending') item.stage_counts.pending += 1;
+      else if (status === 'interview') item.stage_counts.interview += 1;
+      else if (status === 'rejected' || status === 'rejected_corporate') item.stage_counts.rejected += 1;
+      else if (status === 'shortlisted' || status === 'shortlisted_corporate') item.stage_counts.selected += 1;
     }
     return out;
   }
@@ -1367,7 +1383,7 @@ class SuperAdminRepository {
     const { data, error, count } = await this.client
       .from('projects')
       .select(
-        'id,title,description,type,status,created_at,institution_id,compensation_unit,unit_quantity,duration_per_unit,hours_per_day,institution_gross_per_unit,institution_gross_total,hourly_rate,total_budget,duration_hours,margin_status,margin_percent,institutions:institution_id(id,name,email,type,city,state)',
+        'id,unique_code,title,description,type,status,created_at,institution_id,compensation_unit,unit_quantity,duration_per_unit,hours_per_day,institution_gross_per_unit,institution_gross_total,hourly_rate,total_budget,duration_hours,margin_status,margin_percent,institutions:institution_id(id,name,email,type,city,state)',
         { count: 'exact' }
       )
       .eq('margin_status', 'pending_review')

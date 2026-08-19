@@ -152,6 +152,25 @@ class SuperAdminController {
     res.json(await this.service.getRequirementDetail(req.params.type, req.params.id));
   };
 
+  // "Projects" super-admin section: same underlying data as Requirements, surfaced
+  // as its own nav item with the unique_code searchable and shown up front.
+  listProjects = async (req, res) => {
+    const paging = parsePage(req.query);
+    res.json(await this.service.listRequirements({
+      ...paging,
+      type: req.query.type || 'all',
+      status: req.query.status || 'all',
+      derived_status: req.query.derived_status || '',
+      search: req.query.search || '',
+      institution_id: req.query.institution_id || '',
+      assigned_admin_id: req.query.assigned_admin_id || '',
+    }));
+  };
+
+  getProjectDetail = async (req, res) => {
+    res.json(await this.service.getRequirementDetail(req.params.type, req.params.id));
+  };
+
   createRequirement = async (req, res) => {
     const created = await this.service.createRequirement(req.body || {}, req.superAdmin.user.id, req.files || {}, req.superAdmin);
     res.status(201).json(created);
