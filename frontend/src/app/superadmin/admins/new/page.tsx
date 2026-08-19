@@ -25,6 +25,23 @@ export default function NewSuperAdminAdminPage() {
   const [permissions, setPermissions] = useState<SuperAdminPermission[]>(['overview:read'])
   const [saving, setSaving] = useState(false)
 
+  function allowAll() {
+    setPermissions(normalizeUiPermissions([...SUPER_ADMIN_PERMISSIONS]))
+  }
+
+  function removeAll() {
+    setPermissions([])
+  }
+
+  function allowAllInGroup(groupPermissions: SuperAdminPermission[]) {
+    setPermissions((current) => normalizeUiPermissions([...current, ...groupPermissions]))
+  }
+
+  function removeAllInGroup(groupPermissions: SuperAdminPermission[]) {
+    const blocked = new Set(groupPermissions)
+    setPermissions((current) => current.filter((permission) => !blocked.has(permission)))
+  }
+
   function togglePermission(permission: SuperAdminPermission, checked: boolean) {
     const dependents: Partial<Record<SuperAdminPermission, SuperAdminPermission[]>> = {
       'admins:read': ['admins:write'],
@@ -86,17 +103,47 @@ export default function NewSuperAdminAdminPage() {
         </div>
       </SectionCard>
 
-      <SectionCard title="Access" description="Choose exactly what this admin can see and change. Some write permissions automatically include the matching read access.">
+      <SectionCard
+        title="Access"
+        description="Choose exactly what this admin can see and change. Some write permissions automatically include the matching read access."
+        action={
+          <div className="flex items-center gap-2">
+            {permissions.length > 0 && (
+              <Button type="button" variant="outline" size="sm" onClick={removeAll}>
+                Remove all access
+              </Button>
+            )}
+            {permissions.length < SUPER_ADMIN_PERMISSIONS.length && (
+              <Button type="button" variant="outline" size="sm" onClick={allowAll}>
+                Allow all access
+              </Button>
+            )}
+          </div>
+        }
+      >
         <div className="space-y-5">
           {SUPER_ADMIN_PERMISSION_GROUPS.map((group) => {
             const groupPermissions = SUPER_ADMIN_PERMISSIONS.filter((permission) => SUPER_ADMIN_PERMISSION_DETAILS[permission].group === group)
             if (!groupPermissions.length) return null
+            const selectedCount = groupPermissions.filter((permission) => permissions.includes(permission)).length
             return (
               <div key={group} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div>
                     <h3 className="text-sm font-semibold text-slate-950">{group}</h3>
-                    <p className="text-xs text-slate-500">{groupPermissions.filter((permission) => permissions.includes(permission)).length} of {groupPermissions.length} selected</p>
+                    <p className="text-xs text-slate-500">{selectedCount} of {groupPermissions.length} selected</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {selectedCount > 0 && (
+                      <Button type="button" variant="outline" size="sm" onClick={() => removeAllInGroup(groupPermissions)}>
+                        Remove all
+                      </Button>
+                    )}
+                    {selectedCount < groupPermissions.length && (
+                      <Button type="button" variant="outline" size="sm" onClick={() => allowAllInGroup(groupPermissions)}>
+                        Allow all
+                      </Button>
+                    )}
                   </div>
                 </div>
                 <div className="grid gap-3 lg:grid-cols-2">
