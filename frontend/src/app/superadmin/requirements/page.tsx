@@ -112,6 +112,7 @@ export default function SuperAdminRequirementsPage() {
     budget_max: '',
     hourly_rate: '',
     total_budget: '',
+    margin_percent: '',
     start_date: '',
     end_date: '',
     duration_hours: '',
@@ -183,6 +184,14 @@ export default function SuperAdminRequirementsPage() {
       toast.error('Institution and title are required')
       return
     }
+    let marginPercent: number | null = null
+    if (form.requirement_type === 'project') {
+      marginPercent = Number(form.margin_percent)
+      if (form.margin_percent.trim() === '' || Number.isNaN(marginPercent) || marginPercent < 0 || marginPercent > 100) {
+        toast.error('Enter platform margin (0-100%)')
+        return
+      }
+    }
     setCreating(true)
     try {
       const payload = {
@@ -211,15 +220,31 @@ export default function SuperAdminRequirementsPage() {
       }
       const fd = new FormData()
       Object.entries(payload).forEach(([key, value]) => {
+        if (key === 'margin_percent') return
         if (value === undefined || value === null || value === '') return
         fd.append(key, String(value))
       })
       if (requirementPdf && form.requirement_type === 'project') fd.append('requirement_pdf', requirementPdf)
       if (draftFile && form.requirement_type === 'freelance') fd.append('draft', draftFile)
-      await superAdminApi.createRequirement(fd)
-      toast.success('Requirement created')
+      const created = await superAdminApi.createRequirement(fd)
+
+      if (form.requirement_type === 'project' && created?.id && marginPercent !== null) {
+        try {
+          await superAdminApi.setRequirementMargin('project', created.id, { margin_percent: marginPercent })
+          toast.success('Requirement created and margin set. It is now live to experts.')
+        } catch (marginError) {
+          toast.error(
+            marginError instanceof Error
+              ? marginError.message
+              : 'Requirement created, but setting margin failed. Set it from Margin Review.'
+          )
+        }
+      } else {
+        toast.success('Requirement created')
+      }
+
       setCreateOpen(false)
-      setForm((current) => ({ ...current, title: '', description: '', institution_id: '' }))
+      setForm((current) => ({ ...current, title: '', description: '', institution_id: '', margin_percent: '' }))
       setRequirementPdf(null)
       setDraftFile(null)
       setPage(1)
@@ -592,6 +617,21 @@ export default function SuperAdminRequirementsPage() {
                   <div className="space-y-2">
                     <Label htmlFor="totalBudget">Total budget</Label>
                     <Input id="totalBudget" type="number" value={form.total_budget} onChange={(e) => setForm((current) => ({ ...current, total_budget: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="marginPercent">Platform margin (%)</Label>
+                    <Input
+                      id="marginPercent"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      placeholder="e.g. 25"
+                      value={form.margin_percent}
+                      onChange={(e) => setForm((current) => ({ ...current, margin_percent: e.target.value }))}
+                      required
+                    />
+                    <p className="text-xs text-slate-500">Set now so this requirement goes live to experts immediately.</p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="startDate">Start date</Label>
