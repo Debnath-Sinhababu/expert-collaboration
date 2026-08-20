@@ -82,6 +82,23 @@ export default function SuperAdminAdminsPage() {
     setEditPermissions(normalizeUiPermissions(Array.isArray(row.permissions) ? row.permissions : []))
   }
 
+  function allowAllPermissions() {
+    setEditPermissions(normalizeUiPermissions([...SUPER_ADMIN_PERMISSIONS]))
+  }
+
+  function removeAllPermissions() {
+    setEditPermissions([])
+  }
+
+  function allowAllInGroup(groupPermissions: SuperAdminPermission[]) {
+    setEditPermissions((current) => normalizeUiPermissions([...current, ...groupPermissions]))
+  }
+
+  function removeAllInGroup(groupPermissions: SuperAdminPermission[]) {
+    const blocked = new Set(groupPermissions)
+    setEditPermissions((current) => current.filter((permission) => !blocked.has(permission)))
+  }
+
   function togglePermission(permission: SuperAdminPermission, checked: boolean) {
     setEditPermissions((current) => {
       if (checked) return normalizeUiPermissions([...current, permission])
@@ -204,22 +221,49 @@ export default function SuperAdminAdminsPage() {
             ) : null}
 
             <div className="space-y-3">
-              <div>
-                <Label>Permissions</Label>
-                <p className="mt-1 text-xs text-slate-500">
-                  Choose what this admin can access. Some write permissions automatically include required read permissions.
-                </p>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <Label>Permissions</Label>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Choose what this admin can access. Some write permissions automatically include required read permissions.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {editPermissions.length > 0 && (
+                    <Button type="button" variant="outline" size="sm" onClick={removeAllPermissions}>
+                      Remove all access
+                    </Button>
+                  )}
+                  {editPermissions.length < SUPER_ADMIN_PERMISSIONS.length && (
+                    <Button type="button" variant="outline" size="sm" onClick={allowAllPermissions}>
+                      Allow all access
+                    </Button>
+                  )}
+                </div>
               </div>
               <div className="space-y-4">
                 {SUPER_ADMIN_PERMISSION_GROUPS.map((group) => {
                   const groupPermissions = SUPER_ADMIN_PERMISSIONS.filter((permission) => SUPER_ADMIN_PERMISSION_DETAILS[permission].group === group)
                   if (!groupPermissions.length) return null
+                  const selectedCount = groupPermissions.filter((permission) => editPermissions.includes(permission)).length
                   return (
                     <div key={group} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                       <div className="mb-3 flex items-center justify-between gap-3">
                         <div>
                           <h3 className="text-sm font-semibold text-slate-950">{group}</h3>
-                          <p className="text-xs text-slate-500">{groupPermissions.filter((permission) => editPermissions.includes(permission)).length} of {groupPermissions.length} selected</p>
+                          <p className="text-xs text-slate-500">{selectedCount} of {groupPermissions.length} selected</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {selectedCount > 0 && (
+                            <Button type="button" variant="outline" size="sm" onClick={() => removeAllInGroup(groupPermissions)}>
+                              Remove all
+                            </Button>
+                          )}
+                          {selectedCount < groupPermissions.length && (
+                            <Button type="button" variant="outline" size="sm" onClick={() => allowAllInGroup(groupPermissions)}>
+                              Allow all
+                            </Button>
+                          )}
                         </div>
                       </div>
                       <div className="grid gap-3 lg:grid-cols-2">

@@ -31,12 +31,30 @@ async function getSuperAdminEmails(client) {
   return [...emails];
 }
 
-async function notifySuperAdmins(client, { subject, message }) {
+/** Absolute link into the super-admin portal, or null if FRONTEND_URL isn't configured. */
+function portalLink(path) {
+  return process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}${path}` : null;
+}
+
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+async function notifySuperAdmins(client, { subject, message, link, linkLabel }) {
   const emails = await getSuperAdminEmails(client);
   if (!emails.length) return;
+  const text = link ? `${message}\n\n${linkLabel || 'Open'}: ${link}` : message;
+  const html = link
+    ? `<p>${escapeHtml(message)}</p><p><a href="${escapeHtml(link)}">${escapeHtml(linkLabel || 'Open')}</a></p>`
+    : `<p>${escapeHtml(message)}</p>`;
   await Promise.all(
     emails.map((email) =>
-      sendBrevoEmail({ to: email, subject, text: message, html: `<p>${message}</p>` }).catch((err) => {
+      sendBrevoEmail({ to: email, subject, text, html }).catch((err) => {
         console.warn(`Failed to send admin alert email to ${email}:`, err.message || err);
       })
     )
@@ -56,6 +74,8 @@ async function notifyOnboardingPendingReview(client = getServiceClient()) {
     await notifySuperAdmins(client, {
       subject: `${pending} onboarding request${pending === 1 ? '' : 's'} awaiting your verification`,
       message: `There ${pending === 1 ? 'is' : 'are'} currently ${pending} onboarding request${pending === 1 ? '' : 's'} left for review on CalxMap. Please log in to the super-admin console to verify and send the offer letter${pending === 1 ? '' : 's'}.`,
+      link: portalLink('/superadmin/onboard-verification'),
+      linkLabel: 'Review onboarding requests',
     });
   } catch (err) {
     console.warn('Failed to notify super admins of pending onboarding review:', err.message || err);
@@ -75,6 +95,8 @@ async function notifyMarginPendingReview(client = getServiceClient()) {
     await notifySuperAdmins(client, {
       subject: `${pending} requirement${pending === 1 ? '' : 's'} awaiting margin approval`,
       message: `There ${pending === 1 ? 'is' : 'are'} currently ${pending} requirement${pending === 1 ? '' : 's'} left for margin review on CalxMap. Please log in to the super-admin console to set the platform margin before ${pending === 1 ? 'it goes' : 'they go'} live to experts.`,
+      link: portalLink('/superadmin/margin-review'),
+      linkLabel: 'Review margin requests',
     });
   } catch (err) {
     console.warn('Failed to notify super admins of pending margin review:', err.message || err);
