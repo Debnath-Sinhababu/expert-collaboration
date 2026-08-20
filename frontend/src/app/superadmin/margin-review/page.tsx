@@ -51,7 +51,7 @@ export default function SuperAdminMarginReviewPage() {
     const query = search.trim().toLowerCase()
     if (!query) return rows
     return rows.filter((row) => {
-      const haystack = [row.title, row.institutions?.name, row.type].filter(Boolean).join(' ').toLowerCase()
+      const haystack = [row.unique_code, row.title, row.institutions?.name, row.type].filter(Boolean).join(' ').toLowerCase()
       return haystack.includes(query)
     })
   }, [rows, search])
@@ -71,7 +71,7 @@ export default function SuperAdminMarginReviewPage() {
             <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
             <Input
               className="pl-9"
-              placeholder="Search by requirement title or institution"
+              placeholder="Search by unique ID, requirement title, or institution"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -103,6 +103,13 @@ export default function SuperAdminMarginReviewPage() {
                 <p className="truncate font-medium text-[#008260] hover:underline">{row.title || '-'}</p>
                 {row.type ? <p className="text-xs capitalize text-slate-500">{row.type.replace(/_/g, ' ')}</p> : null}
               </button>
+            ) },
+            { key: 'project_id', header: 'Project ID', render: (row: any) => (
+              row.unique_code ? (
+                <span className="inline-flex items-center rounded-full bg-[#008260]/10 px-2.5 py-1 text-xs font-semibold text-[#008260]">
+                  {row.unique_code}
+                </span>
+              ) : <span className="text-slate-400">-</span>
             ) },
             { key: 'institution', header: 'Institution', render: (row: any) => (
               <span className="text-slate-800">{row.institutions?.name || '-'}</span>

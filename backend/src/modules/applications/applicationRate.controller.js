@@ -53,7 +53,11 @@ class ApplicationRateController {
     if (!access) return res.status(403).json({ error: 'Unauthorized' });
 
     const writeClient = institutionAccess.getWriteClientForInstitution(access);
-    const actor = { role: 'institution', institutionId: projRow.institution_id };
+    const actor = {
+      role: access.mode === 'super_admin' ? 'super_admin' : 'institution',
+      institutionId: projRow.institution_id,
+      actorUserId: access.user?.id || null,
+    };
 
     try {
       const result = await this.service.confirmAndCreateBooking({

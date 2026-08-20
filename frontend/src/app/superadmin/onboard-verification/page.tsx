@@ -102,7 +102,7 @@ export default function SuperAdminOnboardVerificationPage() {
     return rows.filter((row) => {
       if (statusFilter !== 'all' && row.status !== statusFilter) return false
       if (query) {
-        const haystack = [row.experts?.name, row.institutions?.name, row.projects?.title]
+        const haystack = [row.experts?.name, row.institutions?.name, row.projects?.title, row.projects?.unique_code]
           .filter(Boolean)
           .join(' ')
           .toLowerCase()
@@ -165,7 +165,7 @@ export default function SuperAdminOnboardVerificationPage() {
             <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
             <Input
               className="pl-9"
-              placeholder="Search by expert name, institution, or requirement"
+              placeholder="Search by unique ID, expert name, institution, or requirement"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -222,6 +222,13 @@ export default function SuperAdminOnboardVerificationPage() {
             ) },
             { key: 'institution', header: 'Institution', render: (row: any) => (
               <span className="text-slate-800">{row.institutions?.name || '-'}</span>
+            ) },
+            { key: 'project_id', header: 'Project ID', render: (row: any) => (
+              row.projects?.unique_code ? (
+                <span className="inline-flex items-center rounded-full bg-[#008260]/10 px-2.5 py-1 text-xs font-semibold text-[#008260]">
+                  {row.projects.unique_code}
+                </span>
+              ) : <span className="text-slate-400">-</span>
             ) },
             { key: 'project', header: 'Requirement', render: (row: any) => (
               <div className="min-w-0 max-w-[220px]">
@@ -350,6 +357,7 @@ export default function SuperAdminOnboardVerificationPage() {
               <div className="rounded-lg border border-slate-200 p-4">
                 <p className="mb-2 font-semibold text-slate-950">{project?.title || 'Requirement'}</p>
                 {project?.description ? <p className="mb-3 text-sm text-slate-700">{project.description}</p> : null}
+                <DetailRow label="Unique ID" value={project?.unique_code} />
                 <DetailRow label="Type" value={project?.type} />
                 <DetailRow label="Required expertise" value={Array.isArray(project?.required_expertise) ? project.required_expertise.join(', ') : '-'} />
                 <DetailRow label="Start date" value={formatDate(project?.start_date)} />

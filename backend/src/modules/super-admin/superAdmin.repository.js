@@ -929,15 +929,15 @@ class SuperAdminRepository {
       project: {
         table: 'projects',
         institutionField: 'institution_id',
-        select: 'id,title,description,type,status,created_at,institution_id,call_status,hourly_rate,total_budget,start_date,end_date,duration_hours,compensation_unit,unit_quantity,duration_per_unit,hours_per_day,institution_gross_per_unit,institution_gross_total,margin_percent,margin_status,institutions:institution_id(id,name,email,type,city,state)',
-        searchFields: 'title,description',
+        select: 'id,unique_code,title,description,type,status,created_at,institution_id,call_status,hourly_rate,total_budget,start_date,end_date,duration_hours,compensation_unit,unit_quantity,duration_per_unit,hours_per_day,institution_gross_per_unit,institution_gross_total,margin_percent,margin_status,institutions:institution_id(id,name,email,type,city,state)',
+        searchFields: 'title,description,unique_code',
         map: (r) => ({ ...r, requirement_type: 'project' }),
       },
       internship: {
         table: 'internships',
         institutionField: 'corporate_institution_id',
-        select: 'id,title,responsibilities,status,created_at,corporate_institution_id,call_status,stipend_min,stipend_max,location,work_mode,engagement,start_date,application_deadline,duration_value,duration_unit,institutions:corporate_institution_id(id,name,email,type,city,state)',
-        searchFields: 'title,responsibilities',
+        select: 'id,unique_code,title,responsibilities,status,created_at,corporate_institution_id,call_status,stipend_min,stipend_max,location,work_mode,engagement,start_date,application_deadline,duration_value,duration_unit,institutions:corporate_institution_id(id,name,email,type,city,state)',
+        searchFields: 'title,responsibilities,unique_code',
         map: (r) => ({
           ...r,
           requirement_type: 'internship',
@@ -948,8 +948,8 @@ class SuperAdminRepository {
       freelance: {
         table: 'freelance_projects',
         institutionField: 'corporate_institution_id',
-        select: 'id,title,description,status,created_at,corporate_institution_id,call_status,budget_min,budget_max,deadline,institutions:corporate_institution_id(id,name,email,type,city,state)',
-        searchFields: 'title,description',
+        select: 'id,unique_code,title,description,status,created_at,corporate_institution_id,call_status,budget_min,budget_max,deadline,institutions:corporate_institution_id(id,name,email,type,city,state)',
+        searchFields: 'title,description,unique_code',
         map: (r) => ({
           ...r,
           requirement_type: 'freelance',
@@ -1367,7 +1367,7 @@ class SuperAdminRepository {
     const { data, error, count } = await this.client
       .from('projects')
       .select(
-        'id,title,description,type,status,created_at,institution_id,compensation_unit,unit_quantity,duration_per_unit,hours_per_day,institution_gross_per_unit,institution_gross_total,hourly_rate,total_budget,duration_hours,margin_status,margin_percent,institutions:institution_id(id,name,email,type,city,state)',
+        'id,unique_code,title,description,type,status,created_at,institution_id,compensation_unit,unit_quantity,duration_per_unit,hours_per_day,institution_gross_per_unit,institution_gross_total,hourly_rate,total_budget,duration_hours,margin_status,margin_percent,institutions:institution_id(id,name,email,type,city,state)',
         { count: 'exact' }
       )
       .eq('margin_status', 'pending_review')
