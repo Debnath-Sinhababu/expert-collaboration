@@ -1189,18 +1189,12 @@ class SuperAdminRepository {
       approved_hours: 0,
       target_hours: 0,
       selected_experts: [],
-      stage_counts: { pending: 0, interview: 0, rejected: 0, selected: 0 },
     }]));
     for (const app of applications || []) {
       const item = out[app.project_id];
       if (!item) continue;
       item.applications_total += 1;
-      const status = String(app.status || '').toLowerCase();
-      if (status === 'accepted') item.accepted_applications += 1;
-      if (status === 'pending') item.stage_counts.pending += 1;
-      else if (status === 'interview') item.stage_counts.interview += 1;
-      else if (status === 'rejected') item.stage_counts.rejected += 1;
-      else if (status === 'accepted') item.stage_counts.selected += 1;
+      if (String(app.status).toLowerCase() === 'accepted') item.accepted_applications += 1;
     }
     for (const booking of bookings || []) {
       const item = out[booking.project_id];
@@ -1244,12 +1238,7 @@ class SuperAdminRepository {
       if (tableMissing(error)) return {};
       throw error;
     }
-    const out = Object.fromEntries(ids.map((id) => [id, {
-      applications_total: 0,
-      shortlisted_count: 0,
-      completed_count: 0,
-      stage_counts: { pending: 0, interview: 0, rejected: 0, selected: 0 },
-    }]));
+    const out = Object.fromEntries(ids.map((id) => [id, { applications_total: 0, shortlisted_count: 0, completed_count: 0 }]));
     for (const app of data || []) {
       const item = out[app[config.key]];
       if (!item) continue;
@@ -1257,11 +1246,6 @@ class SuperAdminRepository {
       item.applications_total += 1;
       if (['shortlisted', 'accepted', 'selected'].includes(status)) item.shortlisted_count += 1;
       if (['completed', 'closed'].includes(status)) item.completed_count += 1;
-      // Internship uses interview/shortlisted_corporate/rejected_corporate; freelance uses pending/shortlisted/rejected.
-      if (status === 'pending') item.stage_counts.pending += 1;
-      else if (status === 'interview') item.stage_counts.interview += 1;
-      else if (status === 'rejected' || status === 'rejected_corporate') item.stage_counts.rejected += 1;
-      else if (status === 'shortlisted' || status === 'shortlisted_corporate') item.stage_counts.selected += 1;
     }
     return out;
   }

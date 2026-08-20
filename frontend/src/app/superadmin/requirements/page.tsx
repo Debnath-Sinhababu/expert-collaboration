@@ -357,7 +357,7 @@ export default function SuperAdminRequirementsPage() {
           <div className="grid gap-3">
             <div className="relative w-full min-w-0">
               <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-              <Input className="pl-9" placeholder="Search requirement name or institution" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <Input className="pl-9" placeholder="Search by unique ID, requirement name, or institution" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Select value={status} onValueChange={setStatus}>
@@ -443,6 +443,9 @@ export default function SuperAdminRequirementsPage() {
               <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
+                    {row.unique_code ? (
+                      <span className="rounded-full bg-[#008260]/10 px-2.5 py-1 text-xs font-semibold text-[#008260]">{row.unique_code}</span>
+                    ) : null}
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold capitalize text-slate-700">{row.requirement_type}</span>
                     <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${derivedStatusClass(row.derived_status || row.status)}`}>
                       {derivedStatusLabel(row.derived_status || row.status)}
