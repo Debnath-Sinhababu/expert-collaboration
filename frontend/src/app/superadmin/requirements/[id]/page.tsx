@@ -1069,6 +1069,7 @@ export default function SuperAdminRequirementDetailPage({
 
           <SectionCard title={requirement.title || 'Requirement'} description={`${requirement.requirement_type} requirement`}>
             <div className="grid gap-4 text-sm md:grid-cols-3">
+              {requirement.unique_code ? detailValue('Unique ID', requirement.unique_code) : null}
               {detailValue('Institution', institution?.name || '-')}
               {detailValue('Institution Email', institution?.email)}
               {requirementType === 'project' ? (
