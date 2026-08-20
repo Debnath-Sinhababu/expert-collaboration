@@ -317,8 +317,8 @@ class ApplicationRateService {
     );
 
     let onboardingRequest = null;
+    const onboardingService = new OnboardingService(institutionAccess.getServiceClient());
     try {
-      const onboardingService = new OnboardingService(institutionAccess.getServiceClient());
       onboardingRequest = await onboardingService.createRequest({
         applicationId,
         bookingId: booking?.id,
@@ -328,6 +328,16 @@ class ApplicationRateService {
       });
     } catch (err) {
       console.warn('Failed to open onboarding request:', err.message || err);
+    }
+
+    // Admin performed the lock themselves (super-admin portal, or acting-as institution) —
+    // they're already the verifier, so skip the manual Onboard Verification step.
+    if (actor.role === 'super_admin' && onboardingRequest?.status === 'pending_review') {
+      try {
+        onboardingRequest = await onboardingService.verifyAndSendOfferLetter(onboardingRequest.id, actor.actorUserId || null);
+      } catch (err) {
+        console.warn('Failed to auto-send offer letter for admin-initiated booking:', err.message || err);
+      }
     }
 
     return { application: updatedApp, booking, onboardingRequest };

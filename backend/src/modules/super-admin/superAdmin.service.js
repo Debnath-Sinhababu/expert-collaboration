@@ -902,7 +902,7 @@ class SuperAdminService {
         const result = await rateService.confirmAndCreateBooking({
           applicationId,
           institutionId,
-          actor: { role: 'institution', institutionId },
+          actor: { role: 'super_admin', institutionId, actorUserId },
           writeClient,
           approveOverBudget: Boolean(body?.approve_over_budget),
         });

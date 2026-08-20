@@ -533,7 +533,7 @@ export default function SuperAdminRequirementDetailPage({
         status,
         interview_scheduled_at: interviewValue || null,
       })
-      toast.success(status === 'accepted' ? 'Booking confirmed and locked' : 'Application updated')
+      toast.success(status === 'accepted' ? 'Booking confirmed and offer letter sent' : 'Application updated')
       await loadDetail()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update application')
@@ -609,9 +609,9 @@ export default function SuperAdminRequirementDetailPage({
           ? Number(row.final_net_per_unit)
           : pricing.netPerUnitDisplay
       openConfirmAction({
-        title: 'Confirm & lock booking?',
-        description: `Lock booking for ${name} at institute pays ${moneyInr(gross)} / ${pricing.unitShort} and expert earns ${moneyInr(net)} / ${pricing.unitShort}.`,
-        confirmLabel: 'Confirm & lock',
+        title: 'Onboard expert?',
+        description: `Lock booking for ${name} at institute pays ${moneyInr(gross)} / ${pricing.unitShort} and expert earns ${moneyInr(net)} / ${pricing.unitShort}. The offer letter will be sent to the expert immediately.`,
+        confirmLabel: 'Onboard',
         onConfirm: () => updateNativeApplication(row, 'accepted'),
       })
       return
@@ -692,7 +692,7 @@ export default function SuperAdminRequirementDetailPage({
                 disabled={workflowSaving || lockDisabled}
                 onClick={() => confirmSelectNative(row, 'accepted')}
               >
-                Confirm & lock
+                Onboard
               </Button>
             ) : null}
             {!visibility.hidePending ? (
