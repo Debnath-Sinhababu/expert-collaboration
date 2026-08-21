@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
+import { superAdminApi } from '@/lib/superadmin/api'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -166,6 +167,7 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
   const [sendingNotifications, setSendingNotifications] = useState(false)
   const [projectTypeOptions, setProjectTypeOptions] = useState<Array<{ value: string; label: string }>>([])
   const [projectTypeOpen, setProjectTypeOpen] = useState(false)
+  const [marginPercent, setMarginPercent] = useState('')
 
   const [form, setForm] = useState({
     title: '',
@@ -518,6 +520,13 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
       return false
     }
     if (!form.description.trim()) { toast.error('Add description'); return false }
+    if (viewer === 'super_admin' && !isEdit) {
+      const marginValue = Number(marginPercent)
+      if (marginPercent.trim() === '' || Number.isNaN(marginValue) || marginValue < 0 || marginValue > 100) {
+        toast.error('Enter platform margin (0-100%)')
+        return false
+      }
+    }
     return true
   }
 
@@ -755,7 +764,21 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
         return
       }
 
-      await api.projects.create(formData)
+      const created = await api.projects.create(formData)
+      if (viewer === 'super_admin' && created?.id) {
+        try {
+          await superAdminApi.setRequirementMargin('project', created.id, { margin_percent: Number(marginPercent) })
+          toast.success('Requirement created and margin set. It is now live to experts.')
+        } catch (marginError) {
+          toast.error(
+            marginError instanceof Error
+              ? marginError.message
+              : 'Requirement created, but setting margin failed. Set it from Margin Review.'
+          )
+        }
+        router.push(`${basePath}/dashboard`)
+        return
+      }
       // Margin is set by a super-admin before this requirement is shown to experts,
       // so experts can't be selected/notified yet — skip straight to the dashboard.
       toast.success('Requirement submitted. It will go live to experts once the admin team reviews and approves it.')
@@ -907,12 +930,30 @@ export default function ContractForm({ mode = 'create', projectId }: ContractFor
                 onChange={(e) => setForm((prev) => ({ ...prev, institution_gross_total: e.target.value }))}
                 className="border-[#DCDCDC]"
               />
-              {!isEdit && (
+              {!isEdit && viewer !== 'super_admin' && (
                 <p className="text-xs text-[#6A6A6A] mt-1">
                   Our admin team reviews the budget before this requirement goes live to experts.
                 </p>
               )}
             </div>
+            {viewer === 'super_admin' && !isEdit && (
+              <div>
+                <Label className="text-[#000000] font-medium mb-2 block">Platform margin (%) *</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="1"
+                  placeholder="e.g. 25"
+                  value={marginPercent}
+                  onChange={(e) => setMarginPercent(e.target.value)}
+                  className="border-[#DCDCDC]"
+                />
+                <p className="text-xs text-[#6A6A6A] mt-1">
+                  Set now so this requirement goes live to experts immediately.
+                </p>
+              </div>
+            )}
             <div>
               <Label className="text-[#000000] font-medium mb-2 block">
                 {payRateLabel(form.compensation_unit)}
