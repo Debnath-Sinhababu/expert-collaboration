@@ -84,7 +84,7 @@ class OnboardingService {
    * Called right after a booking is created for an accepted application.
    * Opens (or reuses) the onboarding review case for the super admin queue.
    */
-  async createRequest({ applicationId, bookingId, projectId, expertId, institutionId }) {
+  async createRequest({ applicationId, bookingId, projectId, expertId, institutionId, isSuperAdminActor = false }) {
     const existing = await this.repo.findActiveByApplicationId(applicationId);
     if (existing) return existing;
 
@@ -96,7 +96,11 @@ class OnboardingService {
       institution_id: institutionId,
       status: 'pending_review',
     });
-    notifyOnboardingPendingReview(this.db).catch(() => {});
+    // A super admin locking the rate themselves is about to auto-verify this request
+    // (see applicationRate.service.js) — no need to alert admins about their own action.
+    if (!isSuperAdminActor) {
+      notifyOnboardingPendingReview(this.db).catch(() => {});
+    }
     return created;
   }
 

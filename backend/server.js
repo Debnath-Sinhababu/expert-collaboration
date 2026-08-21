@@ -2275,8 +2275,11 @@ app.post('/api/projects', upload.fields([
 
     // Experts are notified once a super-admin approves the margin (see
     // POST /api/admin/requirements/:id/margin), not at creation time.
-    // Super admins get an email now so the new pending requirement doesn't sit unnoticed.
-    require('./services/superAdminAlertService').notifyMarginPendingReview().catch(() => {});
+    // Super admins get an email now so the new pending requirement doesn't sit unnoticed —
+    // unless a super admin created it themselves, in which case they don't need alerting.
+    if (access.mode !== 'super_admin') {
+      require('./services/superAdminAlertService').notifyMarginPendingReview().catch(() => {});
+    }
 
     res.status(201).json(data[0]);
   } catch (error) {

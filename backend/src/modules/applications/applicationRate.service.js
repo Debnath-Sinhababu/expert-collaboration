@@ -325,6 +325,7 @@ class ApplicationRateService {
         projectId: app.project_id,
         expertId: app.expert_id,
         institutionId,
+        isSuperAdminActor: actor.role === 'super_admin',
       });
     } catch (err) {
       console.warn('Failed to open onboarding request:', err.message || err);
