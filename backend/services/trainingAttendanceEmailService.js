@@ -17,7 +17,7 @@ async function sendMissingAttendanceEmail({ to, expertName, projectTitle, bookin
   const safeProject = escapeHtml(projectTitle || 'your training project');
   const displayDate = formatSessionDate(sessionDate);
   const safeDate = escapeHtml(displayDate);
-  const link = dashboardLink(`/expert/dashboard?tab=bookings&bookingId=${bookingId}`);
+  const link = dashboardLink(`/expert/dashboard?tab=bookings&bookingId=${bookingId}&date=${sessionDate}`);
   const subject = `Missing attendance for ${displayDate} — ${projectTitle || 'your training project'}`;
   const text = [
     `Hello ${expertName || 'there'},`,

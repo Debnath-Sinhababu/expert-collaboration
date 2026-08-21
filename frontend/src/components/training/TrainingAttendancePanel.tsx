@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { format, startOfMonth, endOfMonth } from 'date-fns'
+import { format, startOfMonth, endOfMonth, parseISO } from 'date-fns'
 import { api } from '@/lib/api'
 import { isDateInRange, normalizeDateOnly } from '@/lib/dateOnly'
 import { toast } from 'sonner'
@@ -33,6 +33,8 @@ type Props = {
   /** Who is viewing this panel — drives which actions show before/after API load */
   expectedViewerRole: 'expert' | 'institution'
   defaultExpanded?: boolean
+  /** Date (YYYY-MM-DD) to pre-select, e.g. from a missing-attendance reminder email link */
+  highlightDate?: string | null
 }
 
 export function TrainingAttendancePanel({
@@ -42,18 +44,22 @@ export function TrainingAttendancePanel({
   bookingStatus,
   expectedViewerRole,
   defaultExpanded = false,
+  highlightDate = null,
 }: Props) {
   const rangeStart = normalizeDateOnly(startDate) || startDate
   const rangeEnd = normalizeDateOnly(endDate) || endDate
   const st = normalizeBookingStatus(bookingStatus)
   const bookingAllowsMark = canExpertMarkAttendance(st)
+  const normalizedHighlightDate = normalizeDateOnly(highlightDate)
 
   const [expanded, setExpanded] = useState(defaultExpanded)
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState(false)
   const [data, setData] = useState<AttendancePayload | null>(null)
-  const [month, setMonth] = useState(() => new Date())
-  const [selectedDay, setSelectedDay] = useState<Date | undefined>(() => new Date())
+  const [month, setMonth] = useState(() => (normalizedHighlightDate ? parseISO(normalizedHighlightDate) : new Date()))
+  const [selectedDay, setSelectedDay] = useState<Date | undefined>(() =>
+    normalizedHighlightDate ? parseISO(normalizedHighlightDate) : new Date()
+  )
   const [entryAttachment, setEntryAttachment] = useState<File | null>(null)
   const [exitAttachment, setExitAttachment] = useState<File | null>(null)
 

@@ -462,8 +462,12 @@ function registerTrainingAttendanceRoutes(app, upload) {
         updated_at: now,
       };
       if (isBackdated) {
+        // Backdated day: the work already happened in the past, so entry alone
+        // completes the day — no separate exit step, no clock-based hours.
         const fullDayHours = resolveFullDayHours(ctx.booking);
         updates.is_backdated = true;
+        updates.expert_exit_at = now;
+        updates.status = 'pending_review';
         if (fullDayHours > 0) updates.credited_hours = fullDayHours;
       }
       if (attachment) {
