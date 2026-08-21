@@ -164,15 +164,18 @@ function ExpertDashboardContent() {
   const searchParams = useSearchParams()
   const { viewer, actingExpertId, basePath } = useExpertWorkspace()
 
-  // Deep link from missing-attendance reminder emails: /expert/dashboard?tab=bookings&bookingId=...
+  // Deep link from missing-attendance reminder emails: /expert/dashboard?tab=bookings&bookingId=...&date=...
   const [highlightedBookingId, setHighlightedBookingId] = useState<string | null>(null)
+  const [highlightedDate, setHighlightedDate] = useState<string | null>(null)
   const bookingCardRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
   useEffect(() => {
     const tab = searchParams.get('tab')
     const bookingId = searchParams.get('bookingId')
+    const date = searchParams.get('date')
     if (tab === 'bookings') setActiveTab('bookings')
     if (bookingId) setHighlightedBookingId(bookingId)
+    if (date) setHighlightedDate(date)
   }, [searchParams])
 
   useEffect(() => {
@@ -1451,6 +1454,7 @@ function ExpertDashboardContent() {
                               booking.status === 'cancellation_requested' ||
                               booking.id === highlightedBookingId
                             }
+                            highlightDate={booking.id === highlightedBookingId ? highlightedDate : null}
                           />
                         )}
                         <div className="flex flex-wrap justify-end gap-2 pt-3 border-t border-[#ECECEC]">
