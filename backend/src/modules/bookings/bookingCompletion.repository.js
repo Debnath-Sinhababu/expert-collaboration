@@ -57,7 +57,7 @@ class BookingCompletionRepository {
     const { data, error } = await this.db
       .from('training_attendance_days')
       .select(
-        'status, effective_entry_at, effective_exit_at, expert_entry_at, expert_exit_at'
+        'status, effective_entry_at, effective_exit_at, expert_entry_at, expert_exit_at, credited_hours'
       )
       .eq('booking_id', bookingId);
     if (error) {
@@ -68,6 +68,10 @@ class BookingCompletionRepository {
     let totalMinutes = 0;
     for (const day of data || []) {
       if (String(day.status || '').toLowerCase() !== 'approved') continue;
+      if (day.credited_hours != null) {
+        totalMinutes += Number(day.credited_hours) * 60;
+        continue;
+      }
       const entry = day.effective_entry_at || day.expert_entry_at;
       const exit = day.effective_exit_at || day.expert_exit_at;
       if (!entry || !exit) continue;

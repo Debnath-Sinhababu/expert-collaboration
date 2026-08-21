@@ -179,6 +179,10 @@ function approvedHoursFromDays(days = []) {
   let hours = 0;
   for (const day of days) {
     if (day.status !== 'approved') continue;
+    if (day.credited_hours != null) {
+      hours += Number(day.credited_hours) || 0;
+      continue;
+    }
     const entry = day.effective_entry_at || day.expert_entry_at;
     const exit = day.effective_exit_at || day.expert_exit_at;
     if (!entry || !exit) continue;

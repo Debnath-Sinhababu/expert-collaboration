@@ -7189,6 +7189,28 @@ function runMarginAutoApproveSync(reason = 'interval') {
   }
 }
 
+// Daily scan for training bookings with past dates missing attendance entirely;
+// emails the expert one reminder per missing date (never repeated, tracked in
+// training_attendance_reminders).
+function runMissingAttendanceReminderSync(reason = 'interval') {
+  try {
+    const serviceClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+    const { runMissingAttendanceScan } = require('./services/trainingAttendanceReminderService');
+    runMissingAttendanceScan(serviceClient)
+      .then((results) => {
+        if (results.length) {
+          console.log(`[missingAttendanceReminder] ${reason}: sent ${results.length} reminder email(s)`);
+        }
+      })
+      .catch((err) => console.warn(`[missingAttendanceReminder] ${reason} failed:`, err?.message || err));
+  } catch (err) {
+    console.warn(`[missingAttendanceReminder] ${reason} setup failed:`, err?.message || err);
+  }
+}
+
 // Start server
 server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
@@ -7205,6 +7227,8 @@ server.listen(PORT, () => {
   setInterval(() => runOnboardingExpirySync('hourly'), 60 * 60 * 1000);
   runMarginAutoApproveSync('startup');
   setInterval(() => runMarginAutoApproveSync('every-5-min'), 5 * 60 * 1000);
+  runMissingAttendanceReminderSync('startup');
+  setInterval(() => runMissingAttendanceReminderSync('daily'), 24 * 60 * 60 * 1000);
 });
 
 module.exports = app;
