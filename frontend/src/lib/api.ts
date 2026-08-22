@@ -672,6 +672,10 @@ export const api = {
       const headers = await getAuthHeaders()
       return fetch(`${API_BASE_URL}/api/onboarding/${id}`, { headers }).then(res => res.json())
     },
+    previewHtml: async (id: string) => {
+      const headers = await getAuthHeaders()
+      return fetch(`${API_BASE_URL}/api/onboarding/${id}/preview-html`, { headers }).then(res => res.json())
+    },
     accept: async (id: string) => {
       const headers = await getAuthHeaders()
       return fetch(`${API_BASE_URL}/api/onboarding/${id}/accept`, {

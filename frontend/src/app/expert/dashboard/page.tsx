@@ -54,13 +54,7 @@ import { useExpertWorkspace } from '@/contexts/ExpertWorkspaceContext'
 import { fetchExpertForWorkspace, expertProfileSetupPath } from '@/lib/expertWorkspace'
 import { isTrainingBooking } from '@/lib/trainingTypes'
 import { TrainingAttendancePanel } from '@/components/training/TrainingAttendancePanel'
-import dynamic from 'next/dynamic'
-
-// pdfjs-dist touches browser-only APIs (DOMMatrix) at module load time, which breaks SSR/prerendering.
-const OfferLetterPreviewDialog = dynamic(
-  () => import('@/components/offers/OfferLetterPreviewDialog').then((m) => m.OfferLetterPreviewDialog),
-  { ssr: false }
-)
+import { OfferLetterPreviewDialog } from '@/components/offers/OfferLetterPreviewDialog'
 
 type UserMeta = { role?: string; name?: string }
 type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }

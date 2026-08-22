@@ -8,6 +8,7 @@ function createOnboardingRouter() {
 
   router.get('/', asyncHandler(controller.list));
   router.get('/:id', asyncHandler(controller.getById));
+  router.get('/:id/preview-html', asyncHandler(controller.previewHtml));
   router.post('/:id/accept', asyncHandler(controller.accept));
   router.post('/:id/decline', asyncHandler(controller.decline));
 

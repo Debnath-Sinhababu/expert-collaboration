@@ -137,7 +137,7 @@ class OnboardingService {
     const milestone2Percent = 50;
     const milestone2Amount = totalFee != null ? Math.round((totalFee * milestone2Percent) / 100) : undefined;
 
-    const pdfBuffer = await generateOfferLetterPdf({
+    const letterData = {
       expertName: expert?.name,
       expertAddress: expert?.address,
       referenceNo: `CALX/${sentAt.getFullYear()}/${String(request.application_id).slice(0, 8).toUpperCase()}`,
@@ -161,7 +161,9 @@ class OnboardingService {
       jurisdictionState: 'Haryana',
       documentTitle: 'TRAINER ENGAGEMENT LETTER',
       institutionName: institution?.name,
-    });
+    };
+
+    const pdfBuffer = await generateOfferLetterPdf(letterData);
     const upload = await ImageUploadService.uploadPDF(pdfBuffer, 'offer-letters', `offer-${request.application_id}`);
     if (!upload.success) {
       throw new HttpError(500, upload.error || 'Failed to upload offer letter');
@@ -175,6 +177,9 @@ class OnboardingService {
       offer_expires_at: expiresAt.toISOString(),
       reviewed_by: adminUserId || null,
       reviewed_at: sentAt.toISOString(),
+      // Kept so the expert-facing preview can render the same content as real scrollable HTML
+      // (rather than trying to track scroll inside a native/cross-origin PDF viewer).
+      offer_letter_data: letterData,
     });
 
     try {
