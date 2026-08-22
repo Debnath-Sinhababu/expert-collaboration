@@ -48,6 +48,30 @@ function minutesBetween(entry, exit) {
   return ms > 0 ? ms / 60000 : 0;
 }
 
+function positiveNumber(...values) {
+  for (const value of values) {
+    const num = Number(value);
+    if (Number.isFinite(num) && num > 0) return num;
+  }
+  return 0;
+}
+
+/**
+ * Full expected hours for one session day on this booking, used to credit
+ * backdated attendance instead of the actual entry/exit clock diff.
+ * Mirrors the fallback chain already used for `runningWorkTargetHours` in
+ * src/modules/super-admin/superAdmin.repository.js, applied per-day.
+ */
+function resolveFullDayHours(booking) {
+  const project = booking?.projects || {};
+  const perDay = positiveNumber(booking?.duration_per_unit, project.duration_per_unit, project.hours_per_day);
+  if (perDay) return perDay;
+  const unitQuantity = positiveNumber(booking?.unit_quantity, project.unit_quantity);
+  const totalHours = positiveNumber(booking?.hours_booked, project.duration_hours);
+  if (unitQuantity && totalHours) return totalHours / unitQuantity;
+  return 0;
+}
+
 function computeSummary(days, hoursBooked) {
   let daysApproved = 0;
   let daysPending = 0;
@@ -58,9 +82,13 @@ function computeSummary(days, hoursBooked) {
   for (const d of days) {
     if (d.status === 'approved') {
       daysApproved += 1;
-      const entry = d.effective_entry_at || d.expert_entry_at;
-      const exit = d.effective_exit_at || d.expert_exit_at;
-      totalMinutesApproved += minutesBetween(entry, exit);
+      if (d.credited_hours != null) {
+        totalMinutesApproved += Number(d.credited_hours) * 60;
+      } else {
+        const entry = d.effective_entry_at || d.expert_entry_at;
+        const exit = d.effective_exit_at || d.expert_exit_at;
+        totalMinutesApproved += minutesBetween(entry, exit);
+      }
     } else if (d.status === 'pending_review') {
       daysPending += 1;
     } else if (d.status === 'disputed') {
@@ -106,7 +134,7 @@ async function loadBooking(service, bookingId) {
     .select(
       `
       *,
-      projects!inner(id, type, title, institution_id)
+      projects!inner(id, type, title, institution_id, hours_per_day, duration_per_unit, unit_quantity, duration_hours)
     `
     )
     .eq('id', bookingId)
@@ -426,12 +454,22 @@ function registerTrainingAttendanceRoutes(app, upload) {
         'training-attendance-entry'
       );
       const writeClient = getWriteClient(ctx);
+      const isBackdated = normalizeDateOnly(day.session_date) < normalizeDateOnly(now);
       const updates = {
         expert_entry_at: now,
         status: day.expert_exit_at ? 'pending_review' : 'open',
         dispute_reason: day.status === 'disputed' ? null : day.dispute_reason,
         updated_at: now,
       };
+      if (isBackdated) {
+        // Backdated day: the work already happened in the past, so entry alone
+        // completes the day — no separate exit step, no clock-based hours.
+        const fullDayHours = resolveFullDayHours(ctx.booking);
+        updates.is_backdated = true;
+        updates.expert_exit_at = now;
+        updates.status = 'pending_review';
+        if (fullDayHours > 0) updates.credited_hours = fullDayHours;
+      }
       if (attachment) {
         updates.entry_attachment_url = attachment.url;
         updates.entry_attachment_public_id = attachment.publicId;
@@ -544,6 +582,8 @@ function registerTrainingAttendanceRoutes(app, upload) {
 
       const now = new Date().toISOString();
       const writeClient = getWriteClient(ctx);
+      const isBackdated = normalizeDateOnly(day.session_date) < normalizeDateOnly(now);
+      const fullDayHours = isBackdated ? resolveFullDayHours(ctx.booking) : 0;
       const { data, error } = await writeClient
         .from('training_attendance_days')
         .update({
@@ -555,6 +595,8 @@ function registerTrainingAttendanceRoutes(app, upload) {
           effective_exit_at: null,
           approved_at: null,
           approved_by_user_id: null,
+          is_backdated: isBackdated,
+          credited_hours: fullDayHours > 0 ? fullDayHours : null,
           updated_at: now,
         })
         .eq('id', day.id)
@@ -706,6 +748,8 @@ function registerTrainingAttendanceRoutes(app, upload) {
       const updates = {
         effective_entry_at: effectiveEntry,
         effective_exit_at: effectiveExit,
+        // Institution's manual time edit always overrides the automatic full-day credit.
+        credited_hours: null,
         updated_at: now,
       };
 

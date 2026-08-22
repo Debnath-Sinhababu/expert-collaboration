@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo, Suspense } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
@@ -49,7 +49,7 @@ import {
 } from 'lucide-react'
 import { BookOpen } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter, usePathname } from 'next/navigation'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useExpertWorkspace } from '@/contexts/ExpertWorkspaceContext'
 import { fetchExpertForWorkspace, expertProfileSetupPath } from '@/lib/expertWorkspace'
 import { isTrainingBooking } from '@/lib/trainingTypes'
@@ -58,7 +58,7 @@ import { TrainingAttendancePanel } from '@/components/training/TrainingAttendanc
 type UserMeta = { role?: string; name?: string }
 type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }
 
-export default function ExpertDashboard() {
+function ExpertDashboardContent() {
   type ExpertProfile = {
     id?: string
     user_id?: string
@@ -161,7 +161,28 @@ export default function ExpertDashboard() {
 
   const router = useRouter()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const { viewer, actingExpertId, basePath } = useExpertWorkspace()
+
+  // Deep link from missing-attendance reminder emails: /expert/dashboard?tab=bookings&bookingId=...&date=...
+  const [highlightedBookingId, setHighlightedBookingId] = useState<string | null>(null)
+  const [highlightedDate, setHighlightedDate] = useState<string | null>(null)
+  const bookingCardRefs = useRef<Record<string, HTMLDivElement | null>>({})
+
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    const bookingId = searchParams.get('bookingId')
+    const date = searchParams.get('date')
+    if (tab === 'bookings') setActiveTab('bookings')
+    if (bookingId) setHighlightedBookingId(bookingId)
+    if (date) setHighlightedDate(date)
+  }, [searchParams])
+
+  useEffect(() => {
+    if (!highlightedBookingId || activeTab !== 'bookings') return
+    const node = bookingCardRefs.current[highlightedBookingId]
+    if (node) node.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [highlightedBookingId, activeTab, bookings])
 
   const getUser = async (): Promise<SessionUser | null> => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -1361,7 +1382,11 @@ export default function ExpertDashboard() {
                   ) : (
                     <div className="space-y-4">
                       {sortedPagedBookings?.map((booking: any) => (
-                      <div key={booking.id} className="bg-white border border-[#DCDCDC] rounded-lg p-4 sm:p-6 hover:border-[#008260] hover:shadow-md transition-all duration-300 group">
+                      <div
+                        key={booking.id}
+                        ref={(node) => { bookingCardRefs.current[booking.id] = node }}
+                        className={`bg-white border rounded-lg p-4 sm:p-6 hover:border-[#008260] hover:shadow-md transition-all duration-300 group ${booking.id === highlightedBookingId ? 'border-[#008260] shadow-md' : 'border-[#DCDCDC]'}`}
+                      >
                         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
                           <h3 className="font-bold text-base sm:text-lg text-[#000000] group-hover:text-[#008260] hover:cursor-pointer transition-colors duration-300 break-words"
                           onClick={()=>router.push(`${basePath}/project/${booking.project_id}`)}
@@ -1426,8 +1451,10 @@ export default function ExpertDashboard() {
                             defaultExpanded={
                               booking.status === 'in_progress' ||
                               booking.status === 'completion_requested' ||
-                              booking.status === 'cancellation_requested'
+                              booking.status === 'cancellation_requested' ||
+                              booking.id === highlightedBookingId
                             }
+                            highlightDate={booking.id === highlightedBookingId ? highlightedDate : null}
                           />
                         )}
                         <div className="flex flex-wrap justify-end gap-2 pt-3 border-t border-[#ECECEC]">
@@ -1493,5 +1520,20 @@ export default function ExpertDashboard() {
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+export default function ExpertDashboard() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#ECF2FF] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#008260] mx-auto mb-4"></div>
+          <p className="text-[#6A6A6A]">Loading...</p>
+        </div>
+      </div>
+    }>
+      <ExpertDashboardContent />
+    </Suspense>
   )
 }

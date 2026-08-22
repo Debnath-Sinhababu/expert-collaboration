@@ -12,6 +12,8 @@ export type AttendanceDayFull = {
   dispute_reason?: string | null
   entry_attachment_url?: string | null
   exit_attachment_url?: string | null
+  is_backdated?: boolean | null
+  credited_hours?: number | null
 }
 
 export type AttendanceSummary = {

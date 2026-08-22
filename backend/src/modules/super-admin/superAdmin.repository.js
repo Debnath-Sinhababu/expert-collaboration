@@ -337,7 +337,7 @@ class SuperAdminRepository {
     const { data: attendanceDays, error: daysError } = bookingIds.length
       ? await this.client
           .from('training_attendance_days')
-          .select('booking_id,status,effective_entry_at,effective_exit_at,expert_entry_at,expert_exit_at')
+          .select('booking_id,status,effective_entry_at,effective_exit_at,expert_entry_at,expert_exit_at,credited_hours')
           .in('booking_id', bookingIds)
       : { data: [], error: null };
     if (daysError && !tableMissing(daysError)) throw daysError;
@@ -1557,7 +1557,7 @@ class SuperAdminRepository {
     const { data: days, error: daysError } = bookingIds.length
       ? await this.client
           .from('training_attendance_days')
-          .select('booking_id,status,effective_entry_at,effective_exit_at,expert_entry_at,expert_exit_at')
+          .select('booking_id,status,effective_entry_at,effective_exit_at,expert_entry_at,expert_exit_at,credited_hours')
           .in('booking_id', bookingIds)
       : { data: [], error: null };
     if (daysError && !tableMissing(daysError)) throw daysError;
@@ -2136,7 +2136,7 @@ class SuperAdminRepository {
     const { data: days, error: daysError } = bookingIds.length
       ? await this.client
           .from('training_attendance_days')
-          .select('booking_id,status,effective_entry_at,effective_exit_at,expert_entry_at,expert_exit_at')
+          .select('booking_id,status,effective_entry_at,effective_exit_at,expert_entry_at,expert_exit_at,credited_hours')
           .in('booking_id', bookingIds)
       : { data: [], error: null };
     if (daysError && !tableMissing(daysError)) throw daysError;
@@ -2208,7 +2208,7 @@ class SuperAdminRepository {
     if (!bookingIds.length) return {};
     const { data, error } = await this.client
       .from('training_attendance_days')
-      .select('booking_id,status,effective_entry_at,effective_exit_at,expert_entry_at,expert_exit_at')
+      .select('booking_id,status,effective_entry_at,effective_exit_at,expert_entry_at,expert_exit_at,credited_hours')
       .in('booking_id', bookingIds);
     if (error) {
       if (tableMissing(error)) return {};

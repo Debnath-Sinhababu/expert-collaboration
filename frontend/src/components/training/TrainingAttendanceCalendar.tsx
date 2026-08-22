@@ -17,6 +17,8 @@ export type AttendanceDay = {
   id: string
   session_date: string
   status: 'open' | 'pending_review' | 'approved' | 'disputed'
+  is_backdated?: boolean | null
+  credited_hours?: number | null
 }
 
 type Props = {
