@@ -57,6 +57,8 @@ export type AttendanceDayFull = AttendanceDay & {
   dispute_reason?: string | null
   entry_attachment_url?: string | null
   exit_attachment_url?: string | null
+  is_backdated?: boolean | null
+  credited_hours?: number | null
 }
 
 type Props = {
@@ -167,28 +169,41 @@ export function TrainingAttendanceDayDetail({
         </div>
       )}
 
-      <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-        <div>
-          <dt className="text-[#717171]">Expert entry</dt>
-          <dd className="font-medium">{formatTs(day.expert_entry_at)}</dd>
-        </div>
-        <div>
-          <dt className="text-[#717171]">Expert exit</dt>
-          <dd className="font-medium">{formatTs(day.expert_exit_at)}</dd>
-        </div>
-        {(day.effective_entry_at || day.effective_exit_at) && day.status === 'approved' && (
-          <>
-            <div>
-              <dt className="text-[#717171]">Approved entry</dt>
-              <dd className="font-medium">{formatTs(day.effective_entry_at)}</dd>
-            </div>
-            <div>
-              <dt className="text-[#717171]">Approved exit</dt>
-              <dd className="font-medium">{formatTs(day.effective_exit_at)}</dd>
-            </div>
-          </>
-        )}
-      </dl>
+      {day.is_backdated ? (
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+          <div>
+            <dt className="text-[#717171]">Expert entry</dt>
+            <dd className="font-medium">Marked{day.expert_entry_at ? <span className="font-normal text-[#6A6A6A]"> at {formatTs(day.expert_entry_at)}</span> : null}</dd>
+          </div>
+          <div>
+            <dt className="text-[#717171]">Expert exit</dt>
+            <dd className="font-medium">Marked{day.expert_exit_at ? <span className="font-normal text-[#6A6A6A]"> at {formatTs(day.expert_exit_at)}</span> : null}</dd>
+          </div>
+        </dl>
+      ) : (
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+          <div>
+            <dt className="text-[#717171]">Expert entry</dt>
+            <dd className="font-medium">{formatTs(day.expert_entry_at)}</dd>
+          </div>
+          <div>
+            <dt className="text-[#717171]">Expert exit</dt>
+            <dd className="font-medium">{formatTs(day.expert_exit_at)}</dd>
+          </div>
+          {(day.effective_entry_at || day.effective_exit_at) && day.status === 'approved' && (
+            <>
+              <div>
+                <dt className="text-[#717171]">Approved entry</dt>
+                <dd className="font-medium">{formatTs(day.effective_entry_at)}</dd>
+              </div>
+              <div>
+                <dt className="text-[#717171]">Approved exit</dt>
+                <dd className="font-medium">{formatTs(day.effective_exit_at)}</dd>
+              </div>
+            </>
+          )}
+        </dl>
+      )}
 
       {(day.entry_attachment_url || day.exit_attachment_url) && (
         <div className="rounded-lg border border-[#ECECEC] bg-[#FAFAFA] p-3 text-sm space-y-1">
