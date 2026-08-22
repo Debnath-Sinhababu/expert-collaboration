@@ -348,13 +348,22 @@ export default function InstitutionProjectDetailsPage({
   const selectedBookings = Array.isArray(rawSelectedBookings) ? rawSelectedBookings : []
 
   // A booking only truly becomes "Selected" once CalxMap verifies the case and the expert accepts
-  // the offer letter (onboarding status: accepted). Before that it's still shown below (so nothing
-  // disappears from view) but doesn't count as confirmed — the Onboarding status line explains why.
-  const pendingOnboardingBookings = selectedBookings.filter((booking: any) => {
-    const onboarding = onboardingByApplicationId[booking.application_id]
-    return onboarding && onboarding.status !== 'accepted'
+  // the offer letter (onboarding status: accepted). Before that it lives in the "Offer Letter Sent"
+  // tab; if the expert declines (or the offer expires) it drops out of both and shows up under
+  // Rejected instead, since the application record is reverted to 'rejected' at that point.
+  const offerLetterSentBookings = selectedBookings.filter((booking: any) => {
+    const status = onboardingByApplicationId[booking.application_id]?.status
+    return status === 'pending_review' || status === 'offer_sent'
   })
-  const confirmedSelectedCount = Math.max(0, (selectedCount || 0) - pendingOnboardingBookings.length)
+  const declinedOnboardingBookings = selectedBookings.filter((booking: any) => {
+    const status = onboardingByApplicationId[booking.application_id]?.status
+    return status === 'declined' || status === 'expired'
+  })
+  const confirmedSelectedBookings = selectedBookings.filter((booking: any) => {
+    const status = onboardingByApplicationId[booking.application_id]?.status
+    return !status || status === 'accepted'
+  })
+  const confirmedSelectedCount = Math.max(0, (selectedCount || 0) - offerLetterSentBookings.length - declinedOnboardingBookings.length)
 
   useEffect(() => {
     if (!institution?.id) return
@@ -1011,21 +1020,27 @@ export default function InstitutionProjectDetailsPage({
         {/* 3-Tab System */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 mt-10">
           <div className="w-full overflow-x-auto md:overflow-x-visible scrollbar-hide">
-            <TabsList className="flex md:grid w-max md:w-full md:grid-cols-4 gap-2 bg-white border-b border-slate-200 h-12 px-4 md:px-0">
-              <TabsTrigger 
-                value="pending" 
+            <TabsList className="flex md:grid w-max md:w-full md:grid-cols-5 gap-2 bg-white border-b border-slate-200 h-12 px-4 md:px-0">
+              <TabsTrigger
+                value="pending"
                 className="data-[state=active]:bg-emerald-50 data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-emerald-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
               >
                 Pending ({pendingCount || 0})
               </TabsTrigger>
-              <TabsTrigger 
-                value="interview" 
+              <TabsTrigger
+                value="interview"
                 className="data-[state=active]:bg-emerald-50 data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-emerald-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
               >
                 Interview ({interviewCount || 0})
               </TabsTrigger>
-              <TabsTrigger 
-                value="rejected" 
+              <TabsTrigger
+                value="offer_letter_sent"
+                className="data-[state=active]:bg-emerald-50 data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-emerald-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
+              >
+                Offer Letter Sent ({offerLetterSentBookings.length})
+              </TabsTrigger>
+              <TabsTrigger
+                value="rejected"
                 className="data-[state=active]:bg-emerald-50 data-[state=active]:text-[#008260] data-[state=active]:border-b-2 data-[state=active]:border-[#008260] hover:bg-emerald-50/50 transition-all duration-200 font-medium text-slate-700 flex items-center justify-center h-full px-4 rounded-none shrink-0 whitespace-nowrap min-w-max"
               >
                 Rejected ({rejectedCount || 0})
@@ -1430,6 +1445,83 @@ export default function InstitutionProjectDetailsPage({
   </Card>
 </TabsContent>
 
+          {/* Offer Letter Sent Tab */}
+          <TabsContent value="offer_letter_sent">
+  <Card className="bg-white border-2 border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
+    <CardHeader>
+      <CardTitle className="text-lg font-semibold text-[#000000]">Offer Letter Sent</CardTitle>
+      <CardDescription className="text-[#000000] text-base font-normal !-mt-[2px]">
+        Waiting on the expert to accept or decline the offer letter. They move to Selected on acceptance, or Rejected on decline.
+      </CardDescription>
+    </CardHeader>
+    <CardContent>
+      {offerLetterSentBookings?.length === 0 ? (
+        <div className="text-center py-8">
+          <Clock className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+          <p className="text-slate-600">No offer letters awaiting a response</p>
+          <p className="text-sm text-slate-500">Offer letters sent to experts will appear here until they respond</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {offerLetterSentBookings?.map((booking: any) => {
+            const onboardingStatus = onboardingByApplicationId[booking.application_id]?.status
+            return (
+              <Card key={booking.id} className="bg-white border border-[#DCDCDC] p-4 sm:p-5">
+                <CardContent className="p-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                    <div className="flex items-center space-x-3">
+                      <Avatar className="w-10 h-10 sm:w-12 sm:h-12 border-2 border-[#008260]/40">
+                        <AvatarImage src={booking.experts?.photo_url} />
+                        <AvatarFallback className="text-lg font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+                          {expertDisplayName(booking.experts)?.charAt(0) || 'E'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <h3 className="font-semibold text-black text-sm sm:text-base truncate">{expertDisplayName(booking.experts)}</h3>
+                        <p className="text-xs sm:text-sm text-black">
+                          {formatExpertTypes(booking.experts)}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 flex-shrink-0">
+                      {onboardingStatusLabel(onboardingStatus)}
+                    </Badge>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-2">
+                    <div>
+                      <span className="text-[#666666] font-medium text-sm">You pay: </span>
+                      <span className="text-[#000000] font-medium text-sm">
+                        {moneyInr(resolveBookingSettlementRates(booking).grossPerUnit)} / {resolveBookingSettlementRates(booking).unitShort}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[#666666] font-medium text-sm">Start Date: </span>
+                      <span className="text-[#000000] font-medium text-sm">{new Date(booking.start_date).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+
+          {/* Infinite scroll trigger for Offer Letter Sent (shares the Selected bookings pagination) */}
+          {hasMoreSelected && (
+            <div ref={selectedScrollRef} className="flex justify-center py-4">
+              {selectedLoading && (
+                <div className="flex items-center space-x-2 text-slate-500">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  <span>Loading more...</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </CardContent>
+  </Card>
+</TabsContent>
+
           {/* Rejected Tab */}
           <TabsContent value="rejected">
   <Card className="bg-white border-2 border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
@@ -1567,15 +1659,15 @@ export default function InstitutionProjectDetailsPage({
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {selectedBookings?.length === 0 ? (
+                {confirmedSelectedBookings?.length === 0 ? (
                   <div className="text-center py-8">
                     <BookOpen className="h-12 w-12 text-slate-400 mx-auto mb-4" />
                     <p className="text-slate-600">No bookings yet</p>
-                    <p className="text-sm text-slate-500">Bookings will appear here when you proceed with applications</p>
+                    <p className="text-sm text-slate-500">Bookings will appear here once the expert accepts the offer letter</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
-  {selectedBookings?.map((booking: any) => {
+  {confirmedSelectedBookings?.map((booking: any) => {
     const onboardingStatus = onboardingByApplicationId[booking.application_id]?.status
     const isConfirmedSelection = !onboardingStatus || onboardingStatus === 'accepted'
     return (

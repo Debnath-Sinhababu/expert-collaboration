@@ -43,6 +43,7 @@ import { canAccessAny } from '@/lib/superadmin/permissions'
 import type { SuperAdminPermission } from '@/lib/superadmin/types'
 import { getInstitutionRate } from '@/lib/utils'
 import { setSuperAdminActingInstitutionId } from '@/lib/superAdminActing'
+import { api } from '@/lib/api'
 import {
   isPostedRateDeclined,
   isPostedRateOfferPending,
@@ -64,6 +65,7 @@ import {
 const STAGES = [
   { value: 'pending', label: 'Pending' },
   { value: 'interview', label: 'Interview' },
+  { value: 'offer_letter_sent', label: 'Offer Letter Sent' },
   { value: 'rejected', label: 'Rejected' },
   { value: 'selected', label: 'Selected' },
 ]
@@ -150,6 +152,7 @@ export default function SuperAdminRequirementDetailPage({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [activeStage, setActiveStage] = useState('pending')
+  const [onboardingByApplicationId, setOnboardingByApplicationId] = useState<Record<string, any>>({})
   const [expertSearch, setExpertSearch] = useState('')
   const [experts, setExperts] = useState<any[]>([])
   const [expertId, setExpertId] = useState('')
@@ -214,6 +217,23 @@ export default function SuperAdminRequirementDetailPage({
   useEffect(() => {
     loadDetail()
   }, [requirementType, requirementId])
+
+  useEffect(() => {
+    const institutionId = detail?.institution?.id || detail?.requirement?.institutions?.id
+    if (!institutionId || requirementType !== 'project') {
+      setOnboardingByApplicationId({})
+      return
+    }
+    api.onboarding.getAll({ institution_id: institutionId })
+      .then((rows: any) => {
+        const map: Record<string, any> = {}
+        if (Array.isArray(rows)) {
+          rows.forEach((row: any) => { map[row.application_id] = row })
+        }
+        setOnboardingByApplicationId(map)
+      })
+      .catch(() => {})
+  }, [detail?.institution?.id, detail?.requirement?.institutions?.id, requirementType])
 
   useEffect(() => {
     const requirement = detail?.requirement
@@ -787,8 +807,29 @@ export default function SuperAdminRequirementDetailPage({
       .filter((row: any) => row.stage === 'rejected' && !nativeExpertIds.has(String(row.expert_id || '')))
       .map((row: any) => ({ kind: 'pipeline', row })),
   ]
+  // A booking only truly becomes "Selected" once the expert accepts the offer letter (onboarding
+  // status: accepted). Before that it lives in the "Offer Letter Sent" stage; if the expert declines
+  // (or the offer expires) the application is reverted to 'rejected' server-side, so it surfaces there.
+  const offerLetterSentBookings = bookings.filter((row: any) => {
+    const status = onboardingByApplicationId[row.application_id]?.status
+    return status === 'pending_review' || status === 'offer_sent'
+  })
+  const declinedOnboardingBookingIds = new Set(
+    bookings
+      .filter((row: any) => {
+        const status = onboardingByApplicationId[row.application_id]?.status
+        return status === 'declined' || status === 'expired'
+      })
+      .map((row: any) => row.id)
+  )
+  const offerLetterSentRows = offerLetterSentBookings.map((row: any) => ({ kind: 'booking', row }))
   const selectedRows = [
-    ...bookings.map((row: any) => ({ kind: 'booking', row })),
+    ...bookings
+      .filter((row: any) => {
+        const status = onboardingByApplicationId[row.application_id]?.status
+        return (!status || status === 'accepted') && !declinedOnboardingBookingIds.has(row.id)
+      })
+      .map((row: any) => ({ kind: 'booking', row })),
     ...nativeApplications
       .filter((row: any) => ['accepted', 'shortlisted', 'shortlisted_corporate'].includes(row.status) && !bookingExpertIds.has(String(row.expert_id || '')))
       .map((row: any) => ({ kind: 'application', row })),
@@ -799,6 +840,7 @@ export default function SuperAdminRequirementDetailPage({
   const rowsByStage: Record<string, any[]> = {
     pending: pendingRows,
     interview: interviewRows,
+    offer_letter_sent: offerLetterSentRows,
     rejected: rejectedRows,
     selected: selectedRows,
   }
@@ -811,7 +853,12 @@ export default function SuperAdminRequirementDetailPage({
   }
 
   function getItemStatus(item: any) {
-    if (item.kind === 'booking') return item.row.status || 'selected'
+    if (item.kind === 'booking') {
+      const onboardingStatus = onboardingByApplicationId[item.row.application_id]?.status
+      if (onboardingStatus === 'pending_review') return 'Awaiting CalxMap review'
+      if (onboardingStatus === 'offer_sent') return 'Offer letter sent — awaiting expert'
+      return item.row.status || 'selected'
+    }
     if (item.kind === 'pipeline') return stageLabel(item.row.stage)
     return item.row.status || '-'
   }
@@ -1051,6 +1098,7 @@ export default function SuperAdminRequirementDetailPage({
             <div className="flex w-max min-w-full gap-4 px-1">
               <div className="w-[11.5rem] shrink-0"><StatCard label="Pending" value={pendingRows.length} /></div>
               <div className="w-[11.5rem] shrink-0"><StatCard label="Interview" value={interviewRows.length} tone="blue" /></div>
+              <div className="w-[11.5rem] shrink-0"><StatCard label="Offer Letter Sent" value={offerLetterSentRows.length} tone="amber" /></div>
               <div className="w-[11.5rem] shrink-0"><StatCard label="Selected" value={selectedRows.length} tone="green" /></div>
               <div className="w-[11.5rem] shrink-0"><StatCard label="Rejected" value={rejectedRows.length} tone="amber" /></div>
               <div className="w-[11.5rem] shrink-0"><StatCard label="Applications" value={counts.applications_total || 0} tone="amber" /></div>
@@ -1316,7 +1364,7 @@ export default function SuperAdminRequirementDetailPage({
 
           <SectionCard title="Applications And Expert Flow" description="Manage the same pending, interview, rejected, and selected flow visible in the institute dashboard.">
             <Tabs value={activeStage} onValueChange={setActiveStage} className="mb-4">
-              <TabsList className="grid h-auto w-full grid-cols-2 rounded-xl bg-white p-1 shadow-sm md:grid-cols-4">
+              <TabsList className="grid h-auto w-full grid-cols-2 rounded-xl bg-white p-1 shadow-sm md:grid-cols-5">
                 {STAGES.map((item) => (
                   <TabsTrigger
                     key={item.value}
