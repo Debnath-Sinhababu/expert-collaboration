@@ -54,6 +54,13 @@ import { useExpertWorkspace } from '@/contexts/ExpertWorkspaceContext'
 import { fetchExpertForWorkspace, expertProfileSetupPath } from '@/lib/expertWorkspace'
 import { isTrainingBooking } from '@/lib/trainingTypes'
 import { TrainingAttendancePanel } from '@/components/training/TrainingAttendancePanel'
+import dynamic from 'next/dynamic'
+
+// pdfjs-dist touches browser-only APIs (DOMMatrix) at module load time, which breaks SSR/prerendering.
+const OfferLetterPreviewDialog = dynamic(
+  () => import('@/components/offers/OfferLetterPreviewDialog').then((m) => m.OfferLetterPreviewDialog),
+  { ssr: false }
+)
 
 type UserMeta = { role?: string; name?: string }
 type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }
@@ -110,6 +117,7 @@ export default function ExpertDashboard() {
   const [decliningOffer, setDecliningOffer] = useState<any>(null)
   const [declineReason, setDeclineReason] = useState('')
   const [offerActionId, setOfferActionId] = useState<string | null>(null)
+  const [previewingOffer, setPreviewingOffer] = useState<any>(null)
   const [applicationCounts, setApplicationCounts] = useState<any>({ total: 0, pending: 0, interview: 0, accepted: 0, rejected: 0 })
   const [bookingCounts, setBookingCounts] = useState<any>({ total: 0, in_progress: 0, completed: 0, cancelled: 0, pending: 0 })
   const [analytics, setAnalytics] = useState({
@@ -465,6 +473,7 @@ export default function ExpertDashboard() {
     try {
       await api.onboarding.accept(offerId)
       toast.success('Offer accepted! The institution has been notified and this now shows under Bookings.')
+      setPreviewingOffer(null)
       fetchOnboardingRequests()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to accept offer')
@@ -485,6 +494,7 @@ export default function ExpertDashboard() {
       toast.success('Offer declined. CalxMap has been notified.')
       setDecliningOffer(null)
       setDeclineReason('')
+      setPreviewingOffer(null)
       fetchOnboardingRequests()
       refreshRejectedApplications()
     } catch (error) {
@@ -1222,33 +1232,18 @@ export default function ExpertDashboard() {
                           <p className="text-xs sm:text-sm text-[#6A6A6A] mb-3">
                             Institution: <span className="font-medium text-[#000000]">{offer.institutions?.name || '-'}</span>
                           </p>
-                          {offer.offer_letter_url && (
-                            <a
-                              href={offer.offer_letter_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center text-[#008260] hover:underline text-sm mb-4"
-                            >
-                              View offer letter (PDF)
-                            </a>
-                          )}
+                          <p className="text-xs text-[#6A6A6A] mb-4">
+                            Review the full offer letter and accept or decline. You&apos;ll need to scroll through it
+                            and tick the agreement checkbox before you can accept.
+                          </p>
                           <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2">
                             <Button
                               size="sm"
                               disabled={offerActionId === offer.id}
-                              onClick={() => handleAcceptOffer(offer.id)}
+                              onClick={() => setPreviewingOffer(offer)}
                               className="bg-[#008260] hover:bg-[#006d51] text-white text-xs font-semibold px-4 w-full sm:w-auto"
                             >
-                              {offerActionId === offer.id ? 'Processing...' : 'Accept'}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={offerActionId === offer.id}
-                              onClick={() => { setDecliningOffer(offer); setDeclineReason('') }}
-                              className="border-red-300 text-red-600 hover:bg-red-50 text-xs font-semibold px-4 w-full sm:w-auto"
-                            >
-                              Decline
+                              Preview &amp; respond
                             </Button>
                           </div>
                         </div>
@@ -1431,6 +1426,24 @@ export default function ExpertDashboard() {
                           />
                         )}
                         <div className="flex flex-wrap justify-end gap-2 pt-3 border-t border-[#ECECEC]">
+                          {onboardingByApplicationId[booking.application_id]?.status === 'accepted'
+                            && onboardingByApplicationId[booking.application_id]?.offer_letter_url && (
+                            <Button
+                              asChild
+                              variant="outline"
+                              size="sm"
+                              className="border border-[#D6D6D6] text-[13px] font-medium text-[#000000] rounded-[25px] bg-white hover:bg-white"
+                            >
+                              <a
+                                href={onboardingByApplicationId[booking.application_id].offer_letter_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                download
+                              >
+                                Download offer letter
+                              </a>
+                            </Button>
+                          )}
                           <BookingAgreementActions booking={booking} role="expert" />
                           <BookingCompletionActions
                             booking={booking}
@@ -1463,6 +1476,19 @@ export default function ExpertDashboard() {
           </Tabs>
         </div>
       </main>
+
+      <OfferLetterPreviewDialog
+        open={Boolean(previewingOffer)}
+        offer={previewingOffer}
+        processing={offerActionId === previewingOffer?.id}
+        onClose={() => setPreviewingOffer(null)}
+        onAccept={() => previewingOffer && handleAcceptOffer(previewingOffer.id)}
+        onDecline={() => {
+          if (!previewingOffer) return
+          setDecliningOffer(previewingOffer)
+          setDeclineReason('')
+        }}
+      />
 
       <Dialog open={Boolean(decliningOffer)} onOpenChange={(open) => { if (!open) { setDecliningOffer(null); setDeclineReason('') } }}>
         <DialogContent className="max-w-md">
