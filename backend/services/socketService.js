@@ -42,7 +42,9 @@ class SocketService {
 
       // Adapter pub/sub clients
       this.pubClient = createClient({ url: redisUrl });
+      this.pubClient.on('error', (err) => console.error('Redis pub client error', err));
       this.subClient = this.pubClient.duplicate();
+      this.subClient.on('error', (err) => console.error('Redis sub client error', err));
 
       await Promise.all([this.pubClient.connect(), this.subClient.connect()]);
       this.io.adapter(createAdapter(this.pubClient, this.subClient));

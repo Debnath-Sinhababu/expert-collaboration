@@ -2,6 +2,7 @@ const OnboardingService = require('./onboarding.service');
 const { parseDeclineBody } = require('./onboarding.dto');
 const expertAccess = require('../../../auth/expertAccess');
 const institutionAccess = require('../../../auth/institutionAccess');
+const { buildOfferLetterHtml } = require('../../../services/offerLetterTemplate');
 
 class OnboardingController {
   constructor(service = null) {
@@ -56,6 +57,25 @@ class OnboardingController {
         return res.status(403).json({ error: 'Unauthorized' });
       }
       res.json(request);
+    } catch (err) {
+      this.#sendError(res, err);
+    }
+  };
+
+  previewHtml = async (req, res) => {
+    try {
+      const request = await this.service.getRequest(req.params.id);
+      const expertAccessResult = await expertAccess.resolveExpertAccess(req, request.expert_id).catch(() => null);
+      const institutionAccessResult = expertAccessResult
+        ? null
+        : await institutionAccess.resolveInstitutionAccess(req, request.institution_id).catch(() => null);
+      if (!expertAccessResult && !institutionAccessResult) {
+        return res.status(403).json({ error: 'Unauthorized' });
+      }
+      if (!request.offer_letter_data) {
+        return res.status(404).json({ error: 'No preview available for this offer letter' });
+      }
+      res.json({ html: buildOfferLetterHtml(request.offer_letter_data) });
     } catch (err) {
       this.#sendError(res, err);
     }
