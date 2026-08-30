@@ -296,7 +296,15 @@ class ApplicationRateService {
       ? String(project.end_date).slice(0, 10)
       : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-    const booking = await this.repo.createBooking(
+    // Reuse an existing live booking so a repeated confirm & lock (e.g. a double
+    // "Onboard" click) cannot leave an orphan booking with no onboarding request.
+    // Re-onboarding after a decline still creates a fresh booking, because the
+    // superseded one was cancelled by the decline/expiry unwind.
+    const existingBooking = await this.repo
+      .findLiveBookingByApplicationId(applicationId, writeClient)
+      .catch(() => null);
+
+    const booking = existingBooking || await this.repo.createBooking(
       {
         expert_id: app.expert_id,
         institution_id: institutionId,
