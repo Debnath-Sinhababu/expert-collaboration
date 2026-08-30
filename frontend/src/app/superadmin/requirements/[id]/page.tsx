@@ -228,7 +228,12 @@ export default function SuperAdminRequirementDetailPage({
       .then((rows: any) => {
         const map: Record<string, any> = {}
         if (Array.isArray(rows)) {
-          rows.forEach((row: any) => { map[row.application_id] = row })
+          // Re-onboarding a declined/expired application adds a second row for the same
+          // application. Rows arrive newest-first, so keep the first (latest) one only —
+          // otherwise the stale declined row would overwrite the live request.
+          rows.forEach((row: any) => {
+            if (!map[row.application_id]) map[row.application_id] = row
+          })
         }
         setOnboardingByApplicationId(map)
       })
@@ -810,7 +815,18 @@ export default function SuperAdminRequirementDetailPage({
   // A booking only truly becomes "Selected" once the expert accepts the offer letter (onboarding
   // status: accepted). Before that it lives in the "Offer Letter Sent" stage; if the expert declines
   // (or the offer expires) the application is reverted to 'rejected' server-side, so it surfaces there.
+  // Re-onboarding leaves the previous (cancelled) booking behind alongside the new live one.
+  // Both share an application_id, so both would match the same onboarding status and show twice —
+  // drop the superseded ones, while still keeping cancelled bookings that have no replacement.
+  const applicationIdsWithLiveBooking = new Set(
+    bookings
+      .filter((row: any) => row.status !== 'cancelled')
+      .map((row: any) => String(row.application_id || ''))
+  )
+  const isSupersededBooking = (row: any) =>
+    row.status === 'cancelled' && applicationIdsWithLiveBooking.has(String(row.application_id || ''))
   const offerLetterSentBookings = bookings.filter((row: any) => {
+    if (isSupersededBooking(row)) return false
     const status = onboardingByApplicationId[row.application_id]?.status
     return status === 'pending_review' || status === 'offer_sent'
   })
@@ -826,6 +842,7 @@ export default function SuperAdminRequirementDetailPage({
   const selectedRows = [
     ...bookings
       .filter((row: any) => {
+        if (isSupersededBooking(row)) return false
         const status = onboardingByApplicationId[row.application_id]?.status
         return (!status || status === 'accepted') && !declinedOnboardingBookingIds.has(row.id)
       })

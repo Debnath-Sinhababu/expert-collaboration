@@ -88,8 +88,11 @@ function drawRefRow(doc, data) {
 }
 
 function drawAddressee(doc, data) {
+  // On a signed copy the trainer is named by the signature they typed, so the addressee and the
+  // signature block agree. The unsigned copy still uses the profile name from the expert record.
+  const addresseeName = data.signature?.name || data.expertName;
   doc.font('Helvetica').fontSize(10).fillColor(COLORS.text).text('To,');
-  doc.font('Helvetica-Bold').fontSize(10).text(`Mr./Ms. ${orDash(data.expertName)}`);
+  doc.font('Helvetica-Bold').fontSize(10).text(`Mr./Ms. ${orDash(addresseeName)}`);
   doc.font('Helvetica').fontSize(10).text(data.expertAddress || '');
   doc.moveDown(0.8);
 }
@@ -128,7 +131,8 @@ function bulletList(doc, items) {
 }
 
 function drawSignatureBlock(doc, data) {
-  const blockHeight = 190;
+  // Extra room for the electronic-execution note rendered under a typed signature.
+  const blockHeight = data?.signature?.name ? 240 : 190;
   if (doc.y + blockHeight > PAGE.height - PAGE.margin) doc.addPage();
   doc.moveDown(1.5);
 
@@ -149,16 +153,35 @@ function drawSignatureBlock(doc, data) {
     ly += 34;
   });
 
-  doc.font('Helvetica-Bold').fontSize(10).fillColor(COLORS.text)
-    .text(orDash(data.expertName), rightX, top + 18, { width: colW });
+  // A signed copy renders the expert's typed signature and date on the trainer lines. The unsigned
+  // copy leaves them completely blank — nothing is pre-filled from the expert profile, so it reads
+  // as an unexecuted letter until the expert signs.
+  const signature = data.signature || null;
+
   let ry = top + 40;
-  ['Signature', 'Date'].forEach((label) => {
+  [
+    ['Signature', signature?.name || null, 'Helvetica-BoldOblique', 13],
+    ['Date', signature?.date ? formatDate(signature.date) : null, 'Helvetica-Bold', 10],
+  ].forEach(([label, value, font, size]) => {
+    if (value) {
+      doc.font(font).fontSize(size).fillColor(COLORS.text)
+        .text(String(value), rightX, ry - (size + 4), { width: colW, lineBreak: false });
+    }
     doc.moveTo(rightX, ry).lineTo(rightX + colW, ry).strokeColor('#555555').lineWidth(1).stroke();
     doc.font('Helvetica').fontSize(8).fillColor(COLORS.muted).text(label, rightX, ry + 3);
     ry += 34;
   });
-  doc.font('Helvetica-Oblique').fontSize(8).fillColor(COLORS.muted)
-    .text('Digitally Signed', rightX, ry + 4, { width: colW, align: 'right' });
+
+  if (signature?.name) {
+    doc.font('Helvetica-Oblique').fontSize(7.5).fillColor(COLORS.muted)
+      .text(
+        `Electronically signed by ${signature.name}${signature.signedAt ? ` on ${formatDate(signature.signedAt)}` : ''} via the Calxmap platform, and accepted as binding under Clause 19.`,
+        rightX,
+        ry + 4,
+        { width: colW }
+      );
+    ry = doc.y - 4;
+  }
 
   doc.x = PAGE.margin;
   doc.y = Math.max(ly, ry + 20) + 10;

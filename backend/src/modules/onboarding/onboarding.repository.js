@@ -31,14 +31,17 @@ class OnboardingRepository {
   }
 
   async findActiveByApplicationId(applicationId) {
+    // Ordered limit(1) rather than maybeSingle(): if a race ever inserted two active
+    // rows for one application, maybeSingle() would throw and block every later call.
     const { data, error } = await this.db
       .from('onboarding_requests')
       .select('*')
       .eq('application_id', applicationId)
       .in('status', ['pending_review', 'offer_sent', 'accepted'])
-      .maybeSingle();
+      .order('submitted_at', { ascending: true })
+      .limit(1);
     if (error) throw error;
-    return data;
+    return (data && data[0]) || null;
   }
 
   async create(payload) {

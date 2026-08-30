@@ -253,12 +253,22 @@ export default function SuperAdminOnboardVerificationPage() {
                 <StatusBadge status={row.status} />
               )
             ) },
-            { key: 'letter', header: 'Offer Letter', render: (row: any) => row.offer_letter_url ? (
-              <a href={row.offer_letter_url} target="_blank" rel="noreferrer" className="inline-flex items-center text-sm font-medium text-[#008260] hover:underline" onClick={(e) => e.stopPropagation()}>
-                <FileText className="mr-1 h-4 w-4" />
-                View PDF
-              </a>
-            ) : <span className="text-slate-400">-</span> },
+            { key: 'letter', header: 'Offer Letter', render: (row: any) => (
+              <div className="flex flex-col gap-1">
+                {row.offer_letter_url ? (
+                  <a href={row.offer_letter_url} target="_blank" rel="noreferrer" className="inline-flex items-center text-sm font-medium text-[#008260] hover:underline" onClick={(e) => e.stopPropagation()}>
+                    <FileText className="mr-1 h-4 w-4" />
+                    View PDF
+                  </a>
+                ) : <span className="text-slate-400">-</span>}
+                {row.signed_offer_letter_url ? (
+                  <a href={row.signed_offer_letter_url} target="_blank" rel="noreferrer" className="inline-flex items-center text-xs font-medium text-emerald-700 hover:underline" onClick={(e) => e.stopPropagation()}>
+                    <FileText className="mr-1 h-3.5 w-3.5" />
+                    Signed copy
+                  </a>
+                ) : null}
+              </div>
+            ) },
             { key: 'action', header: '', render: (row: any) => (
               <div className="flex items-center gap-2">
                 <Button
@@ -389,6 +399,20 @@ export default function SuperAdminOnboardVerificationPage() {
                   <FileText className="mr-1 h-4 w-4" />
                   View generated offer letter (PDF)
                 </a>
+              ) : null}
+
+              {selectedRow.status === 'accepted' && (selectedRow.signature_name || selectedRow.signed_offer_letter_url) ? (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                  <p className="text-sm font-semibold text-emerald-900">Signed by expert</p>
+                  <DetailRow label="Signature" value={selectedRow.signature_name || '-'} />
+                  <DetailRow label="Signed on" value={formatDate(selectedRow.signature_date || selectedRow.signed_at)} />
+                  {selectedRow.signed_offer_letter_url ? (
+                    <a href={selectedRow.signed_offer_letter_url} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center text-sm font-medium text-emerald-700 hover:underline">
+                      <FileText className="mr-1 h-4 w-4" />
+                      View signed offer letter (PDF)
+                    </a>
+                  ) : null}
+                </div>
               ) : null}
 
               {selectedRow.status === 'pending_review' ? (

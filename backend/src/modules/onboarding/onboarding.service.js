@@ -6,6 +6,7 @@ const {
   sendOnboardingConfirmedEmail,
   sendOfferDeclinedEmail,
   sendOnboardingDeclinedToInstitutionEmail,
+  sendOnboardingAcceptedToAdminEmail,
 } = require('../../../services/offerLetterEmailService');
 const { notifyOnboardingPendingReview } = require('../../../services/superAdminAlertService');
 const { resolveExpertShare, toExpertNet } = require('../../shared/compensation');
@@ -188,7 +189,6 @@ class OnboardingService {
         expertName: expert.name,
         institutionName: institution?.name,
         projectTitle: project?.title,
-        pdfUrl: upload.url,
       });
     } catch (err) {
       console.warn('sendOfferLetterEmail failed:', err.message || err);
@@ -197,17 +197,66 @@ class OnboardingService {
     return updated;
   }
 
-  async acceptOffer(id, expertId) {
+  /**
+   * The expert electronically executes the letter (Clause 19) by typing their name and the
+   * date. A signed copy of the same letter is rendered and stored, then sent to the
+   * institution and the super admins so every party holds the identical document.
+   */
+  async acceptOffer(id, expertId, { signatureName, signatureDate } = {}) {
     const request = await this.repo.getById(id);
     if (!request) throw new HttpError(404, 'Onboarding request not found');
     if (String(request.expert_id) !== String(expertId)) throw new HttpError(403, 'Unauthorized');
     if (request.status !== 'offer_sent') {
       throw new HttpError(400, `Cannot accept a request in status "${request.status}"`);
     }
+    if (!signatureName) {
+      throw new HttpError(400, 'Type your full name as your signature to accept this offer');
+    }
+    if (!signatureDate) {
+      throw new HttpError(400, 'A valid signature date is required to accept this offer');
+    }
+
+    const signedAt = new Date();
+    const letterData = request.offer_letter_data || null;
+
+    // Older rows predate offer_letter_data, so there is nothing to re-render a signed copy
+    // from. Acceptance still succeeds — only the signed PDF is skipped.
+    let signedUpload = null;
+    let signedPdfBuffer = null;
+    if (letterData) {
+      try {
+        signedPdfBuffer = await generateOfferLetterPdf({
+          ...letterData,
+          signature: {
+            name: signatureName,
+            date: signatureDate,
+            signedAt: signedAt.toISOString(),
+          },
+        });
+        const upload = await ImageUploadService.uploadPDF(
+          signedPdfBuffer,
+          'offer-letters',
+          `offer-${request.application_id}-signed`
+        );
+        if (upload.success) signedUpload = upload;
+        else console.warn('Signed offer letter upload failed:', upload.error);
+      } catch (err) {
+        console.warn('Signed offer letter generation failed:', err.message || err);
+      }
+    }
 
     const updated = await this.repo.update(id, {
       status: 'accepted',
-      responded_at: new Date().toISOString(),
+      responded_at: signedAt.toISOString(),
+      signature_name: signatureName,
+      signature_date: signatureDate,
+      signed_at: signedAt.toISOString(),
+      ...(signedUpload
+        ? {
+          signed_offer_letter_url: signedUpload.url,
+          signed_offer_letter_public_id: signedUpload.publicId,
+        }
+        : {}),
     });
 
     const institution = request.institutions;
@@ -217,9 +266,23 @@ class OnboardingService {
         institutionName: institution?.name,
         expertName: request.experts?.name,
         projectTitle: request.projects?.title,
+        signedPdfBuffer,
+        signatureName,
       });
     } catch (err) {
       console.warn('sendOnboardingConfirmedEmail failed:', err.message || err);
+    }
+    try {
+      await sendOnboardingAcceptedToAdminEmail({
+        expertName: request.experts?.name,
+        institutionName: institution?.name,
+        projectTitle: request.projects?.title,
+        signatureName,
+        signedAt: signedAt.toISOString(),
+        signedPdfBuffer,
+      });
+    } catch (err) {
+      console.warn('sendOnboardingAcceptedToAdminEmail failed:', err.message || err);
     }
 
     return updated;
@@ -290,12 +353,12 @@ class OnboardingService {
       console.warn('sendOfferDeclinedEmail failed:', err.message || err);
     }
     try {
+      // No `reason` — the decline reason is not disclosed to the institution.
       await sendOnboardingDeclinedToInstitutionEmail({
         to: institution?.email,
         institutionName: institution?.name,
         expertName: request.experts?.name,
         projectTitle: request.projects?.title,
-        reason,
         auto,
       });
     } catch (err) {

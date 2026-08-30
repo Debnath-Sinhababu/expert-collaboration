@@ -106,4 +106,7 @@ async function notifyMarginPendingReview(client = getServiceClient()) {
 module.exports = {
   notifyOnboardingPendingReview,
   notifyMarginPendingReview,
+  // Shared so other services (e.g. offer-letter alerts) address the same active super admins
+  // from super_admin_users, instead of relying on env-configured root emails alone.
+  resolveSuperAdminEmails: (client = getServiceClient()) => getSuperAdminEmails(client),
 };

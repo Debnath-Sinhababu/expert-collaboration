@@ -74,6 +74,26 @@ class ApplicationRateRepository {
     return data;
   }
 
+  /**
+   * Latest booking for an application that has not been cancelled.
+   * Used to avoid creating a duplicate booking when confirm & lock runs twice
+   * (e.g. a repeated "Onboard" click) — a re-onboard after a decline is still
+   * allowed because the superseded booking is cancelled.
+   */
+  async findLiveBookingByApplicationId(applicationId, writeClient) {
+    if (!applicationId) return null;
+    const client = writeClient || this.db;
+    const { data, error } = await client
+      .from('bookings')
+      .select('*')
+      .eq('application_id', applicationId)
+      .neq('status', 'cancelled')
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (error) throw error;
+    return (data && data[0]) || null;
+  }
+
   async createBooking(payload, writeClient) {
     const client = writeClient || this.db;
     const { data, error } = await client

@@ -26,12 +26,24 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
-async function sendBrevoEmail({ to, subject, text, html }) {
+/**
+ * @param {object} params
+ * @param {Array<{ name: string, content: Buffer|string }>} [params.attachments]
+ *   Optional file attachments; `content` may be a Buffer or an already base64-encoded string.
+ */
+async function sendBrevoEmail({ to, subject, text, html, attachments }) {
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) throw new Error('BREVO_API_KEY is not configured');
 
   const sender = brevoSender();
   if (!sender.email) throw new Error('BREVO_FROM_EMAIL or EMAIL_USER is not configured');
+
+  const attachment = (Array.isArray(attachments) ? attachments : [])
+    .filter((item) => item && item.name && item.content)
+    .map((item) => ({
+      name: item.name,
+      content: Buffer.isBuffer(item.content) ? item.content.toString('base64') : String(item.content),
+    }));
 
   const response = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
@@ -46,6 +58,7 @@ async function sendBrevoEmail({ to, subject, text, html }) {
       subject,
       textContent: text,
       ...(html ? { htmlContent: html } : {}),
+      ...(attachment.length ? { attachment } : {}),
     }),
   });
 

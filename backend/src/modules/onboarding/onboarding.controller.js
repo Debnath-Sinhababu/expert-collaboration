@@ -1,5 +1,5 @@
 const OnboardingService = require('./onboarding.service');
-const { parseDeclineBody } = require('./onboarding.dto');
+const { parseDeclineBody, parseAcceptBody } = require('./onboarding.dto');
 const expertAccess = require('../../../auth/expertAccess');
 const institutionAccess = require('../../../auth/institutionAccess');
 const { buildOfferLetterHtml } = require('../../../services/offerLetterTemplate');
@@ -83,10 +83,17 @@ class OnboardingController {
 
   accept = async (req, res) => {
     try {
+      const { signatureName, signatureDate, hasSignatureDateInput } = parseAcceptBody(req.body || {});
+      if (hasSignatureDateInput && !signatureDate) {
+        return res.status(400).json({ error: 'Enter a valid signature date' });
+      }
       const request = await this.service.getRequest(req.params.id);
       const access = await expertAccess.resolveExpertAccess(req, request.expert_id);
       if (!access) return res.status(403).json({ error: 'Unauthorized' });
-      const updated = await this.service.acceptOffer(req.params.id, request.expert_id);
+      const updated = await this.service.acceptOffer(req.params.id, request.expert_id, {
+        signatureName,
+        signatureDate,
+      });
       res.json(updated);
     } catch (err) {
       this.#sendError(res, err);

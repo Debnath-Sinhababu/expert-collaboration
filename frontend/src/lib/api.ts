@@ -676,12 +676,12 @@ export const api = {
       const headers = await getAuthHeaders()
       return fetch(`${API_BASE_URL}/api/onboarding/${id}/preview-html`, { headers }).then(res => res.json())
     },
-    accept: async (id: string) => {
+    accept: async (id: string, signature?: { signature_name: string; signature_date: string }) => {
       const headers = await getAuthHeaders()
       return fetch(`${API_BASE_URL}/api/onboarding/${id}/accept`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({})
+        body: JSON.stringify(signature || {})
       }).then(res => res.json())
     },
     decline: async (id: string, reason: string) => {

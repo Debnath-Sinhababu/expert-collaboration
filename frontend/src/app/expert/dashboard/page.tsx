@@ -454,6 +454,14 @@ function ExpertDashboardContent() {
     [onboardingRequests]
   )
 
+  // Accepted offers keep a signed copy the expert can download any time.
+  const signedOfferLetters = useMemo(
+    () => onboardingRequests.filter(
+      (request: any) => request.status === 'accepted' && request.signed_offer_letter_url
+    ),
+    [onboardingRequests]
+  )
+
   // Keyed by application_id so the Interview/Bookings tabs can check onboarding progress per application.
   const onboardingByApplicationId = useMemo(() => {
     const map: Record<string, any> = {}
@@ -483,11 +491,17 @@ function ExpertDashboardContent() {
   const visibleBookingTotal = Math.max(0, (bookingCounts.total || 0) - bookingsHiddenFromTotal)
   const visibleBookingInProgress = Math.max(0, (bookingCounts.in_progress || 0) - bookingsHiddenFromInProgress)
 
-  const handleAcceptOffer = async (offerId: string) => {
+  const handleAcceptOffer = async (
+    offerId: string,
+    signature: { signature_name: string; signature_date: string }
+  ) => {
     setOfferActionId(offerId)
     try {
-      await api.onboarding.accept(offerId)
-      toast.success('Offer accepted! The institution has been notified and this now shows under Bookings.')
+      // api.onboarding.accept resolves the JSON body even for a 4xx, so surface the error here
+      // rather than showing a false success toast (signature validation happens server-side).
+      const result = await api.onboarding.accept(offerId, signature)
+      if (result?.error) throw new Error(result.error)
+      toast.success('Offer signed and accepted! The institution has been notified and this now shows under Bookings.')
       setPreviewingOffer(null)
       fetchOnboardingRequests()
     } catch (error) {
@@ -1267,6 +1281,50 @@ function ExpertDashboardContent() {
                   )}
                 </CardContent>
               </Card>
+
+              {signedOfferLetters.length > 0 ? (
+                <Card className="border-2 border-[#D6D6D6]">
+                  <CardHeader>
+                    <CardTitle className="text-[#000000] font-semibold text-[18px]">Signed Offer Letters</CardTitle>
+                    <CardDescription className="text-[#000000] font-base font-normal">
+                      Offers you have signed and accepted. Download your signed copy, including the full terms and
+                      conditions, for your records.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {signedOfferLetters.map((offer: any) => (
+                        <div key={offer.id} className="bg-white border border-[#DCDCDC] rounded-lg p-4 sm:p-6">
+                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
+                            <h3 className="font-bold text-base sm:text-lg text-[#000000]">{offer.projects?.title || 'Requirement'}</h3>
+                            <Badge className="capitalize bg-[#E8F8EF] hover:bg-[#E8F8EF] text-[#008260] border border-[#008260] rounded-full text-xs font-semibold py-1.5 px-3 self-start">
+                              Signed &amp; Accepted
+                            </Badge>
+                          </div>
+                          <p className="text-xs sm:text-sm text-[#6A6A6A] mb-1">
+                            Institution: <span className="font-medium text-[#000000]">{offer.institutions?.name || '-'}</span>
+                          </p>
+                          <p className="text-xs text-[#6A6A6A] mb-4">
+                            Signed as <span className="font-medium text-[#000000]">{offer.signature_name || '-'}</span>
+                            {offer.signature_date ? ` on ${new Date(offer.signature_date).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}` : ''}
+                          </p>
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2">
+                            <Button
+                              asChild
+                              size="sm"
+                              className="bg-[#008260] hover:bg-[#006d51] text-white text-xs font-semibold px-4 w-full sm:w-auto"
+                            >
+                              <a href={offer.signed_offer_letter_url} target="_blank" rel="noreferrer">
+                                Download signed offer letter
+                              </a>
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : null}
             </TabsContent>
 
             {/* Rejected Applications Tab */}
@@ -1447,8 +1505,11 @@ function ExpertDashboardContent() {
                           />
                         )}
                         <div className="flex flex-wrap justify-end gap-2 pt-3 border-t border-[#ECECEC]">
+                          {/* Prefer the signed copy (carries the expert's typed signature); fall back to
+                              the unsigned letter for offers accepted before signing was introduced. */}
                           {onboardingByApplicationId[booking.application_id]?.status === 'accepted'
-                            && onboardingByApplicationId[booking.application_id]?.offer_letter_url && (
+                            && (onboardingByApplicationId[booking.application_id]?.signed_offer_letter_url
+                              || onboardingByApplicationId[booking.application_id]?.offer_letter_url) && (
                             <Button
                               asChild
                               variant="outline"
@@ -1456,12 +1517,15 @@ function ExpertDashboardContent() {
                               className="border border-[#D6D6D6] text-[13px] font-medium text-[#000000] rounded-[25px] bg-white hover:bg-white"
                             >
                               <a
-                                href={onboardingByApplicationId[booking.application_id].offer_letter_url}
+                                href={onboardingByApplicationId[booking.application_id].signed_offer_letter_url
+                                  || onboardingByApplicationId[booking.application_id].offer_letter_url}
                                 target="_blank"
                                 rel="noreferrer"
                                 download
                               >
-                                Download offer letter
+                                {onboardingByApplicationId[booking.application_id]?.signed_offer_letter_url
+                                  ? 'Download signed offer letter'
+                                  : 'Download offer letter'}
                               </a>
                             </Button>
                           )}
@@ -1503,7 +1567,7 @@ function ExpertDashboardContent() {
         offer={previewingOffer}
         processing={offerActionId === previewingOffer?.id}
         onClose={() => setPreviewingOffer(null)}
-        onAccept={() => previewingOffer && handleAcceptOffer(previewingOffer.id)}
+        onAccept={(signature) => previewingOffer && handleAcceptOffer(previewingOffer.id, signature)}
         onDecline={() => {
           if (!previewingOffer) return
           setDecliningOffer(previewingOffer)
