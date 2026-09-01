@@ -14,7 +14,34 @@ import { superAdminApi } from '@/lib/superadmin/api'
 import { StatCard } from '@/components/superadmin/common/StatCard'
 import { SectionCard } from '@/components/superadmin/common/SectionCard'
 import { DataTable } from '@/components/superadmin/common/DataTable'
-import { moneyInr, compensationUnitShortLabel } from '@/lib/projectCompensation'
+import { moneyInr, compensationUnitShortLabel, resolveExpertShare, toExpertNet } from '@/lib/projectCompensation'
+
+/**
+ * The expert's net payout (after the platform margin) — the same figure the offer letter states as
+ * the professional fee. Mirrors computeTotalFee in backend/src/modules/onboarding/onboarding.service.js;
+ * keep the two in sync so the modal never contradicts the generated letter.
+ */
+function computeExpertNetTotal(application: any, project: any): number | null {
+  const expertShare = resolveExpertShare(project)
+  const grossTotal = Number(project?.institution_gross_total) > 0
+    ? Number(project.institution_gross_total)
+    : Number(project?.total_budget) > 0
+      ? Number(project.total_budget)
+      : 0
+  if (grossTotal > 0) return toExpertNet(grossTotal, expertShare)
+
+  const unitQuantity = Number(application?.unit_quantity ?? project?.unit_quantity ?? 1)
+  const qty = Number.isFinite(unitQuantity) && unitQuantity > 0 ? unitQuantity : 1
+
+  const netPerUnit = Number(application?.final_net_per_unit)
+  if (Number.isFinite(netPerUnit) && netPerUnit > 0) return Math.round(netPerUnit * qty)
+
+  const grossPerUnit = Number(
+    application?.final_gross_per_unit ?? project?.institution_gross_per_unit ?? project?.hourly_rate
+  )
+  if (!Number.isFinite(grossPerUnit) || grossPerUnit <= 0) return null
+  return toExpertNet(grossPerUnit * qty, expertShare)
+}
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All statuses' },
@@ -146,6 +173,21 @@ export default function SuperAdminOnboardVerificationPage() {
   const application = selectedRow?.applications
   const rate = application?.final_gross_per_unit || application?.proposed_rate
   const unitShort = compensationUnitShortLabel(application?.compensation_unit || project?.compensation_unit)
+
+  // Once the offer letter has been generated, its stored fee is the authoritative figure the expert
+  // was told. Before that, derive it so reviewers see the payout before they hit Verify.
+  const storedExpertFee = Number(selectedRow?.offer_letter_data?.totalFee)
+  const expertNetTotal = Number.isFinite(storedExpertFee) && storedExpertFee > 0
+    ? storedExpertFee
+    : computeExpertNetTotal(application, project)
+  const institutionGrossTotal = Number(project?.institution_gross_total) > 0
+    ? Number(project.institution_gross_total)
+    : Number(project?.total_budget) > 0
+      ? Number(project.total_budget)
+      : null
+  const platformFeeTotal = institutionGrossTotal != null && expertNetTotal != null
+    ? Math.max(0, Math.round(institutionGrossTotal - expertNetTotal))
+    : null
 
   return (
     <div className="space-y-6">
@@ -383,6 +425,24 @@ export default function SuperAdminOnboardVerificationPage() {
                 <DetailRow label="Quantity" value={application?.unit_quantity || project?.unit_quantity || '-'} />
                 <DetailRow label="Institution pays (posted)" value={project?.institution_gross_per_unit ? moneyInr(project.institution_gross_per_unit) : '-'} />
                 <DetailRow label="Total budget" value={project?.total_budget ? moneyInr(project.total_budget) : '-'} />
+
+                <div className="my-3 rounded-md border border-emerald-200 bg-white/70 p-3">
+                  <DetailRow
+                    label="Expert earns (net total)"
+                    value={
+                      expertNetTotal != null ? (
+                        <span className="font-semibold text-emerald-800">{moneyInr(expertNetTotal)}</span>
+                      ) : 'Not available'
+                    }
+                  />
+                  <DetailRow label="Platform margin" value={platformFeeTotal != null ? moneyInr(platformFeeTotal) : '-'} />
+                  <p className="pt-1 text-xs text-slate-500">
+                    {selectedRow.offer_letter_url
+                      ? 'Professional fee stated in the generated offer letter.'
+                      : 'Professional fee the offer letter will state once verified.'}
+                  </p>
+                </div>
+
                 <DetailRow label="Applied on" value={formatDate(application?.applied_at)} />
                 <DetailRow label="Reviewed on" value={formatDate(application?.reviewed_at)} />
                 {application?.rate_note ? <DetailRow label="Rate note" value={application.rate_note} /> : null}
