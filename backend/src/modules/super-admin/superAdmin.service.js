@@ -115,13 +115,15 @@ class SuperAdminService {
     return onboardingService.getRequest(id);
   }
 
-  async verifyOnboardingRequest(id, auth) {
+  async verifyOnboardingRequest(id, auth, options = {}) {
     const onboardingService = new OnboardingService(this.serviceClient);
-    const updated = await onboardingService.verifyAndSendOfferLetter(id, auth?.user?.id || null);
+    const updated = await onboardingService.verifyAndSendOfferLetter(id, auth?.user?.id || null, {
+      paymentTerm: options.paymentTerm,
+    });
     await this.logActivity(auth, 'onboarding.offer_letter_sent', {
       entity_type: 'onboarding_request',
       entity_id: id,
-      metadata: { application_id: updated.application_id },
+      metadata: { application_id: updated.application_id, payment_term: updated.offer_letter_data?.paymentTerm },
     });
     return updated;
   }
@@ -905,6 +907,7 @@ class SuperAdminService {
           actor: { role: 'super_admin', institutionId, actorUserId },
           writeClient,
           approveOverBudget: Boolean(body?.approve_over_budget),
+          paymentTerm: body?.payment_term || null,
         });
         const updated = result.application || result;
         await this.notifyProjectApplicationStatus(requirementId, updated, 'accepted');

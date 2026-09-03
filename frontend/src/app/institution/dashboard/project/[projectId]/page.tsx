@@ -83,6 +83,8 @@ import { toast } from 'sonner'
 import { RatingModal } from '@/components/RatingModal'
 import { useInstitutionWorkspace } from '@/contexts/InstitutionWorkspaceContext'
 import { fetchInstitutionForWorkspace } from '@/lib/institutionWorkspace'
+import { AdminOnboardingOfferDialog } from '@/components/offers/AdminOnboardingOfferDialog'
+import type { PaymentTermValue } from '@/lib/offerLetterPaymentTerms'
 
 function formatExpertTypes(expert: any) {
   const types = Array.isArray(expert?.expert_types)
@@ -131,6 +133,7 @@ export default function InstitutionProjectDetailsPage({
   const [selectedInterviewApplication, setSelectedInterviewApplication] = useState<any>(null)
   const [selectedInterviewSlot, setSelectedInterviewSlot] = useState<InterviewSlot | null>(null)
   const [showFinalRateModal, setShowFinalRateModal] = useState(false)
+  const [showAdminOnboardingDialog, setShowAdminOnboardingDialog] = useState(false)
   const [selectedBookingApplication, setSelectedBookingApplication] = useState<any>(null)
   const [approveOverBudget, setApproveOverBudget] = useState(false)
   const [confirmAction, setConfirmAction] = useState<null | {
@@ -518,7 +521,45 @@ export default function InstitutionProjectDetailsPage({
     }
     setSelectedBookingApplication(application)
     setApproveOverBudget(false)
-    setShowFinalRateModal(true)
+    if (viewer === 'super_admin') {
+      setShowAdminOnboardingDialog(true)
+    } else {
+      setShowFinalRateModal(true)
+    }
+  }
+
+  const confirmAdminOnboarding = async (payload: {
+    payment_term: PaymentTermValue
+    approve_over_budget: boolean
+  }) => {
+    const application = selectedBookingApplication
+    if (!application) return
+    const applicationId = application.id
+
+    try {
+      setProcessingApplications(prev => ({ ...prev, [applicationId]: true }))
+
+      const result = await api.applications.confirmLock(applicationId, {
+        approve_over_budget: payload.approve_over_budget,
+        payment_term: payload.payment_term,
+      })
+      if (result?.error) {
+        toast.error(result.error)
+        return
+      }
+
+      toast.success('Offer letter approved and sent to the expert.')
+      setShowAdminOnboardingDialog(false)
+      setSelectedBookingApplication(null)
+      setApproveOverBudget(false)
+      refreshInterview()
+      refreshSelected()
+    } catch (error) {
+      console.error('Error creating booking:', error)
+      toast.error('Failed to send offer letter')
+    } finally {
+      setProcessingApplications(prev => ({ ...prev, [applicationId]: false }))
+    }
   }
 
   const confirmProceedToBooking = async () => {
@@ -2147,6 +2188,20 @@ export default function InstitutionProjectDetailsPage({
           </div>
         </DialogContent>
       </Dialog>
+
+      <AdminOnboardingOfferDialog
+        open={showAdminOnboardingDialog}
+        onOpenChange={(open) => {
+          setShowAdminOnboardingDialog(open)
+          if (!open) setSelectedBookingApplication(null)
+        }}
+        application={selectedBookingApplication}
+        project={project}
+        processing={Boolean(
+          selectedBookingApplication?.id && processingApplications[selectedBookingApplication.id]
+        )}
+        onApprove={confirmAdminOnboarding}
+      />
 
       {/* Rating Modal */}
       <RatingModal

@@ -649,6 +649,18 @@ export const api = {
         body: JSON.stringify(data)
       }).then(res => res.json())
     },
+    previewOfferLetter: async (id: string, data: { payment_term: string }) => {
+      const headers = await getAuthHeaders()
+      return fetch(`${API_BASE_URL}/api/applications/${id}/offer-letter-preview`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data)
+      }).then(async (res) => {
+        const body = await res.json()
+        if (!res.ok) throw new Error(body?.error || 'Failed to load offer letter preview')
+        return body
+      })
+    },
     checkStatus: async (projectId: string, expertIds: string[]) => {
       const headers = await getAuthHeaders()
       return fetch(`${API_BASE_URL}/api/applications/check-status`, {

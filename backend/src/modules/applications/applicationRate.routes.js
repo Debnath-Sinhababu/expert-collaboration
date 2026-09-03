@@ -7,6 +7,7 @@ function createApplicationRateRouter() {
   const controller = new ApplicationRateController();
 
   router.put('/:id/rate', asyncHandler(controller.updateRate));
+  router.post('/:id/offer-letter-preview', asyncHandler(controller.previewOfferLetter));
   router.post('/:id/confirm-lock', asyncHandler(controller.confirmLock));
 
   return router;

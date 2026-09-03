@@ -2,6 +2,7 @@ const ApplicationRateService = require('./applicationRate.service');
 const { parseRateActionBody, parseLockBody } = require('./applicationRate.dto');
 const expertAccess = require('../../../auth/expertAccess');
 const institutionAccess = require('../../../auth/institutionAccess');
+const OnboardingService = require('../onboarding/onboarding.service');
 
 class ApplicationRateController {
   constructor(service = null) {
@@ -66,8 +67,44 @@ class ApplicationRateController {
         actor,
         writeClient,
         approveOverBudget: lockBody.approve_over_budget,
+        paymentTerm: lockBody.payment_term,
       });
       res.status(201).json(result);
+    } catch (err) {
+      this.#sendError(res, err);
+    }
+  };
+
+  previewOfferLetter = async (req, res) => {
+    const applicationId = req.params.id;
+    const paymentTerm = req.body?.payment_term;
+    const service = institutionAccess.getServiceClient();
+
+    const { data: appRow, error: appErr } = await service
+      .from('applications')
+      .select('id, project_id')
+      .eq('id', applicationId)
+      .maybeSingle();
+    if (appErr) throw appErr;
+    if (!appRow) return res.status(404).json({ error: 'Application not found' });
+
+    const { data: projRow, error: projErr } = await service
+      .from('projects')
+      .select('institution_id')
+      .eq('id', appRow.project_id)
+      .maybeSingle();
+    if (projErr) throw projErr;
+    if (!projRow) return res.status(404).json({ error: 'Project not found' });
+
+    const access = await institutionAccess.resolveInstitutionAccess(req, projRow.institution_id);
+    if (!access || access.mode !== 'super_admin') {
+      return res.status(403).json({ error: 'Offer letter preview is only available to super admins' });
+    }
+
+    try {
+      const onboardingService = new OnboardingService(service);
+      const preview = await onboardingService.previewOfferLetterForApplication(applicationId, paymentTerm);
+      res.json(preview);
     } catch (err) {
       this.#sendError(res, err);
     }

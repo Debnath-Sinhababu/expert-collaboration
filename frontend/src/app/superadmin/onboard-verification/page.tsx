@@ -11,10 +11,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { superAdminApi } from '@/lib/superadmin/api'
+import { PAYMENT_TERM_LABEL, type PaymentTermValue } from '@/lib/offerLetterPaymentTerms'
+import { AdminOnboardingOfferDialog } from '@/components/offers/AdminOnboardingOfferDialog'
 import { StatCard } from '@/components/superadmin/common/StatCard'
 import { SectionCard } from '@/components/superadmin/common/SectionCard'
 import { DataTable } from '@/components/superadmin/common/DataTable'
-import { moneyInr, compensationUnitShortLabel, resolveExpertShare, toExpertNet } from '@/lib/projectCompensation'
+import { moneyInr, projectCompensationDisplay, projectEngagementQuantityDisplay, resolveExpertShare, toExpertNet } from '@/lib/projectCompensation'
 
 /**
  * The expert's net payout (after the platform margin) — the same figure the offer letter states as
@@ -107,6 +109,7 @@ export default function SuperAdminOnboardVerificationPage() {
   const [error, setError] = useState('')
   const [verifyingId, setVerifyingId] = useState<string | null>(null)
   const [selectedRow, setSelectedRow] = useState<any>(null)
+  const [offerDialogRow, setOfferDialogRow] = useState<any>(null)
 
   const load = () => {
     setLoading(true)
@@ -146,12 +149,13 @@ export default function SuperAdminOnboardVerificationPage() {
     setStatusFilter('all')
   }
 
-  async function verify(row: any) {
+  async function verifyAndSendOffer(row: any, paymentTerm: PaymentTermValue) {
     setVerifyingId(row.id)
     try {
-      const updated = await superAdminApi.verifyOnboardingRequest(row.id)
+      const updated = await superAdminApi.verifyOnboardingRequest(row.id, { payment_term: paymentTerm })
       setRows((current) => current.map((item) => item.id === row.id ? { ...item, ...updated } : item))
       setSelectedRow((current: any) => current && current.id === row.id ? { ...current, ...updated } : current)
+      setOfferDialogRow(null)
       toast.success('Offer letter generated and sent to the expert.')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to verify and send offer letter')
@@ -159,6 +163,8 @@ export default function SuperAdminOnboardVerificationPage() {
       setVerifyingId(null)
     }
   }
+
+  const storedPaymentTerm = selectedRow?.offer_letter_data?.paymentTerm as string | undefined
 
   const pendingCount = rows.filter((r) => r.status === 'pending_review').length
   // Cumulative offers ever sent, not just those still awaiting a response -
@@ -171,8 +177,39 @@ export default function SuperAdminOnboardVerificationPage() {
   const institution = selectedRow?.institutions
   const project = selectedRow?.projects
   const application = selectedRow?.applications
-  const rate = application?.final_gross_per_unit || application?.proposed_rate
-  const unitShort = compensationUnitShortLabel(application?.compensation_unit || project?.compensation_unit)
+
+  const mergedProject = useMemo(() => {
+    if (!project) return null
+    if (!application) return project
+    return {
+      ...project,
+      compensation_unit: application.compensation_unit || project.compensation_unit,
+      unit_quantity: application.unit_quantity ?? project.unit_quantity,
+    }
+  }, [project, application])
+
+  const pricing = mergedProject ? projectCompensationDisplay(mergedProject) : null
+  const engagement = mergedProject ? projectEngagementQuantityDisplay(mergedProject) : null
+  const lockedGrossPerUnit =
+    Number(application?.final_gross_per_unit) > 0
+      ? Number(application.final_gross_per_unit)
+      : Number(application?.proposed_rate) > 0
+        ? Number(application.proposed_rate)
+        : pricing?.grossPerUnitDisplay ?? 0
+  const lockedInstitutionTotal =
+    pricing?.unit === 'fixed_package'
+      ? lockedGrossPerUnit
+      : lockedGrossPerUnit * (pricing?.quantity || 1)
+  const showHoursPerDay =
+    Number(project?.hours_per_day) > 0 ||
+    ((pricing?.unit === 'per_day' || pricing?.unit === 'per_session' || pricing?.unit === 'per_month') &&
+      Number(pricing?.durationPerUnit) > 1)
+  const hoursPerDayValue =
+    Number(project?.hours_per_day) > 0
+      ? Number(project.hours_per_day)
+      : Number(pricing?.durationPerUnit) > 0
+        ? Number(pricing.durationPerUnit)
+        : null
 
   // Once the offer letter has been generated, its stored fee is the authoritative figure the expert
   // was told. Before that, derive it so reviewers see the payout before they hit Verify.
@@ -326,7 +363,7 @@ export default function SuperAdminOnboardVerificationPage() {
                     size="sm"
                     className="bg-[#008260] hover:bg-[#006d51]"
                     disabled={verifyingId === row.id}
-                    onClick={() => verify(row)}
+                    onClick={() => setOfferDialogRow(row)}
                   >
                     <Send className="mr-2 h-4 w-4" />
                     {verifyingId === row.id ? 'Sending...' : 'Verify & Send'}
@@ -414,17 +451,49 @@ export default function SuperAdminOnboardVerificationPage() {
                 <DetailRow label="Required expertise" value={Array.isArray(project?.required_expertise) ? project.required_expertise.join(', ') : '-'} />
                 <DetailRow label="Start date" value={formatDate(project?.start_date)} />
                 <DetailRow label="End date" value={formatDate(project?.end_date)} />
-                <DetailRow label="Duration" value={project?.duration_hours ? `${project.duration_hours} hrs total` : (project?.hours_per_day ? `${project.hours_per_day} hrs/day` : '-')} />
+                {pricing ? <DetailRow label="Pay unit" value={pricing.unitLabel} /> : null}
+                {engagement && engagement.quantity > 0 ? (
+                  <DetailRow label={engagement.label} value={engagement.value} />
+                ) : null}
+                {showHoursPerDay && hoursPerDayValue != null ? (
+                  <DetailRow label="Hours per session/day" value={`${hoursPerDayValue} hrs`} />
+                ) : null}
+                {pricing && pricing.expectedTotalHours > 0 &&
+                (pricing.unit === 'per_session' || pricing.unit === 'per_day' || pricing.unit === 'per_month') ? (
+                  <DetailRow label="Total training hours" value={`${pricing.expectedTotalHours} hrs`} />
+                ) : null}
+                <DetailRow
+                  label="Work mode"
+                  value={project?.workplace_type || project?.work_mode || '-'}
+                />
               </div>
 
               {/* Payment / compensation */}
               <div className="rounded-lg border border-slate-200 bg-emerald-50/40 p-4">
                 <p className="mb-2 font-semibold text-slate-950">Payment details</p>
-                <DetailRow label="Locked rate" value={rate ? `${moneyInr(rate)} / ${unitShort}` : 'Not locked yet'} />
-                <DetailRow label="Compensation unit" value={application?.compensation_unit || project?.compensation_unit || '-'} />
-                <DetailRow label="Quantity" value={application?.unit_quantity || project?.unit_quantity || '-'} />
-                <DetailRow label="Institution pays (posted)" value={project?.institution_gross_per_unit ? moneyInr(project.institution_gross_per_unit) : '-'} />
-                <DetailRow label="Total budget" value={project?.total_budget ? moneyInr(project.total_budget) : '-'} />
+                <DetailRow
+                  label="Locked rate (institution)"
+                  value={
+                    lockedGrossPerUnit > 0 && pricing
+                      ? `${moneyInr(lockedGrossPerUnit)} / ${pricing.unitShort}`
+                      : 'Not locked yet'
+                  }
+                />
+                {lockedInstitutionTotal > 0 && pricing?.unit !== 'fixed_package' ? (
+                  <DetailRow label="Locked total (institution)" value={moneyInr(lockedInstitutionTotal)} />
+                ) : null}
+                {pricing ? <DetailRow label="Pay unit" value={pricing.unitLabel} /> : null}
+                {engagement && engagement.quantity > 0 ? (
+                  <DetailRow label={engagement.label} value={engagement.value} />
+                ) : null}
+                <DetailRow
+                  label="Posted rate (institution)"
+                  value={pricing?.grossPerUnitDisplay ? `${moneyInr(pricing.grossPerUnitDisplay)} / ${pricing.unitShort}` : '-'}
+                />
+                <DetailRow
+                  label="Total budget"
+                  value={pricing?.totalBudgetGross ? moneyInr(pricing.totalBudgetGross) : (project?.total_budget ? moneyInr(project.total_budget) : '-')}
+                />
 
                 <div className="my-3 rounded-md border border-emerald-200 bg-white/70 p-3">
                   <DetailRow
@@ -445,6 +514,12 @@ export default function SuperAdminOnboardVerificationPage() {
 
                 <DetailRow label="Applied on" value={formatDate(application?.applied_at)} />
                 <DetailRow label="Reviewed on" value={formatDate(application?.reviewed_at)} />
+                {storedPaymentTerm ? (
+                  <DetailRow
+                    label="Payment term (offer letter)"
+                    value={PAYMENT_TERM_LABEL[storedPaymentTerm] || storedPaymentTerm}
+                  />
+                ) : null}
                 {application?.rate_note ? <DetailRow label="Rate note" value={application.rate_note} /> : null}
                 {application?.cover_letter ? (
                   <div className="pt-2 text-sm">
@@ -480,7 +555,7 @@ export default function SuperAdminOnboardVerificationPage() {
                   <Button
                     className="bg-[#008260] hover:bg-[#006d51]"
                     disabled={verifyingId === selectedRow.id}
-                    onClick={() => verify(selectedRow)}
+                    onClick={() => setOfferDialogRow(selectedRow)}
                   >
                     <Send className="mr-2 h-4 w-4" />
                     {verifyingId === selectedRow.id ? 'Sending...' : 'Verify & Send Offer Letter'}
@@ -491,6 +566,24 @@ export default function SuperAdminOnboardVerificationPage() {
           ) : null}
         </DialogContent>
       </Dialog>
+
+      <AdminOnboardingOfferDialog
+        open={Boolean(offerDialogRow)}
+        onOpenChange={(open) => {
+          if (!open) setOfferDialogRow(null)
+        }}
+        application={
+          offerDialogRow?.applications
+            ? { ...offerDialogRow.applications, experts: offerDialogRow.experts }
+            : null
+        }
+        project={offerDialogRow?.projects}
+        processing={Boolean(offerDialogRow?.id && verifyingId === offerDialogRow.id)}
+        onApprove={async ({ payment_term }) => {
+          if (!offerDialogRow) return
+          await verifyAndSendOffer(offerDialogRow, payment_term)
+        }}
+      />
     </div>
   )
 }

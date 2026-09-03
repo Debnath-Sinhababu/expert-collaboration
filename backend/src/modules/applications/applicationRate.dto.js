@@ -1,4 +1,5 @@
 const { RATE_INTENTS } = require('../../shared/compensation');
+const { VALID_PAYMENT_TERMS } = require('../../../services/offerLetterContent');
 
 function parseRateIntent(value) {
   if (value == null || value === '') return null;
@@ -23,9 +24,11 @@ function parseRateActionBody(body = {}) {
 }
 
 function parseLockBody(body = {}) {
+  const paymentTermRaw = body.payment_term != null ? String(body.payment_term).trim() : '';
   return {
     approve_over_budget: body.approve_over_budget === true || body.approve_over_budget === 'true',
     note: body.note != null && String(body.note).trim() !== '' ? String(body.note).trim() : null,
+    payment_term: VALID_PAYMENT_TERMS.has(paymentTermRaw) ? paymentTermRaw : null,
   };
 }
 

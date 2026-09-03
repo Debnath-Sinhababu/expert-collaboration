@@ -236,6 +236,9 @@ export const superAdminApi = {
     request<any[]>(`/api/superadmin/onboarding-requests?${query({ ...(params || {}), _t: Date.now() })}`),
   onboardingRequest: (id: string) =>
     request<any>(`/api/superadmin/onboarding-requests/${encodeURIComponent(id)}?${query({ _t: Date.now() })}`),
-  verifyOnboardingRequest: (id: string) =>
-    request<any>(`/api/superadmin/onboarding-requests/${encodeURIComponent(id)}/verify`, { method: 'POST', body: JSON.stringify({}) }),
+  verifyOnboardingRequest: (id: string, body?: { payment_term?: string }) =>
+    request<any>(`/api/superadmin/onboarding-requests/${encodeURIComponent(id)}/verify`, {
+      method: 'POST',
+      body: JSON.stringify(body || {}),
+    }),
 }

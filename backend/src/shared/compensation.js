@@ -267,6 +267,201 @@ function isActiveBookingStatus(status) {
   return ACTIVE_BOOKING_STATUSES_FOR_STATS.includes(String(status || '').toLowerCase());
 }
 
+function compensationUnitShortLabel(unit) {
+  if (unit === 'per_session') return 'session';
+  if (unit === 'per_day') return 'day';
+  if (unit === 'per_month') return 'month';
+  if (unit === 'fixed_package') return 'package';
+  return 'hour';
+}
+
+function compensationUnitLabel(unit) {
+  if (unit === 'per_session') return 'Per session';
+  if (unit === 'per_day') return 'Per day';
+  if (unit === 'per_month') return 'Per month';
+  if (unit === 'fixed_package') return 'Fixed package';
+  return 'Per hour';
+}
+
+/** Prefer locked application values; fall back to the project requirement. */
+function mergeEngagementSource(application, project) {
+  const p = project || {};
+  const a = application || {};
+  return {
+    ...p,
+    compensation_unit: a.compensation_unit || p.compensation_unit,
+    unit_quantity: a.unit_quantity ?? p.unit_quantity,
+    duration_per_unit: a.duration_per_unit ?? p.duration_per_unit,
+  };
+}
+
+/**
+ * Normalize stored compensation — mirrors frontend normalizeStoredCompensation().
+ * Repairs legacy per_day rows that saved qty=1 and duration_per_unit=<day count>.
+ */
+function normalizeStoredCompensation(source) {
+  const project = source || {};
+  const unit =
+    project.compensation_unit && COMPENSATION_UNITS.has(project.compensation_unit)
+      ? project.compensation_unit
+      : 'hourly';
+
+  let quantity = Number(project.unit_quantity);
+  let durationPerUnit = Number(project.duration_per_unit);
+  let grossPerUnit = Number(project.institution_gross_per_unit);
+  const packageTotal =
+    Number(project.institution_gross_total) > 0
+      ? Number(project.institution_gross_total)
+      : Number(project.total_budget) > 0
+        ? Number(project.total_budget)
+        : 0;
+  const legacyHourly = Number(project.hourly_rate);
+  const legacyHours = Number(project.duration_hours);
+  const hoursPerDay = Number(project.hours_per_day);
+  const isUnitPay = unit === 'per_day' || unit === 'per_session' || unit === 'per_month';
+
+  if (
+    isUnitPay &&
+    quantity === 1 &&
+    durationPerUnit > 1 &&
+    packageTotal > 0 &&
+    grossPerUnit > 0 &&
+    Math.abs(grossPerUnit - packageTotal) / packageTotal < 0.01
+  ) {
+    quantity = durationPerUnit;
+    grossPerUnit = Math.round((packageTotal / quantity) * 100) / 100;
+    durationPerUnit = hoursPerDay > 0 ? hoursPerDay : 1;
+  }
+
+  if (!(Number.isFinite(quantity) && quantity > 0)) {
+    quantity = unit === 'hourly' && legacyHours > 0 ? legacyHours : 1;
+  }
+  if (!(Number.isFinite(durationPerUnit) && durationPerUnit > 0)) {
+    if (isUnitPay && hoursPerDay > 0) durationPerUnit = hoursPerDay;
+    else if (unit === 'hourly') durationPerUnit = 1;
+    else if (unit === 'fixed_package' && legacyHours > 0) durationPerUnit = legacyHours;
+    else durationPerUnit = 1;
+  }
+
+  return { unit, quantity, durationPerUnit, legacyHours };
+}
+
+function expectedTotalHours(unit, quantity, durationPerUnit, legacyHours) {
+  if (unit === 'per_session' || unit === 'per_day' || unit === 'per_month') {
+    return quantity * durationPerUnit;
+  }
+  if (unit === 'hourly') return quantity;
+  if (unit === 'fixed_package') return durationPerUnit || legacyHours || 0;
+  return legacyHours || 0;
+}
+
+function pluralUnit(short, count) {
+  return count === 1 ? short : `${short}s`;
+}
+
+/**
+ * Engagement quantity line — mirrors frontend projectEngagementQuantityDisplay().
+ */
+function engagementQuantityDisplay(source) {
+  const normalized = normalizeStoredCompensation(source);
+  const posted = projectPostedRates(source);
+  const { unit, quantity, durationPerUnit, legacyHours } = normalized;
+  const unitShort = compensationUnitShortLabel(unit);
+  const totalHours = expectedTotalHours(unit, quantity, durationPerUnit, legacyHours)
+    || Number(posted.durationHours)
+    || legacyHours
+    || 0;
+
+  if (unit === 'per_day' || unit === 'per_session' || unit === 'per_month') {
+    return {
+      label: unit === 'per_day' ? 'Duration' : 'Quantity',
+      value: quantity > 0 ? `${quantity} ${pluralUnit(unitShort, quantity)}` : '—',
+      unit,
+      quantity,
+      durationPerUnit,
+      totalHours,
+    };
+  }
+  if (unit === 'fixed_package') {
+    return {
+      label: 'Estimated effort',
+      value: totalHours > 0 ? `${totalHours} ${pluralUnit('hour', totalHours)}` : '1 package',
+      unit,
+      quantity: totalHours > 0 ? totalHours : 1,
+      durationPerUnit,
+      totalHours,
+    };
+  }
+  const hours = quantity > 0 ? quantity : totalHours;
+  return {
+    label: 'Duration',
+    value: hours > 0 ? `${hours} ${pluralUnit('hour', hours)}` : '—',
+    unit,
+    quantity: hours,
+    durationPerUnit,
+    totalHours: hours,
+  };
+}
+
+/**
+ * Program Details bullets for the offer letter (engagement unit aware).
+ * Course title, training mode, and dates are added by the letter template.
+ */
+function buildOfferLetterProgramDetails(application, project) {
+  const merged = mergeEngagementSource(application, project);
+  const engagement = engagementQuantityDisplay(merged);
+  const { unit, quantity, durationPerUnit, totalHours } = engagement;
+  const bullets = [['Compensation unit', compensationUnitLabel(unit)]];
+
+  if (unit === 'per_session') {
+    bullets.push(['Total sessions', quantity > 0 ? `${quantity} ${pluralUnit('session', quantity)}` : '—']);
+    if (durationPerUnit > 0) {
+      bullets.push([
+        'Session duration',
+        `${durationPerUnit} ${pluralUnit('hour', durationPerUnit)} each`,
+      ]);
+    }
+  } else if (unit === 'per_day') {
+    bullets.push(['Duration', engagement.value]);
+    if (durationPerUnit > 0) {
+      bullets.push([
+        'Hours per day',
+        `${durationPerUnit} ${pluralUnit('hour', durationPerUnit)}`,
+      ]);
+    }
+  } else if (unit === 'per_month') {
+    bullets.push(['Duration', engagement.value]);
+    if (durationPerUnit > 0) {
+      bullets.push([
+        'Hours per month',
+        `${durationPerUnit} ${pluralUnit('hour', durationPerUnit)}`,
+      ]);
+    }
+  } else if (unit === 'fixed_package') {
+    bullets.push(['Estimated effort', engagement.value]);
+  } else {
+    bullets.push(['Duration', engagement.value]);
+  }
+
+  if (
+    totalHours > 0 &&
+    (unit === 'per_session' || unit === 'per_day' || unit === 'per_month')
+  ) {
+    bullets.push(['Total training hours', `${totalHours} ${pluralUnit('hour', totalHours)}`]);
+  }
+
+  const trainingDuration = engagement.value;
+
+  return {
+    programDetailBullets: bullets,
+    trainingDuration,
+    compensationUnit: unit,
+    engagementQuantity: quantity,
+    engagementUnitShort: compensationUnitShortLabel(unit),
+    totalTrainingHours: totalHours > 0 ? totalHours : undefined,
+  };
+}
+
 module.exports = {
   EXPERT_NET_SHARE,
   PLATFORM_FEE_SHARE,
@@ -287,4 +482,10 @@ module.exports = {
   appendNegotiationHistory,
   resolveBookingAmount,
   resolveSettlementRates,
+  compensationUnitShortLabel,
+  compensationUnitLabel,
+  mergeEngagementSource,
+  normalizeStoredCompensation,
+  engagementQuantityDisplay,
+  buildOfferLetterProgramDetails,
 };
