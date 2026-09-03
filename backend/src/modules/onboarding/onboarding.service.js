@@ -9,7 +9,9 @@ const {
   sendOnboardingAcceptedToAdminEmail,
 } = require('../../../services/offerLetterEmailService');
 const { notifyOnboardingPendingReview } = require('../../../services/superAdminAlertService');
-const { resolveExpertShare, toExpertNet } = require('../../shared/compensation');
+const { resolveExpertShare, toExpertNet, buildOfferLetterProgramDetails } = require('../../shared/compensation');
+const { normalizePaymentTerm } = require('../../../services/offerLetterContent');
+const { buildOfferLetterHtml } = require('../../../services/offerLetterTemplate');
 
 const OFFER_EXPIRY_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
 const AUTO_DECLINE_REASON = 'Auto-declined: the expert did not respond to the offer letter within 3 days.';
@@ -45,26 +47,104 @@ function computeTotalFee(application, project) {
   return toExpertNet(grossPerUnit * qty, expertShare) ?? undefined;
 }
 
-function describeTrainingDuration(project) {
-  const p = project || {};
-  const hours = Number(p.duration_hours);
-  const perDay = Number(p.hours_per_day);
-  const qty = Number(p.unit_quantity);
-  const perUnit = Number(p.duration_per_unit);
-  if (qty > 0 && p.compensation_unit === 'per_session' && perUnit > 0) {
-    return `${qty} session${qty > 1 ? 's' : ''} of ${perUnit} hour${perUnit > 1 ? 's' : ''} each`;
+/** Shared letter payload for PDF generation, HTML preview, and stored offer_letter_data. */
+function buildOfferLetterData({
+  application,
+  project,
+  expert,
+  institution,
+  applicationId,
+  paymentTerm,
+  letterDate = new Date(),
+  referenceNo,
+}) {
+  const sentAt = letterDate instanceof Date ? letterDate : new Date(letterDate);
+  const totalFee = computeTotalFee(application, project);
+  const normalizedTerm = normalizePaymentTerm(paymentTerm);
+  const milestone1Percent = 50;
+  const milestone1Amount = totalFee != null ? Math.round((totalFee * milestone1Percent) / 100) : undefined;
+  const milestone2Percent = 50;
+  const milestone2Amount = totalFee != null ? Math.round((totalFee * milestone2Percent) / 100) : undefined;
+
+  const ref = referenceNo
+    || `CLX/HR/ENG/${String(applicationId).slice(0, 8).toUpperCase()}/${sentAt.getFullYear()}`;
+
+  const programDetails = buildOfferLetterProgramDetails(application, project);
+
+  return {
+    expertName: expert?.name,
+    expertAddress: expert?.address,
+    referenceNo: ref,
+    letterDate: sentAt.toISOString(),
+    engagementRole: project?.title,
+    courseTitle: project?.title,
+    trainingMode: TRAINING_MODE_LABELS[project?.workplace_type] || project?.workplace_type,
+    ...programDetails,
+    startDate: project?.start_date,
+    endDate: project?.end_date,
+    totalFee,
+    paymentTerm: normalizedTerm,
+    milestone1Percent,
+    milestone1Amount,
+    milestone2Percent,
+    milestone2Amount,
+    paymentDays: 7,
+    noticePeriodDays: 7,
+    nonSolicitationMonths: 12,
+    ipSurvivalYears: 5,
+    forceMajeureDays: 30,
+    disputeResolutionDays: 30,
+    rescheduleNoticeHours: 48,
+    jurisdictionCity: 'Gurugram',
+    jurisdictionState: 'Haryana',
+    documentTitle: 'TRAINER ENGAGEMENT LETTER',
+    institutionName: institution?.name,
+  };
+}
+
+async function loadApplicationLetterContext(db, applicationId) {
+  const { data: application, error: appErr } = await db
+    .from('applications')
+    .select(`
+      *,
+      projects (
+        id, institution_id, unique_code, title, description, type, start_date, end_date,
+        duration_hours, duration_per_unit, hours_per_day, workplace_type,
+        required_expertise, domain_expertise, subskills,
+        compensation_unit, unit_quantity, hourly_rate, total_budget,
+        institution_gross_per_unit, institution_gross_total, margin_percent
+      ),
+      experts (
+        id, name, email, phone, user_id, bio, photo_url, address,
+        experience_years, qualifications, domain_expertise,
+        hourly_rate, is_verified, kyc_status, rating, total_ratings, linkedin_url
+      )
+    `)
+    .eq('id', applicationId)
+    .maybeSingle();
+  if (appErr) throw appErr;
+  if (!application) {
+    const err = new Error('Application not found');
+    err.status = 404;
+    throw err;
   }
-  if (Number.isFinite(hours) && hours > 0 && Number.isFinite(perDay) && perDay > 0) {
-    const days = hours / perDay;
-    if (days >= 5) {
-      const weeks = Math.round((days / 5) * 10) / 10;
-      return `${weeks} week${weeks > 1 ? 's' : ''} (${hours} hours)`;
-    }
-    return `${Math.round(days * 10) / 10} day${days > 1 ? 's' : ''} (${hours} hours)`;
+
+  const project = application.projects;
+  const expert = application.experts;
+  if (!project?.institution_id) {
+    const err = new Error('Project institution not found');
+    err.status = 404;
+    throw err;
   }
-  if (Number.isFinite(hours) && hours > 0) return `${hours} hour${hours > 1 ? 's' : ''}`;
-  if (p.start_date && p.end_date) return `${p.start_date} to ${p.end_date}`;
-  return undefined;
+
+  const { data: institution, error: instErr } = await db
+    .from('institutions')
+    .select('id, name, email, phone, user_id, type, description, logo_url, website_url, address, city, state, country, contact_person')
+    .eq('id', project.institution_id)
+    .maybeSingle();
+  if (instErr) throw instErr;
+
+  return { application, project, expert, institution };
 }
 
 class HttpError extends Error {
@@ -114,7 +194,19 @@ class OnboardingService {
     return request;
   }
 
-  async verifyAndSendOfferLetter(id, adminUserId) {
+  /** Draft HTML preview before an onboarding request exists (super-admin onboard flow). */
+  async previewOfferLetterForApplication(applicationId, paymentTerm) {
+    const ctx = await loadApplicationLetterContext(this.db, applicationId);
+    const letterData = buildOfferLetterData({
+      ...ctx,
+      applicationId,
+      paymentTerm,
+      referenceNo: `CLX/HR/ENG/${String(applicationId).slice(0, 8).toUpperCase()}/DRAFT`,
+    });
+    return { html: buildOfferLetterHtml(letterData), letterData };
+  }
+
+  async verifyAndSendOfferLetter(id, adminUserId, options = {}) {
     const request = await this.repo.getById(id);
     if (!request) throw new HttpError(404, 'Onboarding request not found');
     if (request.status !== 'pending_review') {
@@ -132,41 +224,15 @@ class OnboardingService {
     const sentAt = new Date();
     const expiresAt = new Date(sentAt.getTime() + OFFER_EXPIRY_MS);
 
-    const totalFee = computeTotalFee(application, project);
-    const milestone1Percent = 50;
-    const milestone1Amount = totalFee != null ? Math.round((totalFee * milestone1Percent) / 100) : undefined;
-    const milestone2Percent = 50;
-    const milestone2Amount = totalFee != null ? Math.round((totalFee * milestone2Percent) / 100) : undefined;
-
-    const letterData = {
-      expertName: expert?.name,
-      expertAddress: expert?.address,
-      referenceNo: `CLX/HR/ENG/${String(request.application_id).slice(0, 8).toUpperCase()}/${sentAt.getFullYear()}`,
-      letterDate: sentAt.toISOString(),
-      engagementRole: project?.title,
-      courseTitle: project?.title,
-      trainingMode: TRAINING_MODE_LABELS[project?.workplace_type] || project?.workplace_type,
-      totalSessions: application?.unit_quantity ?? project?.unit_quantity,
-      trainingDuration: describeTrainingDuration(project),
-      startDate: project?.start_date,
-      totalFee,
-      milestone1Percent,
-      milestone1Amount,
-      milestone2Percent,
-      milestone2Amount,
-      // Term lengths as stated in the master engagement letter.
-      paymentDays: 7,
-      noticePeriodDays: 7,
-      nonSolicitationMonths: 12,
-      ipSurvivalYears: 5,
-      forceMajeureDays: 30,
-      disputeResolutionDays: 30,
-      rescheduleNoticeHours: 48,
-      jurisdictionCity: 'Gurugram',
-      jurisdictionState: 'Haryana',
-      documentTitle: 'TRAINER ENGAGEMENT LETTER',
-      institutionName: institution?.name,
-    };
+    const letterData = buildOfferLetterData({
+      application,
+      project,
+      expert,
+      institution,
+      applicationId: request.application_id,
+      paymentTerm: options.paymentTerm,
+      letterDate: sentAt,
+    });
 
     const pdfBuffer = await generateOfferLetterPdf(letterData);
     const upload = await ImageUploadService.uploadPDF(pdfBuffer, 'offer-letters', `offer-${request.application_id}`);

@@ -44,6 +44,8 @@ import type { SuperAdminPermission } from '@/lib/superadmin/types'
 import { getInstitutionRate } from '@/lib/utils'
 import { setSuperAdminActingInstitutionId } from '@/lib/superAdminActing'
 import { api } from '@/lib/api'
+import { AdminOnboardingOfferDialog } from '@/components/offers/AdminOnboardingOfferDialog'
+import type { PaymentTermValue } from '@/lib/offerLetterPaymentTerms'
 import {
   isPostedRateDeclined,
   isPostedRateOfferPending,
@@ -191,6 +193,7 @@ export default function SuperAdminRequirementDetailPage({
     destructive?: boolean
     onConfirm: () => Promise<void>
   }>(null)
+  const [adminOnboardingRow, setAdminOnboardingRow] = useState<any | null>(null)
 
   const decoded = decodeURIComponent(routeParams.id)
   const { requirementType, requirementId } = useMemo(() => {
@@ -551,20 +554,39 @@ export default function SuperAdminRequirementDetailPage({
     }
   }
 
-  async function updateNativeApplication(row: any, status: string, interviewValue?: string | null) {
+  async function updateNativeApplication(
+    row: any,
+    status: string,
+    interviewValue?: string | null,
+    extra?: { payment_term?: PaymentTermValue; approve_over_budget?: boolean }
+  ) {
     setWorkflowSaving(true)
     try {
       await superAdminApi.updateNativeRequirementApplication(requirementType, requirementId, row.id, {
         status,
         interview_scheduled_at: interviewValue || null,
+        ...(extra?.payment_term ? { payment_term: extra.payment_term } : {}),
+        ...(extra?.approve_over_budget ? { approve_over_budget: true } : {}),
       })
-      toast.success(status === 'accepted' ? 'Booking confirmed and offer letter sent' : 'Application updated')
+      toast.success(status === 'accepted' ? 'Offer letter approved and sent to the expert' : 'Application updated')
       await loadDetail()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update application')
     } finally {
       setWorkflowSaving(false)
     }
+  }
+
+  async function confirmAdminOnboardingFromRequirements(payload: {
+    payment_term: PaymentTermValue
+    approve_over_budget: boolean
+  }) {
+    if (!adminOnboardingRow) return
+    await updateNativeApplication(adminOnboardingRow, 'accepted', null, {
+      payment_term: payload.payment_term,
+      approve_over_budget: payload.approve_over_budget,
+    })
+    setAdminOnboardingRow(null)
   }
 
   async function confirmInterview() {
@@ -624,21 +646,7 @@ export default function SuperAdminRequirementDetailPage({
         toast.error('Complete rate negotiation before confirming booking')
         return
       }
-      const pricing = projectCompensationDisplay(requirement || {})
-      const gross =
-        Number(row.final_gross_per_unit) > 0
-          ? Number(row.final_gross_per_unit)
-          : pricing.grossPerUnitDisplay
-      const net =
-        Number(row.final_net_per_unit) > 0
-          ? Number(row.final_net_per_unit)
-          : pricing.netPerUnitDisplay
-      openConfirmAction({
-        title: 'Onboard expert?',
-        description: `Lock booking for ${name} at institute pays ${moneyInr(gross)} / ${pricing.unitShort} and expert earns ${moneyInr(net)} / ${pricing.unitShort}. The offer letter will be sent to the expert immediately.`,
-        confirmLabel: 'Onboard',
-        onConfirm: () => updateNativeApplication(row, 'accepted'),
-      })
+      setAdminOnboardingRow(row)
       return
     }
     openConfirmAction({
@@ -1592,6 +1600,17 @@ export default function SuperAdminRequirementDetailPage({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AdminOnboardingOfferDialog
+        open={Boolean(adminOnboardingRow)}
+        onOpenChange={(open) => {
+          if (!open) setAdminOnboardingRow(null)
+        }}
+        application={adminOnboardingRow}
+        project={requirement}
+        processing={workflowSaving}
+        onApprove={confirmAdminOnboardingFromRequirements}
+      />
 
       <AlertDialog open={Boolean(confirmActionDialog)} onOpenChange={(open) => !open && setConfirmActionDialog(null)}>
         <AlertDialogContent>

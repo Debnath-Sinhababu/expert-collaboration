@@ -89,6 +89,137 @@ function spellCount(value) {
   return `${word} (${n})`;
 }
 
+/** Supported payment-term variants — admin selects one before sending the offer letter. */
+const PAYMENT_TERMS = {
+  FIFTY_FIFTY: 'fifty_fifty',
+  FULL_ADVANCE: 'full_advance',
+  MONTHLY: 'monthly',
+  FULL_AFTER_PROGRAM: 'full_after_program',
+};
+
+const DEFAULT_PAYMENT_TERM = PAYMENT_TERMS.FIFTY_FIFTY;
+
+const VALID_PAYMENT_TERMS = new Set(Object.values(PAYMENT_TERMS));
+
+function normalizePaymentTerm(value) {
+  const v = value != null ? String(value).trim() : '';
+  return VALID_PAYMENT_TERMS.has(v) ? v : DEFAULT_PAYMENT_TERM;
+}
+
+/** Calendar months spanned by the engagement (inclusive), for monthly instalment wording. */
+function engagementMonthCount(startDate, endDate) {
+  const s = startDate ? new Date(startDate) : null;
+  const e = endDate ? new Date(endDate) : null;
+  if (!s || !e || Number.isNaN(s.getTime()) || Number.isNaN(e.getTime()) || e < s) return null;
+  const months = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth()) + 1;
+  return Math.max(1, months);
+}
+
+function tdsClause() {
+  return {
+    text: 'Calxmap shall deduct Tax Deducted at Source (TDS), wherever applicable, in accordance with the provisions of the Income Tax Act, 1961, and shall provide the applicable TDS certificate to the Trainer as required by law.',
+  };
+}
+
+function gstClause() {
+  return {
+    text: 'Goods and Services Tax (GST), if applicable and legally chargeable by the Trainer, shall be payable in addition to the professional fee upon submission of a valid GST invoice in compliance with the applicable provisions of the GST laws.',
+  };
+}
+
+function paymentTimelineClause(paymentDays, paymentTerm) {
+  if (paymentTerm === PAYMENT_TERMS.FULL_ADVANCE) {
+    return {
+      text: `The advance payment shall be processed within ${paymentDays} working days of the Trainer's acceptance of this Engagement Letter and receipt of any required onboarding documentation, and in any event prior to the commencement of the training program.`,
+    };
+  }
+  if (paymentTerm === PAYMENT_TERMS.MONTHLY) {
+    return {
+      text: `Each monthly instalment shall be processed within ${paymentDays} working days from the end of the relevant calendar month, upon submission of attendance records and supporting documents for the sessions delivered in that month.`,
+    };
+  }
+  if (paymentTerm === PAYMENT_TERMS.FULL_AFTER_PROGRAM) {
+    return {
+      text: `The full professional fee shall be processed within ${paymentDays} working days from the date of successful completion of the entire training program and submission of all required documentation.`,
+    };
+  }
+  return {
+    text: `Payments shall be processed within ${paymentDays} working days from the date of achieving the respective milestone and submission of any required documentation.`,
+  };
+}
+
+/** Assigns clause numbers 3.1, 3.2, … in order. */
+function numberedFeeClauses(clauses) {
+  return clauses.map((clause, index) => ({
+    type: 'clause',
+    no: `3.${index + 1}`,
+    text: clause.text,
+  }));
+}
+
+/**
+ * Builds Section 3 sub-clauses for the selected payment term.
+ * All variants share 3.1 (total fee) and end with TDS + GST.
+ */
+function buildFeeClauses(data) {
+  const courseTitle = orDash(data.courseTitle);
+  const paymentDays = spellCount(data.paymentDays);
+  const paymentTerm = normalizePaymentTerm(data.paymentTerm);
+  const totalFeeText = formatFeeWithWords(data.totalFee);
+
+  const totalFeeClause = {
+    text: `In consideration of the services rendered under this Engagement Letter, Calxmap shall pay the Trainer a professional fee of ${totalFeeText} for the successful delivery and completion of the ${courseTitle} training program described herein.`,
+  };
+
+  const clauses = [totalFeeClause];
+
+  if (paymentTerm === PAYMENT_TERMS.FIFTY_FIFTY) {
+    const m1Pct = spellCount(data.milestone1Percent ?? 50);
+    const m2Pct = spellCount(data.milestone2Percent ?? 50);
+    clauses.push({
+      text: `An amount equal to ${m1Pct} percent of the total fee, amounting to ${formatFeeWithWords(data.milestone1Amount)}, shall be released upon completion of the first delivery milestone, subject to satisfactory performance and submission of attendance records and supporting documents.`,
+    });
+    clauses.push({
+      text: `The remaining ${m2Pct} percent of the fee, amounting to ${formatFeeWithWords(data.milestone2Amount)}, shall be released upon successful completion of the entire program and fulfilment of all associated responsibilities.`,
+    });
+  } else if (paymentTerm === PAYMENT_TERMS.FULL_ADVANCE) {
+    clauses.push({
+      text: `The entire professional fee of ${totalFeeText} shall be released in full in advance upon the Trainer's acceptance of this Engagement Letter and prior to the commencement of the training program, subject to satisfactory verification of the Trainer's credentials, submission of any required onboarding documentation, and compliance with Calxmap's engagement requirements.`,
+    });
+    clauses.push({
+      text: "The Trainer acknowledges that the advance payment is made in consideration of the Trainer's commitment to deliver the full program as scheduled and to comply with all obligations under this Engagement Letter. In the event of termination due to the Trainer's material breach, misconduct, or failure to deliver agreed sessions without valid cause, Calxmap may recover or adjust any advance amount attributable to undelivered or unsatisfactorily completed services in accordance with Clause 8 (Termination).",
+    });
+  } else if (paymentTerm === PAYMENT_TERMS.MONTHLY) {
+    const months = engagementMonthCount(data.startDate, data.endDate);
+    const total = Number(data.totalFee);
+    const monthlyAmount = months && Number.isFinite(total) && total > 0
+      ? Math.round(total / months)
+      : null;
+    const instalmentDetail = monthlyAmount
+      ? ` Each monthly instalment shall approximate ${formatFeeWithWords(monthlyAmount)}, based on the estimated duration of the program.`
+      : '';
+    clauses.push({
+      text: `The professional fee shall be paid in equal monthly instalments during the term of this engagement. Each instalment shall represent the fee attributable to the training sessions successfully delivered and completed in the preceding calendar month, subject to satisfactory performance and submission of attendance records, session reports, and supporting documents for such sessions.${instalmentDetail}`,
+    });
+    clauses.push({
+      text: 'A final instalment for any remaining sessions not covered by prior monthly payments shall be released upon successful completion of the entire program and fulfilment of all associated responsibilities, including submission of all required documentation.',
+    });
+  } else if (paymentTerm === PAYMENT_TERMS.FULL_AFTER_PROGRAM) {
+    clauses.push({
+      text: `The entire professional fee of ${totalFeeText} shall be released in a single payment upon successful delivery and completion of the entire training program and fulfilment of all associated responsibilities, including submission of attendance records, session reports, assessments, and any other documentation required by Calxmap or the Client.`,
+    });
+    clauses.push({
+      text: 'The Trainer acknowledges that no professional fee shall be processed until the complete program has been satisfactorily delivered and all prescribed documentation has been received and accepted by Calxmap.',
+    });
+  }
+
+  clauses.push(paymentTimelineClause(paymentDays, paymentTerm));
+  clauses.push(tdsClause());
+  clauses.push(gstClause());
+
+  return numberedFeeClauses(clauses);
+}
+
 /**
  * Builds the full letter as structured blocks.
  *
@@ -109,44 +240,7 @@ function buildOfferLetterModel(data) {
   const rescheduleHours = spellCount(data.rescheduleNoticeHours);
   const jurisdiction = `${orDash(data.jurisdictionCity)}, ${orDash(data.jurisdictionState)}, India`;
 
-  const hasMilestones = Number(data.milestone1Amount) > 0 && Number(data.milestone2Amount) > 0;
-
-  const feeClauses = [
-    {
-      type: 'clause',
-      no: '3.1',
-      text: `In consideration of the services rendered under this Engagement Letter, Calxmap shall pay the Trainer a professional fee of ${formatFeeWithWords(data.totalFee)} for the successful delivery and completion of the ${courseTitle} training program described herein.`,
-    },
-  ];
-
-  if (hasMilestones) {
-    feeClauses.push({
-      type: 'clause',
-      no: '3.2',
-      text: `An amount equal to ${spellCount(data.milestone1Percent)} percent of the total fee, amounting to ${formatFeeWithWords(data.milestone1Amount)}, shall be released upon completion of the first delivery milestone, subject to satisfactory performance and submission of attendance records and supporting documents.`,
-    });
-    feeClauses.push({
-      type: 'clause',
-      no: '3.3',
-      text: `The remaining ${spellCount(data.milestone2Percent)} percent of the fee, amounting to ${formatFeeWithWords(data.milestone2Amount)}, shall be released upon successful completion of the entire program and fulfilment of all associated responsibilities.`,
-    });
-  }
-
-  feeClauses.push({
-    type: 'clause',
-    no: '3.4',
-    text: `Payments shall be processed within ${paymentDays} working days from the date of achieving the respective milestone and submission of any required documentation.`,
-  });
-  feeClauses.push({
-    type: 'clause',
-    no: '3.5',
-    text: 'Calxmap shall deduct Tax Deducted at Source (TDS), wherever applicable, in accordance with the provisions of the Income Tax Act, 1961, and shall provide the applicable TDS certificate to the Trainer as required by law.',
-  });
-  feeClauses.push({
-    type: 'clause',
-    no: '3.6',
-    text: 'Goods and Services Tax (GST), if applicable and legally chargeable by the Trainer, shall be payable in addition to the professional fee upon submission of a valid GST invoice in compliance with the applicable provisions of the GST laws.',
-  });
+  const feeClauses = buildFeeClauses(data);
 
   return {
     company: COMPANY,
@@ -185,9 +279,16 @@ function buildOfferLetterModel(data) {
             items: [
               ['Course Title', orDash(data.courseTitle)],
               ['Training Mode', orDash(data.trainingMode)],
-              ['Total Sessions', orDash(data.totalSessions)],
-              ['Training Duration', orDash(data.trainingDuration)],
+              ...(Array.isArray(data.programDetailBullets) && data.programDetailBullets.length
+                ? data.programDetailBullets
+                : [
+                  ...(data.totalSessions != null && data.totalSessions !== ''
+                    ? [['Total Sessions', orDash(data.totalSessions)]]
+                    : []),
+                  ['Training Duration', orDash(data.trainingDuration)],
+                ]),
               ['Start Date', formatLongDate(data.startDate)],
+              ...(data.endDate ? [['End Date', formatLongDate(data.endDate)]] : []),
             ],
           },
         ],
@@ -352,7 +453,12 @@ function buildOfferLetterModel(data) {
 
 module.exports = {
   COMPANY,
+  PAYMENT_TERMS,
+  DEFAULT_PAYMENT_TERM,
+  VALID_PAYMENT_TERMS,
+  normalizePaymentTerm,
   buildOfferLetterModel,
+  buildFeeClauses,
   numberToIndianWords,
   formatFeeWithWords,
   formatLetterDate,

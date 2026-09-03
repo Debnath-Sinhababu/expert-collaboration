@@ -221,6 +221,7 @@ class ApplicationRateService {
     actor,
     writeClient,
     approveOverBudget = false,
+    paymentTerm = null,
   }) {
     this.#assertInstitution(actor);
     const app = await this.repo.getApplicationWithProject(applicationId);
@@ -339,11 +340,16 @@ class ApplicationRateService {
       console.warn('Failed to open onboarding request:', err.message || err);
     }
 
-    // Admin performed the lock themselves (super-admin portal, or acting-as institution) —
-    // they're already the verifier, so skip the manual Onboard Verification step.
-    if (actor.role === 'super_admin' && onboardingRequest?.status === 'pending_review') {
+    // Super admin onboard: offer letter is sent only after they pick a payment term and
+    // approve the preview (paymentTerm passed on confirm-lock). Regular institutions
+    // stay in pending_review for the onboard-verification queue.
+    if (actor.role === 'super_admin' && onboardingRequest?.status === 'pending_review' && paymentTerm) {
       try {
-        onboardingRequest = await onboardingService.verifyAndSendOfferLetter(onboardingRequest.id, actor.actorUserId || null);
+        onboardingRequest = await onboardingService.verifyAndSendOfferLetter(
+          onboardingRequest.id,
+          actor.actorUserId || null,
+          { paymentTerm }
+        );
       } catch (err) {
         console.warn('Failed to auto-send offer letter for admin-initiated booking:', err.message || err);
       }
