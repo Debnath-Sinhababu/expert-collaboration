@@ -208,6 +208,16 @@ function drawSignatureBlock(doc, model) {
 
   doc.x = PAGE.margin;
   doc.y = Math.max(ly, ry + 20) + 10;
+
+  if (model.systemGeneratedNote) {
+    ensureRoom(doc, 48);
+    doc.font('Helvetica-Oblique').fontSize(8).fillColor(COLORS.muted)
+      .text(model.systemGeneratedNote, PAGE.margin, doc.y, {
+        width: CONTENT_WIDTH,
+        align: 'justify',
+      });
+    doc.moveDown(0.6);
+  }
 }
 
 function drawFooters(doc, model) {

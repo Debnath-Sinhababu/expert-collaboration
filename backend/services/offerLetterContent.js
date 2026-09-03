@@ -448,6 +448,13 @@ function buildOfferLetterModel(data) {
       trainerLines: ['Signature', 'Date'],
       typed: data.signature || null,
     },
+
+    // Shown below the signature block on every copy (preview, unsigned PDF, signed PDF).
+    // Standard practice for platform-issued engagement letters executed electronically.
+    systemGeneratedNote:
+      'Note: This is a system-generated Engagement Letter issued through the Calxmap platform. '
+      + 'It is valid and binding when executed electronically under Clause 19 (Electronic Execution). '
+      + 'No physical signature or stamp of Calxmap is required on this copy.',
   };
 }
 
