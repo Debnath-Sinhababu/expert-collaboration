@@ -155,6 +155,14 @@ function buildOfferLetterHtml(data) {
       .sign-value.signed-name { font-style: italic; font-size: 17px; }
       .sign-label { font-size: 11px; color: #6a6a6a; margin-top: 2px; }
       .digital-note { font-size: 10px; font-style: italic; color: #6a6a6a; margin-top: 8px; }
+      .system-note {
+        margin-top: 28px;
+        font-size: 10px;
+        font-style: italic;
+        color: #6a6a6a;
+        text-align: justify;
+        line-height: 1.5;
+      }
 
       /* ---- Footer ---- */
       .footer { margin-top: 32px; padding-top: 8px; border-top: 1px solid #e5e5e5; text-align: center; font-size: 10px; color: #6a6a6a; }
@@ -205,6 +213,10 @@ ${renderSections(model.sections)}
           ${digitalNote}
         </div>
       </div>
+
+      ${model.systemGeneratedNote
+        ? `<p class="system-note">${escapeHtml(model.systemGeneratedNote)}</p>`
+        : ''}
 
       <div class="footer">${escapeHtml(model.company.footer)}</div>
     </div>
