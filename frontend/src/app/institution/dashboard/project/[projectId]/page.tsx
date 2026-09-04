@@ -1788,33 +1788,9 @@ export default function InstitutionProjectDetailsPage({
               <span className="text-[#000000] font-medium text-sm">
                 {onboardingStatusLabel(onboardingByApplicationId[booking.application_id]?.status)}
               </span>
-              {/* The expert's decline reason is intentionally not shown to the institution —
-                  it stays between the expert and the CalxMap admin team. */}
+              {/* Decline reason and signed offer letter stay with CalxMap admin / expert only —
+                  they are intentionally not shown to the institution. */}
             </div>
-
-            {/* Signed copy of the offer letter, available once the expert has electronically signed. */}
-            {onboardingByApplicationId[booking.application_id]?.signed_offer_letter_url ? (
-              <div className="col-span-2">
-                <span className="text-[#666666] font-medium text-sm">Signed offer letter: </span>
-                <a
-                  href={onboardingByApplicationId[booking.application_id].signed_offer_letter_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center text-sm font-medium text-[#008260] hover:underline"
-                >
-                  <FileText className="mr-1 h-4 w-4" />
-                  Download signed copy
-                </a>
-                {onboardingByApplicationId[booking.application_id]?.signature_name ? (
-                  <p className="text-xs text-[#666666] mt-1">
-                    Signed by {onboardingByApplicationId[booking.application_id].signature_name}
-                    {onboardingByApplicationId[booking.application_id]?.signature_date
-                      ? ` on ${new Date(onboardingByApplicationId[booking.application_id].signature_date).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}`
-                      : ''}
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
           </div>
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 rounded-lg border border-[#DCDCDC] bg-[#F8FBFA] p-3">
             <div>
