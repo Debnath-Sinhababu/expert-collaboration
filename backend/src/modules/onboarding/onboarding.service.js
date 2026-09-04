@@ -3,7 +3,6 @@ const { generateOfferLetterPdf } = require('../../../services/offerLetterPdfServ
 const ImageUploadService = require('../../../services/imageUploadService');
 const {
   sendOfferLetterEmail,
-  sendOnboardingConfirmedEmail,
   sendOfferDeclinedEmail,
   sendOnboardingDeclinedToInstitutionEmail,
   sendOnboardingAcceptedToAdminEmail,
@@ -269,8 +268,8 @@ class OnboardingService {
 
   /**
    * The expert electronically executes the letter (Clause 19) by typing their name and the
-   * date. A signed copy of the same letter is rendered and stored, then sent to the
-   * institution and the super admins so every party holds the identical document.
+   * date. A signed copy of the same letter is rendered and stored, then sent only to the
+   * super admins (institution is not emailed on accept).
    */
   async acceptOffer(id, expertId, { signatureName, signatureDate } = {}) {
     const request = await this.repo.getById(id);
@@ -330,18 +329,6 @@ class OnboardingService {
     });
 
     const institution = request.institutions;
-    try {
-      await sendOnboardingConfirmedEmail({
-        to: institution?.email,
-        institutionName: institution?.name,
-        expertName: request.experts?.name,
-        projectTitle: request.projects?.title,
-        signedPdfBuffer,
-        signatureName,
-      });
-    } catch (err) {
-      console.warn('sendOnboardingConfirmedEmail failed:', err.message || err);
-    }
     try {
       await sendOnboardingAcceptedToAdminEmail({
         expertName: request.experts?.name,
