@@ -13,6 +13,14 @@ function serializeQueryParts(record: Record<string, string | number | boolean | 
   return u.toString()
 }
 
+
+function localDateStr(date: Date = new Date()): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 const getAuthHeaders = async () => {
   const { data: { session } } = await supabase.auth.getSession()
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
@@ -905,7 +913,7 @@ export const api = {
           })()
         : undefined
       const res = await fetch(
-        `${API_BASE_URL}/api/bookings/${bookingId}/attendance/days/${dayId}/entry`,
+        `${API_BASE_URL}/api/bookings/${bookingId}/attendance/days/${dayId}/entry?client_date=${localDateStr()}`,
         { method: 'POST', headers, body }
       )
       const json = await res.json().catch(() => ({}))
@@ -937,7 +945,7 @@ export const api = {
       const headers = await getAuthHeaders()
       const res = await fetch(
         `${API_BASE_URL}/api/bookings/${bookingId}/attendance/days/${dayId}/correct`,
-        { method: 'PUT', headers, body: JSON.stringify(body) }
+        { method: 'PUT', headers, body: JSON.stringify({ ...body, client_date: localDateStr() }) }
       )
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json?.error || 'Failed to correct attendance')

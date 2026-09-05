@@ -22,6 +22,11 @@ function parseDateOnly(s) {
   return normalizeDateOnly(s);
 }
 
+function resolveClientToday(req, fallbackNow) {
+  const clientDate = normalizeDateOnly(req.query?.client_date || req.body?.client_date);
+  return clientDate || normalizeDateOnly(fallbackNow);
+}
+
 function dateInRange(sessionDate, startDate, endDate) {
   const d = normalizeDateOnly(sessionDate);
   const start = normalizeDateOnly(startDate);
@@ -454,7 +459,8 @@ function registerTrainingAttendanceRoutes(app, upload) {
         'training-attendance-entry'
       );
       const writeClient = getWriteClient(ctx);
-      const isBackdated = normalizeDateOnly(day.session_date) < normalizeDateOnly(now);
+      const todayRef = resolveClientToday(req, now);
+      const isBackdated = normalizeDateOnly(day.session_date) < todayRef;
       const updates = {
         expert_entry_at: now,
         status: day.expert_exit_at ? 'pending_review' : 'open',
@@ -582,7 +588,8 @@ function registerTrainingAttendanceRoutes(app, upload) {
 
       const now = new Date().toISOString();
       const writeClient = getWriteClient(ctx);
-      const isBackdated = normalizeDateOnly(day.session_date) < normalizeDateOnly(now);
+      const todayRef = resolveClientToday(req, now);
+      const isBackdated = normalizeDateOnly(day.session_date) < todayRef;
       const fullDayHours = isBackdated ? resolveFullDayHours(ctx.booking) : 0;
       const { data, error } = await writeClient
         .from('training_attendance_days')
