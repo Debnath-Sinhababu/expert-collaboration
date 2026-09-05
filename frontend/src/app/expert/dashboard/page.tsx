@@ -53,6 +53,7 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useExpertWorkspace } from '@/contexts/ExpertWorkspaceContext'
 import { fetchExpertForWorkspace, expertProfileSetupPath } from '@/lib/expertWorkspace'
 import { isTrainingBooking } from '@/lib/trainingTypes'
+import { institutionDisplayName } from '@/lib/privacyDisplay'
 import { TrainingAttendancePanel } from '@/components/training/TrainingAttendancePanel'
 import { OfferLetterPreviewDialog } from '@/components/offers/OfferLetterPreviewDialog'
 
@@ -1024,6 +1025,10 @@ function ExpertDashboardContent() {
                             {new Date(application.applied_at || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </Badge>
                         </div>
+                        <p className="text-xs text-[#717171] mb-1">
+                          {application.projects?.unique_code && `Project ID: ${application.projects.unique_code} · `}
+                          {institutionDisplayName(application.projects?.institutions)}
+                        </p>
                         <p className="text-xs sm:text-sm text-[#6A6A6A] mb-3 line-clamp-2">{application.projects?.description || 'Project description'}</p>
                         {application.cover_letter ? (
                           <div className="mb-3 rounded-lg border border-[#E8E8E8] bg-[#FAFAFA] p-3">
@@ -1113,7 +1118,7 @@ function ExpertDashboardContent() {
                   <div className="space-y-4">
                       {pagedInterviewApplications?.map((application: any) => (
                       <div key={application.id} className="bg-white border border-[#DCDCDC] rounded-lg p-4 sm:p-6 hover:border-[#008260] hover:shadow-md transition-all duration-300 group">
-                        
+
                         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
                           <h3 className="font-bold text-base sm:text-lg text-[#000000] group-hover:text-[#008260] hover:cursor-pointer transition-colors duration-300 min-w-0 break-words"
                           onClick={()=>router.push(`${basePath}/project/${application.project_id}`)}
@@ -1122,6 +1127,10 @@ function ExpertDashboardContent() {
                             {new Date(application.applied_at || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </Badge>
                         </div>
+                        <p className="text-xs text-[#717171] mb-1">
+                          {application.projects?.unique_code && `Project ID: ${application.projects.unique_code} · `}
+                          {institutionDisplayName(application.projects?.institutions)}
+                        </p>
                         <p className="text-xs sm:text-sm text-[#6A6A6A] mb-3 line-clamp-2">{application.projects?.description || 'Project description'}</p>
                         
                         {application.cover_letter ? (
@@ -1362,6 +1371,10 @@ function ExpertDashboardContent() {
                               </div>
                             </Badge>
                           </div>
+                          <p className="text-xs text-slate-500 mb-1">
+                            {application.projects?.unique_code && `Project ID: ${application.projects.unique_code} · `}
+                            {institutionDisplayName(application.projects?.institutions)}
+                          </p>
                           <p className="text-xs sm:text-sm text-slate-600 mb-2 break-words line-clamp-2">{application.projects?.description || 'Project description'}</p>
                           {declinedByYou || autoExpired ? (
                             <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 p-3">

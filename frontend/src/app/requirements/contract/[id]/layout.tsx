@@ -103,7 +103,7 @@ export default async function ContractLayout({
     "description": project.description || "",
     "hiringOrganization": {
       "@type": "Organization",
-      "name": project.institutions?.name || "Institution"
+      "name": "Verified institution"
     },
     "jobLocation": {
       "@type": "Place",

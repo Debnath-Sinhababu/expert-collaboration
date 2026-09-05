@@ -52,6 +52,7 @@ type SessionUser = { id: string; email?: string; user_metadata?: UserMeta }
 
 interface Project {
   id: string
+  unique_code?: string
   title: string
   description: string
   type: string
@@ -391,6 +392,9 @@ export default function ExpertProjectPage({
       <div className="mb-8 flex flex-col sm:flex-row sm:justify-between w-full items-start sm:items-center border-b border-[#D6D6D6] pb-6 gap-4">
         <div className="min-w-0 flex-1">
               <h1 className="text-xl sm:text-2xl md:text-[32px] font-semibold text-black truncate">{project.title}</h1>
+              {project.unique_code && (
+                <p className="text-xs text-[#6A6A6A] mt-1">Project ID: {project.unique_code}</p>
+              )}
               {projectLocationLine(project) && (
                 <p className="flex items-center text-[#6A6A6A] mt-1">
                   <MapPin className="h-4 w-4 mr-2 shrink-0" />

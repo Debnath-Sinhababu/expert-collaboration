@@ -105,6 +105,7 @@ export default function ExpertHome() {
 
   type Project = {
     id: string
+    unique_code?: string
     title?: string
     description?: string
     start_date?: string
@@ -541,6 +542,9 @@ export default function ExpertHome() {
                                     </Badge>
 
                               <div className='flex flex-col'>
+                              {project.unique_code && (
+                                <p className="text-xs text-slate-500 mb-1">Project ID: {project.unique_code}</p>
+                              )}
                               <div className="flex items-center text-slate-600 text-sm mb-3">
                                   <Building2 className="h-4 w-4 mr-2 flex-shrink-0" />
                                   <span className="font-medium truncate">{institutionDisplayName(project.institutions)}</span>
@@ -1038,6 +1042,9 @@ export default function ExpertHome() {
                             {getProjectTypeLabel(project.type || '')}
                           </Badge>
                         </div>
+                        {project.unique_code && (
+                          <p className="text-xs text-slate-500 mb-1">Project ID: {project.unique_code}</p>
+                        )}
                         {/* <div className="flex items-center text-slate-600 text-sm mb-3">
                           <Building2 className="h-4 w-4 mr-2 flex-shrink-0" />
                           <span className="font-medium truncate">{project.institutions?.name}</span>

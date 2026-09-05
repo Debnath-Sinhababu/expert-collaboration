@@ -14,6 +14,8 @@ type ProjectLike = ProjectCompensationLike & {
   interview_period_interval?: string | null
   total_budget?: number | null
   screening_questions?: string[] | null
+  opening_count?: number | null
+  max_applications?: number | null
   institutions?: { name?: string; display_name?: string; city?: string; state?: string } | null
 }
 
@@ -96,6 +98,11 @@ export function ProjectRequirementMeta({
             Total budget: <span className="font-semibold text-[#000000]">₹{project.total_budget}</span>
           </p>
         )
+      )}
+      {(project.opening_count || project.max_applications) && (
+        <p className="text-sm text-[#6A6A6A]">
+          Openings: <span className="font-semibold text-[#000000]">{project.opening_count || project.max_applications}</span>
+        </p>
       )}
       {project.interview_period_interval && (
         <div className="rounded-lg border border-[#BFE3D8] bg-[#E8F5F1] p-3">
