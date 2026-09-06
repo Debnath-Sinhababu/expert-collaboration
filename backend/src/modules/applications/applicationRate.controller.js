@@ -2,6 +2,8 @@ const ApplicationRateService = require('./applicationRate.service');
 const { parseRateActionBody, parseLockBody } = require('./applicationRate.dto');
 const expertAccess = require('../../../auth/expertAccess');
 const institutionAccess = require('../../../auth/institutionAccess');
+const superAdminAuth = require('../../../auth/superAdminAuth');
+const privacyMask = require('../../../privacyMask');
 const OnboardingService = require('../onboarding/onboarding.service');
 
 class ApplicationRateController {
@@ -23,7 +25,11 @@ class ApplicationRateController {
         actor,
         writeClient,
       });
-      res.json(updated);
+      const { role: viewerRole } = await superAdminAuth.getUserRoleFromRequest(req);
+      res.json({
+        ...updated,
+        experts: privacyMask.maskExpertObject(updated?.experts, viewerRole),
+      });
     } catch (err) {
       this.#sendError(res, err);
     }

@@ -4840,6 +4840,7 @@ app.get('/api/applications', async (req, res) => {
         ),
         projects (
           id,
+          unique_code,
           title,
           description,
           type,
