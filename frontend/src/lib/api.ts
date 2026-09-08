@@ -227,6 +227,26 @@ export const api = {
       if (!res.ok) throw new Error(json?.error || 'Failed to update calxbook visibility')
       return json
     },
+    joinCalxbook: async (id: string) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/experts/${id}/join-calxbook`, {
+        method: 'POST',
+        headers
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to join Calxbook')
+      return json as { redirectUrl: string }
+    },
+    switchToCalxbook: async (id: string) => {
+      const headers = await getAuthHeaders()
+      const res = await fetch(`${API_BASE_URL}/api/experts/${id}/switch-to-calxbook`, {
+        method: 'POST',
+        headers
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || 'Failed to switch to Calxbook')
+      return json as { redirectUrl: string }
+    },
     getAvailability: async (
       id: string,
       range: { from: string; to: string; project_id?: string }

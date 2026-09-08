@@ -6,7 +6,7 @@ import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Star, Shield, Phone, Linkedin, Mail, User, GraduationCap, IndianRupee, Calendar, Building2, FileText, Edit, CheckCircle2, MapPin, Video } from 'lucide-react'
+import { Star, Shield, Phone, Linkedin, Mail, User, GraduationCap, IndianRupee, Calendar, Building2, FileText, Edit, CheckCircle2, MapPin, Video, ExternalLink, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useExpertWorkspace } from '@/contexts/ExpertWorkspaceContext'
@@ -21,8 +21,28 @@ export default function ExpertProfile() {
   const [expert, setExpert] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [leadingInstitutes, setLeadingInstitutes] = useState<any[]>([])
+  const [calxbookHandoffLoading, setCalxbookHandoffLoading] = useState(false)
+  const [calxbookHandoffError, setCalxbookHandoffError] = useState<string | null>(null)
   const router = useRouter()
   const { viewer, actingExpertId, basePath } = useExpertWorkspace()
+
+  const handleCalxbookHandoff = async () => {
+    if (!expert?.id || calxbookHandoffLoading) return
+    setCalxbookHandoffLoading(true)
+    setCalxbookHandoffError(null)
+    try {
+      const { redirectUrl } = expert.calxbook_mentor_linked_at
+        ? await api.experts.switchToCalxbook(expert.id)
+        : await api.experts.joinCalxbook(expert.id)
+      // Opens Calxbook in a new tab, already signed in -- the redirect URL carries a
+      // short-lived, single-use signed token, never a shared cookie across the two sites.
+      window.open(redirectUrl, '_blank', 'noopener,noreferrer')
+    } catch (err: any) {
+      setCalxbookHandoffError(err?.message || 'Failed to reach Calxbook. Please try again.')
+    } finally {
+      setCalxbookHandoffLoading(false)
+    }
+  }
 
   useEffect(() => {
     const getUser = async () => {
@@ -456,7 +476,28 @@ export default function ExpertProfile() {
                       Edit Profile
                     </Button>
                   </Link>
-                  
+
+                  {expert?.is_verified && (
+                    <div>
+                      <Button
+                        variant="outline"
+                        onClick={handleCalxbookHandoff}
+                        disabled={calxbookHandoffLoading}
+                        className="w-full border-[#008260] text-[#008260] hover:bg-[#ECF2FF] rounded-lg py-6 font-medium"
+                      >
+                        {calxbookHandoffLoading ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                        )}
+                        {expert?.calxbook_mentor_linked_at ? 'Switch to Calxbook' : 'Join Calxbook'}
+                      </Button>
+                      {calxbookHandoffError && (
+                        <p className="mt-2 text-sm text-red-600">{calxbookHandoffError}</p>
+                      )}
+                    </div>
+                  )}
+
                   {expert?.resume_url && (
                     <a 
                       href={expert.resume_url} 

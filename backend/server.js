@@ -678,19 +678,32 @@ app.get('/api/calxbook/experts', async (req, res) => {
       }
     }
 
-    const experts = expertRows.map((expert) => ({
-      ...expert,
-      // Compatibility aliases for CalxBook sync client.
-      full_name: expert.name || expert.full_name || 'Unknown Expert',
-      title: expert.current_designation || expert.title || null,
-      expert_types: Array.isArray(expert.expert_types) ? expert.expert_types : [],
-      expert_services: Array.isArray(expert.expert_services) ? expert.expert_services : [],
-      domain_expertise: Array.isArray(expert.domain_expertise) ? expert.domain_expertise : [],
-      subskills: Array.isArray(expert.subskills) ? expert.subskills : [],
-      calxbook_verified: Boolean(expert.calxbook_verified),
-      completed_trainings_count: completedTrainingsByExpertId.get(expert.id) || 0,
-      training_count: completedTrainingsByExpertId.get(expert.id) || 0
-    }));
+    // Mentor Program: profile_score feeds Calxbook's live-course level eligibility. Computed
+    // fresh on every sync (never served stale) using the tunable mentor_score_config row;
+    // also best-effort cached on the expert row for ClaxMap's own UI.
+    const { loadScoreConfig, computeProfileScore, persistScoreBestEffort } = require('./src/modules/calxbookMentorProgram/profileScore.service');
+    const scoreConfig = await loadScoreConfig(serviceClient);
+
+    const experts = expertRows.map((expert) => {
+      const completedTrainingsCount = completedTrainingsByExpertId.get(expert.id) || 0;
+      const profileScore = computeProfileScore(expert, completedTrainingsCount, scoreConfig);
+      void persistScoreBestEffort(serviceClient, expert.id, profileScore);
+      return {
+        ...expert,
+        // Compatibility aliases for CalxBook sync client.
+        full_name: expert.name || expert.full_name || 'Unknown Expert',
+        title: expert.current_designation || expert.title || null,
+        expert_types: Array.isArray(expert.expert_types) ? expert.expert_types : [],
+        expert_services: Array.isArray(expert.expert_services) ? expert.expert_services : [],
+        domain_expertise: Array.isArray(expert.domain_expertise) ? expert.domain_expertise : [],
+        subskills: Array.isArray(expert.subskills) ? expert.subskills : [],
+        calxbook_verified: Boolean(expert.calxbook_verified),
+        completed_trainings_count: completedTrainingsCount,
+        training_count: completedTrainingsCount,
+        profile_score: profileScore,
+        profile_score_updated_at: new Date().toISOString()
+      };
+    });
 
     return res.json({
       success: true,
@@ -7145,6 +7158,10 @@ app.use('/api/bookings', createBookingCompletionRouter());
 
 const { createOnboardingRouter } = require('./src/modules/onboarding/onboarding.routes');
 app.use('/api/onboarding', createOnboardingRouter());
+
+// Mentor Program: expert-initiated "Join Calxbook" / "Switch to Calxbook" handoff.
+const { createCalxbookHandoffRouter } = require('./src/modules/calxbookMentorProgram/calxbookHandoff.routes');
+app.use('/api/experts', createCalxbookHandoffRouter());
 
 const { registerSuperAdminExpertMutations } = require('./routes/superadminExpertMutations');
 registerSuperAdminExpertMutations(app, {
