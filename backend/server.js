@@ -41,6 +41,7 @@ const {
   ACTIVE_BOOKING_STATUSES_FOR_STATS,
   isActiveBookingStatus,
 } = require('./src/shared/compensation');
+const { getCompletedTrainingsCountByExpertId } = require('./src/shared/completedTrainingsCount');
 
 console.log('Environment variables loaded:');
 console.log('UPSTASH_REDIS_REST_URL:', process.env.UPSTASH_REDIS_REST_URL ? 'Set' : 'Not set');
@@ -658,25 +659,7 @@ app.get('/api/calxbook/experts', async (req, res) => {
     const expertRows = data || [];
     const expertIds = expertRows.map((row) => row.id).filter(Boolean);
 
-    const completedTrainingsByExpertId = new Map();
-    if (expertIds.length > 0) {
-      const { data: bookingRows, error: bookingsError } = await serviceClient
-        .from('bookings')
-        .select('expert_id, status')
-        .in('expert_id', expertIds);
-      if (bookingsError) {
-        console.warn('GET /api/calxbook/experts: booking counts skipped', bookingsError.message);
-      } else {
-        for (const booking of bookingRows || []) {
-          if (booking.status !== 'completed' || !booking.expert_id) continue;
-          const expertId = booking.expert_id;
-          completedTrainingsByExpertId.set(
-            expertId,
-            (completedTrainingsByExpertId.get(expertId) || 0) + 1
-          );
-        }
-      }
-    }
+    const completedTrainingsByExpertId = await getCompletedTrainingsCountByExpertId(serviceClient, expertIds);
 
     const experts = expertRows.map((expert) => ({
       ...expert,
@@ -7146,6 +7129,9 @@ app.use('/api/bookings', createBookingCompletionRouter());
 
 const { createOnboardingRouter } = require('./src/modules/onboarding/onboarding.routes');
 app.use('/api/onboarding', createOnboardingRouter());
+
+const { createCalxbookHandoffRouter } = require('./src/modules/calxbook-handoff/calxbookHandoff.routes');
+app.use('/api/experts', createCalxbookHandoffRouter());
 
 const { registerSuperAdminExpertMutations } = require('./routes/superadminExpertMutations');
 registerSuperAdminExpertMutations(app, {
