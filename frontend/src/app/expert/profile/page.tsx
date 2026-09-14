@@ -6,7 +6,7 @@ import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Star, Shield, Phone, Linkedin, Mail, User, GraduationCap, IndianRupee, Calendar, Building2, FileText, Edit, CheckCircle2, MapPin, Video } from 'lucide-react'
+import { Star, Shield, Phone, Linkedin, Mail, User, GraduationCap, IndianRupee, Calendar, Building2, FileText, Edit, CheckCircle2, MapPin, Video, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useExpertWorkspace } from '@/contexts/ExpertWorkspaceContext'
@@ -21,8 +21,29 @@ export default function ExpertProfile() {
   const [expert, setExpert] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [leadingInstitutes, setLeadingInstitutes] = useState<any[]>([])
+  const [calxbookLoading, setCalxbookLoading] = useState(false)
   const router = useRouter()
   const { viewer, actingExpertId, basePath } = useExpertWorkspace()
+
+  const handleCalxbookAction = async () => {
+    if (!expert?.id || calxbookLoading) return
+    setCalxbookLoading(true)
+    try {
+      const result = expert.calxbook_mentor_linked_at
+        ? await api.experts.switchCalxbook(expert.id)
+        : await api.experts.joinCalxbook(expert.id)
+      if (result?.redirect_url) {
+        window.open(result.redirect_url, '_blank', 'noopener,noreferrer')
+        if (!expert.calxbook_mentor_linked_at) {
+          setExpert((prev: any) => (prev ? { ...prev, calxbook_mentor_linked_at: new Date().toISOString() } : prev))
+        }
+      }
+    } catch (error) {
+      console.error('Calxbook handoff failed:', error)
+    } finally {
+      setCalxbookLoading(false)
+    }
+  }
 
   useEffect(() => {
     const getUser = async () => {
@@ -472,9 +493,9 @@ export default function ExpertProfile() {
                   )}
                   
                   {expert?.qualifications_url && (
-                    <a 
-                      href={expert.qualifications_url} 
-                      target="_blank" 
+                    <a
+                      href={expert.qualifications_url}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="block"
                     >
@@ -483,6 +504,23 @@ export default function ExpertProfile() {
                         View Qualifications (PDF)
                       </Button>
                     </a>
+                  )}
+
+                  {expert?.is_verified === true && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleCalxbookAction}
+                      disabled={calxbookLoading}
+                      className="w-full border-[#008260] text-[#008260] hover:bg-[#ECF2FF] rounded-lg py-6 font-medium"
+                    >
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      {calxbookLoading
+                        ? 'Opening Calxbook…'
+                        : expert?.calxbook_mentor_linked_at
+                          ? 'Switch to Calxbook'
+                          : 'Join Calxbook'}
+                    </Button>
                   )}
                 </div>
               </CardContent>
