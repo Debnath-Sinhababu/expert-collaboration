@@ -31,15 +31,17 @@ class CalxbookHandoffController {
   };
 
   /**
-   * Owner-only — deliberately does NOT allow the super-admin "acting as" override that
-   * resolveExpertAccess normally supports for other expert-scoped routes. Linking /
-   * minting a real external Calxbook account on someone else's behalf via admin
-   * impersonation is a meaningfully different risk than the read-mostly admin actions
-   * that pattern is otherwise used for, so it's rejected here even for a super admin.
+   * Accepts either the expert themselves (mode 'owner') or a super admin acting on that
+   * expert's behalf via the X-Acting-Expert-Id header (mode 'super_admin') — same pattern
+   * bookingCompletion.controller.js and onboarding.controller.js already use for other
+   * expert-scoped actions. A super admin opening an expert's workspace and clicking
+   * Join/Switch Calxbook needs this to succeed the same way it does for the expert's own
+   * session; resolveExpertAccess() already resolves and validates the acting-expert id,
+   * this just stops narrowing its result back down to owner-only.
    */
   async #resolveOwnerAccess(req, expertId) {
     const access = await expertAccess.resolveExpertAccess(req, expertId);
-    if (!access || access.mode !== 'owner') {
+    if (!access) {
       const err = new Error('Unauthorized');
       err.status = 403;
       throw err;
