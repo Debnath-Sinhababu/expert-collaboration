@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog'
 import {
   DEFAULT_PAYMENT_TERM,
+  PAYMENT_TERM_LABEL,
   PAYMENT_TERM_OPTIONS,
   type PaymentTermValue,
 } from '@/lib/offerLetterPaymentTerms'
@@ -26,6 +27,12 @@ type Props = {
   project: any
   processing?: boolean
   onApprove: (payload: { payment_term: PaymentTermValue; approve_over_budget: boolean }) => void | Promise<void>
+  /** Set when re-sending a declined/expired offer: shows what happened to the previous one. */
+  renewal?: {
+    previousStatus?: string
+    previousPaymentTerm?: string | null
+    declineReason?: string | null
+  } | null
 }
 
 export function AdminOnboardingOfferDialog({
@@ -35,6 +42,7 @@ export function AdminOnboardingOfferDialog({
   project,
   processing,
   onApprove,
+  renewal = null,
 }: Props) {
   const [step, setStep] = useState<'payment_term' | 'preview'>('payment_term')
   const [paymentTerm, setPaymentTerm] = useState<PaymentTermValue>(DEFAULT_PAYMENT_TERM)
@@ -102,6 +110,10 @@ export function AdminOnboardingOfferDialog({
 
   const expertName = application?.experts?.name || 'Expert'
   const projectTitle = project?.title || 'Requirement'
+  const startDate = project?.start_date ? new Date(project.start_date) : null
+  const programAlreadyStarted = Boolean(
+    renewal && startDate && !Number.isNaN(startDate.getTime()) && startDate.getTime() < Date.now()
+  )
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -109,12 +121,37 @@ export function AdminOnboardingOfferDialog({
         {step === 'payment_term' ? (
           <>
             <DialogHeader className="px-6 pt-6">
-              <DialogTitle>Onboarding — {expertName}</DialogTitle>
+              <DialogTitle>{renewal ? 'Renew offer' : 'Onboarding'} — {expertName}</DialogTitle>
               <DialogDescription>
-                Choose the payment term, then preview the offer letter before it is sent to the expert.
+                {renewal
+                  ? 'Choose a new payment term, then preview the updated offer letter. It replaces the previous offer — the expert will only see this one.'
+                  : 'Choose the payment term, then preview the offer letter before it is sent to the expert.'}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 px-6 pb-6">
+              {renewal ? (
+                <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm space-y-1">
+                  <p className="font-semibold text-rose-900">
+                    Previous offer {renewal.previousStatus === 'expired' ? 'expired' : 'declined by expert'}
+                  </p>
+                  {renewal.previousPaymentTerm ? (
+                    <p className="text-rose-800">
+                      Payment term: {PAYMENT_TERM_LABEL[renewal.previousPaymentTerm] || renewal.previousPaymentTerm}
+                    </p>
+                  ) : null}
+                  {renewal.declineReason ? (
+                    <p className="text-rose-800 whitespace-pre-wrap">Reason: {renewal.declineReason}</p>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {programAlreadyStarted ? (
+                <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  The program start date ({startDate!.toLocaleDateString('en-IN')}) has already passed. The letter will
+                  still state the original program dates.
+                </p>
+              ) : null}
+
               {pricing ? (
                 <div className="rounded-lg border border-[#DCDCDC] bg-[#F8FBFA] p-3 text-sm space-y-1">
                   <div className="flex justify-between">
@@ -241,7 +278,7 @@ export function AdminOnboardingOfferDialog({
                 onClick={handleApprove}
               >
                 <Send className="mr-2 h-4 w-4" />
-                {processing ? 'Sending…' : 'Approve & send to expert'}
+                {processing ? 'Sending…' : renewal ? 'Renew & send to expert' : 'Approve & send to expert'}
               </Button>
             </div>
           </>

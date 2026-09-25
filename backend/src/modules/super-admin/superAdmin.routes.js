@@ -33,6 +33,7 @@ function createSuperAdminRouter() {
   router.get('/onboarding-requests', requireSuperAdmin(), asyncHandler(controller.listOnboardingRequests));
   router.get('/onboarding-requests/:id', requireSuperAdmin(), asyncHandler(controller.getOnboardingRequest));
   router.post('/onboarding-requests/:id/verify', requireSuperAdmin(), asyncHandler(controller.verifyOnboardingRequest));
+  router.post('/onboarding-requests/:id/renew', requireSuperAdmin(), asyncHandler(controller.renewOnboardingRequest));
 
   router.get('/requirements', requireSuperAdmin('requirements:read'), asyncHandler(controller.listRequirements));
   router.get('/requirements/assigned', requireSuperAdmin(['assignments:read', 'daily_reports:write']), asyncHandler(controller.listAssignedRequirements));

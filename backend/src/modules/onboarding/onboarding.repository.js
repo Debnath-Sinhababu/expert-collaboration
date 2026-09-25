@@ -109,6 +109,50 @@ class OnboardingRepository {
     return data;
   }
 
+  /** Reverses cancelBooking for a renewed offer — only touches a booking that is still cancelled. */
+  async reactivateBooking(bookingId) {
+    if (!bookingId) return null;
+    const { data, error } = await this.db
+      .from('bookings')
+      .update({ status: 'in_progress' })
+      .eq('id', bookingId)
+      .eq('status', 'cancelled')
+      .select()
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  }
+
+  /** Reverses rejectApplication for a renewed offer — only touches an application that is still rejected. */
+  async reacceptApplication(applicationId) {
+    if (!applicationId) return null;
+    const { data, error } = await this.db
+      .from('applications')
+      .update({ status: 'accepted', reviewed_at: new Date().toISOString() })
+      .eq('id', applicationId)
+      .eq('status', 'rejected')
+      .select()
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  }
+
+  /**
+   * Update guarded by the current status, so two concurrent writers (e.g. two admins renewing the
+   * same offer) cannot both succeed. Returns null when the row is no longer in one of `statuses`.
+   */
+  async updateIfStatus(id, statuses, patch) {
+    const { data, error } = await this.db
+      .from('onboarding_requests')
+      .update({ ...patch, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .in('status', statuses)
+      .select(this.#detailSelect())
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  }
+
   async update(id, patch) {
     const { data, error } = await this.db
       .from('onboarding_requests')

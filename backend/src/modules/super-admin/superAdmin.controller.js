@@ -137,6 +137,12 @@ class SuperAdminController {
     }));
   };
 
+  renewOnboardingRequest = async (req, res) => {
+    res.json(await this.service.renewOnboardingRequest(req.params.id, req.superAdmin, {
+      paymentTerm: req.body?.payment_term,
+    }));
+  };
+
   listRequirements = async (req, res) => {
     const paging = parsePage(req.query);
     res.json(await this.service.listRequirements({
