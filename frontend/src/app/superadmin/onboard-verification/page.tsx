@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { CheckCircle2, Eye, FileText, RefreshCw, Search, Send, Star, X } from 'lucide-react'
+import { CheckCircle2, Eye, FileText, RefreshCw, RotateCcw, Search, Send, Star, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -51,7 +51,11 @@ const STATUS_OPTIONS = [
   { value: 'offer_sent', label: 'Offer Sent' },
   { value: 'accepted', label: 'Accepted' },
   { value: 'declined', label: 'Declined' },
+  { value: 'expired', label: 'Expired' },
 ]
+
+/** Offers a super admin can renew with a new payment term and re-send. */
+const RENEWABLE_STATUSES = ['declined', 'expired']
 
 const STATUS_LABEL: Record<string, string> = {
   pending_review: 'Pending Review',
@@ -110,6 +114,8 @@ export default function SuperAdminOnboardVerificationPage() {
   const [verifyingId, setVerifyingId] = useState<string | null>(null)
   const [selectedRow, setSelectedRow] = useState<any>(null)
   const [offerDialogRow, setOfferDialogRow] = useState<any>(null)
+  const [renewDialogRow, setRenewDialogRow] = useState<any>(null)
+  const [renewingId, setRenewingId] = useState<string | null>(null)
 
   const load = () => {
     setLoading(true)
@@ -164,7 +170,23 @@ export default function SuperAdminOnboardVerificationPage() {
     }
   }
 
+  async function renewOffer(row: any, paymentTerm: PaymentTermValue) {
+    setRenewingId(row.id)
+    try {
+      const updated = await superAdminApi.renewOnboardingRequest(row.id, { payment_term: paymentTerm })
+      setRows((current) => current.map((item) => item.id === row.id ? { ...item, ...updated } : item))
+      setSelectedRow((current: any) => current && current.id === row.id ? { ...current, ...updated } : current)
+      setRenewDialogRow(null)
+      toast.success('Offer letter renewed and re-sent to the expert.')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to renew offer letter')
+    } finally {
+      setRenewingId(null)
+    }
+  }
+
   const storedPaymentTerm = selectedRow?.offer_letter_data?.paymentTerm as string | undefined
+  const offerHistory: any[] = Array.isArray(selectedRow?.offer_history) ? selectedRow.offer_history : []
 
   const pendingCount = rows.filter((r) => r.status === 'pending_review').length
   // Cumulative offers ever sent, not just those still awaiting a response -
@@ -369,6 +391,17 @@ export default function SuperAdminOnboardVerificationPage() {
                     {verifyingId === row.id ? 'Sending...' : 'Verify & Send'}
                   </Button>
                 ) : null}
+                {RENEWABLE_STATUSES.includes(row.status) ? (
+                  <Button
+                    size="sm"
+                    className="bg-[#008260] hover:bg-[#006d51]"
+                    disabled={renewingId === row.id}
+                    onClick={() => setRenewDialogRow(row)}
+                  >
+                    <RotateCcw className="mr-2 h-4 w-4" />
+                    {renewingId === row.id ? 'Sending...' : 'Renew & Resend'}
+                  </Button>
+                ) : null}
               </div>
             ) },
           ]}
@@ -550,6 +583,47 @@ export default function SuperAdminOnboardVerificationPage() {
                 </div>
               ) : null}
 
+              {offerHistory.length > 0 ? (
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <p className="mb-2 font-semibold text-slate-950">Previous offers ({offerHistory.length})</p>
+                  <div className="space-y-3">
+                    {[...offerHistory].reverse().map((entry: any, idx: number) => (
+                      <div key={`${entry.renewed_at || idx}`} className="rounded-md border border-slate-100 bg-slate-50 p-3 text-sm">
+                        <div className="flex items-center justify-between gap-2">
+                          <StatusBadge status={entry.status} />
+                          <span className="text-xs text-slate-500">Renewed {formatDate(entry.renewed_at)}</span>
+                        </div>
+                        <DetailRow label="Sent on" value={formatDate(entry.offer_sent_at)} />
+                        <DetailRow
+                          label="Payment term"
+                          value={entry.payment_term ? (PAYMENT_TERM_LABEL[entry.payment_term] || entry.payment_term) : '-'}
+                        />
+                        {entry.decline_reason ? <DetailRow label="Reason" value={entry.decline_reason} /> : null}
+                        {entry.offer_letter_url ? (
+                          <a href={entry.offer_letter_url} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center text-xs font-medium text-[#008260] hover:underline">
+                            <FileText className="mr-1 h-3.5 w-3.5" />
+                            View previous letter (PDF)
+                          </a>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {RENEWABLE_STATUSES.includes(selectedRow.status) ? (
+                <div className="flex justify-end border-t border-slate-100 pt-4">
+                  <Button
+                    className="bg-[#008260] hover:bg-[#006d51]"
+                    disabled={renewingId === selectedRow.id}
+                    onClick={() => setRenewDialogRow(selectedRow)}
+                  >
+                    <RotateCcw className="mr-2 h-4 w-4" />
+                    {renewingId === selectedRow.id ? 'Sending...' : 'Renew & Resend Offer Letter'}
+                  </Button>
+                </div>
+              ) : null}
+
               {selectedRow.status === 'pending_review' ? (
                 <div className="flex justify-end border-t border-slate-100 pt-4">
                   <Button
@@ -582,6 +656,33 @@ export default function SuperAdminOnboardVerificationPage() {
         onApprove={async ({ payment_term }) => {
           if (!offerDialogRow) return
           await verifyAndSendOffer(offerDialogRow, payment_term)
+        }}
+      />
+
+      <AdminOnboardingOfferDialog
+        open={Boolean(renewDialogRow)}
+        onOpenChange={(open) => {
+          if (!open) setRenewDialogRow(null)
+        }}
+        application={
+          renewDialogRow?.applications
+            ? { ...renewDialogRow.applications, experts: renewDialogRow.experts }
+            : null
+        }
+        project={renewDialogRow?.projects}
+        processing={Boolean(renewDialogRow?.id && renewingId === renewDialogRow.id)}
+        renewal={
+          renewDialogRow
+            ? {
+                previousStatus: renewDialogRow.status,
+                previousPaymentTerm: renewDialogRow.offer_letter_data?.paymentTerm,
+                declineReason: renewDialogRow.decline_reason,
+              }
+            : null
+        }
+        onApprove={async ({ payment_term }) => {
+          if (!renewDialogRow) return
+          await renewOffer(renewDialogRow, payment_term)
         }}
       />
     </div>

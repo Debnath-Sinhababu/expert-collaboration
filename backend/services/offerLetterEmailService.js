@@ -20,17 +20,23 @@ function dashboardLink(path) {
 
 // The offer letter itself is intentionally not linked here — it is only viewable from the
 // expert dashboard, so acceptance always happens behind login alongside Accept/Decline.
-async function sendOfferLetterEmail({ to, expertName, institutionName, projectTitle }) {
+async function sendOfferLetterEmail({ to, expertName, institutionName, projectTitle, renewed = false }) {
   if (!to) return;
   const safeName = escapeHtml(expertName || 'there');
   const safeInstitution = escapeHtml(institutionName || 'the institution');
   const safeProject = escapeHtml(projectTitle || 'your requirement');
   const link = dashboardLink('/expert/dashboard');
-  const subject = `Your CalxMap offer letter for ${projectTitle || 'your engagement'}`;
+  const subject = renewed
+    ? `Your updated CalxMap offer letter for ${projectTitle || 'your engagement'}`
+    : `Your CalxMap offer letter for ${projectTitle || 'your engagement'}`;
+  // A renewal replaces the earlier declined/expired offer — the dashboard shows only this one.
+  const intro = renewed
+    ? `CalxMap has sent you an updated offer letter for ${projectTitle || 'the requirement'} with ${institutionName || 'the institution'}. It replaces the previous offer.`
+    : `CalxMap has verified your onboarding for ${projectTitle || 'the requirement'} with ${institutionName || 'the institution'}.`;
   const text = [
     `Hello ${expertName || 'there'},`,
     '',
-    `CalxMap has verified your onboarding for ${projectTitle || 'the requirement'} with ${institutionName || 'the institution'}.`,
+    intro,
     'Your offer letter is available on your CalxMap expert dashboard. Please log in to review it and accept or decline this offer.',
     link ? `Dashboard: ${link}` : '',
     '',
@@ -39,7 +45,9 @@ async function sendOfferLetterEmail({ to, expertName, institutionName, projectTi
   ].filter(Boolean).join('\n');
   const html = `
     <p>Hello ${safeName},</p>
-    <p>CalxMap has verified your onboarding for <strong>${safeProject}</strong> with <strong>${safeInstitution}</strong>.</p>
+    <p>${renewed
+    ? `CalxMap has sent you an updated offer letter for <strong>${safeProject}</strong> with <strong>${safeInstitution}</strong>. It replaces the previous offer.`
+    : `CalxMap has verified your onboarding for <strong>${safeProject}</strong> with <strong>${safeInstitution}</strong>.`}</p>
     <p>Your offer letter is available on your CalxMap expert dashboard. Please log in to review it and Accept or Decline this offer.</p>
     ${link ? `<p><a href="${escapeHtml(link)}">Go to dashboard</a></p>` : ''}
     <p>Regards,<br/>CalxMap Onboarding Team</p>

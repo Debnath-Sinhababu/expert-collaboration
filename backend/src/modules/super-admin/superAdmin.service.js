@@ -128,6 +128,23 @@ class SuperAdminService {
     return updated;
   }
 
+  async renewOnboardingRequest(id, auth, options = {}) {
+    const onboardingService = new OnboardingService(this.serviceClient);
+    const updated = await onboardingService.renewOffer(id, auth?.user?.id || null, {
+      paymentTerm: options.paymentTerm,
+    });
+    await this.logActivity(auth, 'onboarding.offer_letter_renewed', {
+      entity_type: 'onboarding_request',
+      entity_id: id,
+      metadata: {
+        application_id: updated.application_id,
+        payment_term: updated.offer_letter_data?.paymentTerm,
+        renewal_count: Array.isArray(updated.offer_history) ? updated.offer_history.length : null,
+      },
+    });
+    return updated;
+  }
+
   async logActivity(auth, action, options = {}) {
     try {
       await this.repository.logActivity({

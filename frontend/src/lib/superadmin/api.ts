@@ -241,4 +241,9 @@ export const superAdminApi = {
       method: 'POST',
       body: JSON.stringify(body || {}),
     }),
+  renewOnboardingRequest: (id: string, body: { payment_term: string }) =>
+    request<any>(`/api/superadmin/onboarding-requests/${encodeURIComponent(id)}/renew`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 }

@@ -13,7 +13,8 @@ const { normalizePaymentTerm } = require('../../../services/offerLetterContent')
 const { buildOfferLetterHtml } = require('../../../services/offerLetterTemplate');
 
 const OFFER_EXPIRY_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
-const AUTO_DECLINE_REASON = 'Auto-declined: the expert did not respond to the offer letter within 3 days.';
+const RENEWABLE_STATUSES = ['declined', 'expired'];
+const AUTO_DECLINE_REASON ='Auto-declined: the expert did not respond to the offer letter within 3 days.';
 
 const TRAINING_MODE_LABELS = { remote: 'Online (Remote)', hybrid: 'Hybrid', on_site: 'On-site (In-person)' };
 
@@ -261,6 +262,120 @@ class OnboardingService {
       });
     } catch (err) {
       console.warn('sendOfferLetterEmail failed:', err.message || err);
+    }
+
+    return updated;
+  }
+
+  /**
+   * Super admin renews a declined/expired offer with a (new) payment term and re-sends it.
+   * The same request row is reused so the expert only ever sees the latest letter; the
+   * superseded offer is archived into offer_history. Undoes the decline unwind (booking
+   * cancelled, application rejected) so the case is live again.
+   */
+  async renewOffer(id, adminUserId, options = {}) {
+    const request = await this.repo.getById(id);
+    if (!request) throw new HttpError(404, 'Onboarding request not found');
+    if (!RENEWABLE_STATUSES.includes(request.status)) {
+      throw new HttpError(400, `Only declined or expired offers can be renewed (current status "${request.status}")`);
+    }
+
+    // The institution may already have re-onboarded this application, which opens a separate
+    // request (and booking). Renewing this old one too would leave two live offers.
+    const active = await this.repo.findActiveByApplicationId(request.application_id);
+    if (active && String(active.id) !== String(request.id)) {
+      throw new HttpError(409, 'A newer onboarding request already exists for this application');
+    }
+
+    const expert = request.experts;
+    const institution = request.institutions;
+    const project = request.projects;
+    const application = request.applications;
+    if (!expert?.email) {
+      throw new HttpError(400, 'Expert has no email on file');
+    }
+
+    const history = Array.isArray(request.offer_history) ? request.offer_history : [];
+    const sentAt = new Date();
+    const expiresAt = new Date(sentAt.getTime() + OFFER_EXPIRY_MS);
+
+    const letterData = buildOfferLetterData({
+      application,
+      project,
+      expert,
+      institution,
+      applicationId: request.application_id,
+      paymentTerm: options.paymentTerm,
+      letterDate: sentAt,
+    });
+
+    // Distinct public id per renewal: re-using `offer-<applicationId>` would overwrite the
+    // archived letter's PDF on Cloudinary and break its history link.
+    const pdfBuffer = await generateOfferLetterPdf(letterData);
+    const upload = await ImageUploadService.uploadPDF(
+      pdfBuffer,
+      'offer-letters',
+      `offer-${request.application_id}-r${history.length + 1}`
+    );
+    if (!upload.success) {
+      throw new HttpError(500, upload.error || 'Failed to upload offer letter');
+    }
+
+    const archived = {
+      status: request.status,
+      offer_letter_url: request.offer_letter_url || null,
+      offer_letter_public_id: request.offer_letter_public_id || null,
+      payment_term: request.offer_letter_data?.paymentTerm || null,
+      total_fee: request.offer_letter_data?.totalFee ?? null,
+      offer_sent_at: request.offer_sent_at || null,
+      offer_expires_at: request.offer_expires_at || null,
+      reviewed_by: request.reviewed_by || null,
+      decline_reason: request.decline_reason || null,
+      responded_at: request.responded_at || null,
+      renewed_at: sentAt.toISOString(),
+      renewed_by: adminUserId || null,
+    };
+
+    const updated = await this.repo.updateIfStatus(id, RENEWABLE_STATUSES, {
+      status: 'offer_sent',
+      offer_letter_url: upload.url,
+      offer_letter_public_id: upload.publicId,
+      offer_sent_at: sentAt.toISOString(),
+      offer_expires_at: expiresAt.toISOString(),
+      reviewed_by: adminUserId || null,
+      reviewed_at: sentAt.toISOString(),
+      offer_letter_data: letterData,
+      decline_reason: null,
+      responded_at: null,
+      offer_history: [...history, archived],
+    });
+    if (!updated) {
+      throw new HttpError(409, 'This offer was already renewed or changed — refresh and try again');
+    }
+
+    if (request.booking_id) {
+      try {
+        await this.repo.reactivateBooking(request.booking_id);
+      } catch (err) {
+        console.error('Failed to reactivate booking for renewed onboarding request:', request.id, err.message || err);
+      }
+    }
+    try {
+      await this.repo.reacceptApplication(request.application_id);
+    } catch (err) {
+      console.error('Failed to restore application status for renewed onboarding request:', request.id, err.message || err);
+    }
+
+    try {
+      await sendOfferLetterEmail({
+        to: expert.email,
+        expertName: expert.name,
+        institutionName: institution?.name,
+        projectTitle: project?.title,
+        renewed: true,
+      });
+    } catch (err) {
+      console.warn('sendOfferLetterEmail (renewal) failed:', err.message || err);
     }
 
     return updated;
