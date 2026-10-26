@@ -180,8 +180,7 @@ export default function StudentFeedbackPage() {
               </div>
             </div>
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 mb-4 sm:mb-6 leading-tight">
-              Student
-              <span className="text-[#008260]"> Feedback</span>
+              <span className="text-[#008260]">Feedback</span>
               <br />
               Portal
             </h1>
