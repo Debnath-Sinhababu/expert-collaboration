@@ -50,6 +50,12 @@ const getSessionTypeLabel = (sessionType?: string): string => {
       return 'Prompt Engineering'
     case 'SALESFORCE':
       return 'Salesforce Training'
+    case 'ORACLE_FUSION_FINANCIAL':
+      return 'Oracle Fusion Financial (US Training)'
+    case 'ORACLE_PLM':
+      return 'Oracle PLM'
+    case 'ORACLE_DBA_GOVERNANCE_DATA':
+      return 'Oracle DBA Governance Data'
     default:
       return sessionType
         ? sessionType.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
@@ -57,8 +63,11 @@ const getSessionTypeLabel = (sessionType?: string): string => {
   }
 }
 
+const ORGANIZATIONS = ['FOSTIIMA Business School', 'HID Global Pvt Ltd']
+
 export default function FeedbackAnalyticsPage() {
   const [email, setEmail] = useState('')
+  const [organization, setOrganization] = useState('')
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(false)
@@ -105,7 +114,7 @@ export default function FeedbackAnalyticsPage() {
       }
     )
     lastItemObserverRef.current.observe(node)
-  }, [analytics?.pagination.hasNextPage, currentPage, loading, loadingMore])
+  }, [analytics?.pagination.hasNextPage, currentPage, loading, loadingMore, organization])
 
   // Cleanup observer on unmount
   useEffect(() => {
@@ -130,7 +139,7 @@ export default function FeedbackAnalyticsPage() {
     loadAnalytics()
   }
 
-  const loadAnalytics = async (page = 1, append = false) => {
+  const loadAnalytics = async (page = 1, append = false, org = organization) => {
     if (append) {
       setLoadingMore(true)
     } else {
@@ -142,7 +151,7 @@ export default function FeedbackAnalyticsPage() {
     setError('')
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/feedback-analytics?page=${page}&limit=10`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/feedback-analytics?page=${page}&limit=10${org ? `&organization=${encodeURIComponent(org)}` : ''}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${email}` // Using email as token for simplicity
@@ -292,6 +301,20 @@ export default function FeedbackAnalyticsPage() {
         <div className="mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Feedback Analytics Dashboard</h1>
           <p className="text-sm sm:text-base text-slate-600 mt-1">Comprehensive analysis of student feedback</p>
+          <div className="mt-4 flex items-center gap-2">
+            <Label htmlFor="organizationFilter" className="text-slate-700 text-sm">Organization</Label>
+            <select
+              id="organizationFilter"
+              value={organization}
+              onChange={(e) => { setOrganization(e.target.value); loadAnalytics(1, false, e.target.value) }}
+              className="bg-white border border-[#D6D6D6] rounded-md px-3 py-2 text-sm text-slate-900 focus:ring-[#008260] focus:border-[#008260]"
+            >
+              <option value="">All organizations</option>
+              {ORGANIZATIONS.map((o) => (
+                <option key={o} value={o}>{o}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {error && (
@@ -476,6 +499,11 @@ export default function FeedbackAnalyticsPage() {
                             <span className="text-sm text-slate-600 block truncate">
                               ({feedback.students?.universities?.name || 'Unknown University'})
                             </span>
+                            {(feedback.students?.email || feedback.students?.mobile || feedback.students?.designation) && (
+                              <span className="text-xs text-slate-500 block truncate">
+                                {[feedback.students?.designation, feedback.students?.email, feedback.students?.mobile].filter(Boolean).join(' · ')}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <span className="text-sm text-slate-600 flex-shrink-0">

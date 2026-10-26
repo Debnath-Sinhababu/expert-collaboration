@@ -6116,7 +6116,7 @@ app.post('/api/student/login', async (req, res) => {
   try {
     console.log('Student login request received:', req.body);
     
-    const { universityName, rollNumber, studentName, email, batch, mobile, course, branch } = req.body;
+    const { universityName, rollNumber, studentName, email, batch, mobile, course, branch, designation } = req.body;
  
     // Strict 10-digit numeric mobile validation
     const mobileValid = typeof mobile === 'string' && /^\d{10}$/.test(mobile);
@@ -6130,7 +6130,7 @@ app.post('/api/student/login', async (req, res) => {
       });
     }
 
-    const result = await studentFeedbackService.studentLogin(universityName, rollNumber, studentName, email, batch || null, mobile, course || null, branch || null);
+    const result = await studentFeedbackService.studentLogin(universityName, rollNumber, studentName, email, batch || null, mobile, course || null, branch || null, designation || null);
     console.log('Student login result:', result);
     
     if (result.success) {
@@ -6273,7 +6273,9 @@ app.get('/api/admin/feedback-analytics', async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
 
-    const result = await studentFeedbackService.getAnalytics(page, limit);
+    const organization = typeof req.query.organization === 'string' && req.query.organization.trim() ? req.query.organization.trim() : null;
+
+    const result = await studentFeedbackService.getAnalytics(page, limit, organization);
     res.json(result);
   } catch (error) {
     console.error('Get analytics error:', error);
