@@ -12,6 +12,14 @@ import { GraduationCap, Star, CheckCircle, XCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import Logo from '@/components/Logo'
 
+const SESSION_TYPE_LABELS: Record<string, string> = {
+  ET: 'Emerging Technologies',
+  PROMPT_ENGINEERING: 'Prompt Engineering',
+  ORACLE_FUSION_FINANCIAL: 'Oracle Fusion Financial (US Training)',
+  ORACLE_PLM: 'Oracle PLM',
+  ORACLE_DBA_GOVERNANCE_DATA: 'Oracle DBA Governance Data',
+}
+
 const RATING_OPTIONS = [
   { value: 'VERY_GOOD', label: 'Very Good', color: 'text-green-600', icon: Star },
   { value: 'GOOD', label: 'Good', color: 'text-blue-600', icon: CheckCircle },
@@ -34,7 +42,7 @@ interface University {
 
 interface Session {
   id: string
-  session_type: 'ET' | 'PROMPT_ENGINEERING'
+  session_type: string
   session_date: string
   expert_name: string
   topic: string
@@ -82,7 +90,7 @@ export default function FeedbackFormPage() {
     }
   }, [studentData, sessions, submittedSessions, router])
 
-  const loadSessionsAndCheckStatus = async (studentId: string, batch: 'ET' | 'PROMPT_ENGINEERING' | null) => {
+  const loadSessionsAndCheckStatus = async (studentId: string, batch: string | null) => {
     try {
       // Load sessions first
       const sessionsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/student/sessions`)
@@ -137,7 +145,7 @@ export default function FeedbackFormPage() {
 
     // Prevent submission if student's batch does not match this session's type
     const current = sessions.find(s => s.id === sessionId)
-    const studentBatch = (studentData as any)?.batch as 'ET' | 'PROMPT_ENGINEERING' | undefined
+    const studentBatch = (studentData as any)?.batch as string | undefined
     if (current && studentBatch && current.session_type !== studentBatch) {
       router.push('/student-feedback/complete')
       return
@@ -300,7 +308,7 @@ export default function FeedbackFormPage() {
                 <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-slate-900">
                   <span className="flex items-center space-x-2 text-base sm:text-lg">
                     <GraduationCap className="h-5 w-5 text-[#008260] flex-shrink-0" />
-                    <span>{session.session_type === 'ET' ? 'Emerging Technologies' : 'Prompt Engineering'}</span>
+                    <span>{SESSION_TYPE_LABELS[session.session_type] || session.session_type}</span>
                   </span>
                   {isSessionCompleted(session.session_type) && (
                     <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-green-500 flex-shrink-0" />
@@ -371,7 +379,7 @@ export default function FeedbackFormPage() {
 
                   {/* Additional Comments */}
                   <div className="space-y-2">
-                    <Label htmlFor={`comments-${session.id}`} className="text-sm sm:text-base text-slate-900">Additional Comments (Optional)</Label>
+                    <Label htmlFor={`comments-${session.id}`} className="text-sm sm:text-base text-slate-900">Future Recommendation (Optional)</Label>
                     <Textarea
                       id={`comments-${session.id}`}
                       placeholder="Any other feedback or suggestions..."

@@ -12,7 +12,16 @@ import Logo from '@/components/Logo'
 import Link from 'next/link'
 
 const UNIVERSITIES = [
- 'FOSTIIMA Business School'
+ 'FOSTIIMA Business School',
+ 'HID Global Pvt Ltd'
+]
+
+const BATCHES = [
+  { value: 'ET', label: 'Emerging Technologies (ET)' },
+  { value: 'PROMPT_ENGINEERING', label: 'Prompt Engineering' },
+  { value: 'ORACLE_FUSION_FINANCIAL', label: 'Oracle Fusion Financial (US Training)' },
+  { value: 'ORACLE_PLM', label: 'Oracle PLM' },
+  { value: 'ORACLE_DBA_GOVERNANCE_DATA', label: 'Oracle DBA Governance Data' },
 ]
 
 export default function StudentFeedbackPage() {
@@ -21,7 +30,9 @@ export default function StudentFeedbackPage() {
     rollNumber: '',
     studentName: '',
     mobile: '',
-    batch: '' as '' | 'ET' | 'PROMPT_ENGINEERING',
+    email: '',
+    designation: '',
+    batch: '',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -49,6 +60,8 @@ export default function StudentFeedbackPage() {
       !!formData.universityName &&
       !!formData.rollNumber &&
       !!formData.studentName &&
+      !!formData.designation.trim() &&
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim()) &&
       !!formData.batch &&
       isMobileValid()
     )
@@ -76,6 +89,8 @@ export default function StudentFeedbackPage() {
           studentName: formData.studentName,
           batch: formData.batch,
           mobile: formData.mobile,
+          email: formData.email.trim(),
+          designation: formData.designation.trim(),
         }),
       })
 
@@ -130,7 +145,7 @@ export default function StudentFeedbackPage() {
         
         checkFeedbackStatus()
       } else {
-        setError(result.message || 'Login failed. Please check your details and try again.')
+        setError(result.message || result.error || 'Login failed. Please check your details and try again.')
         setLoading(false)
       }
     } catch (error) {
@@ -229,11 +244,11 @@ export default function StudentFeedbackPage() {
                   <div className="space-y-2">
                     <Label htmlFor="universityName" className="text-slate-700 font-medium text-sm sm:text-base">
                       <Building className="inline h-4 w-4 mr-2" />
-                      University Name
+                      Organization Name
                     </Label>
                     <Select value={formData.universityName} onValueChange={(value) => handleInputChange('universityName', value)}>
                       <SelectTrigger className="bg-white border-[#D6D6D6] text-slate-900 placeholder:text-slate-400 focus:ring-[#008260] focus:border-[#008260]">
-                        <SelectValue placeholder="Select your university" />
+                        <SelectValue placeholder="Select your organization" />
                       </SelectTrigger>
                       <SelectContent className="bg-white border-[#D6D6D6] text-slate-900">
                         {UNIVERSITIES.map((university) => (
@@ -248,7 +263,7 @@ export default function StudentFeedbackPage() {
                   <div className="space-y-2">
                     <Label htmlFor="rollNumber" className="text-slate-700 font-medium text-sm sm:text-base">
                       <Hash className="inline h-4 w-4 mr-2" />
-                      Roll Number
+                      Participant ID
                     </Label>
                     <Input
                       id="rollNumber"
@@ -256,7 +271,7 @@ export default function StudentFeedbackPage() {
                       value={formData.rollNumber}
                       onChange={(e) => handleInputChange('rollNumber', e.target.value)}
                       className="bg-white border-[#D6D6D6] text-slate-900 placeholder:text-slate-400 focus:ring-[#008260] focus:border-[#008260]"
-                      placeholder="Enter your roll number"
+                      placeholder="Enter your participant ID"
                     />
                   </div>
                 </div>
@@ -265,7 +280,7 @@ export default function StudentFeedbackPage() {
                   <div className="space-y-2">
                     <Label htmlFor="studentName" className="text-slate-700 font-medium text-sm sm:text-base">
                       <User className="inline h-4 w-4 mr-2" />
-                      Student Name
+                      Participant Name
                     </Label>
                     <Input
                       id="studentName"
@@ -280,7 +295,7 @@ export default function StudentFeedbackPage() {
                   <div className="space-y-2">
                     <Label htmlFor="mobile" className="text-slate-700 font-medium text-sm sm:text-base">
                       <GraduationCap className="inline h-4 w-4 mr-2" />
-                      Mobile Number
+                      Phone Number
                     </Label>
                     <Input
                       id="mobile"
@@ -290,6 +305,38 @@ export default function StudentFeedbackPage() {
                       className="bg-white border-[#D6D6D6] text-slate-900 placeholder:text-slate-400 focus:ring-[#008260] focus:border-[#008260]"
                       placeholder="10-digit mobile number"
                       maxLength={10}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4 sm:gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="text-slate-700 font-medium text-sm sm:text-base">
+                      <User className="inline h-4 w-4 mr-2" />
+                      Email
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange('email', e.target.value)}
+                      className="bg-white border-[#D6D6D6] text-slate-900 placeholder:text-slate-400 focus:ring-[#008260] focus:border-[#008260]"
+                      placeholder="Enter your email"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="designation" className="text-slate-700 font-medium text-sm sm:text-base">
+                      <Building className="inline h-4 w-4 mr-2" />
+                      Designation
+                    </Label>
+                    <Input
+                      id="designation"
+                      type="text"
+                      value={formData.designation}
+                      onChange={(e) => handleInputChange('designation', e.target.value)}
+                      className="bg-white border-[#D6D6D6] text-slate-900 placeholder:text-slate-400 focus:ring-[#008260] focus:border-[#008260]"
+                      placeholder="Enter your designation"
                     />
                   </div>
                 </div>
@@ -304,8 +351,9 @@ export default function StudentFeedbackPage() {
                       <SelectValue placeholder="Select your session batch" />
                     </SelectTrigger>
                     <SelectContent className="bg-white border-[#D6D6D6] text-slate-900">
-                      <SelectItem value="ET" className="hover:bg-[#008260]/10">Emerging Technologies (ET)</SelectItem>
-                      <SelectItem value="PROMPT_ENGINEERING" className="hover:bg-[#008260]/10">Prompt Engineering</SelectItem>
+                      {BATCHES.map((b) => (
+                        <SelectItem key={b.value} value={b.value} className="hover:bg-[#008260]/10">{b.label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
